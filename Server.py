@@ -377,6 +377,24 @@ with app.app_context():
     db.create_all()
     print("Database tables created/verified")
 
+    # Warm the star map catalogue in the background so the first visitor
+    # doesn't pay for reading ~286k catalogue rows.
+    try:
+        import threading as _threading
+
+        def _warm_star_catalog():
+            with app.app_context():
+                try:
+                    from app.star_catalog import warm_cache
+                    count = warm_cache()
+                    print(f"Star catalogue ready ({count} objects)")
+                except Exception as exc:
+                    print(f"[WARNING] Could not warm star catalogue: {exc}")
+
+        _threading.Thread(target=_warm_star_catalog, name="star-catalog-warm", daemon=True).start()
+    except Exception as e:
+        print(f"[WARNING] Could not start star catalogue warm-up: {e}")
+
     # One-time migration: import legacy requests.log rows when request_logs is empty.
     try:
         legacy_request_log = os.path.join(BASE_DIR, 'security', 'logs', 'requests.log')

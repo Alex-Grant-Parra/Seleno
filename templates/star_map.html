@@ -22,11 +22,52 @@
             position: absolute; top: 10px; right: 10px; z-index: 20; background: rgba(0,0,0,0.7);
             color: #fff; padding: 12px 16px; border-radius: 6px; font-family: sans-serif;
             display: flex; flex-direction: column; gap: 8px; min-width: 220px;
+            /* Double-clicking a filter shouldn't select its caption */
+            -webkit-user-select: none; user-select: none;
         }
-        #controls label { font-size: 0.95em; }
+        /* ...but what you type is still selectable */
+        #controls input, #controls textarea,
+        #mag-context-menu input {
+            -webkit-user-select: text; user-select: text;
+        }
+        /* Labels are sized to their own control + text, so clicking empty
+           panel space no longer toggles whatever checkbox is nearest. */
+        #controls label {
+            font-size: 0.95em;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            width: fit-content;
+            max-width: 100%;
+            cursor: pointer;
+        }
+        #controls .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        #controls label.slider-label { display: flex; width: 100%; }
+        #controls label.slider-label input[type="range"] { flex: 1; min-width: 80px; }
         #controls input[type="range"] { width: 100px; }
         #controls input[type="number"] { width: 60px; }
         #controls button { margin-top: 4px; }
+        #render-stats {
+            position: fixed;
+            left: 10px;
+            bottom: 10px;
+            z-index: 999;
+            display: none;
+            padding: 6px 10px;
+            background: rgba(0,0,0,0.65);
+            color: #9fe;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            white-space: nowrap;
+            pointer-events: none;
+            backdrop-filter: blur(2px);
+        }
+        #unknown-mag-count { color: #8ab4ff; }
         #loading {
             position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
             height: 100dvh;
@@ -51,6 +92,7 @@
             display: none; position: fixed; background: #333; color: #fff; padding: 12px;
             border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.6); z-index: 1000;
             min-width: 180px; font-family: sans-serif;
+            -webkit-user-select: none; user-select: none;
         }
         #mag-context-menu input[type="number"] {
             width: 80px; padding: 4px; margin: 4px 0; border: 1px solid #555;
@@ -64,6 +106,7 @@
 
         /* Bottom-right star loading throbber */
         #star-loading-indicator {
+            -webkit-user-select: none; user-select: none;
             position: fixed;
             right: 12px;
             bottom: 12px;
@@ -163,6 +206,7 @@
            Both classes are set from star_map.js.
            --------------------------------------------------------------- */
         #ui-toggle {
+            -webkit-user-select: none; user-select: none;
             display: none;
             position: fixed;
             top: calc(10px + env(safe-area-inset-top, 0px));
@@ -223,6 +267,10 @@
             right: 10px;
             min-width: 0;
         }
+        html.sm-compact #render-stats {
+            bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+            font-size: 10px;
+        }
         html.sm-compact #star-loading-indicator {
             bottom: calc(12px + env(safe-area-inset-bottom, 0px));
             font-size: 0.85em;
@@ -267,19 +315,17 @@
     <button id="stop-tracking-btn" onclick="stopTracking()">⏹️ Stop Tracking</button>
 </div>
 <div id="controls">
-    <label>
-        Mag ≤ <span id="mag-value">6</span>
+    <label for="mag-filter" class="slider-label">
+        <span>Mag ≤ <span id="mag-value">6</span></span>
         <input type="range" id="mag-filter">
     </label>
-    <label>
-        <input type="checkbox" id="auto-magnitude-zoom" checked> Auto-adjust magnitude on zoom
+    <label for="auto-magnitude-zoom">
+        <input type="checkbox" id="auto-magnitude-zoom" checked> <span>Auto-adjust magnitude on zoom</span>
     </label>
-    <label>
-        Latitude:
+    <label for="latitude"><span>Latitude:</span>
         <input type="number" id="latitude" min="-90" max="90" step="0.01" value="0">
     </label>
-    <label>
-        Longitude:
+    <label for="longitude"><span>Longitude:</span>
         <input type="number" id="longitude" min="-180" max="180" step="0.01" value="0">
     </label>
     <div>
@@ -290,7 +336,7 @@
         </div>
         <div style="margin-top: 4px;">
             <label for="live-time" style="font-size: 0.9em;">
-                <input type="checkbox" id="live-time"> Live Time
+                <input type="checkbox" id="live-time"> <span>Live Time</span>
             </label>
         </div>
         <div style="font-size: 0.85em; color:#bbb; margin-top:4px;">
@@ -298,27 +344,29 @@
             <span id="time-segment-indicator" style="display:none; color:#4CAF50; font-weight:bold; margin-left:8px;"></span>
         </div>
     </div>
-    <div>
-        <label for="show-stars" style="margin-right: 8px;">
-            <input type="checkbox" id="show-stars" checked> Stars
-        </label>
-        <label for="show-planets">
-            <input type="checkbox" id="show-planets" checked> Planets
+    <div class="control-group">
+        <label for="show-stars"><input type="checkbox" id="show-stars" checked> <span>Stars</span></label>
+        <label for="show-planets"><input type="checkbox" id="show-planets" checked> <span>Planets</span></label>
+    </div>
+    <div class="control-group">
+        <label for="show-unknown-mag" title="Catalogue objects with no recorded V-Mag (NULL, or a Henry Draper 20/30/40/50 placeholder). They have no place on the magnitude scale, so they are drawn separately, in blue.">
+            <input type="checkbox" id="show-unknown-mag"> <span>Unknown magnitude<span id="unknown-mag-count"></span></span>
         </label>
     </div>
-    <label>
-        <input type="checkbox" id="show-horizon-grid"> Horizon Grid
-        <input type="checkbox" id="show-equatorial-grid"> Equatorial Grid
-        <input type="checkbox" id="show-ecliptic"> Ecliptic
-        <input type="checkbox" id="show-below-horizon" checked> Below-horizon tint
-    </label>
-    <label>
-        <input type="checkbox" id="show-radec-cursor"> RA/DEC at cursor
-        <input type="checkbox" id="show-azel-cursor"> Az/Elv at cursor
-    </label>
-    <label>
-        <input type="checkbox" id="flip-vertical"> Invert controls
-    </label>
+    <div class="control-group">
+        <label for="show-horizon-grid"><input type="checkbox" id="show-horizon-grid"> <span>Horizon Grid</span></label>
+        <label for="show-equatorial-grid"><input type="checkbox" id="show-equatorial-grid"> <span>Equatorial Grid</span></label>
+        <label for="show-ecliptic"><input type="checkbox" id="show-ecliptic"> <span>Ecliptic</span></label>
+        <label for="show-below-horizon"><input type="checkbox" id="show-below-horizon" checked> <span>Below-horizon tint</span></label>
+    </div>
+    <div class="control-group">
+        <label for="show-radec-cursor"><input type="checkbox" id="show-radec-cursor"> <span>RA/DEC at cursor</span></label>
+        <label for="show-azel-cursor"><input type="checkbox" id="show-azel-cursor"> <span>Az/Elv at cursor</span></label>
+    </div>
+    <div class="control-group">
+        <label for="flip-vertical"><input type="checkbox" id="flip-vertical"> <span>Invert controls</span></label>
+        <label for="show-render-stats"><input type="checkbox" id="show-render-stats"> <span>Render stats</span></label>
+    </div>
     <div style="margin-top: 8px;">
         <label>Search Object:</label>
         <input type="text" id="search-object" placeholder="HD, NGC, IC, M, or planet name" style="width: 100%; padding: 4px; margin: 4px 0; border: 1px solid #555; background: #222; color: #fff; border-radius: 3px;">
@@ -350,6 +398,8 @@
             <li>Toggle horizon grid (altitude/azimuth with N/E/S/W)</li>
             <li>Toggle equatorial grid (HA/DEC: Hour Angle and Declination)</li>
             <li>Toggle the ecliptic line</li>
+            <li>Tick "Unknown magnitude" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against</li>
+            <li>Tick "Render stats" for a readout of how many objects the last frame drew and how long it took</li>
             <li>Reset view to default orientation and zoom</li>
             <li>Use the Time control to preview the sky at any date/time; the grid labels show Hour Angle (HA).</li>
             <li>Tip: Focus the Time box and press Arrow Up/Down to adjust with rollover. Move the caret over year/month/day/hour/minute to change that unit. If caret isn't available, use Shift (hour), Ctrl (day), Alt (month), or Ctrl+Shift (year).</li>
@@ -367,10 +417,12 @@
 </div>
 <!-- Cursor coordinate labels -->
 <div id="cursor-coords"></div>
+<!-- Render statistics HUD (opt-in) -->
+<div id="render-stats"></div>
 <!-- Small bottom-right throbber for star loading/processing -->
 <div id="star-loading-indicator" aria-live="polite" aria-atomic="true">
     <div class="star-spinner" role="status" aria-hidden="true"></div>
-    <div>Loading stars…</div>
+    <div id="star-loading-label">Loading stars…</div>
     
     
     
@@ -391,7 +443,7 @@
 <script type="application/json" id="telescope-data">{{ selected_telescope | tojson }}</script>
 <script src="{{ url_for('static', filename='js/csrf-protection.js') }}" defer></script>
 <!-- Cache-busting query param to ensure latest JS is fetched -->
-<script src="{{ url_for('static', filename='js/star_map.js') }}?v=2026-09-20-1" defer></script>
+<script src="{{ url_for('static', filename='js/star_map.js') }}?v=2026-09-20-3" defer></script>
 <script>
 // Auto-detect user location and set latitude/longitude
 document.addEventListener('DOMContentLoaded', function() {

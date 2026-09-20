@@ -10,7 +10,10 @@ function checkAuthResponse(response) {
     return response;
 }
 
-// Initial stars are empty (we fetch a small filtered set after load)
+// `stars` holds the handful of solar-system objects (sun, moon, planets), which
+// carry icons and phase data and are replaced whenever the time changes. The
+// 286k catalogue stars are NOT kept as objects - they live in flat typed arrays
+// (see "Star catalogue" below), which is what makes mag 20 drawable at all.
 const stars = JSON.parse(document.getElementById('stars-data').textContent);
 
 // Image cache for planet sprites
@@ -18,29 +21,9 @@ const planetImages = {};
 const basePlanetSize = 24; // Base size for all planets (will be scaled by zoom)
 const baseStarSizeMultiplier = 1.0; // Base star size multiplier (will be scaled by zoom)
 
-// Find the actual magnitude range in the data
-let minMag = Infinity, maxMag = -Infinity;
-for (const obj of stars) {
-    if (obj.mag != null && !isNaN(obj.mag)) {
-        minMag = Math.min(minMag, obj.mag);
-        maxMag = Math.max(maxMag, obj.mag);
-    }
-}
-
-// Set reasonable defaults if no valid magnitudes found
-// Include very bright negative magnitudes; cap faint end at +20
-if (minMag === Infinity) minMag = -2;
-if (maxMag === -Infinity) maxMag = 20;
-
-// Track fetched magnitude coverage and de-duplication set for stars
-let fetchedMaxMag = 0;
-const starKeySet = new Set(); // keys by name or RA,DEC
-
-function starKey(obj) {
-    if (obj && obj.name) return `name:${obj.name}`;
-    if (obj && typeof obj.ra === 'number' && typeof obj.dec === 'number') return `pos:${obj.ra.toFixed(6)},${obj.dec.toFixed(6)}`;
-    return Math.random().toString(36).slice(2);
-}
+// Magnitude range offered by the slider; refined once the catalogue reports its
+// real extremes. Objects with no recorded magnitude are not on this scale.
+let minMag = -2, maxMag = 20;
 
 function updateMagSliderRange(minVal, maxVal) {
     if (typeof minVal !== 'number' || typeof maxVal !== 'number') return;
@@ -56,8 +39,7 @@ function updateMagSliderRange(minVal, maxVal) {
     if (Math.abs(clamped - current) > 1e-6) {
         magFilter.value = clamped.toFixed(1);
         magValue.textContent = clamped.toFixed(1);
-        rebuildVisibleStars(clamped);
-        draw();
+        scheduleDraw();
     }
 }
 
@@ -99,6 +81,11 @@ const closeHelp = document.getElementById('close-help');
 const loading = document.getElementById('loading');
 // Small bottom-right throbber for star loading/processing
 const starLoadingIndicator = document.getElementById('star-loading-indicator');
+const starLoadingLabel = document.getElementById('star-loading-label');
+const showUnknownMag = document.getElementById('show-unknown-mag');
+const unknownMagCountLabel = document.getElementById('unknown-mag-count');
+const showRenderStats = document.getElementById('show-render-stats');
+const renderStatsDiv = document.getElementById('render-stats');
 let starLoadingCounter = 0;
 function starLoadingBegin() {
     starLoadingCounter++;
@@ -136,6 +123,7 @@ const clearSearchBtn = document.getElementById('clear-search-btn');
 // Search state
 let searchedObject = null;
 let highlightAnimation = 0;
+let searchHighlightUntil = 0; // the ring pulses until this time, then sits still
 
 // Telescope position tracking
 let telescopePosition = null;
@@ -210,7 +198,7 @@ function updateTelescopePosition() {
                     telescopePositionAvailable = true;
                     console.log('%c✓ Telescope position now available!', 'color: green; font-weight: bold;', `RA: ${data.ra}°, DEC: ${data.dec}° (Alt: ${altDeg.toFixed(1)}°, Az: ${azDeg.toFixed(1)}°)`);
                 }
-                draw();
+                scheduleDraw();
             } else if (data && data.status === 'error') {
                 console.debug('Telescope position error:', data.message);
                 telescopePosition = null;
@@ -227,9 +215,10 @@ function startTelescopePositionTracking() {
     // Update immediately
     updateTelescopePosition();
     
-    // Then update every 5 seconds to reduce connection load
+    // Then update every 5 seconds to reduce connection load (the interval used
+    // to be 1s despite this comment, which meant a full redraw every second)
     if (telescopePositionUpdateInterval) clearInterval(telescopePositionUpdateInterval);
-    telescopePositionUpdateInterval = setInterval(updateTelescopePosition, 1000);
+    telescopePositionUpdateInterval = setInterval(updateTelescopePosition, 5000);
 }
 
 function stopTelescopePositionTracking() {
@@ -917,10 +906,8 @@ function getCoordsAtScreen(screenX, screenY) {
     return { raDeg, decDeg, altDeg, azDeg };
 }
 
-// Visible caches (recomputed only when needed)
-let visibleStars = [];   // filtered by magnitude only
+// Planets are kept as a small object list; stars live in the typed arrays
 let planetsList = [];    // updated when planets are replaced
-let lastMagLimit = null;
 
 function updatePlanetsList() {
     planetsList = [];
@@ -950,48 +937,146 @@ function updateMagnitudeForZoom() {
     fetchMoreStarsIfNeeded(clampedMagnitude);
 }
 
-function rebuildVisibleStars(magLimit) {
-    lastMagLimit = magLimit;
-    visibleStars = [];
-    for (let i = 0; i < stars.length; i++) {
-        const obj = stars[i];
-        if (!obj || obj.type !== 'star') continue;
-        const effectiveMag = obj.mag == null ? 50 : obj.mag;
-        if (effectiveMag <= magLimit) visibleStars.push(obj);
-    }
+// ===========================================================================
+// Star catalogue
+//
+// Stars are held as parallel typed arrays sorted by magnitude (objects with no
+// recorded magnitude last). That buys three things:
+//   * no per-star JS objects, so 286k stars cost ~7 MB instead of ~100 MB
+//   * "everything brighter than X" is a binary search, not a filter pass
+//   * the draw loop walks memory linearly, brightest first, so it can stop
+//     early during interaction and still show the most important stars
+// ===========================================================================
+const DEG2RAD = Math.PI / 180;
+
+let starCount = 0;        // total catalogue size, from /api/stars_bands
+let starLoadedCount = 0;  // contiguous prefix actually loaded so far
+let starKnownCount = 0;   // entries [0, starKnownCount) have a real magnitude
+let starRA = null;        // Float32Array, degrees
+let starDec = null;       // Float32Array, degrees
+let starMag = null;       // Float32Array, NaN where no magnitude was recorded
+let starVX = null, starVY = null, starVZ = null; // unit vectors, equatorial frame
+let starNames = [];
+let starNameIndex = null; // lazily built lowercase name -> index map
+
+function allocateStarCatalogue(total) {
+    starCount = total;
+    starLoadedCount = 0;
+    starRA = new Float32Array(total);
+    starDec = new Float32Array(total);
+    starMag = new Float32Array(total);
+    starVX = new Float32Array(total);
+    starVY = new Float32Array(total);
+    starVZ = new Float32Array(total);
+    starNames = new Array(total);
+    starNameIndex = null;
 }
 
-// Chunked precomputation of star vectors to avoid blocking the main thread
-function precomputeStarsChunked(starsList, chunkSize = 1000, onProgress, onDone) {
+// Decode the binary payload from /api/stars_bin:
+// 20-byte header, then float32 ra[], dec[], mag[], then newline-joined names.
+function decodeStarBand(buffer) {
+    if (!buffer || buffer.byteLength < 20) throw new Error('star payload too short');
+    const view = new DataView(buffer);
+    const magic = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+    if (magic !== 'SMAP') throw new Error(`unexpected star payload "${magic}"`);
+    const flags = view.getUint16(6, true);
+    const count = view.getUint32(8, true);
+    const namesLength = view.getUint32(12, true);
+    let offset = 20;
+    const ra = new Float32Array(buffer, offset, count); offset += count * 4;
+    const dec = new Float32Array(buffer, offset, count); offset += count * 4;
+    const mag = new Float32Array(buffer, offset, count); offset += count * 4;
+    let names = null;
+    if ((flags & 1) && namesLength > 0) {
+        names = new TextDecoder('utf-8').decode(new Uint8Array(buffer, offset, namesLength)).split('\n');
+    }
+    return { count, ra, dec, mag, names };
+}
+
+// Copy a decoded band into the catalogue at `start`, computing unit vectors as
+// we go. Done in slices so a 100k-star band never blocks a frame.
+function ingestStarBand(start, band, onDone) {
+    const total = band.count;
     let i = 0;
-    function processChunk(deadline) {
-        const end = Math.min(i + chunkSize, starsList.length);
+    const SLICE = 20000;
+
+    function step() {
+        const end = Math.min(i + SLICE, total);
         for (; i < end; i++) {
-            const obj = starsList[i];
-            try {
-                const _v = radecToXYZ(obj.ra, obj.dec);
-                obj.xyz = _v;
-                if (obj.type === 'star') {
-                    const decRad = (obj.dec || 0) * Math.PI / 180;
-                    obj._sinDec = Math.sin(decRad);
-                    obj._cosDec = Math.cos(decRad);
-                }
-            } catch (e) {
-                obj.xyz = radecToXYZ(0, 0);
-            }
+            const at = start + i;
+            const raDeg = band.ra[i];
+            const decDeg = band.dec[i];
+            starRA[at] = raDeg;
+            starDec[at] = decDeg;
+            starMag[at] = band.mag[i];
+            const raRad = raDeg * DEG2RAD;
+            const decRad = decDeg * DEG2RAD;
+            const cosDec = Math.cos(decRad);
+            starVX[at] = cosDec * Math.cos(raRad);
+            starVY[at] = Math.sin(decRad);
+            starVZ[at] = cosDec * Math.sin(raRad);
+            if (band.names) starNames[at] = band.names[i];
         }
-        if (typeof onProgress === 'function') onProgress(i, starsList.length);
-        // Redraw to show progressively more stars
-        draw();
-        if (i < starsList.length) {
-            if (window.requestIdleCallback) window.requestIdleCallback(processChunk, { timeout: 50 });
-            else setTimeout(processChunk, 0);
+        starLoadedCount = Math.max(starLoadedCount, start + i);
+        starNameIndex = null; // names changed; rebuild on next search
+        scheduleDraw();
+        if (i < total) {
+            requestAnimationFrame(step);
         } else if (typeof onDone === 'function') {
             onDone();
         }
     }
-    if (window.requestIdleCallback) window.requestIdleCallback(processChunk, { timeout: 50 });
-    else setTimeout(processChunk, 0);
+    step();
+}
+
+// Index of the first star fainter than `magLimit`. The array is magnitude
+// sorted, so everything before it is visible at this limit.
+function starsBrighterThan(magLimit) {
+    let lo = 0;
+    let hi = Math.min(starKnownCount, starLoadedCount);
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (starMag[mid] <= magLimit) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
+
+// Range of catalogue entries with no recorded magnitude that are loaded.
+function unknownMagRange() {
+    if (starLoadedCount <= starKnownCount) return [0, 0];
+    return [starKnownCount, starLoadedCount];
+}
+
+function starNameAt(index) {
+    return starNames[index] || `#${index}`;
+}
+
+function findStarByName(name) {
+    if (!name) return -1;
+    if (!starNameIndex) {
+        starNameIndex = new Map();
+        for (let i = 0; i < starLoadedCount; i++) {
+            const n = starNames[i];
+            if (n) starNameIndex.set(n.toLowerCase(), i);
+        }
+    }
+    const hit = starNameIndex.get(String(name).toLowerCase());
+    return hit === undefined ? -1 : hit;
+}
+
+// A catalogue entry in the object shape the rest of the UI expects
+function starObjectAt(index) {
+    const mag = starMag[index];
+    return {
+        name: starNameAt(index),
+        ra: starRA[index],
+        dec: starDec[index],
+        mag: Number.isNaN(mag) ? null : mag,
+        magUnknown: Number.isNaN(mag),
+        type: 'star',
+        catalogIndex: index,
+    };
 }
 
 // Build a 3x3 matrix that maps equatorial unit vectors (x=cosδcosα, y=sinδ, z=cosδsinα)
@@ -1322,7 +1407,202 @@ function drawEquatorialGrid() {
 }
 
 // Draw all stars/planets
+// ===========================================================================
+// Frame scheduling and level of detail
+//
+// Every interaction used to call draw() synchronously, so a single drag could
+// trigger several full redraws per frame. Draws are now coalesced into one per
+// animation frame, and while the view is actually moving we draw only the
+// brightest `interactionBudget` stars - they are first in the array, so this is
+// just an early exit. The budget tunes itself to keep frames near 60fps, and a
+// full-detail frame is drawn once the view settles.
+// ===========================================================================
+let drawScheduled = false;
+let interacting = false;
+let interactionTimer = null;
+let interactionBudget = 40000;  // stars drawn per frame while moving
+const MIN_INTERACTION_BUDGET = 4000;
+const MAX_INTERACTION_BUDGET = 400000;
+let lastDrawStats = { drawn: 0, ms: 0, capped: false };
+
+function scheduleDraw() {
+    if (drawScheduled) return;
+    drawScheduled = true;
+    requestAnimationFrame(() => {
+        drawScheduled = false;
+        draw();
+    });
+}
+
+// Mark the view as moving; a full-quality frame follows once it stops.
+function beginInteraction() {
+    interacting = true;
+    if (interactionTimer) clearTimeout(interactionTimer);
+    interactionTimer = setTimeout(() => {
+        interacting = false;
+        interactionTimer = null;
+        scheduleDraw(); // settle into full detail
+    }, 180);
+}
+
+function adaptInteractionBudget(frameMs, wasCapped) {
+    if (!interacting) return;
+    if (frameMs > 20 && interactionBudget > MIN_INTERACTION_BUDGET) {
+        interactionBudget = Math.max(MIN_INTERACTION_BUDGET, Math.floor(interactionBudget * 0.75));
+    } else if (frameMs < 11 && wasCapped && interactionBudget < MAX_INTERACTION_BUDGET) {
+        interactionBudget = Math.min(MAX_INTERACTION_BUDGET, Math.floor(interactionBudget * 1.25));
+    }
+}
+
+// Cached sidereal time: recomputing it from a date string on every frame was
+// costing more than projecting several thousand stars.
+let lstCacheKey = '';
+function currentSiderealTime(selectedDate, lonDeg) {
+    const key = `${selectedDate.getTime()}|${lonDeg}`;
+    if (key !== lstCacheKey) {
+        lstCacheKey = key;
+        currentLSTDeg = lstDegrees(new Date(selectedDate.toISOString()), lonDeg);
+    }
+    return currentLSTDeg;
+}
+
+// Star brightness is bucketed so the fill colour is set a handful of times per
+// frame instead of once per star. Because the catalogue is magnitude sorted,
+// consecutive stars almost always land in the same bucket.
+const STAR_ALPHA_STEPS = 8;
+const STAR_COLORS = [];
+for (let i = 0; i < STAR_ALPHA_STEPS; i++) {
+    const alpha = 0.35 + (0.65 * i) / (STAR_ALPHA_STEPS - 1);
+    STAR_COLORS.push(`rgba(255,255,255,${alpha.toFixed(3)})`);
+}
+const UNKNOWN_MAG_COLOR = 'rgba(150, 200, 255, 0.75)';
+
+function starAlphaBucket(mag) {
+    // mag -1.5 (brightest) -> top bucket, mag 12+ -> dimmest
+    const t = 1 - (mag + 2) / 14;
+    const idx = Math.round(t * (STAR_ALPHA_STEPS - 1));
+    return idx < 0 ? 0 : (idx >= STAR_ALPHA_STEPS ? STAR_ALPHA_STEPS - 1 : idx);
+}
+
+// Magnitude -> radius lookup, rebuilt only when the zoom changes.
+const SIZE_LUT_MIN = -2, SIZE_LUT_MAX = 22, SIZE_LUT_STEP = 0.25;
+const SIZE_LUT_LENGTH = Math.ceil((SIZE_LUT_MAX - SIZE_LUT_MIN) / SIZE_LUT_STEP) + 1;
+const starSizeLUT = new Float32Array(SIZE_LUT_LENGTH);
+let sizeLUTZoom = -1;
+
+function refreshStarSizeLUT() {
+    if (sizeLUTZoom === zoom) return;
+    sizeLUTZoom = zoom;
+    for (let i = 0; i < SIZE_LUT_LENGTH; i++) {
+        const mag = SIZE_LUT_MIN + i * SIZE_LUT_STEP;
+        starSizeLUT[i] = getZoomedStarSize(getMagnitudeBasedSize(mag));
+    }
+}
+
+function starSizeForMag(mag) {
+    let idx = ((mag - SIZE_LUT_MIN) / SIZE_LUT_STEP) | 0;
+    if (idx < 0) idx = 0;
+    else if (idx >= SIZE_LUT_LENGTH) idx = SIZE_LUT_LENGTH - 1;
+    return starSizeLUT[idx];
+}
+
+// The hot loop. Walks the magnitude-sorted arrays, projects each star inline
+// (no allocations, no property lookups) and culls anything behind the viewer or
+// off-screen before it costs a fill.
+function drawCatalogueStars(Mview, magLimit) {
+    if (!starMag || starLoadedCount === 0) return { drawn: 0, capped: false };
+
+    refreshStarSizeLUT();
+
+    let end = starsBrighterThan(magLimit);
+    let capped = false;
+    if (interacting && end > interactionBudget) {
+        end = interactionBudget;
+        capped = true;
+    }
+
+    const m00 = Mview[0][0], m01 = Mview[0][1], m02 = Mview[0][2];
+    const m10 = Mview[1][0], m11 = Mview[1][1], m12 = Mview[1][2];
+    const m20 = Mview[2][0], m21 = Mview[2][1], m22 = Mview[2][2];
+    const k2 = 2 * Math.max(width, height) * 0.35 * zoom;
+    const halfW = width / 2, halfH = height / 2;
+    const margin = 8;
+    const maxX = width + margin, maxY = height + margin;
+
+    const vx = starVX, vy = starVY, vz = starVZ, mags = starMag;
+    let bucket = -1;
+    let drawn = 0;
+
+    for (let i = 0; i < end; i++) {
+        const ax = vx[i], ay = vy[i], az = vz[i];
+        // z first: half the sky is behind the viewer and costs nothing more
+        const z = m20 * ax + m21 * ay + m22 * az;
+        if (z <= 0) continue;
+        const x = m00 * ax + m01 * ay + m02 * az;
+        const y = m10 * ax + m11 * ay + m12 * az;
+        const scale = k2 / (1 + z);
+        const px = halfW + x * scale;
+        if (px < -margin || px > maxX) continue;
+        const py = halfH - y * scale;
+        if (py < -margin || py > maxY) continue;
+
+        const mag = mags[i];
+        const b = starAlphaBucket(mag);
+        if (b !== bucket) {
+            bucket = b;
+            ctx.fillStyle = STAR_COLORS[b];
+        }
+        const size = starSizeForMag(mag);
+        if (size <= 1.6) {
+            // Sub-pixel stars: a rect is several times cheaper than an arc and
+            // indistinguishable at this size
+            ctx.fillRect(px | 0, py | 0, 1, 1);
+        } else if (size <= 2.6) {
+            ctx.fillRect((px - 1) | 0, (py - 1) | 0, 2, 2);
+        } else {
+            ctx.beginPath();
+            ctx.arc(px, py, size, 0, 6.283185307179586);
+            ctx.fill();
+        }
+        drawn++;
+    }
+
+    // Objects with no recorded magnitude: drawn only on request, in their own
+    // colour, since there is no honest place for them on the magnitude scale.
+    if (showUnknownMag && showUnknownMag.checked) {
+        const [uStart, uEnd] = unknownMagRange();
+        if (uEnd > uStart) {
+            ctx.fillStyle = UNKNOWN_MAG_COLOR;
+            const unknownSize = Math.max(1, Math.min(3, 1 + zoom * 0.35));
+            const half = unknownSize / 2;
+            let limit = uEnd;
+            if (interacting && (limit - uStart) > interactionBudget) {
+                limit = uStart + interactionBudget;
+                capped = true;
+            }
+            for (let i = uStart; i < limit; i++) {
+                const ax = vx[i], ay = vy[i], az = vz[i];
+                const z = m20 * ax + m21 * ay + m22 * az;
+                if (z <= 0) continue;
+                const x = m00 * ax + m01 * ay + m02 * az;
+                const y = m10 * ax + m11 * ay + m12 * az;
+                const scale = k2 / (1 + z);
+                const px = halfW + x * scale;
+                if (px < -margin || px > maxX) continue;
+                const py = halfH - y * scale;
+                if (py < -margin || py > maxY) continue;
+                ctx.fillRect((px - half) | 0, (py - half) | 0, unknownSize, unknownSize);
+                drawn++;
+            }
+        }
+    }
+
+    ctx.globalAlpha = 1;
+    return { drawn, capped };
+}
+
 function draw() {
+    const drawStart = performance.now();
     ctx.clearRect(0, 0, width, height);
 
     // Get filter values
@@ -1331,7 +1611,7 @@ function draw() {
     const lonDeg = parseFloat(lonInput.value) || 0;
     let selectedDate = new Date();
     try { if (timeControl && timeControl.value) selectedDate = new Date(timeControl.value); } catch {}
-    currentLSTDeg = lstDegrees(new Date(selectedDate.toISOString()), lonDeg);
+    currentSiderealTime(selectedDate, lonDeg);
 
     const showStarsVal = showStars.checked;
     const showPlanetsVal = showPlanets.checked;
@@ -1354,43 +1634,17 @@ function draw() {
         drawEcliptic();
     }
 
-    // Refresh filtered stars if mag limit changed
-    if (lastMagLimit === null || Math.abs(magLimit - lastMagLimit) > 1e-6) {
-        rebuildVisibleStars(magLimit);
-    }
-
     // Ensure planets list is up-to-date (cheap scan if empty)
     if (planetsList.length === 0) updatePlanetsList();
 
     // Draw stars/planets using view-matrix transform
     const { Mview, upRow } = buildEqToViewMatrix(latDeg, currentLSTDeg, rotX, rotY);
-    // Stars first (filtered)
+    // Stars first (the catalogue is magnitude sorted, so this is a prefix walk)
+    let drawn = 0, capped = false;
     if (showStarsVal) {
-        for (let i = 0; i < visibleStars.length; i++) {
-            const obj = visibleStars[i];
-            const v = obj.xyz || radecToXYZ(obj.ra, obj.dec);
-            const w0 = Mview[0], w1 = Mview[1], w2 = Mview[2];
-            const x = w0[0]*v[0] + w0[1]*v[1] + w0[2]*v[2];
-            const y = w1[0]*v[0] + w1[1]*v[1] + w1[2]*v[2];
-            const z = w2[0]*v[0] + w2[1]*v[1] + w2[2]*v[2];
-            if (z <= 0) continue;
-            const [cx, cy] = project([x, y, z]);
-            const effectiveMag = obj.mag == null ? 50 : obj.mag;
-            const baseMagnitudeSize = getMagnitudeBasedSize(effectiveMag);
-            const size = getZoomedStarSize(baseMagnitudeSize);
-            ctx.fillStyle = "#fff";
-            const a = Math.max(0.5, 1 - effectiveMag/8);
-            if (size <= 1.5 && a >= 0.9) {
-                ctx.globalAlpha = 1;
-                ctx.fillRect(cx | 0, cy | 0, Math.max(1, size | 0), Math.max(1, size | 0));
-            } else {
-                ctx.globalAlpha = a;
-                ctx.beginPath();
-                ctx.arc(cx, cy, size, 0, 2*Math.PI);
-                ctx.fill();
-                ctx.globalAlpha = 1;
-            }
-        }
+        const res = drawCatalogueStars(Mview, magLimit);
+        drawn = res.drawn;
+        capped = res.capped;
     }
 
     // Planets on top
@@ -1424,7 +1678,9 @@ function draw() {
 
     // Draw orange highlight ring for searched object (using Alt/Az)
     if (searchedObject) {
-        const effectiveMag = searchedObject.mag == null ? 50 : searchedObject.mag;
+        // An explicitly searched object is always ringed, including ones with no
+        // recorded magnitude that the slider can't reach
+        const effectiveMag = searchedObject.mag == null ? -99 : searchedObject.mag;
         if (effectiveMag <= magLimit) {
             const { altDeg, azDeg } = radecToAltAz(searchedObject.ra, searchedObject.dec, selectedDate, latDeg, lonDeg);
             let [x, y, z] = altazToXYZ(altDeg, azDeg);
@@ -1503,6 +1759,28 @@ function draw() {
             ctx.fillText(decStr, cx + crossSize + 10, cy + 5);
         }
     }
+
+    const frameMs = performance.now() - drawStart;
+    lastDrawStats = { drawn, ms: frameMs, capped };
+    adaptInteractionBudget(frameMs, capped);
+    updateRenderStats();
+}
+
+// Optional HUD: how many objects the last frame actually drew and how long it
+// took. Handy for judging whether a magnitude limit is worth the frame cost.
+function updateRenderStats() {
+    if (!renderStatsDiv) return;
+    if (!showRenderStats || !showRenderStats.checked) {
+        if (renderStatsDiv.style.display !== 'none') renderStatsDiv.style.display = 'none';
+        return;
+    }
+    renderStatsDiv.style.display = 'block';
+    const loaded = starLoadedCount.toLocaleString();
+    const total = starCount ? starCount.toLocaleString() : '?';
+    const fps = lastDrawStats.ms > 0 ? (1000 / lastDrawStats.ms).toFixed(0) : '-';
+    renderStatsDiv.textContent =
+        `${lastDrawStats.drawn.toLocaleString()} drawn${lastDrawStats.capped ? ' (moving)' : ''} · `
+        + `${lastDrawStats.ms.toFixed(1)} ms (${fps}/s) · ${loaded}/${total} loaded`;
 }
 
 // Update cursor coordinate display.
@@ -1607,7 +1885,8 @@ window.addEventListener('mousemove', e => {
     applyRotationDelta(e.clientX - lastX, e.clientY - lastY);
     lastX = e.clientX;
     lastY = e.clientY;
-    draw();
+    beginInteraction();
+    scheduleDraw();
 });
 window.addEventListener('mouseup', () => dragging = false);
 
@@ -1691,7 +1970,8 @@ canvas.addEventListener('touchmove', (e) => {
         lastTouchX = p.x;
         lastTouchY = p.y;
         updateCursorCoords(p.x, p.y, { above: true });
-        draw();
+        beginInteraction();
+        scheduleDraw();
         return;
     }
 
@@ -1707,7 +1987,8 @@ canvas.addEventListener('touchmove', (e) => {
     applyRotationDelta(mid.x - lastTouchX, mid.y - lastTouchY);
     lastTouchX = mid.x;
     lastTouchY = mid.y;
-    draw();
+    beginInteraction();
+    scheduleDraw();
 }, { passive: false });
 
 function handleTouchEnd(e) {
@@ -1751,7 +2032,9 @@ function defaultInfoText() {
 function showObjectInfoPanel(obj, data, ha) {
     const raHMS = decimalToHMS(obj.ra);
     const decDMS = decimalToDMS(obj.dec);
-    const displayMagFormatted = obj.mag == null ? "null" : obj.mag.toFixed(2);
+    const displayMagFormatted = (obj.mag == null || Number.isNaN(obj.mag))
+        ? "not recorded"
+        : obj.mag.toFixed(2);
     const displayName = (data && data.friendlyName)
         ? `${data.name} (${data.friendlyName})`
         : ((data && data.name) ? data.name : obj.name);
@@ -1770,6 +2053,53 @@ function showObjectInfoPanel(obj, data, ha) {
          </div>`;
 }
 
+// Nearest catalogue star to a screen point, or null. Mirrors the draw loop so
+// what you can click is exactly what you can see.
+function pickCatalogueStar(mx, my, magLimit, minHitRadius) {
+    refreshStarSizeLUT();
+    const { Mview } = buildEqToViewMatrix(
+        parseFloat(latInput.value) || 0, currentLSTDeg, rotX, rotY);
+    const m00 = Mview[0][0], m01 = Mview[0][1], m02 = Mview[0][2];
+    const m10 = Mview[1][0], m11 = Mview[1][1], m12 = Mview[1][2];
+    const m20 = Mview[2][0], m21 = Mview[2][1], m22 = Mview[2][2];
+    const k2 = 2 * Math.max(width, height) * 0.35 * zoom;
+    const halfW = width / 2, halfH = height / 2;
+
+    let best = -1, bestDist2 = Infinity;
+
+    function scan(from, to, fixedRadius) {
+        for (let i = from; i < to; i++) {
+            const ax = starVX[i], ay = starVY[i], az = starVZ[i];
+            const z = m20 * ax + m21 * ay + m22 * az;
+            if (z <= 0) continue;
+            const x = m00 * ax + m01 * ay + m02 * az;
+            const y = m10 * ax + m11 * ay + m12 * az;
+            const scale = k2 / (1 + z);
+            const px = halfW + x * scale;
+            const dx = mx - px;
+            if (dx > 64 || dx < -64) continue;
+            const py = halfH - y * scale;
+            const dy = my - py;
+            if (dy > 64 || dy < -64) continue;
+            const radius = Math.max(fixedRadius !== undefined ? fixedRadius : starSizeForMag(starMag[i]),
+                                    minHitRadius);
+            const dist2 = dx * dx + dy * dy;
+            if (dist2 < radius * radius * 1.5 && dist2 < bestDist2) {
+                best = i;
+                bestDist2 = dist2;
+            }
+        }
+    }
+
+    scan(0, starsBrighterThan(magLimit));
+    if (showUnknownMag && showUnknownMag.checked) {
+        const [uStart, uEnd] = unknownMagRange();
+        scan(uStart, uEnd, Math.max(1, Math.min(3, 1 + zoom * 0.35)));
+    }
+
+    return best >= 0 ? { index: best, dist2: bestDist2 } : null;
+}
+
 // Pick the object nearest a screen point and show its info.
 // `touch` widens the hit area to a finger-sized target.
 function selectObjectAt(mx, my, { touch = false } = {}) {
@@ -1781,6 +2111,8 @@ function selectObjectAt(mx, my, { touch = false } = {}) {
     try { if (timeControl && timeControl.value) selectedDate = new Date(timeControl.value); } catch {}
 
     let picked = null, pickedDist2 = Infinity;
+
+    // Solar-system objects first (a short object list)
     for (const obj of stars) {
         const effectiveMag = obj.mag == null ? 50 : obj.mag;
         if (effectiveMag > magLimit) continue;
@@ -1809,6 +2141,15 @@ function selectObjectAt(mx, my, { touch = false } = {}) {
         if (dist2 < hitRadius*hitRadius*1.5 && dist2 < pickedDist2) {
             picked = obj;
             pickedDist2 = dist2;
+        }
+    }
+
+    // Then the catalogue, using the same projection the renderer uses
+    if (showStars.checked && starMag && starLoadedCount > 0) {
+        const hit = pickCatalogueStar(mx, my, magLimit, minHitRadius);
+        if (hit && hit.dist2 < pickedDist2) {
+            picked = starObjectAt(hit.index);
+            pickedDist2 = hit.dist2;
         }
     }
 
@@ -1975,7 +2316,12 @@ function showStarInfoModal(star) {
     const decDecimal = parseFloat(star.dec !== undefined ? star.dec : star.DEC || 0);
     const raHMS = decimalToHMS(raDecimal);
     const decDMS = decimalToDMS(decDecimal);
-    const magnitude = star.mag !== undefined ? star.mag : star["V-Mag"] || "N/A";
+    let magnitude = star.mag !== undefined ? star.mag : star["V-Mag"];
+    if (magnitude === null || magnitude === undefined || Number.isNaN(magnitude)) {
+        // The catalogue has no V-Mag for this object (NULL, or an HD 20/30/40/50
+        // placeholder) - say that rather than showing a fabricated number
+        magnitude = "not recorded";
+    }
 
     // Create modal with enhanced styling
     const modal = document.createElement("div");
@@ -2096,7 +2442,8 @@ canvas.addEventListener('wheel', (e) => {
         updateMagnitudeForZoom();
     }
     
-    draw();
+    beginInteraction();
+    scheduleDraw();
 }, { passive: false });
 
 // Preload planet icons with proper error handling
@@ -2130,109 +2477,113 @@ function preloadPlanetImages() {
     });
 }
 
-// Fetch a small initial set of very bright stars for fastest first paint
-async function fetchInitialStars() {
-    try {
-    // First load only the very bright stars (mag <= 4), include negatives for very bright objects
-    // No limit here to avoid missing prominent catalog entries
-    starLoadingBegin();
-    const res = await fetch(`/api/stars?minMag=-2&maxMag=4&include_planets=false`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        // Merge into stars array in-place
-        for (const s of data) {
-            const key = starKey(s);
-            if (starKeySet.has(key)) continue;
-            starKeySet.add(key);
-            stars.push(s);
-        }
-        // Update fetched max coverage
-        for (const s of data) {
-            if (s && typeof s.mag === 'number' && !isNaN(s.mag)) fetchedMaxMag = Math.max(fetchedMaxMag, s.mag);
-        }
-        // Precompute in chunks and update visible list as we go
-        if (data && data.length > 0) {
-            precomputeStarsChunked(data, 1000, () => {
-                // Ensure visibleStars is rebuilt with new arrivals
-                const magLimit = parseFloat(magFilter.value);
-                rebuildVisibleStars(magLimit);
-            }, () => {
-                const magLimit = parseFloat(magFilter.value);
-                rebuildVisibleStars(magLimit);
-                starLoadingEnd();
-            });
-        } else {
-            // nothing to precompute
-            starLoadingEnd();
-        }
-    } catch (e) {
-        console.error('Initial stars fetch failed:', e);
-        starLoadingEnd();
-    }
-}
+// ---------------------------------------------------------------------------
+// Catalogue loading
+//
+// /api/stars_bands hands back disjoint index ranges, brightest first, and
+// /api/stars_bin serves each one as a compact binary block. Nothing is ever
+// downloaded twice, the first band paints within a few hundred KB, and the
+// responses are cacheable so a repeat visit costs one 304 per band.
+// ---------------------------------------------------------------------------
+let catalogueBands = [];
+let catalogueLoadStarted = false;
+let cataloguePendingBand = 0;
 
-// Fetch more stars if user extends the magnitude beyond what we've fetched so far
-// Options: { limit?: number|null } — pass null or undefined for no limit
-async function fetchMoreStarsIfNeeded(newMagLimit, options = {}) {
-    if (!isFinite(newMagLimit)) return;
-    if (newMagLimit <= fetchedMaxMag + 1e-6) return; // already have up to this mag
-    try {
-    const capped = Math.min(newMagLimit, 20);
-    const url = new URL(`/api/stars`, window.location.origin);
-    url.searchParams.set('minMag', '-2');
-    url.searchParams.set('maxMag', String(capped));
-    url.searchParams.set('include_planets', 'false');
-    if (options && Object.prototype.hasOwnProperty.call(options, 'limit')) {
-        const lim = options.limit;
-        if (lim !== null && lim !== undefined) url.searchParams.set('limit', String(lim));
-        // if null/undefined, omit limit to get all up to maxMag
-    } else {
-        // default safety cap
-        url.searchParams.set('limit', '10000');
-    }
-    starLoadingBegin();
+async function fetchStarBand(band) {
+    const url = new URL('/api/stars_bin', window.location.origin);
+    url.searchParams.set('start', String(band.start));
+    url.searchParams.set('end', String(band.end));
     const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buffer = await res.arrayBuffer();
+    const decoded = decodeStarBand(buffer);
+    return new Promise(resolve => ingestStarBand(band.start, decoded, resolve));
+}
+
+// Load the catalogue: the first (brightest) band is awaited so the sky appears
+// straight away, the rest stream in behind it.
+async function loadStarCatalogue() {
+    if (catalogueLoadStarted) return;
+    catalogueLoadStarted = true;
+    starLoadingBegin();
+    try {
+        const res = await fetch('/api/stars_bands');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const newlyAdded = [];
-        for (const s of data) {
-            const key = starKey(s);
-            if (starKeySet.has(key)) continue;
-            starKeySet.add(key);
-            stars.push(s);
-            newlyAdded.push(s);
-            if (s && typeof s.mag === 'number') fetchedMaxMag = Math.max(fetchedMaxMag, s.mag || 0);
+        const meta = await res.json();
+        catalogueBands = Array.isArray(meta.bands) ? meta.bands : [];
+        starKnownCount = meta.known || 0;
+        allocateStarCatalogue(meta.total || 0);
+
+        // The slider now covers the real magnitude range of the catalogue
+        if (typeof meta.minMag === 'number' && typeof meta.maxMag === 'number') {
+            minMag = meta.minMag;
+            maxMag = meta.maxMag;
+            updateMagSliderRange(meta.minMag, meta.maxMag);
         }
-        if (newlyAdded.length > 0) {
-            precomputeStarsChunked(newlyAdded, 1000, () => {
-                const magLimit = parseFloat(magFilter.value);
-                rebuildVisibleStars(magLimit);
-            }, () => {
-                const magLimit = parseFloat(magFilter.value);
-                rebuildVisibleStars(magLimit);
-                starLoadingEnd();
-            });
-        } else {
-            // nothing to precompute; end loading now
-            starLoadingEnd();
+        if (unknownMagCountLabel && meta.unknown) {
+            unknownMagCountLabel.textContent = ` (${meta.unknown.toLocaleString()})`;
+        }
+
+        if (catalogueBands.length > 0) {
+            await fetchStarBand(catalogueBands[0]);
+            cataloguePendingBand = 1;
+            scheduleDraw();
         }
     } catch (e) {
-        console.error('Additional stars fetch failed:', e);
+        console.error('Star catalogue index fetch failed:', e);
+        catalogueLoadStarted = false;
+    } finally {
         starLoadingEnd();
     }
 }
 
-// After the scene draws the first time, progressively prefetch more stars (<=8, then <=20)
+// Pull in the remaining bands one at a time, yielding between each so the map
+// stays interactive while several megabytes arrive.
+async function loadRemainingStarBands() {
+    if (cataloguePendingBand <= 0 || cataloguePendingBand >= catalogueBands.length) return;
+    starLoadingBegin();
+    try {
+        for (; cataloguePendingBand < catalogueBands.length; cataloguePendingBand++) {
+            const band = catalogueBands[cataloguePendingBand];
+            updateStarLoadingProgress(band);
+            try {
+                await fetchStarBand(band);
+            } catch (e) {
+                console.warn(`Star band ${band.start}-${band.end} failed:`, e);
+            }
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        console.log(`Star catalogue loaded: ${starLoadedCount.toLocaleString()} objects`);
+    } finally {
+        updateStarLoadingProgress(null);
+        starLoadingEnd();
+    }
+}
+
+function updateStarLoadingProgress(band) {
+    if (!starLoadingLabel) return;
+    if (!band || !starCount) {
+        starLoadingLabel.textContent = 'Loading stars…';
+        return;
+    }
+    const pct = Math.min(100, Math.round((band.end / starCount) * 100));
+    starLoadingLabel.textContent = `Loading stars… ${pct}%`;
+}
+
+// Kept for callers that ask for a deeper magnitude than is loaded yet: with
+// band loading there is nothing extra to fetch, the data is already on its way.
+async function fetchMoreStarsIfNeeded(newMagLimit) {
+    if (!isFinite(newMagLimit)) return;
+    if (cataloguePendingBand > 0 && cataloguePendingBand < catalogueBands.length) {
+        loadRemainingStarBands();
+    }
+}
+
+// After the first paint, stream in the rest of the catalogue
 async function stagedPrefetchAfterFirstDraw() {
     try {
-        // Yield to the browser to ensure the initial scene is painted
         await new Promise(requestAnimationFrame);
-        // Prefetch to magnitude 8 (keep a reasonable cap to avoid huge burst)
-        await fetchMoreStarsIfNeeded(8, { limit: 30000 });
-        // Yield again to keep UI responsive
-        await new Promise(resolve => setTimeout(resolve, 50));
-        // Prefetch to magnitude 20 (no explicit limit: let backend stream all; may still be constrained by DB)
-        await fetchMoreStarsIfNeeded(20, { limit: null });
+        await loadRemainingStarBands();
     } catch (e) {
         console.warn('Staged prefetch encountered an issue:', e);
     }
@@ -2243,6 +2594,7 @@ let manualMagnitudeTimeout = null; // Timer to re-enable auto magnitude after ma
 
 magFilter.addEventListener('input', () => {
     magValue.textContent = magFilter.value;
+    beginInteraction();
     // If user expands the magnitude beyond what we've fetched, fetch more
     const newMagLimit = parseFloat(magFilter.value);
     fetchMoreStarsIfNeeded(newMagLimit);
@@ -2261,7 +2613,7 @@ magFilter.addEventListener('input', () => {
         }
     }
     
-    draw();
+    scheduleDraw();
 });
 latInput.addEventListener('change', draw);
 lonInput.addEventListener('change', draw);
@@ -2271,6 +2623,14 @@ showHorizonGrid.addEventListener('change', draw);
 showEquatorialGrid.addEventListener('change', draw);
 if (showEcliptic) showEcliptic.addEventListener('change', draw);
 if (showBelowHorizon) showBelowHorizon.addEventListener('change', draw);
+if (showUnknownMag) {
+    showUnknownMag.addEventListener('change', () => {
+        // These sit at the end of the catalogue, so make sure the tail is on its way
+        if (showUnknownMag.checked) loadRemainingStarBands();
+        scheduleDraw();
+    });
+}
+if (showRenderStats) showRenderStats.addEventListener('change', updateRenderStats);
 
 // Auto-magnitude zoom checkbox
 if (autoMagnitudeZoom) {
@@ -2308,7 +2668,6 @@ resetBtn.addEventListener('click', () => {
     zoom = 1.0; // Reset zoom level
     magFilter.value = "4.0"; // Reset magnitude to 4
     magValue.textContent = "4.0";
-    rebuildVisibleStars(4.0); // Rebuild visible stars with magnitude 4
     showStars.checked = true;
     showPlanets.checked = true;
     clearSearch(); // Clear search when resetting view
@@ -2499,7 +2858,9 @@ function updateTrackingPanel(trackingData) {
         <div><strong>Object:</strong> ${trackingData.name}</div>
         <div><strong>RA:</strong> ${trackingData.ra.toFixed(4)}°</div>
         <div><strong>DEC:</strong> ${trackingData.dec.toFixed(4)}°</div>
-        ${trackingData.mag !== undefined ? `<div><strong>Magnitude:</strong> ${trackingData.mag.toFixed(2)}</div>` : ''}
+        ${(trackingData.mag !== undefined && trackingData.mag !== null && !Number.isNaN(trackingData.mag))
+            ? `<div><strong>Magnitude:</strong> ${trackingData.mag.toFixed(2)}</div>`
+            : '<div><strong>Magnitude:</strong> not recorded</div>'}
     `;
 }
 
@@ -2699,12 +3060,19 @@ function searchObject() {
             // Find the object in our stars array or use the search result
             let foundObject = null;
             
-            // First try to find it in the existing stars array
+            // First try the solar-system objects, then the star catalogue
             for (const obj of stars) {
                 if (obj.name && objData.Name && 
                     obj.name.toLowerCase() === objData.Name.toLowerCase()) {
                     foundObject = obj;
                     break;
+                }
+            }
+            if (!foundObject && objData.Name) {
+                const catalogIndex = findStarByName(objData.Name);
+                if (catalogIndex >= 0) {
+                    foundObject = starObjectAt(catalogIndex);
+                    foundObject.xyz = radecToXYZ(foundObject.ra, foundObject.dec);
                 }
             }
             
@@ -2714,7 +3082,9 @@ function searchObject() {
                     name: objData.Name,
                     ra: parseFloat(objData.RA) || 0,
                     dec: parseFloat(objData.DEC) || 0,
-                    mag: objData['V-Mag'] || 30,
+                    mag: (objData['V-Mag'] === undefined || objData['V-Mag'] === null)
+                        ? null
+                        : objData['V-Mag'],
                     type: objData.type || 'star',
                     friendlyName: objData.friendlyName || null,
                     phase_name: objData.phase_name || null,
@@ -2742,9 +3112,15 @@ function searchObject() {
             // Set as searched object and move camera to it
             searchedObject = foundObject;
             highlightAnimation = 0;
+            searchHighlightUntil = Date.now() + 8000;
             moveToObject(foundObject);
             
-            // Automatically adjust magnitude setting to ensure object is visible
+            // Automatically adjust settings so the found object is actually visible
+            if ((foundObject.mag == null || Number.isNaN(foundObject.mag))
+                && showUnknownMag && !showUnknownMag.checked) {
+                showUnknownMag.checked = true;
+                loadRemainingStarBands();
+            }
             const objectMag = foundObject.mag == null ? 6 : foundObject.mag;
             const currentMagLimit = parseFloat(magFilter.value);
             
@@ -2792,7 +3168,9 @@ function searchObject() {
             // Convert coordinates to HMS/DMS format like click handler
             const raHMS = decimalToHMS(foundObject.ra);
             const decDMS = decimalToDMS(foundObject.dec);
-            const displayMagFormatted = foundObject.mag == null ? "null" : foundObject.mag.toFixed(2);
+            const displayMagFormatted = (foundObject.mag == null || Number.isNaN(foundObject.mag))
+                ? "not recorded"
+                : foundObject.mag.toFixed(2);
             
             const displayName = foundObject.friendlyName 
                 ? `${foundObject.name} (${foundObject.friendlyName})`
@@ -3011,11 +3389,12 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Start initial fetches: planets for current time and a small bright-star set
     const planetsPromise = refreshPlanetsForCurrentTime();
-    const starsPromise = fetchInitialStars();
+    const starsPromise = loadStarCatalogue();
 
     Promise.allSettled([planetsPromise, starsPromise]).then(() => {
-        // Use -2..20 so very bright negative-magnitude stars are in range
-        updateMagSliderRange(-2, 20);
+        // Slider bounds come from the catalogue itself (see loadStarCatalogue);
+        // fall back to -2..20 only if that never arrived.
+        if (!starCount) updateMagSliderRange(-2, 20);
 
         // Once planets are present, preload their icons, then draw
         preloadPlanetImages().then(() => {
@@ -3037,14 +3416,20 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.log('No tracking state to restore');
             }
             
-            // Start animation loop for search highlighting
-            function animate() {
-                if (searchedObject) {
-                    draw();
+            // Pulse the search highlight, but only for a few seconds and at a
+            // modest rate: this used to force a full redraw of the whole
+            // catalogue on every animation frame for as long as a search was
+            // active, which is ruinous at mag 20.
+            let lastHighlightFrame = 0;
+            function animate(now) {
+                if (searchedObject && now - lastHighlightFrame > 50 &&
+                    Date.now() < searchHighlightUntil) {
+                    lastHighlightFrame = now;
+                    scheduleDraw();
                 }
                 requestAnimationFrame(animate);
             }
-            animate();
+            requestAnimationFrame(animate);
         });
     });
 });
