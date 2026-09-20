@@ -248,8 +248,37 @@ let invertControls = false;
 const canvas = document.getElementById('planetarium');
 const ctx = canvas.getContext('2d');
 let width = window.innerWidth, height = window.innerHeight;
-canvas.width = width;
-canvas.height = height;
+
+// Touch-screen / small-viewport detection.
+// sm-touch  -> device can be touched (gesture hints, finger-sized hit targets)
+// sm-compact -> viewport is small (controls collapse into a bottom sheet)
+const isTouchDevice = ('ontouchstart' in window)
+    || (navigator.maxTouchPoints || 0) > 0
+    || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+const COMPACT_MAX_WIDTH = 820;  // phones and narrow windows
+const COMPACT_MAX_HEIGHT = 480; // phones held in landscape
+
+function isCompactLayout() {
+    return window.innerWidth <= COMPACT_MAX_WIDTH || window.innerHeight <= COMPACT_MAX_HEIGHT;
+}
+
+document.documentElement.classList.toggle('sm-touch', isTouchDevice);
+document.documentElement.classList.toggle('sm-compact', isCompactLayout());
+
+// Size the canvas to the viewport with a device-pixel-ratio backing store so
+// the sky stays sharp on high-DPI phone screens. Everything else keeps drawing
+// in CSS pixels (width/height) because of the transform set here.
+function resizeCanvas() {
+    width = Math.max(1, Math.round(window.innerWidth));
+    height = Math.max(1, Math.round(window.innerHeight));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5); // cap: 3x of a full phone screen is a lot of pixels
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resizeCanvas();
 
 // Set up the magnitude slider with actual data range
 magFilter.min = minMag.toFixed(1);
@@ -1476,8 +1505,9 @@ function draw() {
     }
 }
 
-// Update cursor coordinate display
-function updateCursorCoords(screenX, screenY) {
+// Update cursor coordinate display.
+// opts.above places the readout above the point so a finger doesn't cover it.
+function updateCursorCoords(screenX, screenY, opts = {}) {
     if (!cursorCoordsDiv) return;
     
     const showRADec = showRADecCursor && showRADecCursor.checked;
@@ -1519,19 +1549,29 @@ function updateCursorCoords(screenX, screenY) {
         cursorCoordsDiv.innerHTML = html;
         cursorCoordsDiv.style.display = 'block';
         
-        // Position near cursor with offset to avoid blocking view
+        // Position near the pointer with an offset to avoid blocking the view
         const offset = 15;
-        let left = screenX + offset;
-        let top = screenY + offset;
+        const rect = cursorCoordsDiv.getBoundingClientRect();
+        let left, top;
+        if (opts.above) {
+            // Touch: centre it well above the fingertip
+            left = screenX - rect.width / 2;
+            top = screenY - rect.height - 32;
+            if (top < 4) top = screenY + 32;
+        } else {
+            left = screenX + offset;
+            top = screenY + offset;
+            if (left + rect.width > window.innerWidth) {
+                left = screenX - rect.width - offset;
+            }
+            if (top + rect.height > window.innerHeight) {
+                top = screenY - rect.height - offset;
+            }
+        }
         
         // Keep within bounds
-        const rect = cursorCoordsDiv.getBoundingClientRect();
-        if (left + rect.width > window.innerWidth) {
-            left = screenX - rect.width - offset;
-        }
-        if (top + rect.height > window.innerHeight) {
-            top = screenY - rect.height - offset;
-        }
+        left = Math.max(4, Math.min(left, window.innerWidth - rect.width - 4));
+        top = Math.max(4, Math.min(top, window.innerHeight - rect.height - 4));
         
         cursorCoordsDiv.style.left = left + 'px';
         cursorCoordsDiv.style.top = top + 'px';
@@ -1548,6 +1588,15 @@ canvas.addEventListener('mousedown', e => {
     lastX = e.clientX;
     lastY = e.clientY;
 });
+// Rotate the sky by a drag delta in screen pixels (shared by mouse and touch)
+function applyRotationDelta(dx, dy) {
+    // Optionally invert controls: affects deltas only
+    const controlInvert = invertControls ? -1 : 1;
+    rotY += dx * 0.01 * controlInvert;
+    rotX -= dy * 0.01 * controlInvert;
+    rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+}
+
 window.addEventListener('mousemove', e => {
     // Track cursor position for coordinate display
     lastCursorX = e.clientX;
@@ -1555,11 +1604,7 @@ window.addEventListener('mousemove', e => {
     updateCursorCoords(e.clientX, e.clientY);
     
     if (!dragging) return;
-    // Optionally invert controls: affects deltas only
-    const controlInvert = invertControls ? -1 : 1;
-    rotY += (e.clientX - lastX) * 0.01 * controlInvert;
-    rotX -= (e.clientY - lastY) * 0.01 * controlInvert;
-    rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+    applyRotationDelta(e.clientX - lastX, e.clientY - lastY);
     lastX = e.clientX;
     lastY = e.clientY;
     draw();
@@ -1573,15 +1618,169 @@ canvas.addEventListener('mouseleave', () => {
     if (cursorCoordsDiv) cursorCoordsDiv.style.display = 'none';
 });
 
-// Click to show info
-canvas.addEventListener('click', function(e) {
-    const mx = e.clientX, my = e.clientY;
+// ---------------------------------------------------------------------------
+// Touch controls
+//   one finger  -> drag to rotate the sky, quick tap to pick an object
+//   two fingers -> pinch to zoom, drag the midpoint to rotate
+// Every handler calls preventDefault so the browser neither scrolls/zooms the
+// page nor replays the gesture as synthetic mouse/click events.
+// ---------------------------------------------------------------------------
+const TAP_MAX_MOVE_PX = 12;  // finger travel still counted as a tap
+const TAP_MAX_MS = 400;      // and how long it may rest on the glass
+const MIN_PINCH_DIST = 1e-3; // guard against divide-by-zero on a degenerate pinch
+
+let touchPoints = [];        // current finger positions, from the last event
+let lastTouchX = 0, lastTouchY = 0; // drag anchor (a finger, or the pinch midpoint)
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+let tapCandidate = null;     // {x, y, t} while the gesture could still be a tap
+
+function syncTouches(e) {
+    touchPoints = Array.from(e.touches).map(t => ({ x: t.clientX, y: t.clientY }));
+}
+
+function touchMidpoint(points) {
+    let sx = 0, sy = 0;
+    for (const p of points) { sx += p.x; sy += p.y; }
+    return { x: sx / points.length, y: sy / points.length };
+}
+
+function touchDistance(a, b) {
+    return Math.max(Math.hypot(a.x - b.x, a.y - b.y), MIN_PINCH_DIST);
+}
+
+// Re-anchor the gesture to whatever fingers are still down, so removing or
+// adding a finger mid-gesture doesn't make the sky jump.
+function anchorTouchGesture() {
+    if (touchPoints.length === 1) {
+        lastTouchX = touchPoints[0].x;
+        lastTouchY = touchPoints[0].y;
+    } else if (touchPoints.length >= 2) {
+        pinchStartDist = touchDistance(touchPoints[0], touchPoints[1]);
+        pinchStartZoom = zoom;
+        const mid = touchMidpoint(touchPoints);
+        lastTouchX = mid.x;
+        lastTouchY = mid.y;
+    }
+}
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    hideContextMenu();
+    dragging = false; // mouse drag state never applies during a touch gesture
+    syncTouches(e);
+    if (touchPoints.length === 1) {
+        tapCandidate = { x: touchPoints[0].x, y: touchPoints[0].y, t: Date.now() };
+    } else {
+        tapCandidate = null;
+    }
+    anchorTouchGesture();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    syncTouches(e);
+    if (touchPoints.length === 0) return;
+
+    if (touchPoints.length === 1) {
+        const p = touchPoints[0];
+        if (tapCandidate && Math.hypot(p.x - tapCandidate.x, p.y - tapCandidate.y) > TAP_MAX_MOVE_PX) {
+            tapCandidate = null; // turned into a drag
+        }
+        applyRotationDelta(p.x - lastTouchX, p.y - lastTouchY);
+        lastTouchX = p.x;
+        lastTouchY = p.y;
+        updateCursorCoords(p.x, p.y, { above: true });
+        draw();
+        return;
+    }
+
+    // Two or more fingers: pinch zoom plus rotation from the midpoint
+    tapCandidate = null;
+    const dist = touchDistance(touchPoints[0], touchPoints[1]);
+    const mid = touchMidpoint(touchPoints);
+    const oldZoom = zoom;
+    zoom = Math.max(minZoom, Math.min(maxZoom, pinchStartZoom * (dist / pinchStartDist)));
+    if (magnitudeZoomEnabled && zoom !== oldZoom) {
+        updateMagnitudeForZoom();
+    }
+    applyRotationDelta(mid.x - lastTouchX, mid.y - lastTouchY);
+    lastTouchX = mid.x;
+    lastTouchY = mid.y;
+    draw();
+}, { passive: false });
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    const tap = (e.type === 'touchend' && tapCandidate && (Date.now() - tapCandidate.t) <= TAP_MAX_MS)
+        ? tapCandidate
+        : null;
+    syncTouches(e);
+
+    if (touchPoints.length === 0) {
+        tapCandidate = null;
+        if (tap) {
+            selectObjectAt(tap.x, tap.y, { touch: true });
+            updateCursorCoords(tap.x, tap.y, { above: true });
+        }
+        return;
+    }
+
+    // Fingers left over (e.g. a pinch relaxing into a one-finger drag)
+    tapCandidate = null;
+    anchorTouchGesture();
+}
+
+canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+
+// iOS Safari still raises its own pinch/double-tap page zoom over the canvas
+for (const gestureEvent of ['gesturestart', 'gesturechange', 'gestureend']) {
+    canvas.addEventListener(gestureEvent, (e) => e.preventDefault(), { passive: false });
+}
+
+// Default hint shown in the info panel when nothing is selected
+function defaultInfoText() {
+    return isTouchDevice
+        ? "Swipe to rotate. Pinch to zoom. Tap a star/planet for info."
+        : "Drag to rotate. Click a star/planet for info.";
+}
+
+// Render the info panel for a picked object. `data` is the /star_info payload
+// when we have it, otherwise null and we fall back to what the map already knows.
+function showObjectInfoPanel(obj, data, ha) {
+    const raHMS = decimalToHMS(obj.ra);
+    const decDMS = decimalToDMS(obj.dec);
+    const displayMagFormatted = obj.mag == null ? "null" : obj.mag.toFixed(2);
+    const displayName = (data && data.friendlyName)
+        ? `${data.name} (${data.friendlyName})`
+        : ((data && data.name) ? data.name : obj.name);
+    const btnPadding = isTouchDevice ? '10px 8px' : '4px 8px';
+
+    // Store the full data for the advanced info modal with additional context
+    window.currentStarData = data
+        ? { ...data, ra: obj.ra, dec: obj.dec, hourAngle: ha }
+        : { name: obj.name, ra: obj.ra, dec: obj.dec, mag: obj.mag, hourAngle: ha };
+
+    document.getElementById('info').innerHTML =
+        `<b>${displayName}</b><br>RA: ${raHMS}<br>DEC: ${decDMS}<br>V-Mag: ${displayMagFormatted}<br>
+         <div style="margin-top: 5px; display: flex; gap: 4px;">
+            <button onclick="trackObject('${obj.name}', ${obj.ra}, ${obj.dec}, ${obj.mag})" style="padding: ${btnPadding}; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Track</button>
+            <button onclick="showStarInfoModal(window.currentStarData)" style="padding: ${btnPadding}; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Advanced Info</button>
+         </div>`;
+}
+
+// Pick the object nearest a screen point and show its info.
+// `touch` widens the hit area to a finger-sized target.
+function selectObjectAt(mx, my, { touch = false } = {}) {
     const magLimit = parseFloat(magFilter.value);
     const latDeg = parseFloat(latInput.value) || 0;
     const lonDeg = parseFloat(lonInput.value) || 0;
+    const minHitRadius = touch ? 18 : 0; // fingers are much blunter than a cursor
     let selectedDate = new Date();
     try { if (timeControl && timeControl.value) selectedDate = new Date(timeControl.value); } catch {}
 
+    let picked = null, pickedDist2 = Infinity;
     for (const obj of stars) {
         const effectiveMag = obj.mag == null ? 50 : obj.mag;
         if (effectiveMag > magLimit) continue;
@@ -1603,62 +1802,40 @@ canvas.addEventListener('click', function(e) {
             size = getZoomedStarSize(baseMagnitudeSize);
             hitRadius = size;
         }
-        
-        if ((mx-cx)**2 + (my-cy)**2 < hitRadius*hitRadius*1.5) {
-            const displayMag = obj.mag == null ? "null" : obj.mag;
-            const lstDegNow = lstDegrees(new Date((timeControl && timeControl.value) ? new Date(timeControl.value).toISOString() : new Date().toISOString()), parseFloat(lonInput.value));
-            const ha = hourAngleDegrees(obj.ra, lstDegNow);
-            
-            // Convert coordinates to HMS/DMS
-            const raHMS = decimalToHMS(obj.ra);
-            const decDMS = decimalToDMS(obj.dec);
-            const displayMagFormatted = obj.mag == null ? "null" : obj.mag.toFixed(2);
-            
-            // Fetch full star info to get friendlyName if available
-            fetch(`/star_info/${encodeURIComponent(obj.name)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && !data.error) {
-                        const displayName = data.friendlyName 
-                            ? `${data.name} (${data.friendlyName})`
-                            : data.name;
-                        
-                        // Store the full data for advanced info modal with additional context
-                        window.currentStarData = { ...data, ra: obj.ra, dec: obj.dec, hourAngle: ha };
-                        
-                        document.getElementById('info').innerHTML =
-                            `<b>${displayName}</b><br>RA: ${raHMS}<br>DEC: ${decDMS}<br>V-Mag: ${displayMagFormatted}<br>
-                             <div style="margin-top: 5px; display: flex; gap: 4px;">
-                                <button onclick="trackObject('${obj.name}', ${obj.ra}, ${obj.dec}, ${obj.mag})" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Track</button>
-                                <button onclick="showStarInfoModal(window.currentStarData)" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Advanced Info</button>
-                             </div>`;
-                    } else {
-                        // Fallback if fetch fails - still show advanced info button with basic data
-                        window.currentStarData = { name: obj.name, ra: obj.ra, dec: obj.dec, mag: obj.mag, hourAngle: ha };
-                        
-                        document.getElementById('info').innerHTML =
-                            `<b>${obj.name}</b><br>RA: ${raHMS}<br>DEC: ${decDMS}<br>V-Mag: ${displayMagFormatted}<br>
-                             <div style="margin-top: 5px; display: flex; gap: 4px;">
-                                <button onclick="trackObject('${obj.name}', ${obj.ra}, ${obj.dec}, ${obj.mag})" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Track</button>
-                                <button onclick="showStarInfoModal(window.currentStarData)" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Advanced Info</button>
-                             </div>`;
-                    }
-                })
-                .catch(() => {
-                    // Fallback on error - still show advanced info button with basic data
-                    window.currentStarData = { name: obj.name, ra: obj.ra, dec: obj.dec, mag: obj.mag, hourAngle: ha };
-                    
-                    document.getElementById('info').innerHTML =
-                        `<b>${obj.name}</b><br>RA: ${raHMS}<br>DEC: ${decDMS}<br>V-Mag: ${displayMagFormatted}<br>
-                         <div style="margin-top: 5px; display: flex; gap: 4px;">
-                            <button onclick="trackObject('${obj.name}', ${obj.ra}, ${obj.dec}, ${obj.mag})" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Track</button>
-                            <button onclick="showStarInfoModal(window.currentStarData)" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Advanced Info</button>
-                         </div>`;
-                });
-            return;
+        hitRadius = Math.max(hitRadius, minHitRadius);
+
+        // With a finger-sized target several objects can overlap, so keep the closest
+        const dist2 = (mx-cx)**2 + (my-cy)**2;
+        if (dist2 < hitRadius*hitRadius*1.5 && dist2 < pickedDist2) {
+            picked = obj;
+            pickedDist2 = dist2;
         }
     }
-    document.getElementById('info').innerHTML = "Drag to rotate. Click a star/planet for info.";
+
+    if (!picked) {
+        document.getElementById('info').innerHTML = defaultInfoText();
+        return false;
+    }
+
+    const lstDegNow = lstDegrees(new Date(selectedDate.toISOString()), lonDeg);
+    const ha = hourAngleDegrees(picked.ra, lstDegNow);
+
+    // Show what we already have immediately, then refine with the catalog entry
+    showObjectInfoPanel(picked, null, ha);
+    fetch(`/star_info/${encodeURIComponent(picked.name)}`)
+        .then(response => response.json())
+        .then(data => {
+            showObjectInfoPanel(picked, (data && !data.error) ? data : null, ha);
+        })
+        .catch(() => {
+            showObjectInfoPanel(picked, null, ha);
+        });
+    return true;
+}
+
+// Click to show info
+canvas.addEventListener('click', function(e) {
+    selectObjectAt(e.clientX, e.clientY);
 });
 
 // Coordinate conversion helpers
@@ -1813,17 +1990,20 @@ function showStarInfoModal(star) {
         color: #333;
         border-radius: 12px;
         z-index: 10000;
-        min-width: 350px;
-        max-width: 500px;
+        width: min(500px, calc(100vw - 24px));
+        max-height: 88vh;
+        max-height: 88dvh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
         border: none;
-        overflow: hidden;
     `;
 
     modal.innerHTML = `
         <div class="modal-header" style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 1rem; border-bottom: none;">
             <h5 class="modal-title" style="margin: 0; font-weight: 600;">🌟 Object Information</h5>
-            <button type="button" class="btn-close" id="closeStarInfo" style="filter: invert(1); background: none; border: none; font-size: 1.5rem; cursor: pointer; color: white; line-height: 1; padding: 0; width: 24px; height: 24px;">&times;</button>
+            <button type="button" class="btn-close" id="closeStarInfo" style="filter: invert(1); background: none; border: none; font-size: 1.5rem; cursor: pointer; color: white; line-height: 1; padding: 0; width: 32px; height: 32px; touch-action: manipulation;">&times;</button>
         </div>
         <div class="modal-body" style="padding: 1.5rem;">
             <!-- Basic Information -->
@@ -1844,7 +2024,7 @@ function showStarInfoModal(star) {
             
             <!-- Advanced Info Toggle -->
             <div class="advanced-toggle" style="margin: 1.5rem 0;">
-                <button id="toggleAdvancedInfo" class="btn btn-outline-secondary btn-sm w-100" onclick="toggleAdvancedObjectInfo()" style="padding: 8px; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; width: 100%;">
+                <button id="toggleAdvancedInfo" class="btn btn-outline-secondary btn-sm w-100" onclick="toggleAdvancedObjectInfo()" style="padding: 12px 8px; touch-action: manipulation; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; width: 100%;">
                     📊 Show Advanced Information
                 </button>
             </div>
@@ -1855,8 +2035,8 @@ function showStarInfoModal(star) {
             </div>
         </div>
         <div class="modal-footer" style="padding: 1rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; justify-content: space-between; gap: 8px;">
-            <button id="trackObjectBtnModal" class="btn btn-success" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1;">🎯 Track Object</button>
-            <button id="closeStarInfoFooter" class="btn btn-secondary" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1;">Close</button>
+            <button id="trackObjectBtnModal" class="btn btn-success" style="padding: 12px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">🎯 Track Object</button>
+            <button id="closeStarInfoFooter" class="btn btn-secondary" style="padding: 12px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">Close</button>
         </div>
     `;
 
@@ -1883,13 +2063,22 @@ function showStarInfoModal(star) {
     });
 }
 
-// Responsive resize
-window.addEventListener('resize', () => {
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-    draw();
+// Responsive resize (also covers phone rotation and browser chrome sliding away)
+let resizeFrame = null;
+function handleViewportResize() {
+    if (resizeFrame) return;
+    resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        document.documentElement.classList.toggle('sm-compact', isCompactLayout());
+        resizeCanvas();
+        draw();
+    });
+}
+window.addEventListener('resize', handleViewportResize);
+window.addEventListener('orientationchange', () => {
+    handleViewportResize();
+    // Some mobile browsers report the old size until after the rotation settles
+    setTimeout(handleViewportResize, 300);
 });
 
 // Scroll wheel zoom
@@ -2171,6 +2360,23 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Controls panel toggle (the panel is a collapsible sheet on small screens)
+const uiToggle = document.getElementById('ui-toggle');
+const controlsPanel = document.getElementById('controls');
+function setControlsOpen(open) {
+    if (!controlsPanel) return;
+    controlsPanel.classList.toggle('open', open);
+    if (uiToggle) {
+        uiToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        uiToggle.textContent = open ? '\u2715' : '\u2630';
+    }
+}
+if (uiToggle) {
+    uiToggle.addEventListener('click', () => {
+        setControlsOpen(!controlsPanel.classList.contains('open'));
+    });
+}
+
 helpBtn.addEventListener('click', () => {
     helpModal.style.display = "flex";
 });
@@ -2188,15 +2394,51 @@ window.searchObject = searchObject;
 window.clearSearch = clearSearch;
 
 // Magnitude slider context menu
+function openMagContextMenu(clientX, clientY) {
+    magCustomInput.value = magFilter.value;
+    magContextMenu.style.display = 'block';
+    magContextMenu.style.left = '0px';
+    magContextMenu.style.top = '0px';
+    // Clamp into the viewport - on a phone the slider sits near an edge
+    const rect = magContextMenu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(clientX, window.innerWidth - rect.width - 8));
+    const top = Math.max(8, Math.min(clientY, window.innerHeight - rect.height - 8));
+    magContextMenu.style.left = left + 'px';
+    magContextMenu.style.top = top + 'px';
+    if (!isTouchDevice) {
+        // Autofocus would pop up the on-screen keyboard and shove the menu around
+        magCustomInput.focus();
+        magCustomInput.select();
+    }
+}
+
 magFilter.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    magContextMenu.style.display = 'block';
-    magContextMenu.style.left = e.pageX + 'px';
-    magContextMenu.style.top = e.pageY + 'px';
-    magCustomInput.value = magFilter.value;
-    magCustomInput.focus();
-    magCustomInput.select();
+    openMagContextMenu(e.clientX, e.clientY);
 });
+
+// Touch equivalent of the right-click menu: press and hold the slider
+let magLongPressTimer = null;
+function cancelMagLongPress() {
+    if (magLongPressTimer) {
+        clearTimeout(magLongPressTimer);
+        magLongPressTimer = null;
+    }
+}
+magFilter.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    if (!t) return;
+    const x = t.clientX, y = t.clientY;
+    cancelMagLongPress();
+    magLongPressTimer = setTimeout(() => {
+        magLongPressTimer = null;
+        openMagContextMenu(x, y);
+    }, 550);
+}, { passive: true });
+// Any movement means they're dragging the slider, not holding it
+magFilter.addEventListener('touchmove', cancelMagLongPress, { passive: true });
+magFilter.addEventListener('touchend', cancelMagLongPress, { passive: true });
+magFilter.addEventListener('touchcancel', cancelMagLongPress, { passive: true });
 
 // Context menu functionality
 function hideContextMenu() {
@@ -2666,7 +2908,7 @@ function moveToObject(obj) {
 function clearSearch() {
     searchedObject = null;
     searchInput.value = '';
-    document.getElementById('info').innerHTML = "Drag to rotate. Click a star/planet for info.";
+    document.getElementById('info').innerHTML = defaultInfoText();
     draw();
 }
 
@@ -2710,6 +2952,8 @@ function performTelescopeSearch() {
 // Initial draw and loading
 window.addEventListener('DOMContentLoaded', () => {
     console.log('%cStar Map JS loaded v2025-10-27-1', 'color:#0bf');
+    // Hint text depends on whether this device has a touch screen
+    document.getElementById('info').innerHTML = defaultInfoText();
     // Initialize time control to current local time (rounded to minute)
     if (timeControl) {
         const now = new Date();
