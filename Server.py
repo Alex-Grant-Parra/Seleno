@@ -202,14 +202,14 @@ def force_https():
 
         if port == flask_port_str:
             # Build HTTPS URL without the explicit HTTP port, using the validated IP literal
-            return redirect(f"https://{ip_obj}{path}", code=301)
+            return redirect("https://" + str(ip_obj) + path, code=301)
         # Otherwise (private IP but different port), do not force to avoid surprises
         return None
 
     # Public IPs and domains: upgrade to HTTPS, keeping the host only if it is ours
     allowed_hosts = {app_domain: app_domain, f"www.{app_domain}": f"www.{app_domain}"} if app_domain else {}
     target_host = allowed_hosts.get(host_only.lower(), app_domain or 'localhost')
-    return redirect(f"https://{target_host}{path}", code=301)
+    return redirect("https://" + target_host + path, code=301)
 
 # Register Blueprints
 controllers_dir = os.path.join(os.path.dirname(__file__), "controllers")
