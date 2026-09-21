@@ -1,5 +1,14 @@
 # Star map work — handoff note
 
+> **Superseded (2026-09-21):** the two JSON data files described below no longer
+> exist. Their contents now live in the database: star names, Bayer letters,
+> variable IDs and filled-in magnitudes in `HDSTARTable` (`commonNames`,
+> `bayer`, `variableId`, `V-Mag`, `magSource`), and constellation figures in
+> `ConstellationsTable` / `ConstellationLinesTable`. `scripts/build_*.py` were
+> replaced by `scripts/import_star_names.py` and
+> `scripts/import_constellations.py`, which write straight into the database.
+> The client reads figures from `/api/constellations`.
+
 Paste this into a new session to resume. Everything below is already written to
 disk in `/home/alex/Server` and is uncommitted.
 

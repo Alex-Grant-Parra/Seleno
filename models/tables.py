@@ -217,6 +217,67 @@ class NGCtable(BaseTable):
         return None
 
 
+# Constellation figures for the star map. Each line joins two catalogue stars
+# by designation, so the figure always lands exactly on the stars the map draws
+# and no coordinates are stored twice. Populated by
+# scripts/import_constellations.py.
+class ConstellationsTable(BaseTable):
+    __tablename__ = 'ConstellationsTable'
+    __table_args__ = {'extend_existing': True}
+
+    Abbr = db.Column(db.String(8), primary_key=True)        # IAU abbreviation, e.g. "Ori"
+    Name = db.Column(db.String(64), nullable=False)         # e.g. "Orion"
+    LabelRA = db.Column(db.Float, nullable=True)            # where to draw the name, degrees
+    LabelDEC = db.Column(db.Float, nullable=True)
+
+
+class ConstellationLinesTable(BaseTable):
+    __tablename__ = 'ConstellationLinesTable'
+    __table_args__ = (
+        db.UniqueConstraint('Constellation', 'StarA', 'StarB', name='uq_constellation_line'),
+        {'extend_existing': True},
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    Constellation = db.Column(db.String(8), db.ForeignKey('ConstellationsTable.Abbr'),
+                              nullable=False, index=True)
+    StarA = db.Column(db.String(255), nullable=False)       # catalogue designation, e.g. "HD39801"
+    StarB = db.Column(db.String(255), nullable=False)
+
+
+# Star-map metadata added to HDSTARTable by scripts/import_star_names.py:
+#   bayer      - Bayer designation, e.g. "β Per"
+#   variableId - variable-star designation, e.g. "Bet Per"
+#   magSource  - set only where V-Mag was filled in because the Henry Draper
+#                catalogue recorded a placeholder instead of a magnitude; it
+#                names the source and keeps the original placeholder, e.g.
+#                "IAU-CSN; HD placeholder 30.0", so the change is reversible.
+HD_STAR_MAP_COLUMNS = {
+    'bayer': 'TEXT',
+    'variableId': 'TEXT',
+    'magSource': 'TEXT',
+}
+
+
+def ensure_star_catalogue_schema(engine=None):
+    """Create the constellation tables and add the star-map columns to
+    HDSTARTable if they are missing. Safe to call repeatedly."""
+    from sqlalchemy import inspect, text
+
+    engine = engine or db.engine
+    ConstellationsTable.__table__.create(bind=engine, checkfirst=True)
+    ConstellationLinesTable.__table__.create(bind=engine, checkfirst=True)
+
+    inspector = inspect(engine)
+    if 'HDSTARTable' not in inspector.get_table_names():
+        return
+    existing = {c['name'] for c in inspector.get_columns('HDSTARTable')}
+    with engine.begin() as conn:
+        for column, column_type in HD_STAR_MAP_COLUMNS.items():
+            if column not in existing:
+                conn.execute(text(f'ALTER TABLE "HDSTARTable" ADD COLUMN "{column}" {column_type}'))
+
+
 # PlanetsTable: Define columns dynamically using reflection
 class PlanetsTable(BaseTable):
     __tablename__ = 'PlanetsTable'  # The actual table name in the database

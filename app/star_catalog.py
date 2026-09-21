@@ -15,19 +15,19 @@ treated as *unknown*, represented as NaN in the binary payload and as null in
 JSON, and sorted to the end of the catalogue so a magnitude limit never has to
 guess a value for them.
 
-Where a magnitude is missing we first consult static/data/star_names.json, an
-overlay built by scripts/build_star_names.py from the IAU star name catalogue
-and the Yale Bright Star Catalogue. That recovers the 103 naked-eye stars whose
-magnitude the Henry Draper catalogue never recorded - all of them variables,
-Algol and Delta Cephei among them - which would otherwise be undrawable. The
-overlay only ever fills a gap; it never overrides a magnitude the database has.
-It also carries the proper names, which the database itself has for only 40
-stars.
+Names and figures
+-----------------
+Proper names come from the catalogue tables' own name columns (HDSTARTable
+`commonNames`, NGC/IC `Common names`), plus the `bayer`, `variableId` and
+`magSource` columns that scripts/import_star_names.py adds to HDSTARTable.
+Constellation figures come from ConstellationsTable/ConstellationLinesTable
+(scripts/import_constellations.py), whose lines reference stars by designation.
+Both are built together with the arrays, so they share the catalogue's cache
+and are rebuilt whenever the database file changes.
 """
 
 import array
 import gzip
-import json
 import math
 import os
 import struct
@@ -51,68 +51,154 @@ FLAG_HAS_NAMES = 1 << 0
 
 _MAX_CACHED_PAYLOADS = 24
 
-# Proper names and fallback magnitudes; see scripts/build_star_names.py
-_NAMES_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "static", "data", "star_names.json",
-)
-
 _lock = threading.RLock()
 _catalog = None
 _payload_cache = {}
-_star_names = None
+
+# Name columns per catalogue table
+_NAME_COLUMNS = {"HDSTARTable": "commonNames", "NGCtable": "Common names", "IndexTable": "Common names"}
+_HD_EXTRA_COLUMNS = ("bayer", "variableId", "magSource")
+
+
+def split_aliases(cell):
+    """A comma-separated names cell as a list of trimmed aliases."""
+    return [part.strip() for part in str(cell or "").split(",") if part.strip()]
+
+
+def is_designation(alias):
+    """Catalogue numbers such as 'HD 34029' or 'M31', as opposed to names."""
+    upper = alias.upper().replace(" ", "")
+    for prefix in ("HD", "NGC", "IC", "M"):
+        if upper.startswith(prefix) and upper[len(prefix):].isdigit():
+            return True
+    return False
 
 
 def get_star_names():
-    """designation -> {name, bayer?, var?, mag?}, loaded once."""
-    global _star_names
-    if _star_names is None:
-        try:
-            with open(_NAMES_PATH, encoding="utf-8") as handle:
-                _star_names = json.load(handle).get("stars", {})
-        except (OSError, ValueError) as exc:
-            print(f"star_catalog: no star name overlay ({exc})")
-            _star_names = {}
-    return _star_names
+    """designation -> {name, aliases, bayer?, var?, magSource?} for every named
+    or annotated catalogue object. Shares the catalogue's cache."""
+    return get_catalog().name_records
 
 
 def star_name_record(designation):
-    """Proper name/Bayer/variable record for a catalogue designation, or None."""
+    """Name/Bayer/variable record for a catalogue designation, or None."""
     if not designation:
         return None
     return get_star_names().get(designation)
 
 
 def find_by_proper_name(query):
-    """Catalogue designation for a proper name, matched case-insensitively.
+    """Catalogue designation for a name, matched case-insensitively.
 
-    Falls back to a prefix match so "alpha cen" finds "Alpha Centauri A".
+    Any alias counts as an exact match ("Toliman" finds the star displayed as
+    "Rigil Kentaurus B"); failing that, a prefix of the displayed name does
+    ("alpha cen" finds "Alpha Centauri A").
     """
-    if not query:
-        return None
-    needle = query.strip().lower()
+    needle = (query or "").strip().lower()
     if not needle:
         return None
-    names = get_star_names()
     prefix_hit = None
-    for designation, record in names.items():
-        proper = (record.get("name") or "").lower()
-        if not proper:
-            continue
-        if proper == needle:
+    for designation, record in get_star_names().items():
+        aliases = record.get("aliases", ())
+        if any(alias.lower() == needle for alias in aliases):
             return designation
-        if prefix_hit is None and proper.startswith(needle):
+        name = (record.get("name") or "").lower()
+        if prefix_hit is None and name and name.startswith(needle):
             prefix_hit = designation
     return prefix_hit
+
+
+def get_constellations():
+    """Constellation figures with their lines resolved to coordinates."""
+    return get_catalog().constellations
+
+
+def _existing_columns(table):
+    from sqlalchemy import text
+    from app.db import db
+    try:
+        return {row[1] for row in db.session.execute(text(f'PRAGMA table_info("{table}")'))}
+    except Exception:
+        return set()
+
+
+def _load_name_records():
+    """Names and annotations from the catalogue tables' own columns."""
+    from sqlalchemy import text
+    from app.db import db
+
+    records = {}
+    for table, name_column in _NAME_COLUMNS.items():
+        columns = _existing_columns(table)
+        if name_column not in columns:
+            continue
+        extras = [c for c in _HD_EXTRA_COLUMNS if c in columns] if table == "HDSTARTable" else []
+        selected = ", ".join([f'"{name_column}"'] + [f'"{c}"' for c in extras])
+        condition = " OR ".join(f'"{c}" IS NOT NULL' for c in [name_column] + extras)
+        try:
+            rows = db.session.execute(text(
+                f'SELECT Name, {selected} FROM "{table}" WHERE {condition}'
+            )).fetchall()
+        except Exception as exc:
+            print(f"star_catalog: could not read names from {table}: {exc}")
+            continue
+        for row in rows:
+            aliases = split_aliases(row[1])
+            names = [a for a in aliases if not is_designation(a)]
+            record = {"aliases": aliases}
+            if names:
+                record["name"] = names[0]
+            for column, value in zip(extras, row[2:]):
+                if value:
+                    record["var" if column == "variableId" else column] = value
+            if len(record) > 1 or aliases:
+                records[row[0]] = record
+    return records
+
+
+def _load_constellation_rows():
+    """(figures, lines) straight from the constellation tables, or empty."""
+    from sqlalchemy import text
+    from app.db import db
+    try:
+        figures = db.session.execute(text(
+            'SELECT Abbr, Name, LabelRA, LabelDEC FROM "ConstellationsTable" ORDER BY Name'
+        )).fetchall()
+        lines = db.session.execute(text(
+            'SELECT Constellation, StarA, StarB FROM "ConstellationLinesTable" ORDER BY id'
+        )).fetchall()
+    except Exception:
+        return [], []  # tables not created yet: no figures, not an error
+    return figures, lines
+
+
+def _resolve_constellations(figures, lines, coordinates):
+    """Figures in the shape the client draws: lines as [[ra, dec], [ra, dec]]."""
+    by_abbr = {}
+    for abbr, name, label_ra, label_dec in figures:
+        by_abbr[abbr] = {
+            "id": abbr,
+            "name": name,
+            "anchor": None if label_ra is None else [round(label_ra, 4), round(label_dec, 4)],
+            "lines": [],
+        }
+    for abbr, star_a, star_b in lines:
+        figure = by_abbr.get(abbr)
+        a, b = coordinates.get(star_a), coordinates.get(star_b)
+        if figure is None or a is None or b is None:
+            continue
+        figure["lines"].append([[round(a[0], 5), round(a[1], 5)], [round(b[0], 5), round(b[1], 5)]])
+    return [f for f in by_abbr.values() if f["lines"]]
 
 
 class StarCatalog:
     """Flat, magnitude-sorted view of every catalogue object."""
 
     __slots__ = ("names", "ra", "dec", "mag", "count", "known_count", "known_mags",
-                 "min_mag", "max_mag", "version")
+                 "min_mag", "max_mag", "version", "name_records", "constellations")
 
-    def __init__(self, names, ra, dec, mag, known_count, version):
+    def __init__(self, names, ra, dec, mag, known_count, version,
+                 name_records=None, constellations=None):
         self.names = names
         self.ra = ra
         self.dec = dec
@@ -124,6 +210,8 @@ class StarCatalog:
         self.min_mag = self.known_mags[0] if known_count else -2.0
         self.max_mag = self.known_mags[-1] if known_count else 20.0
         self.version = version
+        self.name_records = name_records or {}
+        self.constellations = constellations or []
 
     @property
     def unknown_count(self):
@@ -181,10 +269,12 @@ def _rows_from_table(table, placeholders):
 
 def build_catalog():
     """Read all three tables into magnitude-sorted arrays (a few hundred ms)."""
-    names_overlay = get_star_names()
+    figures, figure_lines = _load_constellation_rows()
+    figure_stars = {star for _, a, b in figure_lines for star in (a, b)}
+    figure_coordinates = {}
+
     known = []
     unknown = []
-    recovered = 0
     for table, placeholders in (
         (HDSTARtable, HD_PLACEHOLDER_MAGS),
         (IndexTable, frozenset()),
@@ -193,22 +283,13 @@ def build_catalog():
         try:
             for mag, name, ra, dec in _rows_from_table(table, placeholders):
                 if mag is None:
-                    # The catalogue has no magnitude: fall back to the overlay
-                    # before writing the object off as unplottable.
-                    overlay = names_overlay.get(name)
-                    fallback = overlay.get("mag") if overlay else None
-                    if fallback is not None:
-                        known.append((float(fallback), name, ra, dec))
-                        recovered += 1
-                    else:
-                        unknown.append((name, ra, dec))
+                    unknown.append((name, ra, dec))
                 else:
                     known.append((mag, name, ra, dec))
+                if name in figure_stars:
+                    figure_coordinates[name] = (ra, dec)
         except Exception as exc:  # a missing/renamed table must not break the map
             print(f"star_catalog: failed to read {getattr(table, '__tablename__', table)}: {exc}")
-
-    if recovered:
-        print(f"star_catalog: recovered magnitudes for {recovered} stars from the name overlay")
 
     known.sort(key=lambda row: row[0])
 
@@ -230,7 +311,11 @@ def build_catalog():
         dec_arr[j] = dec
         mag_arr[j] = nan
 
-    return StarCatalog(names, ra_arr, dec_arr, mag_arr, len(known), _catalog_version())
+    return StarCatalog(
+        names, ra_arr, dec_arr, mag_arr, len(known), _catalog_version(),
+        name_records=_load_name_records(),
+        constellations=_resolve_constellations(figures, figure_lines, figure_coordinates),
+    )
 
 
 def get_catalog(force_reload=False):

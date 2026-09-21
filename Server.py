@@ -377,6 +377,13 @@ with app.app_context():
     db.create_all()
     print("Database tables created/verified")
 
+    # Star-map columns/tables must exist before the catalogue warm-up reads them
+    try:
+        from models.tables import ensure_star_catalogue_schema
+        ensure_star_catalogue_schema()
+    except Exception as e:
+        print(f"[WARNING] Could not ensure star catalogue schema: {e}")
+
     # Warm the star map catalogue in the background so the first visitor
     # doesn't pay for reading ~286k catalogue rows.
     try:

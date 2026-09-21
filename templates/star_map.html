@@ -349,7 +349,7 @@
         <label for="show-planets"><input type="checkbox" id="show-planets" checked> <span>Planets</span></label>
     </div>
     <div class="control-group">
-        <label for="show-star-names" title="Label stars that carry an official IAU proper name (407 of them), brightest first.">
+        <label for="show-star-names" title="Label named objects: the 407 stars with an official IAU proper name, plus named clusters, nebulae and galaxies. Brightest first.">
             <input type="checkbox" id="show-star-names"> <span>Star names</span>
         </label>
         <label for="show-constellations" title="Figures for the 24 most prominent constellations. Every vertex sits on a star in this catalogue.">
@@ -410,7 +410,7 @@
             <li>Toggle equatorial grid (HA/DEC: Hour Angle and Declination)</li>
             <li>Toggle the ecliptic line</li>
             <li>Toggle constellation figures for the 24 most prominent constellations, with optional names. The line data comes from d3-celestial and every vertex has been snapped onto a star in this catalogue, so the figures meet the stars they are drawn from</li>
-            <li>Toggle star names to label the 407 stars with an official IAU proper name; search accepts those names too (try "Mizar" or "Algol")</li>
+            <li>Toggle star names to label named objects - 407 stars carrying an official IAU proper name, plus the named clusters, nebulae and galaxies in this catalogue. Search accepts those names too (try "Mizar", "Algol" or "Andromeda Galaxy")</li>
             <li>Tick "Unknown magnitude" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against</li>
             <li>Tick "Render stats" for a readout of how many objects the last frame drew and how long it took</li>
             <li>Reset view to default orientation and zoom</li>
@@ -456,7 +456,7 @@
 <script type="application/json" id="telescope-data">{{ selected_telescope | tojson }}</script>
 <script src="{{ url_for('static', filename='js/csrf-protection.js') }}" defer></script>
 <!-- Cache-busting query param to ensure latest JS is fetched -->
-<script src="{{ url_for('static', filename='js/star_map.js') }}?v=2026-09-20-5" defer></script>
+<script src="{{ url_for('static', filename='js/star_map.js') }}?v=2026-09-21-2" defer></script>
 <script>
 // Auto-detect user location and set latitude/longitude
 document.addEventListener('DOMContentLoaded', function() {

@@ -149,8 +149,8 @@ def search_object():
 
         else:
             print(f"Searching by common name across stars and NGC: {norm}")
-            # The IAU star-name overlay knows 407 proper names; the database's
-            # own commonNames column only has 40.
+            # Exact alias match first (so "Deneb" doesn't land on Denebola),
+            # then the substring search below
             from app import star_catalog
             designation = star_catalog.find_by_proper_name(norm)
             if designation:
@@ -182,27 +182,20 @@ def search_object():
         dec = float(result_data.get('DEC', 0))  # Default to 0 if DEC is missing or None
         mag = result_data.get('V-Mag', 0)  # Default to 0 if V-Mag is missing or None
 
-        # Apply the star-name overlay: the proper name, and a magnitude for the
-        # stars the Henry Draper catalogue never recorded one for (variables
-        # such as Algol, which the map would otherwise be unable to place).
+        # Bayer letter, variable-star ID and displayed name from the catalogue
         try:
             from app import star_catalog
-            overlay = star_catalog.star_name_record(name) or {}
+            record = star_catalog.star_name_record(name) or {}
         except Exception:
-            overlay = {}
+            record = {}
 
-        if overlay.get('mag') is not None:
-            placeholder = mag is None or mag in (20.0, 30.0, 40.0, 50.0)
-            if placeholder:
-                mag = float(overlay['mag'])
-                result_data['V-Mag'] = mag
-        if overlay.get('bayer'):
-            result_data['bayer'] = overlay['bayer']
-        if overlay.get('var'):
-            result_data['variableId'] = overlay['var']
+        if record.get('bayer'):
+            result_data['bayer'] = record['bayer']
+        if record.get('var'):
+            result_data['variableId'] = record['var']
 
         # Extract friendly common name (non-HD variant) if available
-        friendly_name = overlay.get('name')
+        friendly_name = record.get('name')
         if not friendly_name:
             common_names_raw = result_data.get('commonNames', '') or result_data.get('Common names', '')
             friendly_name = extract_friendly_common_name(common_names_raw)
