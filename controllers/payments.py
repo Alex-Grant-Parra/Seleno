@@ -46,6 +46,9 @@ def _parse_iso_timestamp(raw):
         return None
 
 
+INVALID_AMOUNT_MESSAGE = 'amount must be a positive number with up to 2 decimal places'
+
+
 def _parse_amount(value):
     try:
         amount = Decimal(str(value)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -207,8 +210,8 @@ def sumup_create_checkout():
 
     try:
         amount = _parse_amount(payload.get('amount'))
-    except ValueError as exc:
-        return jsonify({'status': 'error', 'message': str(exc)}), 400
+    except ValueError:
+        return jsonify({'status': 'error', 'message': INVALID_AMOUNT_MESSAGE}), 400
 
     currency = CHECKOUT_CURRENCY
 
@@ -292,9 +295,10 @@ def sumup_create_checkout():
             'sumupStatusCode': exc.status_code,
             'sumupError': exc.response_payload,
         }), 502
-    except Exception as exc:
+    except Exception:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(exc)}), 500
+        current_app.logger.exception('SumUp checkout request failed')
+        return jsonify({'status': 'error', 'message': 'Checkout request failed'}), 500
 
 
 @payments_bp.route('/payments/sumup/checkout/<string:checkout_id>', methods=['GET'])
@@ -362,9 +366,10 @@ def sumup_sync_checkout(checkout_id):
     except SumUpAPIError as exc:
         db.session.rollback()
         return jsonify({'status': 'error', 'message': 'SumUp sync failed', 'sumupStatusCode': exc.status_code}), 502
-    except Exception as exc:
+    except Exception:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(exc)}), 500
+        current_app.logger.exception('SumUp checkout request failed')
+        return jsonify({'status': 'error', 'message': 'Checkout request failed'}), 500
 
 
 @payments_bp.route('/payments/sumup/checkout/<string:checkout_id>/deactivate', methods=['POST'])
@@ -416,8 +421,8 @@ def sumup_payment_methods():
     if amount_raw:
         try:
             amount = float(_parse_amount(amount_raw))
-        except ValueError as exc:
-            return jsonify({'status': 'error', 'message': str(exc)}), 400
+        except ValueError:
+            return jsonify({'status': 'error', 'message': INVALID_AMOUNT_MESSAGE}), 400
 
     try:
         creds = resolve_sumup_credentials()

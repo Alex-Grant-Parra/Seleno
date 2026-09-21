@@ -2,6 +2,7 @@ import os
 import shutil
 import json
 from collections import deque
+from urllib.parse import urlparse
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, session, send_file
 from flask_login import login_required, current_user
@@ -18,6 +19,15 @@ sec_logger = logging.getLogger('security')
 
 # Define the blueprint for admin routes
 admin_bp = Blueprint('admin', __name__)
+
+
+def _redirect_back():
+    # Redirect to the referring page on this site, falling back to the admin page
+    ref = urlparse(request.referrer or '')
+    if ref.netloc == request.host and ref.path.startswith('/') and not ref.path.startswith('//'):
+        path = '/' + ref.path.lstrip('/\\')
+        return redirect(path + ('?' + ref.query if ref.query else ''))
+    return redirect(url_for('admin.admin'))
 
 try:
     from flask_wtf.csrf import exempt
@@ -194,7 +204,7 @@ def _query_file_source(source, page, page_size, filters):
     # Read bounded tail lines for file-based logs, then filter and paginate.
     logs_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'security', 'logs'))
     requested = os.path.abspath(os.path.join(logs_dir, source))
-    if not requested.startswith(logs_dir) or not os.path.exists(requested):
+    if not requested.startswith(logs_dir + os.sep) or not os.path.exists(requested):
         return None, 'File not found'
 
     line_window = max(page * page_size * 4, 1500)
@@ -203,8 +213,9 @@ def _query_file_source(source, page, page_size, filters):
     try:
         with open(requested, 'r', encoding='utf-8', errors='ignore') as fh:
             recent_lines = list(deque(fh, maxlen=line_window))
-    except Exception as exc:
-        return None, str(exc)
+    except Exception:
+        sec_logger.exception("Failed to read log file %s", source)
+        return None, 'Failed to read log file'
 
     filtered = []
     q = filters['q']
@@ -275,21 +286,21 @@ def promote_user(user_id):
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'You cannot change your own role.'}), 400
         flash('You cannot change your own role.', 'warning')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user = User.query.get(user_id)
     if not user:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'User not found.'}), 404
         flash('User not found.', 'danger')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user.AccountType = 'Administrator'
     db.session.commit()
     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'status': 'success', 'message': f'User {user.username} promoted to Administrator.'})
     flash(f'User {user.username} promoted to Administrator.', 'success')
-    return redirect(request.referrer or url_for('admin.admin'))
+    return _redirect_back()
 
 
 @admin_bp.route('/admin/user/<int:user_id>/demote', methods=['POST'])
@@ -304,21 +315,21 @@ def demote_user(user_id):
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'You cannot change your own role.'}), 400
         flash('You cannot change your own role.', 'warning')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user = User.query.get(user_id)
     if not user:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'User not found.'}), 404
         flash('User not found.', 'danger')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user.AccountType = 'Standard'
     db.session.commit()
     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'status': 'success', 'message': f'User {user.username} demoted to Standard.'})
     flash(f'User {user.username} demoted to Standard.', 'success')
-    return redirect(request.referrer or url_for('admin.admin'))
+    return _redirect_back()
 
 
 @admin_bp.route('/admin/user/<int:user_id>/delete', methods=['POST'])
@@ -333,14 +344,14 @@ def delete_user(user_id):
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'You cannot delete your own account.'}), 400
         flash('You cannot delete your own account.', 'warning')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user = User.query.get(user_id)
     if not user:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'User not found.'}), 404
         flash('User not found.', 'danger')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     try:
         db.session.delete(user)
@@ -348,13 +359,14 @@ def delete_user(user_id):
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'success', 'message': f'User {user.username} deleted.'})
         flash(f'User {user.username} deleted.', 'success')
-    except Exception as e:
+    except Exception:
         db.session.rollback()
+        sec_logger.exception("Failed to delete user %s", user_id)
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-        flash(f'Failed to delete user: {e}', 'danger')
+            return jsonify({'status': 'error', 'message': 'Failed to delete user.'}), 500
+        flash('Failed to delete user.', 'danger')
 
-    return redirect(request.referrer or url_for('admin.admin'))
+    return _redirect_back()
 
 
 
@@ -371,34 +383,34 @@ def set_role(user_id):
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'You cannot change your own role.'}), 400
         flash('You cannot change your own role.', 'warning')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user = User.query.get(user_id)
     if not user:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'User not found.'}), 404
         flash('User not found.', 'danger')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     json_data = request.get_json(silent=True) if request.is_json else None
     role = (json_data or {}).get('role') or request.form.get('role')
 
     if not request.is_json and not request.form:
         flash('Security validation failed. Please try again.', 'danger')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
     
     if role not in ['Administrator', 'Standard', 'Limited']:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'Invalid role specified.'}), 400
         flash('Invalid role specified.', 'danger')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user.AccountType = role
     db.session.commit()
     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({'status': 'success', 'message': f'{user.username} role set to {role}.'})
     flash(f'{user.username} role set to {role}.', 'success')
-    return redirect(request.referrer or url_for('admin.admin'))
+    return _redirect_back()
 
 
 @admin_bp.route('/admin/user/<int:user_id>/toggle_enabled', methods=['POST'])
@@ -413,14 +425,14 @@ def toggle_enabled(user_id):
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'You cannot change your own enabled status.'}), 400
         flash('You cannot change your own enabled status.', 'warning')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     user = User.query.get(user_id)
     if not user:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'status': 'error', 'message': 'User not found.'}), 404
         flash('User not found.', 'danger')
-        return redirect(request.referrer or url_for('admin.admin'))
+        return _redirect_back()
 
     current_status = user.is_enabled()
     # Record the change in AccountStatusHistory
@@ -436,7 +448,7 @@ def toggle_enabled(user_id):
         return jsonify({'status': 'success', 'message': message, 'enabled': not current_status})
 
     flash(message, 'success')
-    return redirect(request.referrer or url_for('admin.admin'))
+    return _redirect_back()
 
 
 @admin_bp.route('/admin/security/logs')
@@ -607,8 +619,9 @@ def admin_security_query_logs():
             },
             'items': items,
         })
-    except Exception as exc:
-        return jsonify({'error': str(exc)}), 500
+    except Exception:
+        sec_logger.exception("Failed to query security logs")
+        return jsonify({'error': 'Failed to load logs'}), 500
 
 
 @admin_bp.route('/admin/security/logfile/<path:filename>')
@@ -626,37 +639,41 @@ def admin_security_logfile(filename):
             rows = RequestLog.query.order_by(RequestLog.id.desc()).limit(500).all()
             lines = [row.to_log_line() for row in reversed(rows)]
             return jsonify({'file': filename, 'lines': lines})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        except Exception:
+            sec_logger.exception("Failed to load log %s", filename)
+            return jsonify({'error': 'Failed to load log'}), 500
 
     if filename == 'security.log':
         try:
             rows = SecurityLog.query.order_by(SecurityLog.id.desc()).limit(500).all()
             lines = [row.to_log_line() for row in reversed(rows)]
             return jsonify({'file': filename, 'lines': lines})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        except Exception:
+            sec_logger.exception("Failed to load log %s", filename)
+            return jsonify({'error': 'Failed to load log'}), 500
 
     if filename == 'websocket_security.log':
         try:
             rows = WebsocketSecurityLog.query.order_by(WebsocketSecurityLog.id.desc()).limit(500).all()
             lines = [row.to_log_line() for row in reversed(rows)]
             return jsonify({'file': filename, 'lines': lines})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        except Exception:
+            sec_logger.exception("Failed to load log %s", filename)
+            return jsonify({'error': 'Failed to load log'}), 500
 
     # Prevent path traversal: only serve files from security/logs directory
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'security', 'logs'))
     requested = os.path.abspath(os.path.join(base_dir, filename))
-    if not requested.startswith(base_dir) or not os.path.exists(requested):
+    if not requested.startswith(base_dir + os.sep) or not os.path.exists(requested):
         return jsonify({'error': 'File not found'}), 404
 
     try:
         with open(requested, 'r', encoding='utf-8', errors='ignore') as f:
             lines = f.readlines()[-500:]
         return jsonify({'file': filename, 'lines': lines})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        sec_logger.exception("Failed to read log file %s", filename)
+        return jsonify({'error': 'Failed to read log file'}), 500
 
 
 @admin_bp.route('/admin/blacklist/add', methods=['POST'])

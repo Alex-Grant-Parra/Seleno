@@ -96,7 +96,7 @@ def upload_file():
         except Exception as e:
             print(f"[ERROR] Failed to save '{safe_name}': {e}")
             traceback.print_exc()
-            return jsonify({"status": "error", "message": f"Error saving '{safe_name}': {e}"}), 500
+            return jsonify({"status": "error", "message": f"Error saving '{safe_name}'"}), 500
 
     print("[DEBUG] Upload successful")
     return jsonify({"status": "success", "message": f"Files uploaded to '{user_upload_folder}': {saved_files}"}), 200

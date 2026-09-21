@@ -820,7 +820,7 @@ function updateLiveViewSrcForTelescope(telescopeId) {
     liveViewImage.crossOrigin = 'anonymous';
 
     const domain = (window.APP_DOMAIN && typeof window.APP_DOMAIN === 'string') ? window.APP_DOMAIN : 'telescopes.dev';
-    const newSrc = `https://${domain}/liveview/${telescopeId}`;
+    const newSrc = `https://${domain}/liveview/${encodeURIComponent(telescopeId)}`;
     const wasRefreshing = !!refreshInterval;
     if (wasRefreshing) {
         stopImageRefresh();
@@ -999,7 +999,9 @@ function updateMotorStatusDisplay(message, type = 'info') {
     }
     
     // Append new messages instead of replacing (keep history)
-    const newMessage = `<div class="${className}">[${timestamp}] ${icon}${message}</div>`;
+    const newMessage = document.createElement('div');
+    newMessage.className = className;
+    newMessage.textContent = `[${timestamp}] ${icon}${message}`;
     
     // If statusDiv is getting too full, keep only last 10 messages
     const messages = statusDiv.querySelectorAll('div');
@@ -1007,7 +1009,7 @@ function updateMotorStatusDisplay(message, type = 'info') {
         statusDiv.removeChild(messages[0]);
     }
     
-    statusDiv.innerHTML += newMessage;
+    statusDiv.appendChild(newMessage);
     
     // Auto-scroll to bottom
     statusDiv.scrollTop = statusDiv.scrollHeight;
@@ -1143,11 +1145,17 @@ function getMotorStatus() {
     sendMotorCommand("status")
     .then(result => {
         if (result && typeof result === 'object') {
-            let statusText = `<strong>Motor Status (${selectedMotorId}):</strong><br>`;
+            const statusDiv = document.getElementById("motorStatus");
+            statusDiv.replaceChildren();
+            const heading = document.createElement('strong');
+            heading.textContent = `Motor Status (${selectedMotorId}):`;
+            statusDiv.append(heading, document.createElement('br'));
             for (const [key, value] of Object.entries(result)) {
-                statusText += `<span class="text-muted">${key}:</span> ${JSON.stringify(value)}<br>`;
+                const label = document.createElement('span');
+                label.className = 'text-muted';
+                label.textContent = `${key}:`;
+                statusDiv.append(label, ` ${JSON.stringify(value)}`, document.createElement('br'));
             }
-            document.getElementById("motorStatus").innerHTML = statusText;
         } else {
             updateMotorStatusDisplay(`Status: ${result || 'Unknown'}`, 'success');
         }

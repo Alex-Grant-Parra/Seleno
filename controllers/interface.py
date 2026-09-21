@@ -1,5 +1,6 @@
 import sys
 import os
+import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from flask import Blueprint, render_template, request, jsonify, session
@@ -9,6 +10,8 @@ from datetime import datetime
 import time
 
 from app.telescopeLink import Telescope, current_telescope  # Updated import
+
+logger = logging.getLogger(__name__)
 
 interface_bp = Blueprint("interface", __name__, url_prefix="/interface")
 
@@ -62,20 +65,18 @@ def update_camera():
             # Set the shutter speed using Camera class
             print("Changing shutterspeed")
             t.camera.set_settings(["/main/capturesettings/shutterspeed", shutter_speed])
-        except Exception as e:
-            response = {"status": "error", "message": f"Failed to set shutter speed: {e}"}
-            print(response)
-            return jsonify(response)
+        except Exception:
+            logger.exception("Failed to set shutter speed")
+            return jsonify({"status": "error", "message": "Failed to set shutter speed"})
 
     # Handling ISO
     if iso:
         try:
             print("Changing iso")
             t.camera.set_settings(["/main/imgsettings/iso", iso])
-        except Exception as e:
-            response = {"status": "error", "message": f"Failed to set ISO: {e}"}
-            print(response)
-            return jsonify(response)
+        except Exception:
+            logger.exception("Failed to set ISO")
+            return jsonify({"status": "error", "message": "Failed to set ISO"})
 
     return jsonify(response)
 
@@ -267,9 +268,9 @@ def get_camera_choices():
         t = Telescope(cid)
         choices = t.camera.get_settings()
         return jsonify(choices)
-    except Exception as e:
-        print(e)
-        return jsonify({"status": "error", "message": str(e)})
+    except Exception:
+        logger.exception("Failed to get camera choices")
+        return jsonify({"status": "error", "message": "Failed to get camera choices"})
     
 
 @interface_bp.route("/take_photo", methods=["POST"])
@@ -290,8 +291,9 @@ def take_photo():
         t = Telescope(telescope_id)
         print(t.camera.capture_photo(current_id))
         return jsonify({"status": "success"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+    except Exception:
+        logger.exception("Failed to take photo")
+        return jsonify({"status": "error", "message": "Failed to take photo"})
     
 
 @interface_bp.route("/get_telescopes", methods=["GET"])
@@ -314,8 +316,9 @@ def get_telescopes():
             telescope_list.append(telescope_data)
         
         return jsonify({"status": "success", "telescopes": telescope_list})
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to get telescopes: {str(e)}"})
+    except Exception:
+        logger.exception("Failed to get telescopes")
+        return jsonify({"status": "error", "message": "Failed to get telescopes"})
 
 @interface_bp.route("/select_telescope", methods=["POST"])
 def select_telescope():
@@ -352,8 +355,9 @@ def select_telescope():
             "telescope": session['selected_telescope']
         })
         
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to select telescope: {str(e)}"})
+    except Exception:
+        logger.exception("Failed to select telescope")
+        return jsonify({"status": "error", "message": "Failed to select telescope"})
 
 @interface_bp.route("/get_selected_telescope", methods=["GET"])
 def get_selected_telescope():
@@ -389,8 +393,9 @@ def add_telescope():
         
         return jsonify(result)
         
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to add telescope: {str(e)}"})
+    except Exception:
+        logger.exception("Failed to add telescope")
+        return jsonify({"status": "error", "message": "Failed to add telescope"})
 
 @interface_bp.route("/remove_telescope", methods=["POST"])
 def remove_telescope():
@@ -415,8 +420,9 @@ def remove_telescope():
         
         return jsonify(result)
         
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to remove telescope: {str(e)}"})
+    except Exception:
+        logger.exception("Failed to remove telescope")
+        return jsonify({"status": "error", "message": "Failed to remove telescope"})
 
 @interface_bp.route("/update_telescope_heartbeat", methods=["POST"])
 def update_telescope_heartbeat():
@@ -433,8 +439,9 @@ def update_telescope_heartbeat():
         
         return jsonify(result)
         
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to update telescope heartbeat: {str(e)}"})
+    except Exception:
+        logger.exception("Failed to update telescope heartbeat")
+        return jsonify({"status": "error", "message": "Failed to update telescope heartbeat"})
 
 @interface_bp.route("/start_live_view", methods=["POST"])
 def start_live_view():
@@ -451,8 +458,9 @@ def start_live_view():
         t = Telescope(telescope_id)
         result = t.camera.start_live_view()
         return jsonify({"status": "success", "message": "Live view started", "result": result})
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to start live view: {str(e)}"})
+    except Exception:
+        logger.exception("Failed to start live view")
+        return jsonify({"status": "error", "message": "Failed to start live view"})
 
 @interface_bp.route("/stop_live_view", methods=["POST"])
 def stop_live_view():
@@ -469,8 +477,9 @@ def stop_live_view():
         t = Telescope(telescope_id)
         result = t.camera.stop_live_view()
         return jsonify({"status": "success", "message": "Live view stopped", "result": result})
-    except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to stop live view: {str(e)}"})
+    except Exception:
+        logger.exception("Failed to stop live view")
+        return jsonify({"status": "error", "message": "Failed to stop live view"})
 
 @interface_bp.route("/motor_command", methods=["POST"])
 def motor_command():
@@ -532,10 +541,9 @@ def motor_command():
         print(f"Motor command '{command}' executed on motor '{motor_id}' with args {args}, result: {result}")
         return jsonify({"status": "success", "message": f"Motor command '{command}' executed successfully", "result": result})
         
-    except Exception as e:
-        error_msg = f"Failed to execute motor command: {str(e)}"
-        print(error_msg)
-        return jsonify({"status": "error", "message": error_msg}), 500
+    except Exception:
+        logger.exception("Failed to execute motor command")
+        return jsonify({"status": "error", "message": "Failed to execute motor command"}), 500
 
 @interface_bp.route("/get_motors", methods=["POST"])
 def get_motors():

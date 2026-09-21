@@ -589,10 +589,12 @@ def support_ticket_entry_attachment(message_id, entry_id):
     except TypeError:
         try:
             return send_file(entry.file_path, mimetype=mime or 'application/octet-stream', as_attachment=True, attachment_filename=download_name)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        except Exception:
+            current_app.logger.exception('Failed to send attachment')
+            return jsonify({'error': 'Failed to send attachment'}), 500
+    except Exception:
+        current_app.logger.exception('Failed to send attachment')
+        return jsonify({'error': 'Failed to send attachment'}), 500
 
 
 @contact_bp.route('/admin/contact/<int:message_id>/attachment')
@@ -641,10 +643,12 @@ def admin_contact_attachment(message_id):
         # Fallback for older Flask versions: use attachment_filename
         try:
             return send_file(msg.file_path, mimetype=mime or 'application/octet-stream', as_attachment=as_attachment, attachment_filename=download_name)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        except Exception:
+            current_app.logger.exception('Failed to send attachment')
+            return jsonify({'error': 'Failed to send attachment'}), 500
+    except Exception:
+        current_app.logger.exception('Failed to send attachment')
+        return jsonify({'error': 'Failed to send attachment'}), 500
 
 
 @contact_bp.route('/admin/contact/<int:message_id>/entries/<int:entry_id>/attachment')
@@ -683,7 +687,9 @@ def admin_contact_entry_attachment(message_id, entry_id):
     except TypeError:
         try:
             return send_file(entry.file_path, mimetype=mime or 'application/octet-stream', as_attachment=as_attachment, attachment_filename=download_name)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        except Exception:
+            current_app.logger.exception('Failed to send attachment')
+            return jsonify({'error': 'Failed to send attachment'}), 500
+    except Exception:
+        current_app.logger.exception('Failed to send attachment')
+        return jsonify({'error': 'Failed to send attachment'}), 500

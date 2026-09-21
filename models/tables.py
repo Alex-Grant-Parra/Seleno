@@ -424,8 +424,8 @@ class Telescope(db.Model):
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Failed to add telescope: {str(e)}")
-            return {"status": "error", "message": f"Failed to add telescope: {str(e)}"}
+            logger.exception("Failed to add telescope")
+            return {"status": "error", "message": "Failed to add telescope"}
     
     @staticmethod
     def remove_telescope(telescope_id):
@@ -444,8 +444,8 @@ class Telescope(db.Model):
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Failed to remove telescope: {str(e)}")
-            return {"status": "error", "message": f"Failed to remove telescope: {str(e)}"}
+            logger.exception("Failed to remove telescope")
+            return {"status": "error", "message": "Failed to remove telescope"}
     
     @staticmethod
     def update_last_seen(telescope_id, last_seen=None):
@@ -467,8 +467,8 @@ class Telescope(db.Model):
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Failed to update telescope: {str(e)}")
-            return {"status": "error", "message": f"Failed to update telescope: {str(e)}"}
+            logger.exception("Failed to update telescope")
+            return {"status": "error", "message": "Failed to update telescope"}
     
     @staticmethod
     def update_ip_address(telescope_id, ip_address):
@@ -486,5 +486,5 @@ class Telescope(db.Model):
             
         except Exception as e:
             db.session.rollback()
-            logger.error(f"Failed to update telescope IP: {str(e)}")
-            return {"status": "error", "message": f"Failed to update telescope: {str(e)}"}
+            logger.exception("Failed to update telescope IP")
+            return {"status": "error", "message": "Failed to update telescope"}

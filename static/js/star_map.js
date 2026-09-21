@@ -2311,12 +2311,31 @@ function showObjectInfoPanel(obj, data, ha) {
         window.currentStarData.bayer = local.bayer;
     }
 
-    document.getElementById('info').innerHTML =
-        `<b>${displayName}</b><br>RA: ${raHMS}<br>DEC: ${decDMS}<br>V-Mag: ${displayMagFormatted}<br>
-         <div style="margin-top: 5px; display: flex; gap: 4px;">
-            <button onclick="trackObject('${obj.name}', ${obj.ra}, ${obj.dec}, ${obj.mag})" style="padding: ${btnPadding}; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Track</button>
-            <button onclick="showStarInfoModal(window.currentStarData)" style="padding: ${btnPadding}; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Advanced Info</button>
-         </div>`;
+    const info = document.getElementById('info');
+    info.replaceChildren();
+    const title = document.createElement('b');
+    title.textContent = displayName;
+    info.append(
+        title, document.createElement('br'),
+        `RA: ${raHMS}`, document.createElement('br'),
+        `DEC: ${decDMS}`, document.createElement('br'),
+        `V-Mag: ${displayMagFormatted}`, document.createElement('br')
+    );
+
+    const buttons = document.createElement('div');
+    buttons.style.cssText = 'margin-top: 5px; display: flex; gap: 4px;';
+    const makeButton = (label, background, onClick) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = `padding: ${btnPadding}; background: ${background}; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;`;
+        btn.addEventListener('click', onClick);
+        return btn;
+    };
+    buttons.append(
+        makeButton('Track', '#4CAF50', () => trackObject(obj.name, obj.ra, obj.dec, obj.mag)),
+        makeButton('Advanced Info', '#007bff', () => showStarInfoModal(window.currentStarData))
+    );
+    info.appendChild(buttons);
 }
 
 // Nearest catalogue star to a screen point, or null. Mirrors the draw loop so

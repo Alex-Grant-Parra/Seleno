@@ -169,7 +169,8 @@ def force_https():
     - Always allow localhost/127.0.0.1 without redirect (handy for local dev/tools).
     - If request targets a private LAN IP on the Flask HTTP port (e.g., 8080),
       redirect to the same host over HTTPS on the default port (handled by Caddy).
-    - For domains (non-IP hosts), redirect http:// -> https://.
+    - Otherwise redirect to https:// on APP_DOMAIN (or www.APP_DOMAIN if that was
+      requested); unknown Host headers are never echoed into the redirect.
     """
     if request.is_secure or (request.headers.get('X-Forwarded-Proto') or '').lower() == 'https':
         return None
@@ -185,26 +186,30 @@ def force_https():
     if any(host_only.startswith(h) for h in local_hosts):
         return None
 
+    path = request.full_path if request.query_string else request.path
+    app_domain = (app.config.get("APP_DOMAIN") or "").lower()
+
     try:
         ip_obj = ipaddress.ip_address(host_only)
-        if ip_obj.is_private:
-            try:
-                flask_port_str = str(FlaskServerPort)
-            except Exception:
-                flask_port_str = '8080'
-
-            if port == flask_port_str:
-                # Build HTTPS URL without the explicit HTTP port
-                target = f"https://{host_only}{request.full_path if request.query_string else request.path}"
-                return redirect(target, code=301)
-            # Otherwise (private IP but different port), do not force to avoid surprises
-            return None
-        else:
-            # Public IPs: upgrade to HTTPS
-            return redirect(request.url.replace('http://', 'https://'), code=301)
     except ValueError:
-        # Not an IP literal (likely a domain): upgrade to HTTPS
-        return redirect(request.url.replace('http://', 'https://'), code=301)
+        ip_obj = None
+
+    if ip_obj is not None and ip_obj.is_private:
+        try:
+            flask_port_str = str(FlaskServerPort)
+        except Exception:
+            flask_port_str = '8080'
+
+        if port == flask_port_str:
+            # Build HTTPS URL without the explicit HTTP port, using the validated IP literal
+            return redirect(f"https://{ip_obj}{path}", code=301)
+        # Otherwise (private IP but different port), do not force to avoid surprises
+        return None
+
+    # Public IPs and domains: upgrade to HTTPS, keeping the host only if it is ours
+    allowed_hosts = {app_domain: app_domain, f"www.{app_domain}": f"www.{app_domain}"} if app_domain else {}
+    target_host = allowed_hosts.get(host_only.lower(), app_domain or 'localhost')
+    return redirect(f"https://{target_host}{path}", code=301)
 
 # Register Blueprints
 controllers_dir = os.path.join(os.path.dirname(__file__), "controllers")
@@ -460,14 +465,16 @@ with app.app_context():
         ensure_telescope_token_columns()
 
         table_migration = migrate_api_token_table_to_telescopes(drop_source_table=True)
-        if table_migration.get('imported', 0) > 0:
-            print(f"Migrated {table_migration.get('imported')} token(s) from api_token table to telescopes")
+        table_imported = int(table_migration.get('imported') or 0)
+        if table_imported > 0:
+            print(f"Migrated {table_imported} token(s) from api_token table to telescopes")
         if table_migration.get('dropped'):
             print("Dropped legacy api_token table")
 
         json_migration = migrate_json_tokens_to_db()
-        if json_migration.get('imported', 0) > 0:
-            print(f"Imported {json_migration.get('imported')} API token(s) from JSON into telescopes")
+        json_imported = int(json_migration.get('imported') or 0)
+        if json_imported > 0:
+            print(f"Imported {json_imported} API token(s) from JSON into telescopes")
     except Exception as e:
         print(f"[WARNING] Could not migrate API tokens to DB: {e}")
 

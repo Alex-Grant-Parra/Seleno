@@ -1,3 +1,4 @@
+import logging
 from flask import Blueprint, Response, jsonify, render_template, request, session
 from datetime import datetime, timezone
 from typing import Optional
@@ -9,6 +10,8 @@ from sqlalchemy import func
 from astrophysics.planetary_model import getAllCelestialData
 from astrophysics.V1_Keplarian.convert import convert
 from app.telescopeLink import Telescope
+
+logger = logging.getLogger(__name__)
 
 star_map_bp = Blueprint("star_map", __name__)
 
@@ -551,12 +554,12 @@ def track_star():
             "redirect": True
         })
         
-    except Exception as e:
-        print(f"[TRACKING ERROR] Failed to send coordinates: {str(e)}")
+    except Exception:
+        logger.exception("[TRACKING ERROR] Failed to send coordinates")
         return jsonify({
             "status": "error",
-            "error": str(e),
-            "message": f"Failed to send tracking command: {str(e)}"
+            "error": "Tracking command failed",
+            "message": "Failed to send tracking command"
         }), 500
 
 @star_map_bp.route("/get_tracking_status", methods=["GET"])
@@ -621,14 +624,14 @@ def stop_tracking():
             "result": result
         })
         
-    except Exception as e:
-        print(f"[TRACKING ERROR] Failed to stop tracking: {str(e)}")
+    except Exception:
+        logger.exception("[TRACKING ERROR] Failed to stop tracking")
         # Still clear session even if command failed
         session.pop("selectedObject", None)
         return jsonify({
             "status": "error",
-            "error": str(e),
-            "message": f"Failed to stop tracking: {str(e)}"
+            "error": "Stop tracking command failed",
+            "message": "Failed to stop tracking"
         }), 500
 
 @star_map_bp.route("/api/telescope_position", methods=["GET"])
@@ -698,11 +701,11 @@ def get_telescope_position():
                     "dec": dec_float,
                     "telescope_id": telescope_id
                 })
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 return jsonify({
                     "status": "error",
                     "error": "Failed to parse coordinates as numbers",
-                    "message": f"RA: {ra}, DEC: {dec} - {str(e)}",
+                    "message": "Telescope returned non-numeric coordinates",
                     "telescope_id": telescope_id
                 }), 500
         else:
@@ -713,14 +716,12 @@ def get_telescope_position():
                 "telescope_id": telescope_id
             }), 500
             
-    except Exception as e:
-        print(f"[TELESCOPE POSITION ERROR] Failed to get coordinates: {str(e)}", flush=True)
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        logger.exception("[TELESCOPE POSITION ERROR] Failed to get coordinates")
         return jsonify({
             "status": "error",
-            "error": str(e),
-            "message": f"Failed to get telescope position: {str(e)}"
+            "error": "Failed to get telescope position",
+            "message": "Failed to get telescope position"
         }), 500
 
 @star_map_bp.route("/api/debug/session", methods=["GET"])
