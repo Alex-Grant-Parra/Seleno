@@ -13,6 +13,9 @@ static/videos
 
 templates/routes.txt
 
+# Rendered from licence.md / tos.md / privacy.md on every server start
+templates/legal/
+
 __pycache__/
 
 instance/uploads/contact/

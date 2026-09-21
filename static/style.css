@@ -773,3 +773,59 @@ body.night-mode .modal-content {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Legal documents (Licence, Terms of Service, Privacy Policy) rendered from
+   Markdown sources at server startup — see utility/legal_docs.py */
+.legal-doc h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.legal-doc > h1:first-child + p {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.legal-doc h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 2.25rem;
+    margin-bottom: 1rem;
+}
+
+.legal-doc h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.legal-doc p,
+.legal-doc ul,
+.legal-doc ol {
+    margin-bottom: 1rem;
+}
+
+.legal-doc a {
+    color: var(--accent);
+}
+
+.legal-doc hr {
+    border-color: var(--line);
+    margin: 2rem 0;
+    opacity: 0.5;
+}
+
+.legal-doc blockquote {
+    border-left: 3px solid var(--line);
+    padding: 0.25rem 0 0.25rem 1rem;
+    margin: 0 0 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+}
+
+.legal-doc code {
+    color: var(--accent);
+}

@@ -7,9 +7,9 @@ about_bp = Blueprint('about', __name__)
 def about():
     return render_template('about.html')
 
-@about_bp.route('/about/license')
-def license_page():
-    return render_template('license.html')
+@about_bp.route('/about/licence')
+def licence_page():
+    return render_template('licence.html')
 
 @about_bp.route('/about/tos')
 def tos():

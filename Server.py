@@ -318,6 +318,16 @@ def generate_routes_file():
 # Generate the routes file
 generate_routes_file()
 
+# Re-render the Licence / TOS / Privacy pages from their Markdown sources so
+# the hosted pages always match whatever is currently committed in
+# licence.md, tos.md and privacy.md.
+try:
+    from utility.legal_docs import sync_legal_pages
+    synced = sync_legal_pages()
+    print(f"Synced {synced} legal document(s) from Markdown sources")
+except Exception as e:
+    print(f"[WARNING] Could not sync legal documents: {e}")
+
 # User Loader for Flask-Login
 from models.user import User
 # NOTE: Do NOT import `Telescope` at module import time — importing
