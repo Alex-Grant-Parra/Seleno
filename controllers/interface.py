@@ -149,7 +149,15 @@ def search_object():
 
         else:
             print(f"Searching by common name across stars and NGC: {norm}")
-            result = HDSTARtable.query_by_common_name(norm)
+            # The IAU star-name overlay knows 407 proper names; the database's
+            # own commonNames column only has 40.
+            from app import star_catalog
+            designation = star_catalog.find_by_proper_name(norm)
+            if designation:
+                result = HDSTARtable.query_by_name(designation)
+
+            if not result:
+                result = HDSTARtable.query_by_common_name(norm)
             if not result:
                 # Then try NGC common names (exact ilike on full cell)
                 result = NGCtable.query_by_common_name(norm)
@@ -174,9 +182,30 @@ def search_object():
         dec = float(result_data.get('DEC', 0))  # Default to 0 if DEC is missing or None
         mag = result_data.get('V-Mag', 0)  # Default to 0 if V-Mag is missing or None
 
+        # Apply the star-name overlay: the proper name, and a magnitude for the
+        # stars the Henry Draper catalogue never recorded one for (variables
+        # such as Algol, which the map would otherwise be unable to place).
+        try:
+            from app import star_catalog
+            overlay = star_catalog.star_name_record(name) or {}
+        except Exception:
+            overlay = {}
+
+        if overlay.get('mag') is not None:
+            placeholder = mag is None or mag in (20.0, 30.0, 40.0, 50.0)
+            if placeholder:
+                mag = float(overlay['mag'])
+                result_data['V-Mag'] = mag
+        if overlay.get('bayer'):
+            result_data['bayer'] = overlay['bayer']
+        if overlay.get('var'):
+            result_data['variableId'] = overlay['var']
+
         # Extract friendly common name (non-HD variant) if available
-        common_names_raw = result_data.get('commonNames', '') or result_data.get('Common names', '')
-        friendly_name = extract_friendly_common_name(common_names_raw)
+        friendly_name = overlay.get('name')
+        if not friendly_name:
+            common_names_raw = result_data.get('commonNames', '') or result_data.get('Common names', '')
+            friendly_name = extract_friendly_common_name(common_names_raw)
         if friendly_name:
             result_data['friendlyName'] = friendly_name
 

@@ -302,6 +302,37 @@ def get_star_bands():
     })
 
 
+@star_map_bp.route("/api/star_names")
+def get_star_names():
+    """Proper names for the star map's labels.
+
+    Returns one entry per named star: its catalogue designation, the IAU proper
+    name, the Bayer designation and the magnitude the map is drawing it at, so
+    the client can label the brightest ones without another lookup.
+    """
+    catalog = star_catalog.get_catalog()
+    index = {name: i for i, name in enumerate(catalog.names)}
+    entries = []
+    for designation, record in star_catalog.get_star_names().items():
+        proper = record.get("name")
+        if not proper:
+            continue
+        i = index.get(designation)
+        if i is None:
+            continue
+        mag = catalog.mag[i]
+        entries.append({
+            "id": designation,
+            "name": proper,
+            "bayer": record.get("bayer", ""),
+            "mag": None if mag != mag else round(mag, 2),  # NaN check
+        })
+    entries.sort(key=lambda e: (e["mag"] is None, e["mag"] if e["mag"] is not None else 0))
+    resp = jsonify({"count": len(entries), "stars": entries})
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
 @star_map_bp.route("/api/stars_meta")
 def get_stars_meta():
     # Magnitude extremes across the star tables, from the cached catalogue.
@@ -410,6 +441,14 @@ def star_info(star_name):
         result = table.query.filter_by(Name=star_name).first()
         if result:
             mag = _star_magnitude(result)  # None when the catalogue has no magnitude
+            overlay = star_catalog.star_name_record(result.Name) or {}
+            if mag is None and overlay.get("mag") is not None:
+                # Recovered from the IAU / Bright Star Catalogue overlay
+                mag = float(overlay["mag"])
+                response_magnitude_source = overlay.get("magSource")
+            else:
+                response_magnitude_source = None
+
             response_data = {
                 "name": result.Name,
                 "ra": float(result.RA) if result.RA is not None else 0,
@@ -419,12 +458,21 @@ def star_info(star_name):
             }
             if mag is None:
                 response_data["magUnknown"] = True
-            # Add friendly common name if available
-            common_names_raw = getattr(result, 'commonNames', None) or getattr(result, 'Common_names', None)
-            if common_names_raw:
-                friendly_name = extract_friendly_common_name(common_names_raw)
-                if friendly_name:
-                    response_data['friendlyName'] = friendly_name
+            if response_magnitude_source:
+                response_data["magSource"] = response_magnitude_source
+            if overlay.get("bayer"):
+                response_data["bayer"] = overlay["bayer"]
+            if overlay.get("var"):
+                response_data["variableId"] = overlay["var"]
+
+            # Proper name: the IAU catalogue first, then the database's own column
+            friendly_name = overlay.get("name")
+            if not friendly_name:
+                common_names_raw = getattr(result, 'commonNames', None) or getattr(result, 'Common_names', None)
+                if common_names_raw:
+                    friendly_name = extract_friendly_common_name(common_names_raw)
+            if friendly_name:
+                response_data['friendlyName'] = friendly_name
             return jsonify(response_data)
 
     return jsonify({"error": "Star not found"}), 404

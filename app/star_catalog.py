@@ -14,10 +14,20 @@ rows carry the same placeholder in the photographic magnitude column). Both are
 treated as *unknown*, represented as NaN in the binary payload and as null in
 JSON, and sorted to the end of the catalogue so a magnitude limit never has to
 guess a value for them.
+
+Where a magnitude is missing we first consult static/data/star_names.json, an
+overlay built by scripts/build_star_names.py from the IAU star name catalogue
+and the Yale Bright Star Catalogue. That recovers the 103 naked-eye stars whose
+magnitude the Henry Draper catalogue never recorded - all of them variables,
+Algol and Delta Cephei among them - which would otherwise be undrawable. The
+overlay only ever fills a gap; it never overrides a magnitude the database has.
+It also carries the proper names, which the database itself has for only 40
+stars.
 """
 
 import array
 import gzip
+import json
 import math
 import os
 import struct
@@ -41,9 +51,59 @@ FLAG_HAS_NAMES = 1 << 0
 
 _MAX_CACHED_PAYLOADS = 24
 
+# Proper names and fallback magnitudes; see scripts/build_star_names.py
+_NAMES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "static", "data", "star_names.json",
+)
+
 _lock = threading.RLock()
 _catalog = None
 _payload_cache = {}
+_star_names = None
+
+
+def get_star_names():
+    """designation -> {name, bayer?, var?, mag?}, loaded once."""
+    global _star_names
+    if _star_names is None:
+        try:
+            with open(_NAMES_PATH, encoding="utf-8") as handle:
+                _star_names = json.load(handle).get("stars", {})
+        except (OSError, ValueError) as exc:
+            print(f"star_catalog: no star name overlay ({exc})")
+            _star_names = {}
+    return _star_names
+
+
+def star_name_record(designation):
+    """Proper name/Bayer/variable record for a catalogue designation, or None."""
+    if not designation:
+        return None
+    return get_star_names().get(designation)
+
+
+def find_by_proper_name(query):
+    """Catalogue designation for a proper name, matched case-insensitively.
+
+    Falls back to a prefix match so "alpha cen" finds "Alpha Centauri A".
+    """
+    if not query:
+        return None
+    needle = query.strip().lower()
+    if not needle:
+        return None
+    names = get_star_names()
+    prefix_hit = None
+    for designation, record in names.items():
+        proper = (record.get("name") or "").lower()
+        if not proper:
+            continue
+        if proper == needle:
+            return designation
+        if prefix_hit is None and proper.startswith(needle):
+            prefix_hit = designation
+    return prefix_hit
 
 
 class StarCatalog:
@@ -121,8 +181,10 @@ def _rows_from_table(table, placeholders):
 
 def build_catalog():
     """Read all three tables into magnitude-sorted arrays (a few hundred ms)."""
+    names_overlay = get_star_names()
     known = []
     unknown = []
+    recovered = 0
     for table, placeholders in (
         (HDSTARtable, HD_PLACEHOLDER_MAGS),
         (IndexTable, frozenset()),
@@ -131,11 +193,22 @@ def build_catalog():
         try:
             for mag, name, ra, dec in _rows_from_table(table, placeholders):
                 if mag is None:
-                    unknown.append((name, ra, dec))
+                    # The catalogue has no magnitude: fall back to the overlay
+                    # before writing the object off as unplottable.
+                    overlay = names_overlay.get(name)
+                    fallback = overlay.get("mag") if overlay else None
+                    if fallback is not None:
+                        known.append((float(fallback), name, ra, dec))
+                        recovered += 1
+                    else:
+                        unknown.append((name, ra, dec))
                 else:
                     known.append((mag, name, ra, dec))
         except Exception as exc:  # a missing/renamed table must not break the map
             print(f"star_catalog: failed to read {getattr(table, '__tablename__', table)}: {exc}")
+
+    if recovered:
+        print(f"star_catalog: recovered magnitudes for {recovered} stars from the name overlay")
 
     known.sort(key=lambda row: row[0])
 
