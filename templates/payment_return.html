@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Status - SELENO{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="h4 mb-3">Payment Return</h1>
+                    <p class="text-muted mb-4">You returned from SumUp Hosted Checkout. This page verifies the final status from your backend.</p>
+
+                    <div class="alert {% if is_paid %}alert-success{% elif checkout_status == 'FAILED' %}alert-danger{% elif checkout_status == 'EXPIRED' %}alert-warning{% else %}alert-info{% endif %}" role="alert">
+                        <strong>Status:</strong> {{ checkout_status }}<br>
+                        {{ final_message }}
+                    </div>
+
+                    {% if checkout %}
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Checkout Reference</dt>
+                        <dd class="col-sm-8"><code>{{ checkout.checkoutReference }}</code></dd>
+
+                        <dt class="col-sm-4">Checkout ID</dt>
+                        <dd class="col-sm-8"><code>{{ checkout.checkoutId }}</code></dd>
+
+                        <dt class="col-sm-4">Amount</dt>
+                        <dd class="col-sm-8">{{ checkout.amount }} {{ checkout.currency }}</dd>
+
+                        <dt class="col-sm-4">Merchant</dt>
+                        <dd class="col-sm-8">{{ checkout.merchantCode }}</dd>
+
+                        <dt class="col-sm-4">Last Synced</dt>
+                        <dd class="col-sm-8">{{ checkout.lastSyncedAt }}</dd>
+
+                        {% if checkout.transactionCode %}
+                        <dt class="col-sm-4">Transaction Code</dt>
+                        <dd class="col-sm-8"><code>{{ checkout.transactionCode }}</code></dd>
+                        {% endif %}
+                    </dl>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 mt-4">
+                        <a class="btn btn-primary" href="{{ url_for('home.home') }}">Back to Home</a>
+                        {% if checkout %}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('payments.sumup_get_checkout', checkout_id=checkout.checkoutId, refresh='true') }}">Refresh JSON Status</a>
+                        {% endif %}
+                        {% if can_retry %}
+                        <a class="btn btn-outline-warning" href="{{ url_for('book.book_page') }}">Start New Checkout</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

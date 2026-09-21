@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Payments - SELENO{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h4 mb-1">Payment Review</h1>
+            <p class="text-muted mb-0">Monitor SumUp Hosted Checkout outcomes, sync status, and transaction history.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('payments.admin_sandbox_payments_page') }}">Sandbox Lab</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin.admin') }}">Back to Admin</a>
+        </div>
+    </div>
+
+    <form class="row g-2 mb-3" method="GET" action="{{ url_for('payments.admin_payments_page') }}">
+        <div class="col-md-4">
+            <input class="form-control" type="text" name="q" placeholder="Search checkout reference, checkout id, transaction code" value="{{ q }}">
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="status">
+                <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+                <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>PENDING</option>
+                <option value="PAID" {% if status_filter == 'PAID' %}selected{% endif %}>PAID</option>
+                <option value="FAILED" {% if status_filter == 'FAILED' %}selected{% endif %}>FAILED</option>
+                <option value="EXPIRED" {% if status_filter == 'EXPIRED' %}selected{% endif %}>EXPIRED</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="mode">
+                <option value="" {% if not mode_filter %}selected{% endif %}>Live + Test</option>
+                <option value="live" {% if mode_filter == 'live' %}selected{% endif %}>Live Only</option>
+                <option value="test" {% if mode_filter == 'test' %}selected{% endif %}>Test Only</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="page_size">
+                <option value="25" {% if page_size == 25 %}selected{% endif %}>25 / page</option>
+                <option value="50" {% if page_size == 50 %}selected{% endif %}>50 / page</option>
+                <option value="100" {% if page_size == 100 %}selected{% endif %}>100 / page</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-grid">
+            <button class="btn btn-primary" type="submit">Apply</button>
+        </div>
+    </form>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Reference</th>
+                            <th>Status</th>
+                            <th>Amount</th>
+                            <th>Mode</th>
+                            <th>Created</th>
+                            <th>Transaction Code</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in checkouts %}
+                        <tr>
+                            <td>{{ row.id }}</td>
+                            <td><code>{{ row.checkout_reference }}</code></td>
+                            <td>
+                                <span class="badge {% if row.status == 'PAID' %}bg-success{% elif row.status == 'FAILED' %}bg-danger{% elif row.status == 'EXPIRED' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ row.status }}
+                                </span>
+                            </td>
+                            <td>{{ row.amount }} {{ row.currency }}</td>
+                            <td>
+                                {% if row.is_test_mode %}
+                                    <span class="badge bg-info text-dark">TEST</span>
+                                {% else %}
+                                    <span class="badge bg-dark">LIVE</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.created_at.isoformat() if row.created_at else '' }}</td>
+                            <td>{% if row.transaction_code %}<code>{{ row.transaction_code }}</code>{% endif %}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('payments.admin_payment_detail_page', checkout_row_id=row.id) }}">View</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">No payments match this filter.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <small class="text-muted">Total: {{ total }}</small>
+        <div class="btn-group" role="group" aria-label="Pagination">
+            <a class="btn btn-outline-secondary {% if page <= 1 %}disabled{% endif %}" href="{{ url_for('payments.admin_payments_page', page=page-1, page_size=page_size, status=status_filter, mode=mode_filter, q=q) }}">Previous</a>
+            <span class="btn btn-outline-secondary disabled">Page {{ page }} / {{ total_pages }}</span>
+            <a class="btn btn-outline-secondary {% if page >= total_pages %}disabled{% endif %}" href="{{ url_for('payments.admin_payments_page', page=page+1, page_size=page_size, status=status_filter, mode=mode_filter, q=q) }}">Next</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

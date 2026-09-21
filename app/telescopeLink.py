@@ -13,7 +13,7 @@ import io
 # Determine the correct URL for /sendCommand
 # Use localhost for internal calls to avoid Cloudflare challenges
 flask_port = os.getenv("FLASK_PORT", "5000")
-app_domain = os.getenv("APP_DOMAIN", "telescopes.dev")
+app_domain = os.getenv("APP_DOMAIN", "seleno.org")
 
 url = f"http://localhost:{flask_port}/sendCommand"
 external_domain = f"https://{app_domain}"
@@ -132,7 +132,7 @@ class CameraController:
                 return
 
             # Build LiveView websocket URL and connect.
-            lv_domain = os.getenv("APP_DOMAIN", "telescopes.dev")
+            lv_domain = os.getenv("APP_DOMAIN", "seleno.org")
             uri = f"wss://liveview.{lv_domain}"
             async with websockets.connect(uri, max_size=2*1024*1024) as ws:
                 # Authenticate the live view connection with token + client id.

@@ -44,7 +44,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='icons/favicon.ico') }}" type="image/x-icon">
     <script>
-        window.APP_DOMAIN = "{{ config['APP_DOMAIN'] or 'telescopes.dev' }}";
+        window.APP_DOMAIN = "{{ config['APP_DOMAIN'] or 'seleno.org' }}";
     </script>
     {% block extra_css %}{% endblock %}
 </head>
@@ -65,7 +65,7 @@
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('home.home') }}">Home</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('interface.interface') }}">Interface</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('map.map_page') }}">Map</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('star_map.star_map') }}">Star Map</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('book.book_page') }}">Book</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('album.album') }}">Album</a></li>
                         </ul>
@@ -140,7 +140,7 @@
                 <p>
                     <a href="{{ url_for('about.about') }}">About</a>
                     <span>•</span>
-                    <a href="{{ url_for('about.license_page') }}">License</a>
+                    <a href="{{ url_for('about.licence_page') }}">Licence</a>
                     <span>•</span>
                     <a href="{{ url_for('about.privacy') }}">Privacy</a>
                     <span>•</span>

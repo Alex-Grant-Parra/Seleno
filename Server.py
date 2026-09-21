@@ -103,7 +103,7 @@ login_manager.init_app(app)
 mail = Mail(app)
 
 # Site domain
-app.config["APP_DOMAIN"] = os.getenv("APP_DOMAIN", "telescopes.dev")
+app.config["APP_DOMAIN"] = os.getenv("APP_DOMAIN", "seleno.org")
 
 # Contact form CAPTCHA (Cloudflare Turnstile)
 app.config["TURNSTILE_SITE_KEY"] = os.getenv("TURNSTILE_SITE_KEY", "")
@@ -111,6 +111,7 @@ app.config["TURNSTILE_SECRET_KEY"] = os.getenv("TURNSTILE_SECRET_KEY", "")
 app.config["CONTACT_CAPTCHA_REQUIRED"] = os.getenv("CONTACT_CAPTCHA_REQUIRED", "True").lower() in ("1", "true", "yes")
 app.config["REGISTER_CAPTCHA_REQUIRED"] = os.getenv("REGISTER_CAPTCHA_REQUIRED", "True").lower() in ("1", "true", "yes")
 app.config["FORGOT_PASSWORD_CAPTCHA_REQUIRED"] = os.getenv("FORGOT_PASSWORD_CAPTCHA_REQUIRED", "True").lower() in ("1", "true", "yes")
+app.config["SUMUP_WEBHOOK_SECRET"] = os.getenv("SUMUP_WEBHOOK_SECRET", "")
 
 # Initialize CSRF protection
 csrf = CSRFProtect()
@@ -258,6 +259,13 @@ try:
 except Exception as e:
     print(f"CSRF token endpoint not available: {e}")
 
+@app.route('/sitemap.xml')
+def sitemap():
+    return Response(
+        open(os.path.join(BASE_DIR, 'static', 'sitemap.xml')).read(),
+        mimetype='application/xml'
+    )
+
 # Debugging - Print all registered routes
 print("\nRegistered Routes:")
 for rule in app.url_map.iter_rules():
@@ -310,6 +318,16 @@ def generate_routes_file():
 # Generate the routes file
 generate_routes_file()
 
+# Re-render the Licence / TOS / Privacy pages from their Markdown sources so
+# the hosted pages always match whatever is currently committed in
+# licence.md, tos.md and privacy.md.
+try:
+    from utility.legal_docs import sync_legal_pages
+    synced = sync_legal_pages()
+    print(f"Synced {synced} legal document(s) from Markdown sources")
+except Exception as e:
+    print(f"[WARNING] Could not sync legal documents: {e}")
+
 # User Loader for Flask-Login
 from models.user import User
 # NOTE: Do NOT import `Telescope` at module import time — importing
@@ -319,6 +337,7 @@ from models.user import User
 from models.trusted_device import TrustedDevice  # Import to register the model
 from models.logging import RequestLog, SecurityLog, WebsocketSecurityLog  # Import to register log tables
 from models.client_release import ClientReleaseSubmission  # Import to register release review model
+from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import to register SumUp payment tables
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -367,6 +386,31 @@ def enforce_enabled_account():
 with app.app_context():
     db.create_all()
     print("Database tables created/verified")
+
+    # Star-map columns/tables must exist before the catalogue warm-up reads them
+    try:
+        from models.tables import ensure_star_catalogue_schema
+        ensure_star_catalogue_schema()
+    except Exception as e:
+        print(f"[WARNING] Could not ensure star catalogue schema: {e}")
+
+    # Warm the star map catalogue in the background so the first visitor
+    # doesn't pay for reading ~286k catalogue rows.
+    try:
+        import threading as _threading
+
+        def _warm_star_catalog():
+            with app.app_context():
+                try:
+                    from app.star_catalog import warm_cache
+                    count = warm_cache()
+                    print(f"Star catalogue ready ({count} objects)")
+                except Exception as exc:
+                    print(f"[WARNING] Could not warm star catalogue: {exc}")
+
+        _threading.Thread(target=_warm_star_catalog, name="star-catalog-warm", daemon=True).start()
+    except Exception as e:
+        print(f"[WARNING] Could not start star catalogue warm-up: {e}")
 
     # One-time migration: import legacy requests.log rows when request_logs is empty.
     try:
@@ -444,6 +488,13 @@ with app.app_context():
     except Exception as e:
         print(f"[WARNING] Could not ensure booking columns on telescopes: {e}")
 
+    # Ensure SumUp payment table indexes exist for transaction lookup paths
+    try:
+        from models.payment import ensure_sumup_payment_indexes
+        ensure_sumup_payment_indexes()
+    except Exception as e:
+        print(f"[WARNING] Could not ensure SumUp payment indexes: {e}")
+
 # Homepage Redirection
 @app.route("/")
 def index():
@@ -499,6 +550,14 @@ try:
     upload_release_view = app.view_functions.get('downloads.upload_client_release')
     if upload_release_view:
         csrf.exempt(upload_release_view)
+except Exception:
+    pass
+
+# Exempt SumUp webhook endpoint from CSRF checks (external server-to-server callback).
+try:
+    sumup_webhook_view = app.view_functions.get('payments.sumup_webhook')
+    if sumup_webhook_view:
+        csrf.exempt(sumup_webhook_view)
 except Exception:
     pass
 

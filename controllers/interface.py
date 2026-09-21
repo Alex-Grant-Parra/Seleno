@@ -12,6 +12,13 @@ from app.telescopeLink import Telescope, current_telescope  # Updated import
 
 interface_bp = Blueprint("interface", __name__, url_prefix="/interface")
 
+
+def _require_telescope_control_access():
+    from flask_login import current_user
+    if getattr(current_user, 'is_limited', False):
+        return jsonify({"status": "error", "message": "Limited accounts cannot control telescopes."}), 403
+    return None
+
 _CELESTIAL_DEFAULT_VMAGS = {
     "sun": -26.74,
     "moon": -12.70,
@@ -30,6 +37,10 @@ def update_camera():
     from flask_login import current_user
     if not current_user.is_authenticated:
         return jsonify({"status": "error", "message": "Must be logged in to control telescope"}), 401
+
+    guard = _require_telescope_control_access()
+    if guard:
+        return guard
     
     data = request.json or {}
     response = {"status": "success", "message": "Settings updated"}
@@ -138,7 +149,15 @@ def search_object():
 
         else:
             print(f"Searching by common name across stars and NGC: {norm}")
-            result = HDSTARtable.query_by_common_name(norm)
+            # Exact alias match first (so "Deneb" doesn't land on Denebola),
+            # then the substring search below
+            from app import star_catalog
+            designation = star_catalog.find_by_proper_name(norm)
+            if designation:
+                result = HDSTARtable.query_by_name(designation)
+
+            if not result:
+                result = HDSTARtable.query_by_common_name(norm)
             if not result:
                 # Then try NGC common names (exact ilike on full cell)
                 result = NGCtable.query_by_common_name(norm)
@@ -163,9 +182,23 @@ def search_object():
         dec = float(result_data.get('DEC', 0))  # Default to 0 if DEC is missing or None
         mag = result_data.get('V-Mag', 0)  # Default to 0 if V-Mag is missing or None
 
+        # Bayer letter, variable-star ID and displayed name from the catalogue
+        try:
+            from app import star_catalog
+            record = star_catalog.star_name_record(name) or {}
+        except Exception:
+            record = {}
+
+        if record.get('bayer'):
+            result_data['bayer'] = record['bayer']
+        if record.get('var'):
+            result_data['variableId'] = record['var']
+
         # Extract friendly common name (non-HD variant) if available
-        common_names_raw = result_data.get('commonNames', '') or result_data.get('Common names', '')
-        friendly_name = extract_friendly_common_name(common_names_raw)
+        friendly_name = record.get('name')
+        if not friendly_name:
+            common_names_raw = result_data.get('commonNames', '') or result_data.get('Common names', '')
+            friendly_name = extract_friendly_common_name(common_names_raw)
         if friendly_name:
             result_data['friendlyName'] = friendly_name
 
@@ -245,6 +278,11 @@ def take_photo():
         from flask_login import current_user
         if not current_user.is_authenticated:
             return jsonify({"status": "error", "message": "Must be logged in to take photos"}), 401
+
+        guard = _require_telescope_control_access()
+        if guard:
+            return guard
+
         current_id = current_user.get_id()
         telescope_id = (request.json or {}).get("telescopeId") or (request.json or {}).get("telescope_id") or (session.get('selected_telescope') or {}).get('telescope_id')
         if not telescope_id:

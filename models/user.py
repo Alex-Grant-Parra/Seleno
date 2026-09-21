@@ -20,7 +20,7 @@ class User(UserMixin, db.Model):
     # Store encrypted; transparently returns plaintext when accessed
     email = db.Column(EncryptedString(150), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    AccountType = db.Column(db.String(32), nullable=False, default="Standard")  # "Standard", "Administrator", "Limited", or "None"
+    AccountType = db.Column(db.String(32), nullable=False, default="Standard")  # "Standard", "Administrator", or "Limited"
     totp_secret = db.Column(EncryptedString(64))
     current_2fa_code = db.Column(EncryptedString(64))
     night_mode = db.Column(db.Boolean, default=False, nullable=False)  # Night mode preference
@@ -44,8 +44,12 @@ class User(UserMixin, db.Model):
         return self.AccountType == "Limited"
 
     @property
-    def is_none(self):
-        return self.AccountType == "None"
+    def can_book_sessions(self):
+        return not self.is_limited
+
+    @property
+    def can_control_telescopes(self):
+        return not self.is_limited
 
     def set_email(self, email):
         # Assign plaintext; type handles encryption on write

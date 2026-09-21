@@ -13,3 +13,4 @@ requests
 waitress
 pillow
 spiceypy
+markdown

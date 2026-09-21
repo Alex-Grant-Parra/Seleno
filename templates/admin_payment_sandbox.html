@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Sandbox Payments - SELENO{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h4 mb-1">Sandbox Payment Lab</h1>
+            <p class="text-muted mb-0">Create fake hosted payments through SumUp sandbox and run full end-to-end testing.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('payments.admin_payments_page') }}">Back to Payments</a>
+    </div>
+
+    <div class="alert {% if sumup_mode == 'sandbox' %}alert-success{% else %}alert-warning{% endif %}" role="alert">
+        <strong>Current SUMUP_MODE:</strong> {{ sumup_mode|upper }}
+        {% if sumup_mode != 'sandbox' %}
+        <br>Set <code>SUMUP_MODE = 'sandbox'</code> in <code>app/sumup_service.py</code> to use this page.
+        {% endif %}
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="h6 mb-3">Create Hosted Sandbox Checkout</h2>
+                    <form method="POST" action="{{ url_for('payments.admin_sandbox_create_payment') }}">
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Amount</label>
+                                <input class="form-control" name="amount" value="12.00" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Currency</label>
+                                <input class="form-control" value="GBP" readonly>
+                                <div class="form-text">All payments are charged in GBP.</div>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Description</label>
+                                <input class="form-control" name="description" value="Admin sandbox hosted checkout">
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-primary" type="submit">Create and Open Hosted Checkout</button>
+                        </div>
+                    </form>
+
+                    <hr>
+                    <h3 class="h6">Quick test amounts</h3>
+                    <ul class="mb-0">
+                        <li><strong>12.00</strong> typically success flow</li>
+                        <li><strong>11.00</strong> intentional failure scenario in sandbox</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="h6 mb-3">Recent Sandbox Checkouts</h2>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Status</th>
+                                    <th>Amount</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in recent_checkouts %}
+                                <tr>
+                                    <td>{{ row.id }}</td>
+                                    <td>{{ row.status }}</td>
+                                    <td>{{ row.amount }} {{ row.currency }}</td>
+                                    <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('payments.admin_payment_detail_page', checkout_row_id=row.id) }}">View</a></td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-muted text-center">No sandbox checkouts yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

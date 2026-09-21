@@ -1,8 +1,9 @@
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, Response, jsonify, render_template, request, session
 from datetime import datetime, timezone
 from typing import Optional
 from models.tables import HDSTARtable, IndexTable, NGCtable
 from app.db import db
+from app import star_catalog
 from sqlalchemy import func
 
 from astrophysics.planetary_model import getAllCelestialData
@@ -10,6 +11,13 @@ from astrophysics.V1_Keplarian.convert import convert
 from app.telescopeLink import Telescope
 
 star_map_bp = Blueprint("star_map", __name__)
+
+
+def _require_telescope_control_access():
+    from flask_login import current_user
+    if getattr(current_user, 'is_limited', False):
+        return jsonify({"status": "error", "message": "Limited accounts cannot control telescopes."}), 403
+    return None
 
 _CELESTIAL_DEFAULT_VMAGS = {
     "sun": -26.74,
@@ -56,25 +64,11 @@ def _add_celestial_phase_fields(payload, coords):
 
     return payload
 
-def loadStarsFromTables(tables):
-    all_stars = []
-    for table in tables:
-        stars = table.query.all()
-        for star in stars:
-            try:
-                ra = float(star.RA) if star.RA is not None else 0
-                dec = float(star.DEC) if star.DEC is not None else 0
-                mag = star.V_Mag if star.V_Mag is not None else 30
-                all_stars.append({
-                    "name": star.Name,
-                    "ra": ra,
-                    "dec": dec,
-                    "mag": mag,
-                    "type": "star"
-                })
-            except Exception as e:
-                print(f"Error processing star {getattr(star, 'Name', 'UNKNOWN')}: {e}")
-    return all_stars
+def loadStarsFromTables(tables=None):
+    # Served from the cached in-memory catalogue; `tables` is accepted for
+    # backwards compatibility but the catalogue always covers all three.
+    catalog = star_catalog.get_catalog()
+    return star_catalog.to_json_rows(catalog, 0, catalog.known_count, include_unknown=True)
 
 
 def get_all_celestial_objects(_dt: Optional[datetime] = None):
@@ -112,14 +106,23 @@ def get_all_celestial_objects(_dt: Optional[datetime] = None):
     return all_objects
 
 
-def _star_magnitude(star, default=30):
+def _star_magnitude(star, default=None):
+    """Magnitude of an ORM row, or `default` when it is unknown.
+
+    Unknown means NULL, or one of the Henry Draper "not recorded" placeholders
+    (20/30/40/50) that HDSTARTable stores in place of a real magnitude.
+    """
     value = getattr(star, "V_Mag", None)
     if value is None:
         return default
     try:
-        return float(value)
+        value = float(value)
     except Exception:
         return default
+    is_hd = getattr(type(star), "__tablename__", "") == "HDSTARTable"
+    if is_hd and value in star_catalog.HD_PLACEHOLDER_MAGS:
+        return default
+    return value
 
 @star_map_bp.route("/api/stars")
 def get_stars():
@@ -130,6 +133,7 @@ def get_stars():
     mag_limit = request.args.get("mag", type=float)  # backward compatibility
     limit = request.args.get("limit", type=int)
     include_planets = request.args.get("include_planets", default="false").lower() in ("1", "true", "yes")
+    include_unknown = request.args.get("unknown", default="false").lower() in ("1", "true", "yes")
 
     if min_mag is None:
         # Include negative magnitudes for very bright stars (e.g., Sirius ~ -1.46)
@@ -174,73 +178,185 @@ def get_stars():
             }
             planets.append(_add_celestial_phase_fields(obj_payload, coords))
 
-    # Build stars result, using DB-side filters when possible
-    def query_table_stars(table, limit_override: Optional[int] = None):
-        stars_list = []
-        rows = table.query.all()
-        for star in rows:
-            try:
-                ra = float(star.RA) if star.RA is not None else 0
-                dec = float(star.DEC) if star.DEC is not None else 0
-                magv = _star_magnitude(star)
-                if magv < min_mag or magv > max_mag:
-                    continue
-                stars_list.append({
-                    "name": star.Name,
-                    "ra": ra,
-                    "dec": dec,
-                    "mag": magv,
-                    "type": "star"
-                })
-            except Exception as e:
-                print(f"Error processing star {getattr(star, 'Name', 'UNKNOWN')}: {e}")
-        eff_limit = limit_override if (limit_override is not None and limit_override > 0) else limit
-        if eff_limit is not None and eff_limit > 0 and len(stars_list) > eff_limit:
-            stars_list.sort(key=lambda item: item.get("mag", 30))
-            stars_list = stars_list[:eff_limit]
-        return stars_list
-
-    tables = [HDSTARtable, IndexTable, NGCtable]
-    all_stars = []
-    # Distribute per-table limits when a limit is provided to avoid exceeding total
-    per_table_limit = None
-    if limit is not None and limit > 0:
-        per_table_limit = max(1, limit // len(tables))
-    for table in tables:
-        subset = query_table_stars(table, limit_override=per_table_limit)
-        all_stars.extend(subset)
-
-    # Trim to limit if necessary
-    if limit is not None and len(all_stars) > limit:
-        all_stars = all_stars[:limit]
+    # Stars come from the cached, magnitude-sorted catalogue: a band is a
+    # contiguous slice, so this costs a slice + serialise instead of a scan.
+    catalog = star_catalog.get_catalog()
+    lo, hi = catalog.band_range(min_mag, max_mag)
+    if limit is not None and limit > 0 and (hi - lo) > limit:
+        hi = lo + limit  # the catalogue is sorted, so this keeps the brightest
+    all_stars = star_catalog.to_json_rows(
+        catalog, lo, hi,
+        include_unknown=include_unknown,
+        limit=limit if (limit is not None and limit > 0) else None,
+    )
 
     if include_planets:
         return jsonify(all_stars + planets)
     else:
         return jsonify(all_stars)
 
+
+def _binary_response(payload, compressed, etag, extra_headers=None):
+    resp = Response(payload, mimetype="application/octet-stream")
+    if compressed:
+        resp.headers["Content-Encoding"] = "gzip"
+    resp.headers["Vary"] = "Accept-Encoding"
+    resp.headers["ETag"] = etag
+    # The catalogue is static; let browsers reuse it across visits
+    resp.headers["Cache-Control"] = "public, max-age=604800"
+    for key, value in (extra_headers or {}).items():
+        resp.headers[key] = value
+    return resp
+
+
+@star_map_bp.route("/api/stars_bin")
+def get_stars_binary():
+    """Compact binary form of a magnitude band, for the star map front-end.
+
+    Layout: 20-byte header, then float32 ra[], dec[], mag[] (NaN = unknown
+    magnitude), then the newline-separated names. Roughly a fifth the size of
+    the equivalent JSON and it parses straight into typed arrays.
+    """
+    start = request.args.get("start", type=int)
+    end = request.args.get("end", type=int)
+    min_mag = request.args.get("minMag", type=float)
+    max_mag = request.args.get("maxMag", type=float)
+    limit = request.args.get("limit", type=int)
+    include_unknown = request.args.get("unknown", default="false").lower() in ("1", "true", "yes")
+    include_names = request.args.get("names", default="true").lower() in ("1", "true", "yes")
+
+    catalog = star_catalog.get_catalog()
+    version = catalog.version
+    etag = f'W/"{version}-{request.query_string.decode("ascii", "ignore")}"'
+
+    # Nothing changed since the browser last asked? Let it reuse its copy.
+    if request.headers.get("If-None-Match") == etag:
+        return Response(status=304, headers={"ETag": etag,
+                                             "Cache-Control": "public, max-age=604800"})
+
+    if start is not None or end is not None:
+        # Index slice, as handed out by /api/stars_bands. Bands addressed this
+        # way are exactly disjoint, so the client never receives a star twice.
+        lo = max(0, start or 0)
+        hi = min(catalog.count, end if end is not None else catalog.count)
+        hi = max(lo, hi)
+        include_unknown = False  # unknown objects are addressable as their own slice
+    else:
+        lo, hi = catalog.band_range(
+            -30.0 if min_mag is None else min_mag,
+            30.0 if max_mag is None else max_mag,
+        )
+    if limit is not None and limit > 0 and (hi - lo) > limit:
+        hi = lo + limit
+
+    accepts_gzip = "gzip" in (request.headers.get("Accept-Encoding") or "")
+    key = (version, lo, hi, include_unknown, include_names)
+    payload = star_catalog.cached_payload(
+        key,
+        lambda: star_catalog.encode_binary(catalog, lo, hi,
+                                           include_unknown=include_unknown,
+                                           include_names=include_names),
+        compress=accepts_gzip,
+    )
+    return _binary_response(payload, accepts_gzip, etag, {
+        "X-Star-Count": str((hi - lo) + (catalog.unknown_count if include_unknown else 0)),
+    })
+
+
+@star_map_bp.route("/api/stars_bands")
+def get_star_bands():
+    """Index ranges the client should load, brightest first.
+
+    The catalogue is sorted by magnitude, so each band is a contiguous index
+    slice. The client fetches them in order: the sky is usable after the first
+    one and the rest stream in without re-sending anything already held. The
+    objects with no recorded magnitude form the final band.
+    """
+    catalog = star_catalog.get_catalog()
+    edges = [4.0, 6.0, 7.5, 9.0, 10.0, 11.0]
+    bands = []
+    cursor = 0
+    for edge in edges:
+        _, hi = catalog.band_range(catalog.min_mag, edge)
+        if hi <= cursor:
+            continue
+        bands.append({"start": cursor, "end": hi, "count": hi - cursor,
+                      "maxMag": edge, "kind": "known"})
+        cursor = hi
+    if cursor < catalog.known_count:
+        bands.append({"start": cursor, "end": catalog.known_count,
+                      "count": catalog.known_count - cursor,
+                      "maxMag": catalog.max_mag, "kind": "known"})
+    if catalog.unknown_count:
+        bands.append({"start": catalog.known_count, "end": catalog.count,
+                      "count": catalog.unknown_count,
+                      "maxMag": None, "kind": "unknown"})
+    return jsonify({
+        "version": catalog.version,
+        "total": catalog.count,
+        "known": catalog.known_count,
+        "unknown": catalog.unknown_count,
+        "minMag": catalog.min_mag,
+        "maxMag": catalog.max_mag,
+        "bands": bands,
+    })
+
+
+@star_map_bp.route("/api/constellations")
+def get_constellations():
+    """Constellation figures for the star map, from ConstellationsTable and
+    ConstellationLinesTable. Each line is returned as the coordinates of the two
+    catalogue stars it joins."""
+    figures = star_catalog.get_constellations()
+    resp = jsonify({"count": len(figures), "constellations": figures})
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+@star_map_bp.route("/api/star_names")
+def get_star_names():
+    """Names for the star map's labels and click-through panel.
+
+    Returns one entry per named catalogue object: its designation, displayed
+    name, Bayer designation and the magnitude the map draws it at, so the
+    client can label the brightest ones without another lookup.
+    """
+    catalog = star_catalog.get_catalog()
+    index = {name: i for i, name in enumerate(catalog.names)}
+    entries = []
+    for designation, record in star_catalog.get_star_names().items():
+        proper = record.get("name")
+        if not proper:
+            continue
+        i = index.get(designation)
+        if i is None:
+            continue
+        mag = catalog.mag[i]
+        entries.append({
+            "id": designation,
+            "name": proper,
+            "bayer": record.get("bayer", ""),
+            "mag": None if mag != mag else round(mag, 2),  # NaN check
+        })
+    entries.sort(key=lambda e: (e["mag"] is None, e["mag"] if e["mag"] is not None else 0))
+    resp = jsonify({"count": len(entries), "stars": entries})
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
 @star_map_bp.route("/api/stars_meta")
 def get_stars_meta():
-    # Return overall magnitude extremes across star tables; excludes planets
-    tables = [HDSTARtable, IndexTable, NGCtable]
-    overall_min = None
-    overall_max = None
-    for table in tables:
-        try:
-            for star in table.query.all():
-                mag = _star_magnitude(star, default=None)
-                if mag is None:
-                    continue
-                overall_min = mag if (overall_min is None or mag < overall_min) else overall_min
-                overall_max = mag if (overall_max is None or mag > overall_max) else overall_max
-        except Exception as e:
-            print(f"stars_meta aggregation failed for table {getattr(table, '__tablename__', 'unknown')}: {e}")
-
-    if overall_min is None:
-        overall_min = -2.0
-    if overall_max is None:
-        overall_max = 12.0
-    return jsonify({"minMag": overall_min, "maxMag": overall_max})
+    # Magnitude extremes across the star tables, from the cached catalogue.
+    # Objects with no recorded magnitude are reported separately rather than
+    # being folded in at a made-up value.
+    catalog = star_catalog.get_catalog()
+    return jsonify({
+        "minMag": catalog.min_mag,
+        "maxMag": catalog.max_mag,
+        "count": catalog.count,
+        "knownCount": catalog.known_count,
+        "unknownCount": catalog.unknown_count,
+    })
 
 @star_map_bp.route("/api/planets")
 def get_planets():
@@ -335,19 +451,33 @@ def star_info(star_name):
     for table in tables:
         result = table.query.filter_by(Name=star_name).first()
         if result:
+            mag = _star_magnitude(result)  # None when the catalogue has no magnitude
+            record = star_catalog.star_name_record(result.Name) or {}
+
             response_data = {
                 "name": result.Name,
                 "ra": float(result.RA) if result.RA is not None else 0,
                 "dec": float(result.DEC) if result.DEC is not None else 0,
-                "mag": result.V_Mag or 0,
+                "mag": mag,
                 "type": "star"
             }
-            # Add friendly common name if available
-            common_names_raw = getattr(result, 'commonNames', None) or getattr(result, 'Common_names', None)
-            if common_names_raw:
-                friendly_name = extract_friendly_common_name(common_names_raw)
-                if friendly_name:
-                    response_data['friendlyName'] = friendly_name
+            if mag is None:
+                response_data["magUnknown"] = True
+            if record.get("magSource"):
+                # V-Mag was filled in by scripts/import_star_names.py
+                response_data["magSource"] = record["magSource"]
+            if record.get("bayer"):
+                response_data["bayer"] = record["bayer"]
+            if record.get("var"):
+                response_data["variableId"] = record["var"]
+
+            friendly_name = record.get("name")
+            if not friendly_name:
+                common_names_raw = getattr(result, 'commonNames', None) or getattr(result, 'Common_names', None)
+                if common_names_raw:
+                    friendly_name = extract_friendly_common_name(common_names_raw)
+            if friendly_name:
+                response_data['friendlyName'] = friendly_name
             return jsonify(response_data)
 
     return jsonify({"error": "Star not found"}), 404
@@ -361,6 +491,10 @@ def track_star():
             "error": "Must be logged in",
             "message": "Must be logged in to control telescope"
         }), 401
+
+    guard = _require_telescope_control_access()
+    if guard:
+        return guard
     
     data = request.get_json()
     ra = data.get("ra")
@@ -450,6 +584,10 @@ def get_tracking_status():
 
 @star_map_bp.route("/stop_tracking", methods=["POST"])
 def stop_tracking():
+    guard = _require_telescope_control_access()
+    if guard:
+        return guard
+
     # Stop tracking the current object
     # Check if a telescope is selected
     selected_telescope = session.get('selected_telescope')

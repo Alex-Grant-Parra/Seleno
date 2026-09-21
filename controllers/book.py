@@ -24,15 +24,28 @@ from utility.emailer import send_email
 book_bp = Blueprint('book', __name__)
 
 
+def _require_booking_access():
+    if getattr(current_user, 'is_limited', False):
+        return jsonify({'status': 'error', 'message': 'Limited accounts cannot book sessions.'}), 403
+    return None
+
+
 @book_bp.route('/book', methods=['GET'])
 @login_required
 def book_page():
+    guard = _require_booking_access()
+    if guard:
+        return guard
     return render_template('book.html')
 
 
 @book_bp.route('/book/search', methods=['POST'])
 @login_required
 def book_search():
+    guard = _require_booking_access()
+    if guard:
+        return guard
+
     payload = request.get_json(silent=True) or request.form
 
     date_list = payload.get('dates')
@@ -57,6 +70,10 @@ def book_search():
 @book_bp.route('/book/request', methods=['POST'])
 @login_required
 def book_request():
+    guard = _require_booking_access()
+    if guard:
+        return guard
+
     payload = request.get_json(silent=True) or request.form
 
     try:
@@ -116,6 +133,10 @@ def book_request():
 @book_bp.route('/book/my', methods=['GET'])
 @login_required
 def my_bookings_page():
+    guard = _require_booking_access()
+    if guard:
+        return guard
+
     bookings = get_user_bookings(current_user.id)
     return render_template('book_my.html', bookings=bookings)
 
@@ -123,6 +144,10 @@ def my_bookings_page():
 @book_bp.route('/book/owner', methods=['GET'])
 @login_required
 def owner_bookings_page():
+    guard = _require_booking_access()
+    if guard:
+        return guard
+
     bookings = get_owner_bookings(current_user.id)
     return render_template('book_owner.html', bookings=bookings)
 
@@ -130,6 +155,10 @@ def owner_bookings_page():
 @book_bp.route('/book/owner/booking/<int:booking_id>/decision', methods=['POST'])
 @login_required
 def owner_booking_decision(booking_id):
+    guard = _require_booking_access()
+    if guard:
+        return guard
+
     payload = request.get_json(silent=True) or request.form
     decision = (payload.get('decision') or '').strip().lower()
 
@@ -178,6 +207,10 @@ def owner_booking_decision(booking_id):
 @book_bp.route('/book/telescope/<int:telescope_id>/settings', methods=['GET', 'POST'])
 @login_required
 def telescope_booking_settings(telescope_id):
+    guard = _require_booking_access()
+    if guard:
+        return guard
+
     from models.tables import Telescope
 
     telescope = db.session.get(Telescope, telescope_id)
@@ -211,6 +244,10 @@ def telescope_booking_settings(telescope_id):
 @book_bp.route('/book/telescope/<int:telescope_id>/availability', methods=['POST'])
 @login_required
 def add_telescope_availability(telescope_id):
+    guard = _require_booking_access()
+    if guard:
+        return guard
+
     from models.tables import Telescope
 
     telescope = db.session.get(Telescope, telescope_id)
