@@ -7,6 +7,12 @@ error_bp = Blueprint('error', __name__)
 
 # List of valid error codes that have templates
 VALID_ERROR_CODES = [400, 401, 403, 404, 500, 502, 503, 504]
+_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), '..', 'templates')
+ERROR_TEMPLATES = {
+    c: f'errors/{c}.html' for c in VALID_ERROR_CODES
+    if os.path.exists(os.path.join(_TEMPLATES_DIR, 'errors', f'{c}.html'))
+}
+ERROR_STATUS = {t: c for c, t in ERROR_TEMPLATES.items()}
 
 def _admin_guard():
     if not current_user.is_authenticated or not current_user.is_admin:
@@ -24,19 +30,13 @@ def test_error(code):
     if guard:
         return guard
     
-    # Check if the error code is valid and has a template
-    if code not in VALID_ERROR_CODES:
+    # Look up the template for a known error code
+    template_path = ERROR_TEMPLATES.get(code)
+    if template_path is None:
         abort(404)  # If invalid code, show 404
-    
-    # Check if the template file exists
-    template_path = f'errors/{code}.html'
-    template_file = os.path.join(os.path.dirname(__file__), '..', 'templates', template_path)
-    
-    if not os.path.exists(template_file):
-        abort(404)  # If template doesn't exist, show 404
-    
+
     # Render the error template directly
-    return render_template(template_path), code
+    return render_template(template_path), ERROR_STATUS[template_path]
 
 @error_bp.route('/errors')
 @login_required

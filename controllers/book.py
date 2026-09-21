@@ -63,8 +63,9 @@ def book_search():
     try:
         results = search_telescopes(location_query, date_list, start_time, end_time, timezone_name)
         return jsonify({'status': 'success', 'results': results})
-    except Exception as exc:
-        return jsonify({'status': 'error', 'message': str(exc)}), 500
+    except Exception:
+        current_app.logger.exception('Telescope search failed')
+        return jsonify({'status': 'error', 'message': 'Telescope search failed'}), 500
 
 
 @book_bp.route('/book/request', methods=['POST'])
@@ -274,8 +275,9 @@ def add_telescope_availability(telescope_id):
     try:
         row = add_availability_block(current_user.id, telescope, block_type, start_utc, end_utc)
         return jsonify({'status': 'success', 'id': row.id})
-    except Exception as exc:
-        return jsonify({'status': 'error', 'message': str(exc)}), 500
+    except Exception:
+        current_app.logger.exception('Failed to add availability block')
+        return jsonify({'status': 'error', 'message': 'Failed to add availability block'}), 500
 
 
 @book_bp.route('/admin/bookings/<int:booking_id>/override', methods=['POST'])

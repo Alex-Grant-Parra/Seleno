@@ -396,16 +396,17 @@ def album_download():
     files = data.get("files", [])
     if not files:
         abort(400)
-    user_dir = get_user_photos_dir()
     abs_files = []
     for fname in files:
-        jpeg_path = os.path.join(user_dir, fname)
-        cr2_path = os.path.splitext(jpeg_path)[0] + ".cr2"
+        if not isinstance(fname, str):
+            continue
         # Add the jpeg if it exists
-        if os.path.isfile(jpeg_path):
+        jpeg_path = _safe_photo_path(fname)
+        if jpeg_path:
             abs_files.append(jpeg_path)
         # Add the raw file if it exists
-        if os.path.isfile(cr2_path):
+        cr2_path = _safe_photo_path(os.path.splitext(fname)[0] + ".cr2")
+        if cr2_path:
             abs_files.append(cr2_path)
     # Always zip 
     mem_zip = io.BytesIO()

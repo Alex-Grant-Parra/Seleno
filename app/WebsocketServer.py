@@ -9,6 +9,7 @@ import threading
 import secrets
 import logging
 import ipaddress
+import re
 from flask import jsonify, request, Response
 from flask_login import current_user
 
@@ -22,6 +23,7 @@ WS_PING_INTERVAL = int(os.getenv("WS_PING_INTERVAL", "20"))
 WS_PING_TIMEOUT = int(os.getenv("WS_PING_TIMEOUT", "120"))
 
 sec_logger = logging.getLogger('security')
+logger = logging.getLogger(__name__)
 
 # Rate limiting
 client_request_counts = {}
@@ -780,8 +782,11 @@ def save_latest_frame(client_id):
     frame = latest_frames.get(client_id)
     if frame:
         try:
-            tmp_dir = tempfile.gettempdir()
-            file_path = os.path.join(tmp_dir, f"{client_id}_latest.jpg")
+            tmp_dir = os.path.realpath(tempfile.gettempdir())
+            safe_id = re.sub(r'[^A-Za-z0-9_-]', '_', str(client_id))[:128] or 'client'
+            file_path = os.path.realpath(os.path.join(tmp_dir, f"{safe_id}_latest.jpg"))
+            if os.path.dirname(file_path) != tmp_dir:
+                return
             with open(file_path, "wb") as f:
                 f.write(frame)
         except Exception as e:
@@ -879,8 +884,9 @@ def send_command_handler():
     try:
         result = client_manager.command(client_id, command, args, kwargs)
         return jsonify({"status": "success", "result": result})
-    except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
+    except Exception:
+        logger.exception("send_command failed for client %s", client_id)
+        return jsonify({"status": "error", "error": "Command failed"}), 500
 
 # Client disconnect handler for admin interface
 def admin_disconnect_ws_client_handler(client_id):
@@ -908,8 +914,9 @@ def admin_disconnect_ws_client_handler(client_id):
         client_manager.remove_client(client_id)
         _security_log('ws_command_admin_disconnect', client_id=client_id, by=getattr(current_user, 'id', None))
         return jsonify({'status': 'success', 'message': f"Disconnected '{client_id}'"})
-    except Exception as e:
-        return jsonify({'status': 'error', 'error': str(e)}), 500
+    except Exception:
+        logger.exception("Admin disconnect failed for client %s", client_id)
+        return jsonify({'status': 'error', 'error': 'Failed to disconnect client'}), 500
 
 
 def disconnect_client_by_id(client_id, reason='admin_disconnect'):

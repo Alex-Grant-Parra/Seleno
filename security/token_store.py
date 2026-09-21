@@ -14,6 +14,9 @@ def _get_telescope_model():
 
 
 def token_hash(raw_token: str) -> str:
+    # Tokens are 256-bit random values (secrets.token_urlsafe(32)), not user-chosen
+    # passwords, so a fast deterministic hash is appropriate: brute force is infeasible
+    # and a deterministic digest is needed for the indexed token_hash lookup.
     return hashlib.sha256((raw_token or '').encode('utf-8')).hexdigest()
 
 

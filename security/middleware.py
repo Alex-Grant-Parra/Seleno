@@ -3,6 +3,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
 import json
+from functools import wraps
+from flask_login import current_user
 from pathlib import Path
 from .ip_blacklist import get_blacklist
 from .config import REQUEST_LOGGING_CONFIG
@@ -320,12 +322,20 @@ class SecurityMiddleware:
     
     
     def _register_security_routes(self):
-        # Register security management routes
-        
+        # Register security management routes (admin only)
+
+        def admin_only(view):
+            @wraps(view)
+            def wrapped(*args, **kwargs):
+                if not current_user.is_authenticated or not getattr(current_user, 'is_admin', False):
+                    return jsonify({'error': 'Admin access required'}), 403
+                return view(*args, **kwargs)
+            return wrapped
+
         @self.app.route('/admin/security/status')
+        @admin_only
         def security_status():
             # Return security system status
-            # This should be protected by admin authentication
             stats = self.blacklist.get_stats()
             return jsonify({
                 'status': 'active',
@@ -335,9 +345,9 @@ class SecurityMiddleware:
             })
         
         @self.app.route('/admin/security/blacklist/add', methods=['POST'])
+        @admin_only
         def add_to_blacklist():
             # Manually add an IP to blacklist
-            # This should be protected by admin authentication
             data = request.get_json()
             if not data or 'ip' not in data:
                 return jsonify({'error': 'IP address required'}), 400
@@ -350,9 +360,9 @@ class SecurityMiddleware:
                 return jsonify({'error': 'Invalid IP address'}), 400
         
         @self.app.route('/admin/security/blacklist/remove', methods=['POST'])
+        @admin_only
         def remove_from_blacklist():
             # Remove an IP from blacklist
-            # This should be protected by admin authentication
             data = request.get_json()
             if not data or 'ip' not in data:
                 return jsonify({'error': 'IP address required'}), 400
@@ -365,9 +375,9 @@ class SecurityMiddleware:
                 return jsonify({'error': 'IP not found in blacklist'}), 404
         
         @self.app.route('/admin/security/logs')
+        @admin_only
         def get_security_logs():
             # Return recent security logs
-            # This should be protected by admin authentication
             try:
                 rows = SecurityLog.query.order_by(SecurityLog.id.desc()).limit(100).all()
                 logs = []
@@ -388,8 +398,9 @@ class SecurityMiddleware:
                     })
 
                 return jsonify({'logs': logs})
-            except Exception as e:
-                return jsonify({'error': str(e)}), 500
+            except Exception:
+                self.security_logger.exception('Failed to load security logs')
+                return jsonify({'error': 'Failed to load security logs'}), 500
 
 # Error handlers for security responses
 def register_security_error_handlers(app: Flask):

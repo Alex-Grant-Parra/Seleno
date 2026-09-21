@@ -107,8 +107,9 @@ def trust_debug():
             'fingerprint_prefix': fingerprint[:16],
             'trusted_devices': devs
         }
-    except Exception as e:
-        return {'error': str(e)}, 500
+    except Exception:
+        current_app.logger.exception('Failed to load trusted devices')
+        return {'error': 'Failed to load trusted devices'}, 500
 
 @profile_bp.route("/profile/revoke_device/<int:device_id>", methods=['POST'])
 @login_required

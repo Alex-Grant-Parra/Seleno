@@ -9,6 +9,9 @@ from app.WebsocketServer import clients
 from time import sleep
 from PIL import Image
 import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Determine the correct URL for /sendCommand
 # Use localhost for internal calls to avoid Cloudflare challenges
@@ -51,8 +54,9 @@ class Telescope:
             resp_text = requests.post(url, json=payload, timeout=8).text
             data = ujson.loads(resp_text)
             return data.get("result", data)
-        except Exception as e:
-            return {"error": str(e)}
+        except Exception:
+            logger.exception("send_command %s failed for %s", command, self.client_id)
+            return {"error": "Command failed"}
 
     @staticmethod
     def resolve_client_id(provided_id=None):

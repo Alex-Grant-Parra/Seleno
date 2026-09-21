@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from flask_login import UserMixin, login_required, current_user
 from app.db import db
 from dotenv import load_dotenv  # Import load_dotenv
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, current_app
 from utility.encryption import EncryptedString
 
 # Load environment variables from .env file
@@ -200,8 +200,9 @@ def get_night_mode():
     try:
         night_mode = current_user.get_night_mode()
         return jsonify({"status": "success", "night_mode": night_mode})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+    except Exception:
+        current_app.logger.exception('Failed to get night mode')
+        return jsonify({"status": "error", "message": "Failed to get night mode"})
 
 @user_bp.route("/user/night_mode", methods=["POST"])
 @login_required
@@ -219,5 +220,6 @@ def set_night_mode():
             "message": f"Night mode {'enabled' if night_mode else 'disabled'}",
             "night_mode": night_mode
         })
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+    except Exception:
+        current_app.logger.exception('Failed to set night mode')
+        return jsonify({"status": "error", "message": "Failed to set night mode"})
