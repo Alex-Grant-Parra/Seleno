@@ -293,8 +293,17 @@ const zoomStep = 0.1; // Zoom increment per scroll
 
 // Magnitude-Zoom linking parameters
 let magnitudeZoomEnabled = true; // Enable magnitude change with zoom
-const baseMagnitude = 4.0; // Base magnitude at zoom level 1.0
-const magnitudePerZoomLevel = 1.5; // How much magnitude increases per zoom level
+const baseMagnitude = 4.0; // Magnitude limit at zoom level 1.0
+// Magnitude added each time the zoom doubles. The limit follows
+// log2(zoom), so it rises quickly at first and flattens out when zoomed far in:
+//   zoom      1    2    3    4    5    6.7
+//   2.0  ->  4.0  6.0  7.2  8.0  8.6  9.5
+//   1.25 ->  4.0  5.3  6.0  6.5  6.9  7.4
+// Raise it for more stars at every zoom, lower it for fewer.
+// Small screens get their own value: the same sky is squeezed into far fewer
+// pixels there, so the same limit looks several times as crowded.
+const magnitudePerZoomDoubling = 2;           // desktop
+const magnitudePerZoomDoublingCompact = 1.25; // phones / narrow windows (see isCompactLayout)
 
 // Size scaling with zoom
 function getMagnitudeBasedSize(effectiveMag) {
@@ -925,7 +934,8 @@ function updateMagnitudeForZoom() {
     
     // Calculate new magnitude based on zoom level
     // Higher zoom = fainter stars visible (higher magnitude)
-    const newMagnitude = baseMagnitude + (zoom - 1.0) * magnitudePerZoomLevel;
+    const perDoubling = isCompactLayout() ? magnitudePerZoomDoublingCompact : magnitudePerZoomDoubling;
+    const newMagnitude = baseMagnitude + Math.log2(zoom) * perDoubling;
     
     // Clamp to slider bounds
     const minSliderMag = parseFloat(magFilter.min) || -2;
