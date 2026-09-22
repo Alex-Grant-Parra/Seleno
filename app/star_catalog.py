@@ -23,7 +23,7 @@ Proper names come from the catalogue tables' own name columns (HDSTARTable
 Constellation figures come from ConstellationsTable/ConstellationLinesTable
 (scripts/import_constellations.py), whose lines reference stars by designation.
 Both are built together with the arrays, so they share the catalogue's cache
-and are rebuilt whenever the database file changes.
+and are picked up on the next server start after an import.
 """
 
 import array
@@ -227,7 +227,8 @@ class StarCatalog:
 
 
 def _catalog_version():
-    """Fingerprint of the database file, used for ETags and cache keys."""
+    """Fingerprint of the database file when the catalogue was built, used for
+    ETags so browsers refetch after a restart that follows an import."""
     try:
         from Server import app  # imported lazily: Server imports this package
         uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -319,10 +320,17 @@ def build_catalog():
 
 
 def get_catalog(force_reload=False):
-    """Catalogue singleton; built on first use and reused afterwards."""
+    """Catalogue singleton; built on first use and reused afterwards.
+
+    Deliberately not rebuilt when Data.db changes on disk: request logging
+    writes to it on every request, which made every search and band request
+    pay for a full ~1.7 s rebuild. The catalogue tables only change through
+    the offline import scripts, so restart the server (or pass force_reload)
+    after running one.
+    """
     global _catalog
     with _lock:
-        if force_reload or _catalog is None or _catalog.version != _catalog_version():
+        if force_reload or _catalog is None:
             _catalog = build_catalog()
             _payload_cache.clear()
         return _catalog

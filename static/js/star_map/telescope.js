@@ -4,6 +4,7 @@
 let telescopePosition = null;
 let telescopePositionUpdateInterval = null;
 let telescopePositionAvailable = false; // Track if we've successfully fetched at least once
+let telescopePositionRequestInFlight = false; // a slow telescope reply must not stack up polls
 const telescopeMarkerSize = 25;
 const telescopeMarkerColor = "#00ff00"; // Green for telescope position
 
@@ -27,6 +28,12 @@ function updateTelescopePosition() {
     if (!isTelescopeSelected()) {
         return;
     }
+    // Skip while hidden (every poll counts against the per-IP rate limit) or
+    // while the previous request is still waiting on the telescope
+    if (document.hidden || telescopePositionRequestInFlight) {
+        return;
+    }
+    telescopePositionRequestInFlight = true;
     
     fetch('/api/telescope_position')
         .then(response => {
@@ -74,6 +81,9 @@ function updateTelescopePosition() {
         .catch(err => {
             // Silently fail - just don't display telescope marker, but keep trying
             console.debug('Telescope position update failed:', err.message);
+        })
+        .finally(() => {
+            telescopePositionRequestInFlight = false;
         });
 }
 
@@ -81,10 +91,10 @@ function startTelescopePositionTracking() {
     // Update immediately
     updateTelescopePosition();
     
-    // Then update every 5 seconds to reduce connection load (the interval used
-    // to be 1s despite this comment, which meant a full redraw every second)
+    // Then update every second; draws go through scheduleDraw() so this is a
+    // coalesced redraw, not an extra frame loop
     if (telescopePositionUpdateInterval) clearInterval(telescopePositionUpdateInterval);
-    telescopePositionUpdateInterval = setInterval(updateTelescopePosition, 5000);
+    telescopePositionUpdateInterval = setInterval(updateTelescopePosition, 1000);
 }
 
 function stopTelescopePositionTracking() {
