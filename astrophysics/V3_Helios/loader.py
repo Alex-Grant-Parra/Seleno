@@ -19,6 +19,11 @@ from pathlib import Path
 
 import spiceypy as spice
 
+try:
+    from .constants import METERS_PER_KM
+except ImportError:
+    from constants import METERS_PER_KM
+
 base = Path(__file__).resolve().parent
 dataPath = base / "data"
 outputPath = base / "initial_conditions.json"
@@ -51,9 +56,6 @@ bodies = {
 }
 
 frame = "ECLIPJ2000"
-
-# SPICE returns kilometers and km/s; convert to meters for storage.
-metersPerKilometer = 1000.0
 
 
 def ensureKernels():
@@ -91,11 +93,12 @@ def writeInitialConditions(utcStr):
         stateVec, _ = spice.spkezr(str(naifId), et, frame, "NONE", "SOLAR SYSTEM BARYCENTER")
         gmKm3 = spice.bodvcd(naifId, "GM", 1)[1][0]
 
+        # SPICE returns kilometers and km/s; convert to meters for storage.
         state["bodies"][name] = {
             "naif_id": naifId,
-            "position_m": [component * metersPerKilometer for component in stateVec[:3]],
-            "velocity_m_s": [component * metersPerKilometer for component in stateVec[3:6]],
-            "gm_m3_s2": gmKm3 * metersPerKilometer ** 3,
+            "position_m": [component * METERS_PER_KM for component in stateVec[:3]],
+            "velocity_m_s": [component * METERS_PER_KM for component in stateVec[3:6]],
+            "gm_m3_s2": gmKm3 * METERS_PER_KM ** 3,
         }
 
     with open(outputPath, "w") as f:

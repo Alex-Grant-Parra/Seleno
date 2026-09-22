@@ -7,8 +7,14 @@ import numpy as np
 
 try:
     from .chebyshev import evaluateAt, evaluateAtBatch, getEpochUTC
+    from .constants import (AU_M, OBLIQUITY_J2000_RAD, SECONDS_PER_DAY, JD_UNIX_EPOCH,
+                            JD_J2000, DAYS_PER_JULIAN_CENTURY, WGS84_A_M, WGS84_F,
+                            METERS_PER_KM, MOON_MEAN_DISTANCE_KM)
 except ImportError:
     from chebyshev import evaluateAt, evaluateAtBatch, getEpochUTC
+    from constants import (AU_M, OBLIQUITY_J2000_RAD, SECONDS_PER_DAY, JD_UNIX_EPOCH,
+                           JD_J2000, DAYS_PER_JULIAN_CENTURY, WGS84_A_M, WGS84_F,
+                           METERS_PER_KM, MOON_MEAN_DISTANCE_KM)
 
 
 # London, UK (city center; WGS84 geodetic)
@@ -16,11 +22,9 @@ LONDON_LAT_DEG = 51.5074
 LONDON_LON_DEG = -0.1278
 LONDON_ALT_M = 35.0
 
-AU_M = 149597870700.0
-
 
 def _eclToEqu(vec):
-    eps = np.deg2rad(23.439291111)
+    eps = OBLIQUITY_J2000_RAD
     rot = np.array(
         [[1.0, 0.0, 0.0], [0.0, np.cos(eps), -np.sin(eps)], [0.0, np.sin(eps), np.cos(eps)]]
     )
@@ -36,15 +40,15 @@ def _cartToRaDec(vec):
 
 
 def _julianDate(dtUtc):
-    return dtUtc.timestamp() / 86400.0 + 2440587.5
+    return dtUtc.timestamp() / SECONDS_PER_DAY + JD_UNIX_EPOCH
 
 
 def _gmstRadians(dtUtc):
     jd = _julianDate(dtUtc)
-    t = (jd - 2451545.0) / 36525.0
+    t = (jd - JD_J2000) / DAYS_PER_JULIAN_CENTURY
     gmst_deg = (
         280.46061837
-        + 360.98564736629 * (jd - 2451545.0)
+        + 360.98564736629 * (jd - JD_J2000)
         + 0.000387933 * t * t
         - (t * t * t) / 38710000.0
     )
@@ -57,8 +61,8 @@ def _observerEciM(dtUtc, latDeg, lonDeg, altM=0.0):
     lon = np.deg2rad(float(lonDeg))
     alt = float(altM)
 
-    a = 6378137.0
-    f = 1.0 / 298.257223563
+    a = WGS84_A_M
+    f = WGS84_F
     e2 = f * (2.0 - f)
 
     sin_lat = np.sin(lat)
@@ -148,13 +152,13 @@ def _planetVisualMagnitude(body, rAu, deltaAu, phaseDeg):
 
 
 def _moonVisualMagnitude(earthMoonDistanceM, phaseAngleDeg):
-    distanceKm = float(earthMoonDistanceM) / 1000.0
+    distanceKm = float(earthMoonDistanceM) / METERS_PER_KM
     if distanceKm <= 0.0:
         return None
 
     alpha = float(phaseAngleDeg)
     baseMag = -12.73 + 0.026 * alpha + 4.0e-9 * (alpha**4)
-    distanceTerm = 5.0 * np.log10(distanceKm / 384400.0)
+    distanceTerm = 5.0 * np.log10(distanceKm / MOON_MEAN_DISTANCE_KM)
     return float(baseMag + distanceTerm)
 
 

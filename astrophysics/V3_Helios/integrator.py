@@ -2,16 +2,10 @@ import math
 
 import numpy as np
 
-G = 6.67430e-11
-C_LIGHT = 2.99792458e8  # m/s
-
-# Earth figure, as used by DE440.  The pole is the J2000 mean equator pole
-# expressed in ECLIPJ2000 (obliquity 84381.448"); it precesses only ~20"/yr,
-# which is negligible for the J2 force over decades.
-EARTH_J2 = 1.08262545e-3
-EARTH_RADIUS_M = 6378136.3
-_OBLIQUITY_J2000 = np.deg2rad(84381.448 / 3600.0)
-EARTH_POLE_ECLIPJ2000 = np.array([0.0, np.sin(_OBLIQUITY_J2000), np.cos(_OBLIQUITY_J2000)])
+try:
+    from .constants import G, C_LIGHT, EARTH_J2, EARTH_RADIUS_M, EARTH_POLE_ECLIPJ2000
+except ImportError:
+    from constants import G, C_LIGHT, EARTH_J2, EARTH_RADIUS_M, EARTH_POLE_ECLIPJ2000
 
 
 def computeAccelerations(positions, masses, eps=1e-6):

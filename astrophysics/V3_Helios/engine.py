@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 
 try:
+    from .constants import G, DE440_GM, SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR
     from .integrator import (
         ForceModel,
         velocityVerletStep,
@@ -12,6 +13,7 @@ try:
         adaptiveVerletStep,
     )
 except ImportError:
+    from constants import G, DE440_GM, SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR
     from integrator import (ForceModel, velocityVerletStep, yoshida4Step,
                             suzuki4Step, splitSuzuki4Step, adaptiveVerletStep)
 
@@ -27,7 +29,9 @@ _STEP_FUNCS = {
 # DIAGNOSTICS UTILITIES
 # ============================================================================
 
-G = 6.67430e-11
+# G and the GM table come from constants.py.  Masses are derived as GM / G and
+# the force model multiplies back by the same G, so the DE440 GM values are
+# reproduced exactly whatever G is set to.
 
 
 def totalEnergy(r, v, m):
@@ -81,25 +85,6 @@ def loadInitialConditions(path=None):
     return names, r, v
 
 
-# DE440 gravitational parameters GM (m^3/s^2), from gm_de440.tpc.  GM is known
-# to ~10 significant figures, whereas G and the masses in kg are only known to
-# ~5, so the simulation is driven by GM.  Mars..Pluto are planet-system values
-# (planet + moons) to match the system-barycentre states written by loader.py.
-DE440_GM = {
-    "sun": 1.3271244004127939e20,
-    "mercury": 2.2031868551400003e13,
-    "venus": 3.24858592e14,
-    "earth": 3.986004355070226e14,
-    "moon": 4.902800118457549e12,
-    "mars": 4.2828375815756095e13,
-    "jupiter": 1.267127641e17,
-    "saturn": 3.794058484179999e16,
-    "uranus": 5.794556399999998e15,
-    "neptune": 6.836527100580398e15,
-    "pluto": 9.755e11,
-}
-
-
 def loadGravitationalParameters(names, path=None):
     """Return GM (m^3/s^2) per body: from initial_conditions.json when loader.py
     wrote them there, otherwise from the DE440_GM table."""
@@ -128,7 +113,7 @@ def getMasses(names, path=None):
     return loadGravitationalParameters(names, path) / G
 
 
-DEFAULT_DURATION = 3652.5 * 86400.0   # 10 Julian years
+DEFAULT_DURATION = 10 * DAYS_PER_JULIAN_YEAR * SECONDS_PER_DAY
 
 
 def buildForceModel(names, masses, relativity="eih", earth_j2=True):
@@ -207,7 +192,7 @@ def runSimulation(steps=None, dt=7200, store_every=1, integrator="splitSuzuki4",
     a = None if step_func is splitSuzuki4Step else force(r, v)
     print(f"Integrator: {integrator}  adaptive={adaptive}  relativity={relativity}  "
           f"J2={force.oblate_idx is not None}  dt={dt:.0f}s  "
-          f"t={t0/86400:.1f}..{(t0 + t_end)/86400:.1f} days")
+          f"t={t0/SECONDS_PER_DAY:.1f}..{(t0 + t_end)/SECONDS_PER_DAY:.1f} days")
 
     def diagnostics(r, v):
         return (totalEnergy(r, v, masses) - initial_energy,

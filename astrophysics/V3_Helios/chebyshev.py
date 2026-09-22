@@ -33,6 +33,11 @@ from pathlib import Path
 
 import numpy as np
 
+try:
+    from .constants import SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR
+except ImportError:
+    from constants import SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR
+
 _BASE = Path(__file__).resolve().parent
 _IC_PATH = _BASE / "initial_conditions.json"
 _RHISTORY_PATH = _BASE / "rHistory.npz"
@@ -55,8 +60,8 @@ DEGREE = 16
 
 # How far past the epoch the table reaches.  Rounded up to a whole number of
 # segments so the last segment is as well-sampled as the rest.
-SPAN_DAYS = 3652.5       # 10 Julian years
-_SPAN_SECONDS = float(np.ceil(SPAN_DAYS / SEGMENT_DAYS) * SEGMENT_DAYS * 86400)
+SPAN_DAYS = 10 * DAYS_PER_JULIAN_YEAR
+_SPAN_SECONDS = float(np.ceil(SPAN_DAYS / SEGMENT_DAYS) * SEGMENT_DAYS * SECONDS_PER_DAY)
 
 # Simulation settings; any change invalidates rHistory.npz.
 _SIM_DT = 7200.0         # integrator timestep (seconds)
@@ -221,8 +226,8 @@ def _getRhistory():
 
     if cached is not None:
         tDone = float(cached["final_t"])
-        print(f"Extending cached trajectory from {tDone / 86400:.1f} to "
-              f"{_SPAN_SECONDS / 86400:.1f} days …")
+        print(f"Extending cached trajectory from {tDone / SECONDS_PER_DAY:.1f} to "
+              f"{_SPAN_SECONDS / SECONDS_PER_DAY:.1f} days …")
         names, rNew, tNew, final = _runSimulation(
             _SPAN_SECONDS - tDone,
             initialState={"r": cached["final_r"], "v": cached["final_v"], "t": tDone},
@@ -231,7 +236,7 @@ def _getRhistory():
         rHistory = np.concatenate([cached["rHistory"], rNew])
         tHistory = np.concatenate([cached["tHistory"], tNew])
     else:
-        print(f"Running N-body simulation for {_SPAN_SECONDS / 86400:.0f} days (this happens once) …")
+        print(f"Running N-body simulation for {_SPAN_SECONDS / SECONDS_PER_DAY:.0f} days (this happens once) …")
         names, rHistory, tHistory, final = _runSimulation(_SPAN_SECONDS)
 
     metadata_json = json.dumps(
@@ -275,7 +280,7 @@ def buildTable() -> None:
     t_uniform = tHistory                       # actual sample timestamps (s from epoch)
     total_seconds = min(float(t_uniform[-1]), _SPAN_SECONDS)
 
-    segment_seconds = float(SEGMENT_DAYS * 86400)
+    segment_seconds = SEGMENT_DAYS * SECONDS_PER_DAY
     n_segments = int(np.ceil(total_seconds / segment_seconds))
 
     # Shape: (n_bodies, 3 axes, n_segments, DEGREE+1 coefficients)
@@ -321,7 +326,7 @@ def buildTable() -> None:
     print(
         f"Chebyshev table saved → {_CHEB_TABLE_PATH.name}\n"
         f"  Bodies: {n_bodies}   Segments: {n_segments}   "
-        f"Degree: {DEGREE}   Span: {total_seconds / 86400:.1f} days"
+        f"Degree: {DEGREE}   Span: {total_seconds / SECONDS_PER_DAY:.1f} days"
     )
 
 
@@ -402,7 +407,7 @@ def _evaluateBatchArrays(tValues: np.ndarray, table: dict) -> dict:
         bad = float(tFlat[((tFlat < 0.0) | (tFlat > total_seconds))][0])
         raise ValueError(
             f"t_sec={bad:.0f} s is outside the simulated range "
-            f"[0, {total_seconds:.0f}] s  ({total_seconds / 86400:.1f} days from epoch). "
+            f"[0, {total_seconds:.0f}] s  ({total_seconds / SECONDS_PER_DAY:.1f} days from epoch). "
             "Increase SPAN_DAYS in chebyshev.py (the cached trajectory is extended, "
             "not re-run) or move the epoch with loader.py --epoch."
         )
