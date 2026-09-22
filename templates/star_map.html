@@ -51,6 +51,28 @@
         #controls input[type="range"] { width: 100px; }
         #controls input[type="number"] { width: 60px; }
         #controls button { margin-top: 4px; }
+        #controls details {
+            position: relative;
+            border-top: 1px solid rgba(255,255,255,0.18);
+            padding-top: 8px;
+        }
+        #controls summary { cursor: pointer; font-weight: 600; }
+        #controls details[open] { z-index: 30; }
+        #controls details .advanced-control {
+            position: absolute;
+            left: 0;
+            right: auto;
+            top: calc(100% + 8px);
+            width: 250px;
+            max-width: calc(100vw - 32px);
+            margin: 0;
+            padding: 10px;
+            background: rgba(0,0,0,0.92);
+            border: 1px solid #555;
+            border-radius: 6px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.6);
+        }
+        #controls details .advanced-control label { width: 100%; justify-content: space-between; }
         #render-stats {
             position: fixed;
             left: 10px;
@@ -360,15 +382,9 @@
         </label>
     </div>
     <div class="control-group">
-        <label for="show-unknown-mag" title="Catalogue objects with no recorded V-Mag: NULL, or one of the Henry Draper 20/30/40/50 placeholders, which that catalogue uses for variable stars such as Algol. They have no place on the magnitude scale, so they are drawn separately, in blue.">
-            <input type="checkbox" id="show-unknown-mag"> <span>Unknown magnitude<span id="unknown-mag-count"></span></span>
-        </label>
-    </div>
-    <div class="control-group">
         <label for="show-horizon-grid"><input type="checkbox" id="show-horizon-grid"> <span>Horizon Grid</span></label>
         <label for="show-equatorial-grid"><input type="checkbox" id="show-equatorial-grid"> <span>Equatorial Grid</span></label>
         <label for="show-ecliptic"><input type="checkbox" id="show-ecliptic"> <span>Ecliptic</span></label>
-        <label for="show-below-horizon"><input type="checkbox" id="show-below-horizon" checked> <span>Below-horizon tint</span></label>
     </div>
     <div class="control-group">
         <label for="show-radec-cursor"><input type="checkbox" id="show-radec-cursor"> <span>RA/DEC at cursor</span></label>
@@ -376,7 +392,6 @@
     </div>
     <div class="control-group">
         <label for="flip-vertical"><input type="checkbox" id="flip-vertical"> <span>Invert controls</span></label>
-        <label for="show-render-stats"><input type="checkbox" id="show-render-stats"> <span>Render stats</span></label>
     </div>
     <div style="margin-top: 8px;">
         <label>Search Object:</label>
@@ -386,6 +401,25 @@
             <button id="clear-search-btn" style="flex: 1; padding: 4px 8px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;">Clear</button>
         </div>
     </div>
+    <details id="advanced-map-settings">
+        <summary>Advanced settings</summary>
+        <div class="advanced-control">
+            <label for="show-unknown-mag" title="Catalogue objects with no recorded V-Mag. They are drawn separately, in blue.">
+                <span><input type="checkbox" id="show-unknown-mag"> Unknown magnitude<span id="unknown-mag-count"></span></span>
+            </label>
+            <label for="show-below-horizon">
+                <span><input type="checkbox" id="show-below-horizon" checked> Below-horizon tint</span>
+                <input type="number" id="horizon-tint-opacity" min="0" max="1" step="0.01" value="0.10" title="Tint opacity">
+            </label>
+            <label for="show-render-stats">
+                <span><input type="checkbox" id="show-render-stats"> Render stats</span>
+            </label>
+            <label for="magnitude-zoom-ratio" title="Magnitude limit added when zoom doubles on this device">
+                <span>Zoom/magnitude ratio</span>
+                <input type="number" id="magnitude-zoom-ratio" min="0" max="20" step="0.05">
+            </label>
+        </div>
+    </details>
     <button id="reset-view">Reset View</button>
     <button id="help-btn">Help</button>
 </div>

@@ -68,6 +68,7 @@ const showHorizonGrid = document.getElementById('show-horizon-grid');
 const showEquatorialGrid = document.getElementById('show-equatorial-grid');
 const showEcliptic = document.getElementById('show-ecliptic');
 const showBelowHorizon = document.getElementById('show-below-horizon');
+const horizonTintOpacityInput = document.getElementById('horizon-tint-opacity');
 const timeControl = document.getElementById('time-control');
 const timeNowBtn = document.getElementById('time-now');
 const timeSegmentIndicator = document.getElementById('time-segment-indicator');
@@ -89,6 +90,7 @@ const showConstellationNames = document.getElementById('show-constellation-names
 const unknownMagCountLabel = document.getElementById('unknown-mag-count');
 const showRenderStats = document.getElementById('show-render-stats');
 const renderStatsDiv = document.getElementById('render-stats');
+const magnitudeZoomRatioInput = document.getElementById('magnitude-zoom-ratio');
 let starLoadingCounter = 0;
 function starLoadingBegin() {
     starLoadingCounter++;
@@ -302,8 +304,29 @@ const baseMagnitude = 4.0; // Magnitude limit at zoom level 1.0
 // Raise it for more stars at every zoom, lower it for fewer.
 // Small screens get their own value: the same sky is squeezed into far fewer
 // pixels there, so the same limit looks several times as crowded.
-const magnitudePerZoomDoubling = 2;           // desktop
-const magnitudePerZoomDoublingCompact = 1.25; // phones / narrow windows (see isCompactLayout)
+let magnitudePerZoomDoubling = 2;             // desktop
+let magnitudePerZoomDoublingCompact = 1.25;   // phones / narrow windows (see isCompactLayout)
+
+function getMagnitudeZoomRatio() {
+    return isCompactLayout() ? magnitudePerZoomDoublingCompact : magnitudePerZoomDoubling;
+}
+
+function syncMagnitudeZoomRatioInput() {
+    if (magnitudeZoomRatioInput) {
+        magnitudeZoomRatioInput.value = getMagnitudeZoomRatio().toFixed(2);
+    }
+}
+
+function updateMagnitudeZoomRatio() {
+    if (!magnitudeZoomRatioInput) return;
+    const value = parseFloat(magnitudeZoomRatioInput.value);
+    if (!Number.isFinite(value) || value < 0) return;
+    const ratio = Math.min(20, value);
+    if (isCompactLayout()) magnitudePerZoomDoublingCompact = ratio;
+    else magnitudePerZoomDoubling = ratio;
+    syncMagnitudeZoomRatioInput();
+    if (magnitudeZoomEnabled) updateMagnitudeForZoom();
+}
 
 // Size scaling with zoom
 function getMagnitudeBasedSize(effectiveMag) {
@@ -934,7 +957,7 @@ function updateMagnitudeForZoom() {
     
     // Calculate new magnitude based on zoom level
     // Higher zoom = fainter stars visible (higher magnitude)
-    const perDoubling = isCompactLayout() ? magnitudePerZoomDoublingCompact : magnitudePerZoomDoubling;
+    const perDoubling = getMagnitudeZoomRatio();
     const newMagnitude = baseMagnitude + Math.log2(zoom) * perDoubling;
     
     // Clamp to slider bounds
@@ -1529,7 +1552,9 @@ function drawHorizonGrid(lat, lon) {
 // Draw a translucent green tint for the region below the horizon (alt < 0)
 function drawBelowHorizonTint() {
     ctx.save();
-    ctx.fillStyle = 'rgba(50, 205, 50, 0.10)'; // grass green at ~10%
+    const opacity = horizonTintOpacityInput ? parseFloat(horizonTintOpacityInput.value) : 0.10;
+    const tintOpacity = Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 0.10;
+    ctx.fillStyle = `rgba(50, 205, 50, ${tintOpacity})`;
     const altStep = 3; // finer near horizon to avoid visible faceting
     const azStep = 4;
     const cullThreshold = 0; // front hemisphere only
@@ -2728,6 +2753,7 @@ function handleViewportResize() {
     resizeFrame = requestAnimationFrame(() => {
         resizeFrame = null;
         document.documentElement.classList.toggle('sm-compact', isCompactLayout());
+        syncMagnitudeZoomRatioInput();
         resizeCanvas();
         draw();
     });
@@ -2939,6 +2965,7 @@ showHorizonGrid.addEventListener('change', draw);
 showEquatorialGrid.addEventListener('change', draw);
 if (showEcliptic) showEcliptic.addEventListener('change', draw);
 if (showBelowHorizon) showBelowHorizon.addEventListener('change', draw);
+if (horizonTintOpacityInput) horizonTintOpacityInput.addEventListener('input', draw);
 if (showUnknownMag) {
     showUnknownMag.addEventListener('change', () => {
         // These sit at the end of the catalogue, so make sure the tail is on its way
@@ -2947,6 +2974,10 @@ if (showUnknownMag) {
     });
 }
 if (showRenderStats) showRenderStats.addEventListener('change', updateRenderStats);
+if (magnitudeZoomRatioInput) {
+    syncMagnitudeZoomRatioInput();
+    magnitudeZoomRatioInput.addEventListener('change', updateMagnitudeZoomRatio);
+}
 if (showConstellations) {
     showConstellations.addEventListener('change', () => {
         if (showConstellations.checked) loadConstellations();
