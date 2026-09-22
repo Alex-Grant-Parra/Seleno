@@ -153,8 +153,6 @@ magFilter.value = "4.0"; // Start at magnitude 4
 magValue.textContent = "4.0";
 
 // 3D sphere parameters
-// Increase the sphere radius for a more immersive effect
-const R = Math.min(width, height) * 0.9 / 2;
 let rotX = 0, rotY = 0; // rotation angles
 let dragging = false, lastX = 0, lastY = 0;
 

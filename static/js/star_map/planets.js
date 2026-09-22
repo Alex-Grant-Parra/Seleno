@@ -1,18 +1,5 @@
 // Star map - solar-system objects: server ephemerides and their icons.
 
-function getPlanetsMagRange() {
-    if (!planetsList || planetsList.length === 0) return null;
-    let pmin = Infinity, pmax = -Infinity;
-    for (const p of planetsList) {
-        const m = (p && typeof p.mag === 'number') ? p.mag : null;
-        if (m == null || isNaN(m)) continue;
-        if (m < pmin) pmin = m;
-        if (m > pmax) pmax = m;
-    }
-    if (pmin === Infinity || pmax === -Infinity) return null;
-    return { min: pmin, max: pmax };
-}
-
 // --- Dynamic planet updates (server-driven ephemerides) ---
 let planetsRefreshTimer = null;
 
