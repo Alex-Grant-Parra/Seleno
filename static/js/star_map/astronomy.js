@@ -86,12 +86,12 @@ function precomputeObserver(latDeg) {
     return { sinLat: Math.sin(lat), cosLat: Math.cos(lat) };
 }
 
-// Convenience wrapper: compute Alt/Az for a given RA/Dec at a Date and observer location
+// Convenience wrapper: compute Alt/Az for a given RA/Dec at a Date and observer location.
+// Uses the exact instant, like the star renderer: truncating to the minute here
+// put objects up to ~15' of hour angle away from where the stars are drawn.
 function radecToAltAz(raDeg, decDeg, dateObj, latDeg, lonDeg) {
-    // Normalize date to a Date object and round seconds for stability
     let d = (dateObj instanceof Date) ? new Date(dateObj.getTime()) : new Date();
     try { if (dateObj) d = new Date(dateObj); } catch (e) { d = new Date(); }
-    d.setSeconds(0, 0);
     const lstDegVal = lstDegrees(new Date(d.toISOString()), lonDeg || 0);
     const obs = precomputeObserver(latDeg || 0);
     return radecToAltAzFast(raDeg, decDeg, lstDegVal, obs.sinLat, obs.cosLat);

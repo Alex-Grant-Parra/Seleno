@@ -53,25 +53,16 @@ function updateTelescopePosition() {
         })
         .then(data => {
             if (data && data.status === 'success' && data.ra !== null && data.dec !== null) {
-                // Get current observer position and time to convert RA/DEC to Alt/Az
-                const latDeg = parseFloat(latInput.value) || 0;
-                const lonDeg = parseFloat(lonInput.value) || 0;
-                let selectedDate = new Date();
-                try { if (timeControl && timeControl.value) selectedDate = new Date(timeControl.value); } catch {}
-                
-                // Convert RA/DEC to Alt/Az for fixed horizon-based positioning
-                const { altDeg, azDeg } = radecToAltAz(data.ra, data.dec, selectedDate, latDeg, lonDeg);
-                
+                // Keep RA/Dec only: draw() projects it with the current sky
+                // transform each frame, so it stays locked to the stars
                 telescopePosition = {
                     ra: data.ra,
                     dec: data.dec,
-                    alt: altDeg,
-                    az: azDeg,
                     timestamp: Date.now()
                 };
                 if (!telescopePositionAvailable) {
                     telescopePositionAvailable = true;
-                    console.log('%c✓ Telescope position now available!', 'color: green; font-weight: bold;', `RA: ${data.ra}°, DEC: ${data.dec}° (Alt: ${altDeg.toFixed(1)}°, Az: ${azDeg.toFixed(1)}°)`);
+                    console.log('%c✓ Telescope position now available!', 'color: green; font-weight: bold;', `RA: ${data.ra}°, DEC: ${data.dec}°`);
                 }
                 scheduleDraw();
             } else if (data && data.status === 'error') {

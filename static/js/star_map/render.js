@@ -317,10 +317,11 @@ function draw() {
 
     // Draw telescope position marker
     if (telescopePosition) {
-        // Use Alt/Az coordinates so telescope marker doesn't move with time changes
-        // Only moves when actual telescope position is updated from server
-        let [x, y, z] = altazToXYZ(telescopePosition.alt, telescopePosition.az);
-        [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+        // Project the reported RA/Dec through the same transform as the stars,
+        // every frame, so the marker turns with the sky between position polls
+        // instead of holding a stale Alt/Az and jumping when the next one lands
+        const v = radecToXYZ(telescopePosition.ra, telescopePosition.dec);
+        const [x, y, z] = mulMat3Vec3(Mview, v);
         if (z > 0) {
             const [cx, cy] = project([x, y, z]);
             const scaledMarkerSize = telescopeMarkerSize * zoom;
