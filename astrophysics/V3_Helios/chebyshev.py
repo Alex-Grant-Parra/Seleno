@@ -3,14 +3,16 @@ Chebyshev polynomial ephemeris cache for V3 Helios.
 
 Workflow
 --------
-Build once (takes as long as the N-body simulation):
+Build once (~15 s for the default 10-year span):
 
     python astrophysics/V3_Helios/chebyshev.py
 
 This will:
-  1. Run the N-body engine and cache the raw trajectory to rHistory.npz.
-     (If rHistory.npz already exists and initial_conditions.json has not
-     changed, the simulation is skipped.)
+  1. Run the N-body engine for SPAN_DAYS and cache the raw trajectory, plus
+     the final state, to rHistory.npz.  If rHistory.npz already exists for
+     the same initial conditions and settings, the simulation is skipped;
+     if it is shorter than SPAN_DAYS it is extended from its final state
+     rather than re-run from the epoch.
   2. Fit degree-DEGREE Chebyshev polynomials over SEGMENT_DAYS-day segments
      for every body and axis.
   3. Write cheb_table.npz.
@@ -40,7 +42,7 @@ _TABLE_CACHE = None
 _TABLE_CACHE_KEY = None
 _EPOCH_CACHE = None
 _EPOCH_CACHE_KEY = None
-_METADATA_SCHEMA = 1
+_METADATA_SCHEMA = 3
 
 # ---------------------------------------------------------------------------
 # Fitting parameters.
@@ -51,11 +53,17 @@ _METADATA_SCHEMA = 1
 SEGMENT_DAYS = 4
 DEGREE = 16
 
-# Must match engine.py defaults.
-_SIM_DT = 900.0          # integrator timestep (seconds)
-_SIM_STORE_EVERY = 10    # trajectory stored every N steps
-_DT_STORED = _SIM_DT * _SIM_STORE_EVERY   # 9 000 s between stored samples
-_ENGINE_DEFAULT_STEPS = 35040
+# How far past the epoch the table reaches.  Rounded up to a whole number of
+# segments so the last segment is as well-sampled as the rest.
+SPAN_DAYS = 3652.5       # 10 Julian years
+_SPAN_SECONDS = float(np.ceil(SPAN_DAYS / SEGMENT_DAYS) * SEGMENT_DAYS * 86400)
+
+# Simulation settings; any change invalidates rHistory.npz.
+_SIM_DT = 7200.0         # integrator timestep (seconds)
+_SIM_STORE_EVERY = 1     # trajectory stored every N steps (48 samples/segment)
+_SIM_INTEGRATOR = "splitSuzuki4"
+_SIM_RELATIVITY = "eih"
+_SIM_EARTH_J2 = True
 
 
 # ---------------------------------------------------------------------------
@@ -88,8 +96,12 @@ def _expectedMetadata(icSha256: str) -> dict:
         "schema": _METADATA_SCHEMA,
         "segment_days": SEGMENT_DAYS,
         "degree": DEGREE,
+        "span_seconds": _SPAN_SECONDS,
         "sim_dt": _SIM_DT,
         "sim_store_every": _SIM_STORE_EVERY,
+        "sim_integrator": _SIM_INTEGRATOR,
+        "sim_relativity": _SIM_RELATIVITY,
+        "sim_earth_j2": _SIM_EARTH_J2,
         "ic_sha256": icSha256,
     }
 
@@ -99,7 +111,9 @@ def _expectedRhistoryMetadata(icSha256: str) -> dict:
         "schema": _METADATA_SCHEMA,
         "sim_dt": _SIM_DT,
         "sim_store_every": _SIM_STORE_EVERY,
-        "sim_steps": _ENGINE_DEFAULT_STEPS,
+        "sim_integrator": _SIM_INTEGRATOR,
+        "sim_relativity": _SIM_RELATIVITY,
+        "sim_earth_j2": _SIM_EARTH_J2,
         "ic_sha256": icSha256,
     }
 
@@ -154,44 +168,72 @@ def _validateRhistoryMetadata(data: dict) -> None:
         )
 
 
-def _runSimulation():
-    """Run the N-body engine and return (names, rHistory ndarray)."""
+def _runSimulation(durationSeconds, initialState=None):
+    """Run the N-body engine; return (names, rHistory, tHistory, finalState)."""
     try:
         from .engine import runSimulation
     except ImportError:
         from engine import runSimulation
 
-    print("Running N-body simulation (this happens once) …")
-    results = runSimulation()
-    tHistory = np.asarray(results.get(
-        "tHistory",
-        np.arange(1, len(results["rHistory"]) + 1, dtype=np.float64) * _DT_STORED,
-    ))
-    return list(results["names"]), np.asarray(results["rHistory"]), tHistory
+    results = runSimulation(
+        duration=durationSeconds,
+        dt=_SIM_DT,
+        store_every=_SIM_STORE_EVERY,
+        integrator=_SIM_INTEGRATOR,
+        relativity=_SIM_RELATIVITY,
+        earth_j2=_SIM_EARTH_J2,
+        initial_state=initialState,
+    )
+    return (list(results["names"]), np.asarray(results["rHistory"]),
+            np.asarray(results["tHistory"], dtype=np.float64), results["finalState"])
+
+
+def _loadCachedRhistory():
+    """Return the cached trajectory dict if it matches the current settings, else None."""
+    if not _isNewer(_RHISTORY_PATH, _IC_PATH):
+        return None
+    try:
+        with np.load(_RHISTORY_PATH, allow_pickle=True) as npz:
+            data = {key: npz[key] for key in npz.files}
+        _validateRhistoryMetadata(data)
+        for key in ("tHistory", "final_r", "final_v", "final_t"):
+            if key not in data:
+                raise RuntimeError(f"rHistory cache is missing '{key}'.")
+        return data
+    except (RuntimeError, OSError, ValueError) as exc:
+        print(f"Cached trajectory rejected: {exc}")
+        return None
 
 
 def _getRhistory():
-    """Return (names, rHistory, tHistory) from disk cache or by running the simulation."""
-    if _isNewer(_RHISTORY_PATH, _IC_PATH):
-        print(f"Loading cached trajectory from {_RHISTORY_PATH.name} …")
-        try:
-            with np.load(_RHISTORY_PATH, allow_pickle=True) as npz:
-                data = {key: npz[key] for key in npz.files}
-            _validateRhistoryMetadata(data)
-            names = list(data["names"])
-            rHistory = data["rHistory"]
-            # tHistory absent in cache files built before this version
-            if "tHistory" in data:
-                tHistory = data["tHistory"].astype(np.float64)
-            else:
-                n = rHistory.shape[0]
-                tHistory = np.arange(1, n + 1, dtype=np.float64) * _DT_STORED
-            return names, rHistory, tHistory
-        except RuntimeError as exc:
-            print(f"Cached trajectory rejected: {exc}")
-            print("Rebuilding trajectory cache …")
+    """Return (names, rHistory, tHistory) covering [0, _SPAN_SECONDS].
 
-    names, rHistory, tHistory = _runSimulation()
+    Reuses rHistory.npz when it matches, extends it from its saved final state
+    when it is too short, and only runs from the epoch when there is no usable
+    cache.
+    """
+    cached = _loadCachedRhistory()
+
+    if cached is not None and float(cached["final_t"]) >= _SPAN_SECONDS - 1e-6:
+        print(f"Loading cached trajectory from {_RHISTORY_PATH.name} …")
+        keep = cached["tHistory"] <= _SPAN_SECONDS + 1e-6
+        return list(cached["names"]), cached["rHistory"][keep], cached["tHistory"][keep]
+
+    if cached is not None:
+        tDone = float(cached["final_t"])
+        print(f"Extending cached trajectory from {tDone / 86400:.1f} to "
+              f"{_SPAN_SECONDS / 86400:.1f} days …")
+        names, rNew, tNew, final = _runSimulation(
+            _SPAN_SECONDS - tDone,
+            initialState={"r": cached["final_r"], "v": cached["final_v"], "t": tDone},
+        )
+        names = list(cached["names"])
+        rHistory = np.concatenate([cached["rHistory"], rNew])
+        tHistory = np.concatenate([cached["tHistory"], tNew])
+    else:
+        print(f"Running N-body simulation for {_SPAN_SECONDS / 86400:.0f} days (this happens once) …")
+        names, rHistory, tHistory, final = _runSimulation(_SPAN_SECONDS)
+
     metadata_json = json.dumps(
         _expectedRhistoryMetadata(_fileSha256(_IC_PATH)),
         sort_keys=True,
@@ -201,6 +243,9 @@ def _getRhistory():
         names=np.array(names),
         rHistory=rHistory,
         tHistory=tHistory,
+        final_r=final["r"],
+        final_v=final["v"],
+        final_t=np.array(final["t"]),
         metadata_json=np.array(metadata_json),
     )
     print(f"Trajectory cached \u2192 {_RHISTORY_PATH.name}")
@@ -228,7 +273,7 @@ def buildTable() -> None:
 
     n_samples, n_bodies, _ = rHistory.shape
     t_uniform = tHistory                       # actual sample timestamps (s from epoch)
-    total_seconds = float(t_uniform[-1])
+    total_seconds = min(float(t_uniform[-1]), _SPAN_SECONDS)
 
     segment_seconds = float(SEGMENT_DAYS * 86400)
     n_segments = int(np.ceil(total_seconds / segment_seconds))
@@ -257,14 +302,10 @@ def buildTable() -> None:
         # Map sample times to τ ∈ [-1, 1] over this segment
         tau = (2.0 * t_uniform[mask] - (t_a + t_b)) / (t_b - t_a)
 
-        for body_idx in range(n_bodies):
-            for axis in range(3):
-                # Cast to float64 — longdouble (float128) is not supported by
-                # numpy's linalg backend, and float64 is sufficient for fitting.
-                vals = rHistory[mask, body_idx, axis].astype(np.float64)
-                coefficients[body_idx, axis, seg, :] = (
-                    np.polynomial.chebyshev.chebfit(tau, vals, DEGREE)
-                )
+        # Fit every body/axis in one least-squares solve: y is (samples, bodies*3).
+        vals = rHistory[mask].reshape(-1, n_bodies * 3).astype(np.float64)
+        coef = np.polynomial.chebyshev.chebfit(tau, vals, DEGREE)     # (DEGREE+1, bodies*3)
+        coefficients[:, :, seg, :] = coef.T.reshape(n_bodies, 3, DEGREE + 1)
 
     np.savez_compressed(
         _CHEB_TABLE_PATH,
@@ -361,7 +402,9 @@ def _evaluateBatchArrays(tValues: np.ndarray, table: dict) -> dict:
         bad = float(tFlat[((tFlat < 0.0) | (tFlat > total_seconds))][0])
         raise ValueError(
             f"t_sec={bad:.0f} s is outside the simulated range "
-            f"[0, {total_seconds:.0f}] s  ({total_seconds / 86400:.1f} days from epoch)."
+            f"[0, {total_seconds:.0f}] s  ({total_seconds / 86400:.1f} days from epoch). "
+            "Increase SPAN_DAYS in chebyshev.py (the cached trajectory is extended, "
+            "not re-run) or move the epoch with loader.py --epoch."
         )
 
     segIdx = np.minimum((tFlat / segment_seconds).astype(np.int64), len(seg_t_a) - 1)
@@ -374,11 +417,12 @@ def _evaluateBatchArrays(tValues: np.ndarray, table: dict) -> dict:
         tB = float(seg_t_b[seg])
         tau = np.clip((2.0 * tSeg - (tA + tB)) / (tB - tA), -1.0, 1.0)
 
+        # Coefficients moved to (DEGREE+1, bodies, 3) -> values (bodies, 3, len(tau)).
+        values = np.polynomial.chebyshev.chebval(
+            tau, np.moveaxis(coefficients[:, :, seg, :], -1, 0)
+        )
         for body_idx, name in enumerate(names):
-            for axis in range(3):
-                output[name][mask, axis] = np.polynomial.chebyshev.chebval(
-                    tau, coefficients[body_idx, axis, seg, :]
-                )
+            output[name][mask] = values[body_idx].T
 
     return output
 

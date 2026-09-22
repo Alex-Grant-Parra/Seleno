@@ -4,15 +4,23 @@ from pathlib import Path
 
 try:
     from .integrator import (
-        computeAccelerations,
-        computeGRCorrections,
+        ForceModel,
         velocityVerletStep,
         yoshida4Step,
+        suzuki4Step,
+        splitSuzuki4Step,
         adaptiveVerletStep,
     )
 except ImportError:
-    from integrator import (computeAccelerations, computeGRCorrections,
-                            velocityVerletStep, yoshida4Step, adaptiveVerletStep)
+    from integrator import (ForceModel, velocityVerletStep, yoshida4Step,
+                            suzuki4Step, splitSuzuki4Step, adaptiveVerletStep)
+
+_STEP_FUNCS = {
+    "verlet": velocityVerletStep,
+    "yoshida4": yoshida4Step,
+    "suzuki4": suzuki4Step,
+    "splitSuzuki4": splitSuzuki4Step,
+}
 
 
 # ============================================================================
@@ -29,14 +37,9 @@ def totalEnergy(r, v, m):
 
     kinetic = 0.5 * np.sum(masses * np.sum(velocities * velocities, axis=1, dtype=np.float64), dtype=np.float64)
 
-    potential = np.float64(0.0)
-    n = len(m)
-
-    for i in range(n):
-        for j in range(i + 1, n):
-            diff = positions[j] - positions[i]
-            dist = np.linalg.norm(diff)
-            potential -= np.float64(G) * masses[i] * masses[j] / dist
+    i, j = np.triu_indices(len(masses), k=1)
+    dist = np.linalg.norm(positions[j] - positions[i], axis=1)
+    potential = -np.float64(G) * np.sum(masses[i] * masses[j] / dist, dtype=np.float64)
 
     return np.float64(kinetic + potential)
 
@@ -78,83 +81,146 @@ def loadInitialConditions(path=None):
     return names, r, v
 
 
-def getMasses(names):
-    massMap = {
-        "sun": 1.9885e30,
-        "mercury": 3.301e23,
-        "venus": 4.867e24,
-        "earth": 5.9722e24,
-        "moon": 7.342e22,
-        "mars": 6.417e23,
-        "jupiter": 1.898e27,
-        "saturn": 5.683e26,
-        "uranus": 8.681e25,
-        "neptune": 1.024e26,
-        "pluto": 1.309e22,
-    }
+# DE440 gravitational parameters GM (m^3/s^2), from gm_de440.tpc.  GM is known
+# to ~10 significant figures, whereas G and the masses in kg are only known to
+# ~5, so the simulation is driven by GM.  Mars..Pluto are planet-system values
+# (planet + moons) to match the system-barycentre states written by loader.py.
+DE440_GM = {
+    "sun": 1.3271244004127939e20,
+    "mercury": 2.2031868551400003e13,
+    "venus": 3.24858592e14,
+    "earth": 3.986004355070226e14,
+    "moon": 4.902800118457549e12,
+    "mars": 4.2828375815756095e13,
+    "jupiter": 1.267127641e17,
+    "saturn": 3.794058484179999e16,
+    "uranus": 5.794556399999998e15,
+    "neptune": 6.836527100580398e15,
+    "pluto": 9.755e11,
+}
 
-    missing = [name for name in names if name not in massMap]
+
+def loadGravitationalParameters(names, path=None):
+    """Return GM (m^3/s^2) per body: from initial_conditions.json when loader.py
+    wrote them there, otherwise from the DE440_GM table."""
+    if path is None:
+        path = Path(__file__).resolve().parent / "initial_conditions.json"
+
+    bodies = {}
+    if Path(path).exists():
+        with open(path, "r") as f:
+            bodies = json.load(f).get("bodies", {})
+
+    gm = []
+    missing = []
+    for name in names:
+        value = bodies.get(name, {}).get("gm_m3_s2", DE440_GM.get(name))
+        if value is None:
+            missing.append(name)
+        gm.append(value)
     if missing:
-        raise KeyError(f"Missing mass entries for bodies: {', '.join(missing)}")
+        raise KeyError(f"Missing GM entries for bodies: {', '.join(missing)}")
+    return np.array(gm, dtype=np.float64)
 
-    return np.array([massMap[n] for n in names], dtype=np.float64)
+
+def getMasses(names, path=None):
+    """Return masses in kg, derived as GM / G so that G * m reproduces GM exactly."""
+    return loadGravitationalParameters(names, path) / G
 
 
-def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
-                  use_gr=False, adaptive=False, adaptive_tol=1e4, duration=None,
-                  progress_callback=None):
-    # 35040 steps * 900 seconds = 31,536,000 seconds = ~365 days (one Earth orbit)
-    # dt=900s keeps the run practical while preserving acceptable accuracy
-    # Velocity Verlet is used for its stability and simplicity
+DEFAULT_DURATION = 3652.5 * 86400.0   # 10 Julian years
+
+
+def buildForceModel(names, masses, relativity="eih", earth_j2=True):
+    """Force model used by the simulation: Newtonian + relativity + Earth J2 on the Moon."""
+    has_earth_moon = "earth" in names and "moon" in names
+    return ForceModel(
+        masses,
+        relativity=relativity,
+        sun_idx=names.index("sun"),
+        oblate_idx=names.index("earth") if (earth_j2 and has_earth_moon) else None,
+        oblate_targets=[names.index("moon")] if (earth_j2 and has_earth_moon) else None,
+    )
+
+
+def runSimulation(steps=None, dt=7200, store_every=1, integrator="splitSuzuki4",
+                  relativity="eih", earth_j2=True, use_gr=None, adaptive=False,
+                  adaptive_tol=1e4, duration=None, initial_state=None,
+                  diag_every=100, progress_callback=None):
+    """Integrate the solar system forward from initial_conditions.json.
+
+    The run length is `steps` fixed steps if given, otherwise `duration`
+    seconds (default 10 years).
+
+    Defaults (checked against DE440 over one year): EIH relativity + Earth
+    J2 with Suzuki 4th order at dt=7200 s, the relativistic part evaluated
+    once per step.  Planets stay within ~0.01", the Moon ~0.6 km/yr (0.3"/yr).
+
+    relativity : "eih" (full n-body 1PN), "sun" (Sun's Schwarzschild term
+        only) or None.  use_gr=False is kept as an alias for relativity=None.
+    earth_j2 : include Earth's equatorial bulge acting on the Moon.
+
+    initial_state : dict with "r", "v", "t" (as returned in "finalState")
+        Continue a previous run from its final state instead of starting at
+        the epoch.  The t=0 sample is only emitted for fresh runs, so the
+        histories of consecutive runs can be concatenated directly.
+    """
     names, r, v = loadInitialConditions()
-    r = np.asarray(r, dtype=np.float64)
-    v = np.asarray(v, dtype=np.float64)
     masses = np.asarray(getMasses(names), dtype=np.float64)
 
-    # Remove net center-of-mass velocity to eliminate bulk drift
+    if initial_state is None:
+        r = np.asarray(r, dtype=np.float64)
+        v = np.asarray(v, dtype=np.float64)
+        # Remove net center-of-mass velocity to eliminate bulk drift
+        total_mass = np.sum(masses)
+        v_cm = np.sum(masses[:, None] * v, axis=0) / total_mass
+        v = v - v_cm
+        t0 = 0.0
+    else:
+        r = np.array(initial_state["r"], dtype=np.float64)
+        v = np.array(initial_state["v"], dtype=np.float64)
+        t0 = float(initial_state["t"])
     total_mass = np.sum(masses)
-    v_cm = np.sum(masses[:, None] * v, axis=0) / total_mass
-    v = v - v_cm
-    
-    # Verify: total momentum should now be near zero
+
     initial_momentum = totalMomentum(v, masses)
     initial_energy = totalEnergy(r, v, masses)
     initial_angular_momentum = totalAngularMomentum(r, v, masses)
 
-    a = computeAccelerations(r, masses)
-    if use_gr:
-        a = a + computeGRCorrections(r, v, masses)
+    if use_gr is False:
+        relativity = None
+    force = buildForceModel(names, masses, relativity, earth_j2)
 
-    # diagnostic storage
-    energyLog = []
-    momentumLog = []
-    angularMomentumLog = []
-    earthDistanceLog = []
+    dt = float(dt)
+    if steps is None:
+        steps = int(np.ceil(float(duration if duration is not None else DEFAULT_DURATION) / dt - 1e-9))
+    t_end = float(duration if (duration is not None and adaptive) else steps * dt)
 
-    # trajectory storage
-    rHistory = []
-    vHistory = []
-    tHistory = []
-
-    t_end = float(duration if duration is not None else steps * dt)
-
-    # Select integrator automatically when integrator="auto":
-    #   - adaptive=True  → always Verlet (adaptive step-doubling is Verlet-based)
-    #   - duration <= 2 years → Verlet (accuracy already well below Chebyshev error)
-    #   - duration >  2 years → Yoshida 4th order (higher-order accuracy compounds)
-    _TWO_YEARS = 2 * 365.25 * 86400.0
     if integrator == "auto":
-        if adaptive or t_end <= _TWO_YEARS:
-            integrator = "verlet"
-        else:
-            integrator = "yoshida4"
-    step_func = yoshida4Step if (integrator == "yoshida4" and not adaptive) else velocityVerletStep
-    print(f"Integrator: {integrator}  adaptive={adaptive}  t_end={t_end/86400:.1f} days")
+        integrator = "verlet" if adaptive else "splitSuzuki4"
+    if adaptive:
+        integrator = "verlet"
+    if integrator not in _STEP_FUNCS:
+        raise ValueError(f"Unknown integrator {integrator!r}; choose from {sorted(_STEP_FUNCS)}")
+    step_func = _STEP_FUNCS[integrator]
+    # splitSuzuki4 carries its own (positional, correction) state; the others
+    # carry the total acceleration.
+    a = None if step_func is splitSuzuki4Step else force(r, v)
+    print(f"Integrator: {integrator}  adaptive={adaptive}  relativity={relativity}  "
+          f"J2={force.oblate_idx is not None}  dt={dt:.0f}s  "
+          f"t={t0/86400:.1f}..{(t0 + t_end)/86400:.1f} days")
+
+    def diagnostics(r, v):
+        return (totalEnergy(r, v, masses) - initial_energy,
+                totalMomentum(v, masses) - initial_momentum,
+                totalAngularMomentum(r, v, masses) - initial_angular_momentum,
+                earthSunDistance(r))
+
+    emit_start = initial_state is None
 
     if not adaptive:
         n_bodies = len(names)
-        n_store = ((steps - 1) // store_every + 1) if steps > 0 else 0
-        n_diag = ((steps - 1) // 5 + 1) if steps > 0 else 0
+        n_store = steps // store_every + (1 if emit_start else 0)
+        n_diag = (steps - 1) // diag_every + 1 if steps > 0 else 0
 
         rHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
         vHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
@@ -167,25 +233,28 @@ def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
 
         store_idx = 0
         diag_idx = 0
+        if emit_start:
+            rHistory[0], vHistory[0], tHistory[0] = r, v, t0
+            store_idx = 1
+
+        report_every = max(1, steps // 10)
 
         # ---- Fixed-step loop --------------------------------------------------
         for step in range(steps):
-            r, v, a = step_func(r, v, a, masses, dt, use_gr=use_gr)
+            r, v, a = step_func(r, v, a, force, dt)
 
-            if step % store_every == 0:
+            if (step + 1) % store_every == 0:
                 rHistory[store_idx] = r
                 vHistory[store_idx] = v
-                tHistory[store_idx] = (step + 1) * float(dt)
+                tHistory[store_idx] = t0 + (step + 1) * dt
                 store_idx += 1
 
-            if step % 5 == 0:
-                energyLog[diag_idx] = totalEnergy(r, v, masses) - initial_energy
-                momentumLog[diag_idx] = totalMomentum(v, masses) - initial_momentum
-                angularMomentumLog[diag_idx] = totalAngularMomentum(r, v, masses) - initial_angular_momentum
-                earthDistanceLog[diag_idx] = earthSunDistance(r)
+            if step % diag_every == 0:
+                (energyLog[diag_idx], momentumLog[diag_idx],
+                 angularMomentumLog[diag_idx], earthDistanceLog[diag_idx]) = diagnostics(r, v)
                 diag_idx += 1
 
-            if step % 5000 == 0:
+            if step % report_every == 0:
                 p_mag = np.linalg.norm(momentumLog[diag_idx - 1]) if diag_idx > 0 else 0
                 e_val = energyLog[diag_idx - 1] if diag_idx > 0 else 0
                 baseline = np.linalg.norm(initial_momentum)
@@ -197,16 +266,25 @@ def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
                     except Exception:
                         pass
                 else:
-                    print(f"Step {step:6d}/{steps} ({percent:2d}%)  E={e_val:.3e} J  p={p_mag:.3e} kg*m/s  p_drift={p_drift_pct:.2f}%")
+                    print(f"Step {step:6d}/{steps} ({percent:2d}%)  E={e_val:.3e} J  p={p_mag:.3e} kg*m/s")
+
+        t_sim = t0 + steps * dt
 
     else:
         # ---- Adaptive-step loop -----------------------------------------------
+        rHistory, vHistory, tHistory = [], [], []
+        energyLog, momentumLog, angularMomentumLog, earthDistanceLog = [], [], [], []
+        if emit_start:
+            rHistory.append(r.copy())
+            vHistory.append(v.copy())
+            tHistory.append(t0)
+
         t_sim = 0.0
-        current_dt = float(dt)
+        current_dt = dt
         accepted = 0
-        diag_interval = 5.0 * float(dt)
+        diag_interval = diag_every * dt
         diag_t_next = 0.0
-        report_interval = 5000.0 * float(dt)
+        report_interval = t_end / 10.0
         report_t_next = 0.0
 
         while t_sim < t_end:
@@ -215,7 +293,7 @@ def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
                 break
 
             r, v, a, dt_used, current_dt = adaptiveVerletStep(
-                r, v, a, masses, step_dt, adaptive_tol, use_gr=use_gr
+                r, v, a, force, step_dt, adaptive_tol
             )
             t_sim += dt_used
             accepted += 1
@@ -223,13 +301,14 @@ def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
             if accepted % store_every == 0:
                 rHistory.append(r.copy())
                 vHistory.append(v.copy())
-                tHistory.append(t_sim)
+                tHistory.append(t0 + t_sim)
 
             if t_sim >= diag_t_next:
-                energyLog.append(totalEnergy(r, v, masses) - initial_energy)
-                momentumLog.append(totalMomentum(v, masses) - initial_momentum)
-                angularMomentumLog.append(totalAngularMomentum(r, v, masses) - initial_angular_momentum)
-                earthDistanceLog.append(earthSunDistance(r))
+                e_val, p_val, l_val, d_val = diagnostics(r, v)
+                energyLog.append(e_val)
+                momentumLog.append(p_val)
+                angularMomentumLog.append(l_val)
+                earthDistanceLog.append(d_val)
                 diag_t_next = t_sim + diag_interval
 
             if t_sim >= report_t_next:
@@ -245,7 +324,7 @@ def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
                     print(f"t={t_sim:.0f}s ({percent:2d}%)  dt={current_dt:.1f}s  accepted={accepted}  E={e_val:.3e} J")
                 report_t_next = t_sim + report_interval
 
-    if adaptive:
+        t_sim = t0 + t_sim
         rHistory = np.array(rHistory, dtype=np.float64)
         vHistory = np.array(vHistory, dtype=np.float64)
         tHistory = np.array(tHistory, dtype=np.float64)
@@ -253,7 +332,7 @@ def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
         momentumLog = np.array(momentumLog, dtype=np.float64)
         angularMomentumLog = np.array(angularMomentumLog, dtype=np.float64)
         earthDistanceLog = np.array(earthDistanceLog, dtype=np.float64)
-    
+
     # Final diagnostics for conservation laws
     final_momentum = totalMomentum(v, masses)
     final_energy = totalEnergy(r, v, masses)
@@ -285,7 +364,8 @@ def runSimulation(steps=35040, dt=900, store_every=10, integrator="auto",
         "earthDistance": earthDistanceLog,
         "initialEnergy": initial_energy,
         "initialMomentum": initial_momentum,
-        "totalMass": total_mass
+        "totalMass": total_mass,
+        "finalState": {"r": r.copy(), "v": v.copy(), "t": float(t_sim)},
     }
 
 
