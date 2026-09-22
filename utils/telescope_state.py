@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, Dict, Any
-from utils.config_state import load_runtime_state, save_runtime_state, get_slew_config as get_static_slew_config
+from utils.config_state import load_runtime_state, save_runtime_state, runtime_state_lock, get_slew_config as get_static_slew_config
 
 _STATE_CACHE: Optional[Dict[str, Any]] = None
 
@@ -15,26 +15,27 @@ def _write_state_to_disk(state_update: Dict[str, Any]) -> None:
     # This avoids clobbering unrelated keys (for example liveview state) when
     # telescope tracking updates run frequently.
     global _STATE_CACHE
-    latest = load_runtime_state() or {}
-    merged = latest.copy()
-    merged.update(state_update)
+    with runtime_state_lock:
+        latest = load_runtime_state() or {}
+        merged = latest.copy()
+        merged.update(state_update)
 
-    # Preserve the last known telescope coordinates across client restarts and
-    # incidental state writes. Explicit manual resets still win.
-    if state_update.get("source") != "manual_reset":
-        for key in (
-            "current_right_ascension",
-            "current_declination",
-            "target_right_ascension",
-            "target_declination",
-        ):
-            if key in state_update and float(state_update.get(key, 0.0)) == 0.0:
-                existing_value = latest.get(key)
-                if existing_value not in (None, 0, 0.0):
-                    merged[key] = existing_value
+        # Preserve the last known telescope coordinates across client restarts and
+        # incidental state writes. Explicit manual resets still win.
+        if state_update.get("source") != "manual_reset":
+            for key in (
+                "current_right_ascension",
+                "current_declination",
+                "target_right_ascension",
+                "target_declination",
+            ):
+                if key in state_update and float(state_update.get(key, 0.0)) == 0.0:
+                    existing_value = latest.get(key)
+                    if existing_value not in (None, 0, 0.0):
+                        merged[key] = existing_value
 
-    save_runtime_state(merged)
-    _STATE_CACHE = merged
+        save_runtime_state(merged)
+        _STATE_CACHE = merged
 
 
 def get_telescope_coords() -> Optional[Dict[str, float]]:

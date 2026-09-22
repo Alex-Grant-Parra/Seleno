@@ -1,5 +1,6 @@
 #include "motor.h"
 #include <cmath>
+#include <esp_timer.h>
 
 MotorEntry g_motors[kMaxMotors] = {};
 
@@ -205,13 +206,33 @@ void Motor::continuousStepTask(void* pvParameters) {
   int32_t positionDelta = params->forward ? 1 : -1;
   delete params;
 
+  // Schedule steps against absolute deadlines so scheduling latency and loop
+  // overhead don't accumulate. This is the sidereal tracking path, where a
+  // relative delay per step would make the mount drift slow over time.
+  int64_t nextStepUs = esp_timer_get_time();
+
   while (!motor->stopRequested) {
     digitalWrite(motor->stepPin, HIGH);
     delayMicroseconds(PULSE_WIDTH_US);
     digitalWrite(motor->stepPin, LOW);
-    delayMicroseconds(motor->stepDelayUs - PULSE_WIDTH_US);
 
     motor->position += positionDelta;
+
+    nextStepUs += motor->stepDelayUs;
+    int64_t remainingUs = nextStepUs - esp_timer_get_time();
+    if (remainingUs < -(int64_t)motor->stepDelayUs) {
+      // Fell more than a full step behind (e.g. speed changed); resync rather
+      // than bursting to catch up.
+      nextStepUs = esp_timer_get_time();
+      continue;
+    }
+    // Sleep through the bulk of long periods instead of busy-waiting, which
+    // would starve loop() on this core; spin only for the final stretch.
+    if (remainingUs > 3000) {
+      vTaskDelay(pdMS_TO_TICKS((remainingUs - 2000) / 1000));
+    }
+    while (esp_timer_get_time() < nextStepUs && !motor->stopRequested) {
+    }
   }
 
   // Clearing moving must be the last access to motor: once it is false,

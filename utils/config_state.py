@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 from copy import deepcopy
 from typing import Any, Dict
 
@@ -12,6 +13,10 @@ LEGACY_TELESCOPE_STATE_FILE = os.path.join("config", "telescope_state.json")
 LEGACY_LIVEVIEW_FILE = os.path.join("config", "liveview_state.json")
 
 _STATE_READY = False
+
+# Held around every read-modify-write of the runtime state file. Several threads
+# (tracking loop, hour angle updater, liveview) update it concurrently.
+runtime_state_lock = threading.RLock()
 
 
 def _normalize_base_url(raw_url: str) -> str:
@@ -40,7 +45,6 @@ def _default_static_state() -> Dict[str, Any]:
         "slew_config": {
             "slew_speed_sps": 1200.0,
             "refine_speed_sps": 150.0,
-            "tracking_speed_sps": 6.7,
             "slew_threshold_degrees": 1.0,
             "center_threshold_degrees": 0.1,
             "centered_threshold_degrees": 0.01,
@@ -96,9 +100,13 @@ def _has_valid_state_file(path: str) -> bool:
 
 
 def _save_json(path: str, payload: Dict[str, Any]) -> None:
+    # Write to a temp file and rename over the target, so a concurrent reader never
+    # sees a truncated file (which would load as defaults and be saved back as zeros).
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
+    tmp_path = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
+    with open(tmp_path, "w") as f:
         json.dump(payload, f, indent=2)
+    os.replace(tmp_path, path)
 
 
 def _merge_defaults(defaults: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
@@ -261,11 +269,12 @@ def load_runtime_state() -> Dict[str, Any]:
 
 def save_runtime_state(state: Dict[str, Any]) -> None:
     global _STATE_READY
-    existing = _load_json(RUNTIME_STATE_FILE) or {}
-    normalized = _merge_defaults(_default_runtime_state(), existing)
-    normalized = _merge_defaults(normalized, state)
-    _save_json(RUNTIME_STATE_FILE, normalized)
-    _STATE_READY = True
+    with runtime_state_lock:
+        existing = _load_json(RUNTIME_STATE_FILE) or {}
+        normalized = _merge_defaults(_default_runtime_state(), existing)
+        normalized = _merge_defaults(normalized, state)
+        _save_json(RUNTIME_STATE_FILE, normalized)
+        _STATE_READY = True
 
 
 def get_client_config() -> Dict[str, Any]:
@@ -313,7 +322,6 @@ def get_slew_config() -> Dict[str, float]:
     return {
         "slew_speed_sps": float(merged.get("slew_speed_sps", defaults["slew_speed_sps"])),
         "refine_speed_sps": float(merged.get("refine_speed_sps", defaults["refine_speed_sps"])),
-        "tracking_speed_sps": float(merged.get("tracking_speed_sps", defaults["tracking_speed_sps"])),
         "slew_threshold_degrees": float(merged.get("slew_threshold_degrees", defaults["slew_threshold_degrees"])),
         "center_threshold_degrees": float(merged.get("center_threshold_degrees", defaults["center_threshold_degrees"])),
         "centered_threshold_degrees": float(merged.get("centered_threshold_degrees", defaults["centered_threshold_degrees"])),

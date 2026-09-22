@@ -14,6 +14,9 @@ from esp32.interfaceESP32 import ESP32Connection, ESP32SerialConfig, ESP32Motor
 POLARIS_RA_DEG = 37.95456067
 POLARIS_DEC_DEG = 89.26410897
 
+# One sidereal day in seconds (Earth's rotation period relative to the stars)
+SIDEREAL_DAY_S = 86164.0905
+
 # Global tracking state
 _tracking_thread = None
 _tracking_active = False
@@ -25,6 +28,24 @@ _hour_angle_updater_active = False
 
 # Motor initialization flag
 _motors_initialized = False
+
+# (ra, ha) written by the last motor-position update. The mount holds a fixed
+# HA while its motor is stopped, so the next update must start from this HA
+# rather than re-deriving it from RA at the current time.
+_last_ha_baseline = None
+
+# Last ESP32 step counter value read per motor. Coordinates advance by the
+# difference between reads; the counter is never reset mid-read, since steps
+# taken between a read and a reset would be lost.
+_last_motor_steps = {"motor1": 0, "motor2": 0}
+
+
+def _reset_motor_positions(motor1, motor2) -> None:
+    # Zero both ESP32 step counters and the matching read baselines.
+    motor1.reset_position()
+    motor2.reset_position()
+    _last_motor_steps["motor1"] = 0
+    _last_motor_steps["motor2"] = 0
 
 
 def _get_esp32_connection():
@@ -86,6 +107,7 @@ def _initialize_motors():
                     replace=bool(board.get("replace", True)),
                 )
                 motor_ids.add(motor_id)
+                _last_motor_steps[motor_id] = 0
                 print(f"[tracking] {motor_id} ({label}) created successfully")
             except Exception as e:
                 if required:
@@ -168,14 +190,12 @@ def _stop_hour_angle_updater() -> None:
 def _update_current_coords_from_motors() -> None:
     # Update the current telescope coordinates based on actual motor positions.
     # 
-    # Reads motor position deltas since the last reset and applies them to the current
-    # coordinates. ALWAYS resets motor positions after reading to prevent accumulation.
-    # 
-    # Note: Resetting position counter doesn't stop motors, they continue moving.
-    # This ensures we only add incremental changes, not total accumulated position.
+    # Reads the ESP32 step counters and applies the change since the previous read
+    # to the current coordinates.
     # 
     # This ensures that the current RA/DEC always reflects the actual position based on
     # how much the motors have turned, accounting for real-world movement inaccuracies.
+    global _last_ha_baseline
     try:
         conn = _get_esp32_connection()
         if not conn:
@@ -189,25 +209,27 @@ def _update_current_coords_from_motors() -> None:
         ra_gear_ratio = config.get("ra_gear_ratio", 360.0)
         dec_gear_ratio = config.get("dec_gear_ratio", 144.0)
         
-        # Get raw motor step positions with error handling
+        # Step deltas since the previous read (0 if a read fails, so no movement is lost)
         motor1_steps = 0
         motor2_steps = 0
         
         try:
-            motor1_steps = motor1.get_position()
+            position = motor1.get_position()
+            motor1_steps = position - _last_motor_steps["motor1"]
+            _last_motor_steps["motor1"] = position
         except Exception as e:
             # Log ALL position read failures for debugging
             print(f"[tracking] Error reading motor1 position: {e}")
-            motor1_steps = 0
             
         time.sleep(0.05)  # Small delay between commands to avoid overwhelming ESP32
         
         try:
-            motor2_steps = motor2.get_position()
+            position = motor2.get_position()
+            motor2_steps = position - _last_motor_steps["motor2"]
+            _last_motor_steps["motor2"] = position
         except Exception as e:
             # Log ALL position read failures for debugging
             print(f"[tracking] Error reading motor2 position: {e}")
-            motor2_steps = 0
         
         # Convert motor steps to sky degrees using gear ratios
         # A X:1 gearbox means X motor revolutions = 1 output revolution = 360° sky
@@ -233,8 +255,13 @@ def _update_current_coords_from_motors() -> None:
         if location:
             longitude = location.get('longitude', 0)
             
-            # Convert last known RA to HA to get our baseline HA
-            last_known_ha = hour_angle(last_known_ra, longitude) if last_known_ra != 0.0 else 0.0
+            # Baseline HA is where the mount pointed at the last update. Reuse it
+            # when the stored RA is still the one we wrote; recomputing it from RA
+            # at the current time would count Earth's rotation twice while tracking.
+            if _last_ha_baseline is not None and _last_ha_baseline[0] == last_known_ra:
+                last_known_ha = _last_ha_baseline[1]
+            else:
+                last_known_ha = hour_angle(last_known_ra, longitude) if last_known_ra != 0.0 else 0.0
             
             # Add motor movement to HA (motors track in HA space)
             updated_ha = last_known_ha + motor1_delta_deg
@@ -256,6 +283,7 @@ def _update_current_coords_from_motors() -> None:
             
             # RA = LST - HA (with normalization to 0-360)
             updated_ra = (LST - updated_ha) % 360
+            _last_ha_baseline = (float(updated_ra), updated_ha)
         else:
             # Fallback if location not available (shouldn't happen but just in case)
             updated_ra = last_known_ra + motor1_delta_deg
@@ -268,15 +296,6 @@ def _update_current_coords_from_motors() -> None:
         
         # Update state with actual current position
         set_telescope_coords(updated_ra, updated_dec, source="tracking")
-        
-        # ALWAYS reset motor positions after reading to prevent accumulation
-        # Resetting the counter doesn't stop motors - they continue moving
-        # This ensures we only add incremental changes, not total accumulated position
-        try:
-            motor1.reset_position()
-            motor2.reset_position()
-        except Exception as e:
-            print(f"[tracking] Warning: Could not reset motor positions: {e}")
         
         if motor1_delta_deg != 0 or motor2_delta_deg != 0:
             print(f"[tracking] Updated current from motors: HA delta={motor1_delta_deg:.6f}°, Dec delta={motor2_delta_deg:.6f}°")
@@ -428,7 +447,10 @@ def _start_ra_tracking() -> None:
             return
         
         config = get_slew_config()
-        tracking_speed_sps = config.get("tracking_speed_sps", 6.7)
+        ra_gear_ratio = config.get("ra_gear_ratio", 360.0)
+        ra_steps_per_rev = int(get_motor_boards()["ra"].get("steps_per_rev", 1600))
+        # One output revolution per sidereal day: ra_gear_ratio motor revolutions
+        tracking_speed_sps = ra_gear_ratio * ra_steps_per_rev / SIDEREAL_DAY_S
         
         motor1 = ESP32Motor(conn, "motor1")
         motor2 = ESP32Motor(conn, "motor2")
@@ -444,14 +466,14 @@ def _start_ra_tracking() -> None:
         time.sleep(0.3)  # Brief pause to ensure motors fully stop
         
         # Set speed to configured tracking rate
-        print(f"[tracking] Setting RA motor speed to {tracking_speed_sps:.1f} sps")
+        print(f"[tracking] Setting RA motor speed to {tracking_speed_sps:.4f} sps (sidereal, {ra_gear_ratio}:1)")
         motor1.set_speed_sps(tracking_speed_sps)
         
         # Start continuous motion at sidereal rate (forward = tracking east)
         print(f"[tracking] ⭐ Starting continuous RA tracking EASTWARD (forward=True) at sidereal rate")
         motor1.start_continuous(forward=True)
         
-        print(f"[tracking] ✓ RA motor now tracking continuously at {tracking_speed_sps:.1f} sps")
+        print(f"[tracking] ✓ RA motor now tracking continuously at {tracking_speed_sps:.4f} sps")
     
     except Exception as e:
         print(f"[tracking] Error starting RA tracking: {e}")
@@ -588,8 +610,7 @@ def _continuous_tracking_loop() -> None:
                                     print(f"[tracking]   HA correction: {delta_ha:.6f}° ({'EAST/forward' if delta_ha > 0 else 'WEST/backward'})")
                                     print(f"[tracking]   Dec correction: {delta_dec:.6f}° ({'NORTH/forward' if delta_dec > 0 else 'SOUTH/backward'})")
                                     # Reset motor positions to establish new baseline
-                                    motor1.reset_position()
-                                    motor2.reset_position()
+                                    _reset_motor_positions(motor1, motor2)
                                     # Move by the current error
                                     _move_motors(delta_ha, delta_dec)
                                     waiting_logged = False  # Reset for next wait cycle
@@ -764,8 +785,7 @@ def trackCoordinates(name, ra, dec, mag):
             if conn:
                 motor1 = ESP32Motor(conn, "motor1")
                 motor2 = ESP32Motor(conn, "motor2")
-                motor1.reset_position()
-                motor2.reset_position()
+                _reset_motor_positions(motor1, motor2)
                 print("[tracking] Motor positions reset to zero")
                 
                 # Set current coordinates to CURRENT position (where we are NOW, before slew)
