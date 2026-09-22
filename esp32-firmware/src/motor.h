@@ -18,7 +18,7 @@ public:
   int stepPin;
   int dirPin;
   int enPin;
-  bool moving;
+  volatile bool moving;  // Written by the step task, read from the main loop
   uint32_t stepsPerRevolution;
   uint32_t stepDelayUs;
   TaskHandle_t stepTaskHandle;

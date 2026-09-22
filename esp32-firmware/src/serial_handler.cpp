@@ -17,6 +17,7 @@ static uint16_t g_displayBlitX = 0;
 static uint16_t g_displayBlitY = 0;
 static uint16_t g_displayBlitW = 0;
 static uint16_t g_displayBlitH = 0;
+static uint32_t g_displayBlitLastByteMs = 0;
 // File upload state
 static bool g_fileUploadActive = false;
 static uint32_t g_fileUploadRemaining = 0;
@@ -24,6 +25,10 @@ static uint8_t* g_fileUploadBuffer = nullptr;
 static uint32_t g_fileUploadIndex = 0;
 static uint32_t g_fileUploadLastByteMs = 0;
 static char g_fileUploadName[64];
+
+// Abort a binary transfer if the host goes quiet for this long, so the command
+// parser can recover without requiring a reboot.
+static constexpr uint32_t kTransferTimeoutMs = 5000U;
 
 static String normalizeFsPath(const char* name) {
   String path(name == nullptr ? "" : name);
@@ -44,6 +49,7 @@ bool beginDisplayBlit(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint32_t b
   displayBeginBlit(x, y, w, h);
   g_displayBlitActive = true;
   g_displayBlitRemaining = byteCount;
+  g_displayBlitLastByteMs = millis();
   return true;
 }
 
@@ -67,6 +73,7 @@ bool beginDisplayBlitBuffered(uint16_t x, uint16_t y, uint16_t w, uint16_t h, ui
   g_displayBlitY = y;
   g_displayBlitW = w;
   g_displayBlitH = h;
+  g_displayBlitLastByteMs = millis();
   return true;
 }
 
@@ -106,11 +113,10 @@ void initializeSerial() {
 }
 
 void handleSerial() {
+  uint32_t now = millis();
   if (g_fileUploadActive) {
-    uint32_t now = millis();
-    if ((now - g_fileUploadLastByteMs) > 5000U) {
+    if ((now - g_fileUploadLastByteMs) > kTransferTimeoutMs) {
       // Abort stale upload sessions (for example, host interrupted mid-transfer)
-      // so the command parser can recover without requiring a reboot.
       free(g_fileUploadBuffer);
       g_fileUploadBuffer = nullptr;
       g_fileUploadActive = false;
@@ -119,6 +125,22 @@ void handleSerial() {
       g_fileUploadName[0] = '\0';
       sendError("Upload timeout");
     }
+  }
+
+  if ((g_displayBlitBuffered || g_displayBlitActive) &&
+      (now - g_displayBlitLastByteMs) > kTransferTimeoutMs) {
+    // Without this, an interrupted blit would swallow every later command as
+    // pixel data.
+    if (g_displayBlitActive) {
+      displayEndBlit();
+    }
+    free(g_displayBlitBuffer);
+    g_displayBlitBuffer = nullptr;
+    g_displayBlitBuffered = false;
+    g_displayBlitActive = false;
+    g_displayBlitIndex = 0;
+    g_displayBlitRemaining = 0;
+    sendError("Blit timeout");
   }
 
   while (Serial.available() > 0) {
@@ -205,6 +227,7 @@ void handleSerial() {
         return;
       }
 
+      g_displayBlitLastByteMs = millis();
       g_displayBlitIndex += static_cast<uint32_t>(readCount);
       g_displayBlitRemaining -= static_cast<uint32_t>(readCount);
 
@@ -243,6 +266,7 @@ void handleSerial() {
         return;
       }
 
+      g_displayBlitLastByteMs = millis();
       displayWriteBlitData(g_displayStreamBuffer, readCount);
       g_displayBlitRemaining -= static_cast<uint32_t>(readCount);
 

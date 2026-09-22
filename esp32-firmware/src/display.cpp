@@ -229,48 +229,36 @@ void displayFillScreen(uint16_t color) {
   g_display_state.cursor_y = 0;
 }
 
-// Draw single pixel
-void displayDrawPixel(uint16_t x, uint16_t y, uint16_t color) {
-  if (!g_display_state.initialized || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
+// Signed-coordinate primitives. Shapes near the top/left edge produce negative
+// coordinates, which must be clipped rather than wrapped to ~65535.
+static void drawPixelClipped(int32_t x, int32_t y, uint16_t color) {
+  if (x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
     return;
   }
-  
+
   displaySetWindow(x, y, x, y);
-  
+
   displayCommandMode();
   displayWrite8(0x2C);  // RAMWR
-  
+
   displayDataMode();
   displayWrite16(color);
 }
 
-// Draw rectangle (outline)
-void displayDrawRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
-  if (!g_display_state.initialized) {
+static void fillRectClipped(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color) {
+  if (x < 0) { w += x; x = 0; }
+  if (y < 0) { h += y; y = 0; }
+  if (x + w > DISPLAY_WIDTH) { w = DISPLAY_WIDTH - x; }
+  if (y + h > DISPLAY_HEIGHT) { h = DISPLAY_HEIGHT - y; }
+  if (w <= 0 || h <= 0) {
     return;
   }
-  
-  // Top
-  displayDrawLine(x, y, x + w - 1, y, color);
-  // Bottom
-  displayDrawLine(x, y + h - 1, x + w - 1, y + h - 1, color);
-  // Left
-  displayDrawLine(x, y, x, y + h - 1, color);
-  // Right
-  displayDrawLine(x + w - 1, y, x + w - 1, y + h - 1, color);
-}
 
-// Fill rectangle
-void displayFillRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  
   displaySetWindow(x, y, x + w - 1, y + h - 1);
-  
+
   displayCommandMode();
   displayWrite8(0x2C);  // RAMWR
-  
+
   displayDataMode();
   uint32_t pixel_count = (uint32_t)w * h;
   for (uint32_t i = 0; i < pixel_count; i++) {
@@ -282,22 +270,76 @@ void displayFillRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16
   }
 }
 
+// Bresenham's algorithm
+static void drawLineClipped(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t color) {
+  int32_t dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
+  int32_t dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
+  int32_t sx = (x0 < x1) ? 1 : -1;
+  int32_t sy = (y0 < y1) ? 1 : -1;
+  int32_t err = dx - dy;
+
+  while (1) {
+    drawPixelClipped(x0, y0, color);
+    if (x0 == x1 && y0 == y1) break;
+
+    int32_t e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x0 += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y0 += sy;
+    }
+  }
+}
+
+// Draw single pixel
+void displayDrawPixel(uint16_t x, uint16_t y, uint16_t color) {
+  if (!g_display_state.initialized) {
+    return;
+  }
+  drawPixelClipped(x, y, color);
+}
+
+// Draw rectangle (outline)
+void displayDrawRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
+  if (!g_display_state.initialized || w == 0 || h == 0) {
+    return;
+  }
+
+  fillRectClipped(x, y, w, 1, color);              // Top
+  fillRectClipped(x, (int32_t)y + h - 1, w, 1, color);  // Bottom
+  fillRectClipped(x, y, 1, h, color);              // Left
+  fillRectClipped((int32_t)x + w - 1, y, 1, h, color);  // Right
+}
+
+// Fill rectangle
+void displayFillRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
+  if (!g_display_state.initialized) {
+    return;
+  }
+  fillRectClipped(x, y, w, h, color);
+}
+
 // Draw circle (outline)
 void displayDrawCircle(uint16_t x, uint16_t y, uint16_t r, uint16_t color) {
   if (!g_display_state.initialized) {
     return;
   }
-  
-  int f = 1 - r;
-  int ddF_x = 1;
-  int ddF_y = -2 * r;
-  int px = 0;
-  int py = r;
 
-  displayDrawPixel(x, y + r, color);
-  displayDrawPixel(x, y - r, color);
-  displayDrawPixel(x + r, y, color);
-  displayDrawPixel(x - r, y, color);
+  int32_t cx = x;
+  int32_t cy = y;
+  int32_t f = 1 - r;
+  int32_t ddF_x = 1;
+  int32_t ddF_y = -2 * (int32_t)r;
+  int32_t px = 0;
+  int32_t py = r;
+
+  drawPixelClipped(cx, cy + r, color);
+  drawPixelClipped(cx, cy - r, color);
+  drawPixelClipped(cx + r, cy, color);
+  drawPixelClipped(cx - r, cy, color);
 
   while (px < py) {
     if (f >= 0) {
@@ -309,14 +351,14 @@ void displayDrawCircle(uint16_t x, uint16_t y, uint16_t r, uint16_t color) {
     ddF_x += 2;
     f += ddF_x;
 
-    displayDrawPixel(x + px, y + py, color);
-    displayDrawPixel(x - px, y + py, color);
-    displayDrawPixel(x + px, y - py, color);
-    displayDrawPixel(x - px, y - py, color);
-    displayDrawPixel(x + py, y + px, color);
-    displayDrawPixel(x - py, y + px, color);
-    displayDrawPixel(x + py, y - px, color);
-    displayDrawPixel(x - py, y - px, color);
+    drawPixelClipped(cx + px, cy + py, color);
+    drawPixelClipped(cx - px, cy + py, color);
+    drawPixelClipped(cx + px, cy - py, color);
+    drawPixelClipped(cx - px, cy - py, color);
+    drawPixelClipped(cx + py, cy + px, color);
+    drawPixelClipped(cx - py, cy + px, color);
+    drawPixelClipped(cx + py, cy - px, color);
+    drawPixelClipped(cx - py, cy - px, color);
   }
 }
 
@@ -325,18 +367,20 @@ void displayFillCircle(uint16_t x, uint16_t y, uint16_t r, uint16_t color) {
   if (!g_display_state.initialized) {
     return;
   }
-  
-  displayDrawLine(x, y - r, x, y + r, color);
+
+  fillRectClipped(x, (int32_t)y - r, 1, 2 * (int32_t)r + 1, color);
   displayFillCircleHelper(x, y, r, 3, 0, color);
 }
 
-// Helper for filled circle
+// Helper for filled circle: draws vertical spans either side of the centre
 static void displayFillCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t corners, uint16_t delta, uint16_t color) {
-  int f = 1 - r;
-  int ddF_x = 1;
-  int ddF_y = -2 * r;
-  int px = 0;
-  int py = r;
+  int32_t cx = x;
+  int32_t cy = y;
+  int32_t f = 1 - r;
+  int32_t ddF_x = 1;
+  int32_t ddF_y = -2 * (int32_t)r;
+  int32_t px = 0;
+  int32_t py = r;
 
   while (px < py) {
     if (f >= 0) {
@@ -349,42 +393,22 @@ static void displayFillCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t 
     f += ddF_x;
 
     if (corners & 1) {
-      displayDrawLine(x + px, y - py, x + px, y + py, color);
-      displayDrawLine(x + py, y - px, x + py, y + px, color);
+      fillRectClipped(cx + px, cy - py, 1, 2 * py + 1 + delta, color);
+      fillRectClipped(cx + py, cy - px, 1, 2 * px + 1 + delta, color);
     }
     if (corners & 2) {
-      displayDrawLine(x - px, y - py, x - px, y + py, color);
-      displayDrawLine(x - py, y - px, x - py, y + px, color);
+      fillRectClipped(cx - px, cy - py, 1, 2 * py + 1 + delta, color);
+      fillRectClipped(cx - py, cy - px, 1, 2 * px + 1 + delta, color);
     }
   }
 }
 
-// Draw line (Bresenham's algorithm)
+// Draw line
 void displayDrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color) {
   if (!g_display_state.initialized) {
     return;
   }
-  
-  int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
-  int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
-  int sx = (x0 < x1) ? 1 : -1;
-  int sy = (y0 < y1) ? 1 : -1;
-  int err = dx - dy;
-
-  while (1) {
-    displayDrawPixel(x0, y0, color);
-    if (x0 == x1 && y0 == y1) break;
-    
-    int e2 = 2 * err;
-    if (e2 > -dy) {
-      err -= dy;
-      x0 += sx;
-    }
-    if (e2 < dx) {
-      err += dx;
-      y0 += sy;
-    }
-  }
+  drawLineClipped(x0, y0, x1, y1, color);
 }
 
 void displayBeginBlit(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
@@ -416,6 +440,12 @@ void displayEndBlit() {
 
 void displayPlayFile(const char* name, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
   if (!g_display_state.initialized || name == nullptr) {
+    return;
+  }
+
+  // The frame is streamed straight into panel RAM, so it cannot be clipped;
+  // reject windows that fall outside the screen.
+  if (w == 0 || h == 0 || (uint32_t)x + w > DISPLAY_WIDTH || (uint32_t)y + h > DISPLAY_HEIGHT) {
     return;
   }
 

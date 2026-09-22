@@ -8,12 +8,12 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "/home/alex/Rpi5.Client/esp32-firmware/include",
-                "/home/alex/Rpi5.Client/esp32-firmware/src",
+                "/home/alex/SelenoClient/esp32-firmware/include",
+                "/home/alex/SelenoClient/esp32-firmware/src",
                 "/home/alex/.platformio/packages/framework-arduinoespressif32/libraries/LittleFS/src",
                 "/home/alex/.platformio/packages/framework-arduinoespressif32/libraries/FS/src",
-                "/home/alex/Rpi5.Client/esp32-firmware/.pio/libdeps/esp32dev/ArduinoJson/src",
-                "/home/alex/Rpi5.Client/esp32-firmware/.pio/libdeps/esp32dev/TMCStepper/src",
+                "/home/alex/SelenoClient/esp32-firmware/.pio/libdeps/esp32dev/ArduinoJson/src",
+                "/home/alex/SelenoClient/esp32-firmware/.pio/libdeps/esp32dev/TMCStepper/src",
                 "/home/alex/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                 "/home/alex/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                 "/home/alex/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
@@ -246,12 +246,12 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "/home/alex/Rpi5.Client/esp32-firmware/include",
-                    "/home/alex/Rpi5.Client/esp32-firmware/src",
+                    "/home/alex/SelenoClient/esp32-firmware/include",
+                    "/home/alex/SelenoClient/esp32-firmware/src",
                     "/home/alex/.platformio/packages/framework-arduinoespressif32/libraries/LittleFS/src",
                     "/home/alex/.platformio/packages/framework-arduinoespressif32/libraries/FS/src",
-                    "/home/alex/Rpi5.Client/esp32-firmware/.pio/libdeps/esp32dev/ArduinoJson/src",
-                    "/home/alex/Rpi5.Client/esp32-firmware/.pio/libdeps/esp32dev/TMCStepper/src",
+                    "/home/alex/SelenoClient/esp32-firmware/.pio/libdeps/esp32dev/ArduinoJson/src",
+                    "/home/alex/SelenoClient/esp32-firmware/.pio/libdeps/esp32dev/TMCStepper/src",
                     "/home/alex/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                     "/home/alex/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
                     "/home/alex/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/freertos/include",
@@ -483,7 +483,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=60119",
+                "PLATFORMIO=60200",
                 "ARDUINO_ESP32_DEV",
                 "HAVE_CONFIG_H",
                 "MBEDTLS_CONFIG_FILE=\"mbedtls/esp_config.h\"",

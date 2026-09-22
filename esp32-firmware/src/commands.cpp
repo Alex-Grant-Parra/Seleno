@@ -6,6 +6,23 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+// Print a string as the body of a JSON string literal (no surrounding quotes).
+static void printJsonEscaped(const char* str) {
+  for (const char* p = str; *p != '\0'; p++) {
+    char c = *p;
+    if (c == '"' || c == '\\') {
+      Serial.print('\\');
+      Serial.print(c);
+    } else if (static_cast<unsigned char>(c) < 0x20) {
+      char esc[7];
+      snprintf(esc, sizeof(esc), "\\u%04X", static_cast<unsigned char>(c));
+      Serial.print(esc);
+    } else {
+      Serial.print(c);
+    }
+  }
+}
+
 void sendError(const char* message) {
   JsonDocument resp;
   resp["status"] = "error";
@@ -31,7 +48,7 @@ void sendOkStatus(const String& motorId, Motor* motor) {
   // truncated or corrupted over the serial link.
   Serial.print("{\"status\":\"ok\",\"data\":{");
   Serial.print("\"motor\":\"");
-  Serial.print(motorId);
+  printJsonEscaped(motorId.c_str());
   Serial.print("\",\"enabled\":");
   Serial.print(motor->isEnabled() ? "true" : "false");
   Serial.print(",\"moving\":");
@@ -106,6 +123,33 @@ static void handleLedCommand(const JsonDocument& req) {
   }
 
   sendError("Missing LED mode");
+}
+
+// Return the frame delay at position index in a comma-separated list of
+// milliseconds, or 100 ms if the entry is missing or empty. Negative values
+// are treated as 0 rather than wrapping to a ~50 day delay.
+static uint32_t frameDelayMs(const char* durations_csv, int index) {
+  uint32_t delay_ms = 100;
+  if (strlen(durations_csv) == 0) {
+    return delay_ms;
+  }
+  String ds(durations_csv);
+  int s2 = 0;
+  for (int j = 0; j <= index; j++) {
+    int c2 = ds.indexOf(',', s2);
+    if (j == index) {
+      String part = (c2 == -1) ? ds.substring(s2) : ds.substring(s2, c2);
+      part.trim();
+      if (part.length() > 0) {
+        long v = part.toInt();
+        delay_ms = v < 0 ? 0 : static_cast<uint32_t>(v);
+      }
+      break;
+    }
+    if (c2 == -1) break;
+    s2 = c2 + 1;
+  }
+  return delay_ms;
 }
 
 static void handleDisplayCommand(const JsonDocument& req) {
@@ -273,11 +317,6 @@ static void handleDisplayCommand(const JsonDocument& req) {
       return;
     }
     // Stream JSON manually to avoid ArduinoJson capacity/truncation issues
-    if (!LittleFS.begin(true)) {
-      sendError("Storage mount failed");
-      return;
-    }
-
     Serial.print("{\"status\":\"ok\",\"data\":{\"files\":[");
     bool first = true;
     File root = LittleFS.open("/");
@@ -292,16 +331,7 @@ static void handleDisplayCommand(const JsonDocument& req) {
         Serial.print('{');
         // name (escape quotes/backslashes)
         Serial.print("\"name\":\"");
-        String fname = String(file.name());
-        for (size_t i = 0; i < fname.length(); i++) {
-          char c = fname[i];
-          if (c == '\\' || c == '"') {
-            Serial.print('\\');
-            Serial.print(c);
-          } else {
-            Serial.print(c);
-          }
-        }
+        printJsonEscaped(file.name());
         Serial.print("\"");
         Serial.print(',');
         Serial.print("\"size\":");
@@ -352,6 +382,17 @@ static void handleDisplayCommand(const JsonDocument& req) {
 
     if (w == 0 || h == 0) {
       sendError("Invalid blit size");
+      return;
+    }
+
+    // The payload is written straight into panel RAM and cannot be clipped.
+    if (static_cast<uint32_t>(x) + w > DISPLAY_WIDTH || static_cast<uint32_t>(y) + h > DISPLAY_HEIGHT) {
+      sendError("Blit out of bounds");
+      return;
+    }
+
+    if (!g_display_state.initialized) {
+      sendError("Display not initialized");
       return;
     }
 
@@ -460,24 +501,7 @@ static void handleDisplayCommand(const JsonDocument& req) {
       fname.trim();
       if (fname.length() > 0) {
         displayPlayFile(fname.c_str(), x, y, w, h);
-        // Extract duration for this frame if provided
-        uint32_t delay_ms = 100;
-        if (strlen(durations_csv) > 0) {
-          // parse durations_csv on-demand
-          String ds(durations_csv);
-          int s2 = 0;
-          for (int j = 0; j <= idx; j++) {
-            int c2 = ds.indexOf(',', s2);
-            String part = (c2 == -1) ? ds.substring(s2) : ds.substring(s2, c2);
-            part.trim();
-            if (j == idx && part.length() > 0) {
-              delay_ms = part.toInt();
-            }
-            if (c2 == -1) break;
-            s2 = c2 + 1;
-          }
-        }
-        delay(delay_ms);
+        delay(frameDelayMs(durations_csv, idx));
         yield();
         idx++;
       }
@@ -517,22 +541,7 @@ static void handleDisplayCommand(const JsonDocument& req) {
       snprintf(fname, sizeof(fname), "%s%0*d.rgb", prefix, pad, i);
       displayPlayFile(fname, x, y, w, h);
 
-      uint32_t delay_ms = 100;
-      if (strlen(durations_csv) > 0) {
-        String ds(durations_csv);
-        int s2 = 0;
-        for (int j = 0; j <= (i - start); j++) {
-          int c2 = ds.indexOf(',', s2);
-          String part = (c2 == -1) ? ds.substring(s2) : ds.substring(s2, c2);
-          part.trim();
-          if (j == (i - start) && part.length() > 0) {
-            delay_ms = part.toInt();
-          }
-          if (c2 == -1) break;
-          s2 = c2 + 1;
-        }
-      }
-      delay(delay_ms);
+      delay(frameDelayMs(durations_csv, i - start));
       yield();
     }
 
@@ -541,6 +550,35 @@ static void handleDisplayCommand(const JsonDocument& req) {
   }
 
   sendError("Unknown display action");
+}
+
+// A motor pin must be an output-capable GPIO that isn't already in use.
+static bool isUsableMotorPin(int pin) {
+  if (pin < 0 || pin > 33) {
+    return false;  // 34-39 are input-only
+  }
+  if (pin == 1 || pin == 3) {
+    return false;  // UART0 TX/RX: the host serial link
+  }
+  if (pin >= 6 && pin <= 11) {
+    return false;  // Connected to the SPI flash
+  }
+  if (pin == DISPLAY_SCK || pin == DISPLAY_SDA || pin == DISPLAY_DC ||
+      pin == DISPLAY_RES || pin == DISPLAY_BL) {
+    return false;
+  }
+  for (size_t i = 0; i < kLedCount; i++) {
+    if (g_leds[i].pin == pin) {
+      return false;
+    }
+  }
+  for (size_t i = 0; i < kMaxMotors; i++) {
+    Motor* m = g_motors[i].motor;
+    if (m != nullptr && (m->stepPin == pin || m->dirPin == pin || m->enPin == pin)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 static void handleMotorCreateCommand(const JsonDocument& req) {
@@ -561,6 +599,11 @@ static void handleMotorCreateCommand(const JsonDocument& req) {
   int stepPin = req["step"].as<int>();
   int dirPin = req["dir"].as<int>();
   int enPin = req["en"].as<int>();
+  if (stepPin == dirPin || stepPin == enPin || dirPin == enPin ||
+      !isUsableMotorPin(stepPin) || !isUsableMotorPin(dirPin) || !isUsableMotorPin(enPin)) {
+    sendError("Invalid motor pins");
+    return;
+  }
   uint32_t stepsPerRev = req["steps_per_rev"] | STEPS_PER_REVOLUTION;
   
   Motor* motor = new Motor(stepPin, dirPin, enPin, stepsPerRev);
@@ -669,7 +712,7 @@ static void handleMotorMotionCommand(const String& cmd, const JsonDocument& req,
     String motorId = req["motor"] | "";
     Serial.print("{\"status\":\"ok\",\"data\":{");
     Serial.print("\"motor\":\"");
-    Serial.print(motorId);
+    printJsonEscaped(motorId.c_str());
     Serial.print("\",\"position\":");
     Serial.print(motor->getPosition());
     Serial.print("}}\n");
@@ -686,12 +729,8 @@ void handleCommand(const String& line) {
     return;
   }
 
-  // Allocate a dynamic JSON document sized from the incoming line length to
-  // avoid deserialization failures when handling larger payloads (CSV lists,
-  // long filenames, etc.).
-  // Give generous headroom for string storage: use ~3x line length plus base.
-  size_t cap = 1024 + line.length() * 3;
-  DynamicJsonDocument req(cap);
+  // ArduinoJson 7 documents grow as needed, so no capacity is required.
+  JsonDocument req;
   DeserializationError err = deserializeJson(req, line);
   if (err) {
     // Do not emit raw debug lines here as they contaminate JSON responses

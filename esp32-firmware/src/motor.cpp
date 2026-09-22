@@ -1,6 +1,15 @@
 #include "motor.h"
+#include <cmath>
 
 MotorEntry g_motors[kMaxMotors] = {};
+
+namespace {
+struct StepParams {
+  Motor* motor;
+  uint32_t stepsNeeded;  // Unused by the continuous task
+  bool forward;
+};
+}  // namespace
 
 Motor::Motor(int step, int dir, int en, uint32_t stepsPerRev)
     : stepPin(step), dirPin(dir), enPin(en), enabled(false), moving(false),
@@ -18,15 +27,27 @@ void Motor::initialize() {
 }
 
 void Motor::cleanup() {
-  if (stepTaskHandle != nullptr) {
+  if (moving) {
+    // Ask the step task to exit on its own. It checks stopRequested once per
+    // step, so it finishes within one step period. Killing it from here
+    // instead would risk deleting a task that has already deleted itself.
     stopRequested = true;
-    vTaskDelete(stepTaskHandle);
+    uint32_t timeoutMs = stepDelayUs / 1000U + 100U;
+    uint32_t startMs = millis();
+    while (moving && (millis() - startMs) < timeoutMs) {
+      delay(1);
+    }
+    if (moving && stepTaskHandle != nullptr) {
+      // Task is still alive (moving is cleared as its last action), so the
+      // handle is valid.
+      vTaskDelete(stepTaskHandle);
+      moving = false;
+    }
     stepTaskHandle = nullptr;
   }
   digitalWrite(enPin, HIGH);  // Disable driver
   digitalWrite(stepPin, LOW);
   digitalWrite(dirPin, LOW);
-  moving = false;
 }
 
 void Motor::setSpeed(uint32_t delayUs) {
@@ -82,29 +103,41 @@ void Motor::turnDegrees(float degrees, bool forward) {
     return;  // Already moving, ignore
   }
 
+  // Negative angles turn the other way; converting a negative float to an
+  // unsigned step count is undefined behaviour.
+  if (degrees < 0.0f) {
+    degrees = -degrees;
+    forward = !forward;
+  }
+  if (!std::isfinite(degrees) || degrees == 0.0f) {
+    return;
+  }
+
+  double steps = (degrees / 360.0) * stepsPerRevolution;
+  uint32_t stepsNeeded = steps >= (double)UINT32_MAX ? UINT32_MAX : (uint32_t)steps;
+  if (stepsNeeded == 0) {
+    return;
+  }
+
   stopRequested = false;
   moving = true;
-
-  uint32_t stepsNeeded = (uint32_t)((degrees / 360.0) * stepsPerRevolution);
   digitalWrite(dirPin, forward ? HIGH : LOW);
-
-  struct StepParams {
-    Motor* motor;
-    uint32_t stepsNeeded;
-    bool forward;
-  };
 
   StepParams* params = new StepParams{this, stepsNeeded, forward};
 
-  xTaskCreatePinnedToCore(
-    stepTask,
-    "MotorStep",
-    2048,
-    params,
-    1,
-    &stepTaskHandle,
-    1
-  );
+  if (xTaskCreatePinnedToCore(
+        stepTask,
+        "MotorStep",
+        2048,
+        params,
+        1,
+        &stepTaskHandle,
+        1
+      ) != pdPASS) {
+    delete params;
+    stepTaskHandle = nullptr;
+    moving = false;
+  }
 }
 
 void Motor::startContinuous(bool forward) {
@@ -120,31 +153,24 @@ void Motor::startContinuous(bool forward) {
 
   digitalWrite(dirPin, forward ? HIGH : LOW);
 
-  struct StepParams {
-    Motor* motor;
-    bool forward;
-  };
+  StepParams* params = new StepParams{this, 0, forward};
 
-  StepParams* params = new StepParams{this, forward};
-
-  xTaskCreatePinnedToCore(
-    continuousStepTask,
-    "MotorContinuous",
-    2048,
-    params,
-    1,
-    &stepTaskHandle,
-    1
-  );
+  if (xTaskCreatePinnedToCore(
+        continuousStepTask,
+        "MotorContinuous",
+        2048,
+        params,
+        1,
+        &stepTaskHandle,
+        1
+      ) != pdPASS) {
+    delete params;
+    stepTaskHandle = nullptr;
+    moving = false;
+  }
 }
 
 void Motor::stepTask(void* pvParameters) {
-  struct StepParams {
-    Motor* motor;
-    uint32_t stepsNeeded;
-    bool forward;
-  };
-
   StepParams* params = (StepParams*)pvParameters;
   Motor* motor = params->motor;
   uint32_t stepsNeeded = params->stepsNeeded;
@@ -166,21 +192,18 @@ void Motor::stepTask(void* pvParameters) {
     motor->position += positionDelta;
   }
 
+  // Clearing moving must be the last access to motor: once it is false,
+  // cleanup() may delete the Motor.
+  motor->stepTaskHandle = nullptr;
   motor->moving = false;
   vTaskDelete(nullptr);
 }
 
 void Motor::continuousStepTask(void* pvParameters) {
-  struct StepParams {
-    Motor* motor;
-    bool forward;
-  };
-
   StepParams* params = (StepParams*)pvParameters;
   Motor* motor = params->motor;
+  int32_t positionDelta = params->forward ? 1 : -1;
   delete params;
-
-  int32_t positionDelta = 1;
 
   while (!motor->stopRequested) {
     digitalWrite(motor->stepPin, HIGH);
@@ -191,6 +214,9 @@ void Motor::continuousStepTask(void* pvParameters) {
     motor->position += positionDelta;
   }
 
+  // Clearing moving must be the last access to motor: once it is false,
+  // cleanup() may delete the Motor.
+  motor->stepTaskHandle = nullptr;
   motor->moving = false;
   vTaskDelete(nullptr);
 }
