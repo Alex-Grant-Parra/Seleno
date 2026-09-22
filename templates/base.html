@@ -186,11 +186,27 @@
                 }).catch(function(){});
             }
 
+            var themeClickTimes = [];
+            function checkEasterEgg() {
+                var now = Date.now();
+                themeClickTimes.push(now);
+                themeClickTimes = themeClickTimes.filter(function (t) { return now - t <= 5000; });
+                if (themeClickTimes.length >= 10) {
+                    themeClickTimes = [];
+                    var img = document.createElement('img');
+                    img.src = "{{ url_for('static', filename='evil-grin.gif') }}";
+                    img.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;object-fit:contain;z-index:99999;background:#000;pointer-events:none;';
+                    document.body.appendChild(img);
+                    setTimeout(function () { img.remove(); }, 2000);
+                }
+            }
+
             if (themeBtn) {
                 themeBtn.addEventListener('click', function () {
                     var dark = document.documentElement.getAttribute('data-theme') !== 'dark';
                     applyTheme(dark);
                     saveTheme(dark);
+                    checkEasterEgg();
                 });
             }
 
