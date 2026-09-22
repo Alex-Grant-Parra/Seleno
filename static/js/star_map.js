@@ -2121,12 +2121,18 @@ canvas.addEventListener('mousedown', e => {
     lastX = e.clientX;
     lastY = e.clientY;
 });
-// Rotate the sky by a drag delta in screen pixels (shared by mouse and touch)
-function applyRotationDelta(dx, dy) {
+// Rotate the sky by a drag delta in screen pixels (shared by mouse and touch).
+// Mouse keeps its classic zoom-1 speed, slowed in proportion to the zoom.
+// Touch tracks the finger: one pixel of drag moves the sky by one pixel at
+// the view centre, where the projection gives max(w,h) * 0.35 * zoom px/rad.
+function applyRotationDelta(dx, dy, touch = false) {
+    const radPerPx = touch
+        ? 1 / (Math.max(width, height) * 0.35 * zoom)
+        : 0.01 / zoom;
     // Optionally invert controls: affects deltas only
     const controlInvert = invertControls ? -1 : 1;
-    rotY += dx * 0.01 * controlInvert;
-    rotX -= dy * 0.01 * controlInvert;
+    rotY += dx * radPerPx * controlInvert;
+    rotX -= dy * radPerPx * controlInvert;
     rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
 }
 
@@ -2221,7 +2227,7 @@ canvas.addEventListener('touchmove', (e) => {
         if (tapCandidate && Math.hypot(p.x - tapCandidate.x, p.y - tapCandidate.y) > TAP_MAX_MOVE_PX) {
             tapCandidate = null; // turned into a drag
         }
-        applyRotationDelta(p.x - lastTouchX, p.y - lastTouchY);
+        applyRotationDelta(p.x - lastTouchX, p.y - lastTouchY, true);
         lastTouchX = p.x;
         lastTouchY = p.y;
         updateCursorCoords(p.x, p.y, { above: true });
@@ -2239,7 +2245,7 @@ canvas.addEventListener('touchmove', (e) => {
     if (magnitudeZoomEnabled && zoom !== oldZoom) {
         updateMagnitudeForZoom();
     }
-    applyRotationDelta(mid.x - lastTouchX, mid.y - lastTouchY);
+    applyRotationDelta(mid.x - lastTouchX, mid.y - lastTouchY, true);
     lastTouchX = mid.x;
     lastTouchY = mid.y;
     beginInteraction();
