@@ -1,4 +1,5 @@
 import json
+import os
 import numpy as np
 from pathlib import Path
 
@@ -11,11 +12,15 @@ try:
         suzuki4Step,
         splitSuzuki4Step,
         adaptiveVerletStep,
+        loadCompiledCore,
+        compiledModel,
+        integrateSplitSuzuki4Compiled,
     )
 except ImportError:
     from constants import G, DE440_GM, SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR
     from integrator import (ForceModel, velocityVerletStep, yoshida4Step,
-                            suzuki4Step, splitSuzuki4Step, adaptiveVerletStep)
+                            suzuki4Step, splitSuzuki4Step, adaptiveVerletStep,
+                            loadCompiledCore, compiledModel, integrateSplitSuzuki4Compiled)
 
 _STEP_FUNCS = {
     "verlet": velocityVerletStep,
@@ -131,7 +136,7 @@ def buildForceModel(names, masses, relativity="eih", earth_j2=True):
 def runSimulation(steps=None, dt=7200, store_every=1, integrator="splitSuzuki4",
                   relativity="eih", earth_j2=True, use_gr=None, adaptive=False,
                   adaptive_tol=1e4, duration=None, initial_state=None,
-                  diag_every=100, progress_callback=None):
+                  diag_every=100, progress_callback=None, backend="auto"):
     """Integrate the solar system forward from initial_conditions.json.
 
     The run length is `steps` fixed steps if given, otherwise `duration`
@@ -144,6 +149,10 @@ def runSimulation(steps=None, dt=7200, store_every=1, integrator="splitSuzuki4",
     relativity : "eih" (full n-body 1PN), "sun" (Sun's Schwarzschild term
         only) or None.  use_gr=False is kept as an alias for relativity=None.
     earth_j2 : include Earth's equatorial bulge acting on the Moon.
+
+    backend : "auto" (C++ helios_core when built and current, else Python),
+        "cpp" or "python".  The HELIOS_BACKEND environment variable overrides
+        "auto".  Only splitSuzuki4 has a C++ implementation.
 
     initial_state : dict with "r", "v", "t" (as returned in "finalState")
         Continue a previous run from its final state instead of starting at
@@ -190,6 +199,20 @@ def runSimulation(steps=None, dt=7200, store_every=1, integrator="splitSuzuki4",
     # splitSuzuki4 carries its own (positional, correction) state; the others
     # carry the total acceleration.
     a = None if step_func is splitSuzuki4Step else force(r, v)
+
+    backend = os.environ.get("HELIOS_BACKEND", backend) if backend == "auto" else backend
+    core = None
+    if step_func is splitSuzuki4Step and not adaptive and backend in ("auto", "cpp"):
+        core, reason = loadCompiledCore()
+        if core is None:
+            if backend == "cpp":
+                raise RuntimeError(f"C++ backend requested but helios_core is {reason}. "
+                                   "Build it with: python astrophysics/V3_Helios/build_core.py")
+            print(f"helios_core {reason}; using the Python integrator "
+                  "(build with: python astrophysics/V3_Helios/build_core.py)")
+    elif backend == "cpp":
+        raise RuntimeError("The C++ backend only implements the fixed-step splitSuzuki4 integrator.")
+    print(f"Backend: {'C++ helios_core' if core is not None else 'Python'}")
     print(f"Integrator: {integrator}  adaptive={adaptive}  relativity={relativity}  "
           f"J2={force.oblate_idx is not None}  dt={dt:.0f}s  "
           f"t={t0/SECONDS_PER_DAY:.1f}..{(t0 + t_end)/SECONDS_PER_DAY:.1f} days")
@@ -202,7 +225,49 @@ def runSimulation(steps=None, dt=7200, store_every=1, integrator="splitSuzuki4",
 
     emit_start = initial_state is None
 
-    if not adaptive:
+    if not adaptive and core is not None:
+        # ---- Fixed-step loop in C++, in chunks for progress reporting -------
+        n_bodies = len(names)
+        model = compiledModel(core, force)
+        n_store = steps // store_every + (1 if emit_start else 0)
+        rHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
+        vHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
+        tHistory = np.empty(n_store, dtype=np.float64)
+        store_idx = 0
+        if emit_start:
+            rHistory[0], vHistory[0], tHistory[0] = r, v, t0
+            store_idx = 1
+
+        chunk = max(store_every, (steps // 10) // store_every * store_every)
+        done = 0
+        while done < steps:
+            n = min(chunk, steps - done)
+            rh, vh, r, v = integrateSplitSuzuki4Compiled(core, model, r, v, dt, n, store_every)
+            k = len(rh)
+            rHistory[store_idx:store_idx + k] = rh
+            vHistory[store_idx:store_idx + k] = vh
+            tHistory[store_idx:store_idx + k] = t0 + (done + store_every * np.arange(1, k + 1)) * dt
+            store_idx += k
+            done += n
+            percent = 100 * done // steps
+            if progress_callback is not None:
+                try:
+                    progress_callback(done, steps, percent, 0.0, 0.0, 0.0)
+                except Exception:
+                    pass
+            else:
+                print(f"Step {done:6d}/{steps} ({percent:3d}%)")
+
+        # Diagnostics from the stored samples, about every diag_every steps.
+        stride = max(1, diag_every // store_every)
+        diag = [diagnostics(rHistory[i], vHistory[i]) for i in range(0, n_store, stride)]
+        energyLog = np.array([d[0] for d in diag], dtype=np.float64)
+        momentumLog = np.array([d[1] for d in diag], dtype=np.float64).reshape(-1, 3)
+        angularMomentumLog = np.array([d[2] for d in diag], dtype=np.float64).reshape(-1, 3)
+        earthDistanceLog = np.array([d[3] for d in diag], dtype=np.float64)
+        t_sim = t0 + steps * dt
+
+    elif not adaptive:
         n_bodies = len(names)
         n_store = steps // store_every + (1 if emit_start else 0)
         n_diag = (steps - 1) // diag_every + 1 if steps > 0 else 0

@@ -809,7 +809,8 @@ def start_ws_server():
             ):
                 await asyncio.Future()
         except Exception as e:
-            print(f"[CommandWS] WebSocket server failed to start: {e}")
+            # Single write so concurrent thread output doesn't interleave on one line
+            print(f"[CommandWS] WebSocket server failed to start: {e}\n", end="", flush=True)
     try:
         loop.run_until_complete(run_server())
         loop.run_forever()
@@ -832,7 +833,8 @@ def start_liveview_ws_server():
             ):
                 await asyncio.Future()
         except Exception as e:
-            print(f"[LiveView] WebSocket server failed to start: {e}")
+            # Single write so concurrent thread output doesn't interleave on one line
+            print(f"[LiveView] WebSocket server failed to start: {e}\n", end="", flush=True)
     try:
         loop.run_until_complete(run_server())
         loop.run_forever()

@@ -31,6 +31,8 @@ initial_conditions.json
 # Helios auto-generated cache files
 astrophysics/V3_Helios/rHistory.npz
 astrophysics/V3_Helios/cheb_table.npz
+# Helios C++ extension (built by astrophysics/V3_Helios/build_core.py)
+astrophysics/V3_Helios/helios_core*.so
 
 astrophysics/V3_Helios/tests/
 !astrophysics/V3_Helios/tests/seleno_de440_compare.py

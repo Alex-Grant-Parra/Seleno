@@ -44,6 +44,7 @@ change, so this file stays current.
 | click | 8.3.1 | BSD-3-Clause | https://github.com/pallets/click/ |
 | idna | 3.11 | BSD-3-Clause | https://github.com/kjd/idna |
 | lxml | 6.0.2 | BSD-3-Clause | https://lxml.de/ |
+| pybind11 | 3.1.0 | BSD-3-Clause | https://github.com/pybind/pybind11 |
 | pycparser | 3.0 | BSD-3-Clause | https://github.com/eliben/pycparser |
 | python-dotenv | 1.2.1 | BSD-3-Clause | https://github.com/theskumar/python-dotenv |
 | websockets | 16.0 | BSD-3-Clause | https://github.com/python-websockets/websockets |
@@ -77,6 +78,10 @@ change, so this file stays current.
   distributed under a permissive BSD-style licence, but this has not been
   independently re-verified here — check its repository if that matters for
   your use.
+- `pybind11` is a build-time dependency: its headers are compiled into the
+  Helios C++ extension (`astrophysics/V3_Helios/helios_core*.so`, built
+  locally by `build_core.py` and not committed). If that compiled module is
+  ever distributed, include pybind11's BSD-3-Clause licence text with it.
 - Some packages listed above (e.g. `matplotlib`, `python-docx`, `numpy`,
   `contourpy`, `cycler`, `kiwisolver`, `fonttools`, `pyparsing`, `six`) are
   not direct entries in `utility/requirements.txt`; they were present in the

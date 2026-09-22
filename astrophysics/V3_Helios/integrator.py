@@ -312,6 +312,46 @@ def splitSuzuki4Step(r, v, state, force, dt):
     return r, v, (a_pos, corr)
 
 
+def loadCompiledCore():
+    """Return (helios_core module, None) if the C++ extension is built and at
+    least as new as its source, else (None, reason)."""
+    from pathlib import Path
+    import importlib
+
+    base = Path(__file__).resolve().parent
+    source = base / "cpp" / "helios_core.cpp"
+    try:
+        try:
+            core = importlib.import_module(".helios_core", __package__) if __package__ else None
+        except ImportError:
+            core = None
+        if core is None:
+            core = importlib.import_module("helios_core")
+    except ImportError as exc:
+        return None, f"not built ({exc})"
+    built = Path(core.__file__)
+    if source.exists() and built.stat().st_mtime < source.stat().st_mtime:
+        return None, f"{built.name} is older than {source.name}; rebuild it"
+    return core, None
+
+
+def compiledModel(core, force):
+    """Build the C++ counterpart of a ForceModel (same constants, passed in)."""
+    return core.Model(
+        mu=force.mu.tolist(), masses=force.masses.tolist(),
+        relativity=force.relativity or "none", sun_idx=force.sun_idx,
+        oblate_idx=-1 if force.oblate_idx is None else force.oblate_idx,
+        oblate_targets=force.oblate_targets, j2_coeff=force.j2_coeff,
+        pole=force.pole.tolist(), eps_sq=force.eps_sq, inv_c2=force.inv_c2,
+    )
+
+
+def integrateSplitSuzuki4Compiled(core, model, r, v, dt, steps, store_every):
+    """Run splitSuzuki4Step `steps` times in C++; see helios_core.cpp."""
+    return core.integrate_split_suzuki(model, r, v, float(dt), int(steps), int(store_every),
+                                       list(_SUZUKI_WEIGHTS))
+
+
 def adaptiveVerletStep(r, v, a, force, dt, tol, dt_min=10.0, dt_max=7200.0):
     """Velocity Verlet with step-doubling adaptive error control (M4).
 

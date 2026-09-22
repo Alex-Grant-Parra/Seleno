@@ -1,3 +1,10 @@
+import sys
+# When launched as `python Server.py` this module is `__main__`; alias it so the
+# lazy `from Server import app` imports elsewhere reuse it instead of executing
+# this whole file a second time (duplicate init, second Flask app, etc.).
+if __name__ == "__main__":
+    sys.modules.setdefault("Server", sys.modules["__main__"])
+
 FlaskServerPort = 5000
 ifOnline = True
 
@@ -33,6 +40,9 @@ if os.path.exists(env_path):
 else:
     # fallback: try system env or log that .env is missing
     print(f".env not found at {env_path}")
+
+# Set STARTUP_VERBOSE=True to list every blueprint and route at startup
+STARTUP_VERBOSE = os.getenv("STARTUP_VERBOSE", "False").lower() in ("1", "true", "yes")
     
 
 # # Startup Cloudflare Tunnel
@@ -222,14 +232,16 @@ def register_blueprints():
             blueprint = getattr(module, f"{filename[:-3]}_bp", None)
             if blueprint:
                 app.register_blueprint(blueprint)
-                print(f"Registered Blueprint: {blueprint.name}")
+                if STARTUP_VERBOSE:
+                    print(f"Registered Blueprint: {blueprint.name}")
 
 register_blueprints()
 
 # Register user blueprint from models
 from models.user import user_bp
 app.register_blueprint(user_bp)
-print(f"Registered Blueprint: {user_bp.name}")
+if STARTUP_VERBOSE:
+    print(f"Registered Blueprint: {user_bp.name}")
 
 # CSRF configuration for API/headless clients
 app.config['WTF_CSRF_TIME_LIMIT'] = int(os.getenv('WTF_CSRF_TIME_LIMIT', '3600'))  # 1 hour default
@@ -272,10 +284,12 @@ def sitemap():
     )
 
 # Debugging - Print all registered routes
-print("\nRegistered Routes:")
-for rule in app.url_map.iter_rules():
-    print(f"{rule} -> {rule.endpoint}")
-print("")
+if STARTUP_VERBOSE:
+    print("\nRegistered Routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"{rule} -> {rule.endpoint}")
+    print("")
+print(f"Registered {len(app.blueprints)} blueprints and {len(list(app.url_map.iter_rules()))} routes")
 
 # Generate routes.txt file with accessible pages
 def generate_routes_file():
@@ -575,42 +589,50 @@ if __name__ == '__main__':
 
     # # starDetector.getFaintStars()
 
-    # Start websocket servers using the new module
-    start_websocket_servers()
+    # Debug mode (auto-reloader) is opt-in via FLASK_DEBUG
+    debugMode = os.getenv("FLASK_DEBUG", "False").lower() in ("1", "true", "yes")
 
-    # Determine whether SSL/TLS should be enabled when starting the Flask
-    # server. If the environment requests SSL and provides a cert/key pair,
-    # we'll start Flask with an ssl_context so the server can accept TLS
-    # handshakes. Otherwise, run plain HTTP. This makes explicit the behavior
-    # and prevents ERR_SSL_PROTOCOL_ERROR when clients attempt HTTPS against a
-    # plain HTTP server.
-    flask_host = os.getenv("FLASK_SERVER_HOST", "127.0.0.1")
-    flask_port = os.getenv("FLASK_SERVER_PORT", FlaskServerPort)
-    print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
+    # With the reloader, this script runs in a watcher process and again in the
+    # child that serves requests (WERKZEUG_RUN_MAIN=true). The websocket servers
+    # must live in the same process as Flask so routes can reach their clients.
+    if not debugMode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        start_websocket_servers()
 
-    # Environment-driven SSL toggle
+    # Cloudflare Tunnel (infrastructure/config.yml) targets localhost:FlaskServerPort
+    flask_host = "0.0.0.0"
+    flask_port = FlaskServerPort
+
+    # The interactive Werkzeug debugger allows code execution, so only enable it
+    # when the server is bound to loopback.
+    use_debugger = debugMode and flask_host in ("127.0.0.1", "localhost", "::1")
+    if debugMode and not use_debugger:
+        print(f"Debug mode on: interactive debugger disabled because host {flask_host} is not loopback")
+
+    run_kwargs = dict(host=flask_host, port=flask_port, debug=debugMode, use_debugger=use_debugger, threaded=True)
+
+    # Environment-driven SSL toggle. If SSL is requested and a cert/key pair is
+    # provided, start with an ssl_context so the server accepts TLS handshakes;
+    # otherwise run plain HTTP (avoids ERR_SSL_PROTOCOL_ERROR confusion).
     use_ssl = os.getenv('FLASK_USE_SSL', 'False').lower() in ('1', 'true', 'yes')
     ssl_cert = os.getenv('SSL_CERT_PATH')
     ssl_key = os.getenv('SSL_KEY_PATH')
 
-    debugMode = True
-
     if use_ssl:
         # Require both cert and key to be present on disk
         if ssl_cert and ssl_key and os.path.exists(ssl_cert) and os.path.exists(ssl_key):
-            print(f"Starting Flask with SSL on 0.0.0.0:{FlaskServerPort} using cert: {ssl_cert}")
+            print(f"Starting Flask server on {gethostname()} at https://{flask_host}:{flask_port} using cert: {ssl_cert}")
             try:
-                app.run(host="0.0.0.0", port=FlaskServerPort, debug=debugMode, ssl_context=(ssl_cert, ssl_key), threaded=True)
+                app.run(ssl_context=(ssl_cert, ssl_key), **run_kwargs)
             except Exception as e:
                 print(f"Failed to start Flask with SSL: {e}")
                 print("Falling back to plain HTTP on the same port")
-                app.run(host="0.0.0.0", port=FlaskServerPort, debug=debugMode, threaded=True)
+                app.run(**run_kwargs)
         else:
             print("FLASK_USE_SSL is set but SSL_CERT_PATH/SSL_KEY_PATH are missing or files do not exist.")
             print("Starting without SSL. If you want HTTPS, set FLASK_USE_SSL=True and provide valid SSL_CERT_PATH and SSL_KEY_PATH.")
-            app.run(host="0.0.0.0", port=FlaskServerPort, debug=debugMode, threaded=True)
+            print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
+            app.run(**run_kwargs)
     else:
         # Plain HTTP
-        app.run(host="0.0.0.0", port=FlaskServerPort, debug=debugMode, threaded=True)
-
-    
+        print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
+        app.run(**run_kwargs)
