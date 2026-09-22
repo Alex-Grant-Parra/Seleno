@@ -1728,18 +1728,27 @@ function starAlphaBucket(mag) {
     return idx < 0 ? 0 : (idx >= STAR_ALPHA_STEPS ? STAR_ALPHA_STEPS - 1 : idx);
 }
 
-// Magnitude -> radius lookup, rebuilt only when the zoom changes.
-const SIZE_LUT_MIN = -2, SIZE_LUT_MAX = 22, SIZE_LUT_STEP = 0.25;
+// Magnitude -> radius lookup, rebuilt only when the zoom or magnitude limit
+// changes. Stars at the limit start as a 1px dot and ease up to their full
+// size over STAR_FADE_MAGS, so newly revealed stars grow in gradually.
+const SIZE_LUT_MIN = -2, SIZE_LUT_MAX = 22, SIZE_LUT_STEP = 0.05;
 const SIZE_LUT_LENGTH = Math.ceil((SIZE_LUT_MAX - SIZE_LUT_MIN) / SIZE_LUT_STEP) + 1;
 const starSizeLUT = new Float32Array(SIZE_LUT_LENGTH);
-let sizeLUTZoom = -1;
+const STAR_DOT_RADIUS = 0.5;
+const STAR_FADE_MAGS = 1.5;
+let sizeLUTZoom = -1, sizeLUTMagLimit = NaN;
 
 function refreshStarSizeLUT() {
-    if (sizeLUTZoom === zoom) return;
+    const magLimit = parseFloat(magFilter.value);
+    if (sizeLUTZoom === zoom && sizeLUTMagLimit === magLimit) return;
     sizeLUTZoom = zoom;
+    sizeLUTMagLimit = magLimit;
     for (let i = 0; i < SIZE_LUT_LENGTH; i++) {
         const mag = SIZE_LUT_MIN + i * SIZE_LUT_STEP;
-        starSizeLUT[i] = getZoomedStarSize(getMagnitudeBasedSize(mag));
+        const full = getZoomedStarSize(getMagnitudeBasedSize(mag));
+        let t = (magLimit - mag) / STAR_FADE_MAGS;
+        t = t <= 0 ? 0 : (t >= 1 ? 1 : t * t * (3 - 2 * t)); // smoothstep
+        starSizeLUT[i] = STAR_DOT_RADIUS + (Math.max(full, STAR_DOT_RADIUS) - STAR_DOT_RADIUS) * t;
     }
 }
 
@@ -1797,12 +1806,14 @@ function drawCatalogueStars(Mview, magLimit) {
             ctx.fillStyle = STAR_COLORS[b];
         }
         const size = starSizeForMag(mag);
-        if (size <= 1.6) {
-            // Sub-pixel stars: a rect is several times cheaper than an arc and
-            // indistinguishable at this size
+        if (size <= 0.6) {
+            // Faintest stars: a single pixel, several times cheaper than an arc
             ctx.fillRect(px | 0, py | 0, 1, 1);
-        } else if (size <= 2.6) {
-            ctx.fillRect((px - 1) | 0, (py - 1) | 0, 2, 2);
+        } else if (size < 1.2) {
+            // Growing dots: an unsnapped square with the same area as the
+            // circle, so the size eases smoothly into the arc below
+            const side = size * 1.7725;
+            ctx.fillRect(px - side / 2, py - side / 2, side, side);
         } else {
             ctx.beginPath();
             ctx.arc(px, py, size, 0, 6.283185307179586);
