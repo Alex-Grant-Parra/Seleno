@@ -229,7 +229,7 @@
            Touch / small-screen support.
            html.sm-touch  -> device has a touch screen (bigger hit targets)
            html.sm-compact -> viewport is small (controls become a sheet)
-           Both classes are set from star_map.js.
+           Both classes are set from star_map/core.js.
            --------------------------------------------------------------- */
         #ui-toggle {
             -webkit-user-select: none; user-select: none;
@@ -496,8 +496,14 @@
 <script type="application/json" id="stars-data">[]</script>
 <script type="application/json" id="telescope-data">{{ selected_telescope | tojson }}</script>
 <script src="{{ url_for('static', filename='js/csrf-protection.js') }}" defer></script>
-<!-- Cache-busting query param to ensure latest JS is fetched -->
-<script src="{{ url_for('static', filename='js/star_map.js') }}?v=2026-09-22-6" defer></script>
+<!-- Star map scripts share one global scope and must load in this order
+     (controls.js last: it wires up functions defined in the others).
+     Cache-busting query param to ensure latest JS is fetched. -->
+{% set star_map_js_version = '2026-09-22-7' %}
+{% for module in ['core', 'astronomy', 'time_control', 'catalogue', 'planets', 'overlays',
+                  'render', 'input', 'object_info', 'telescope', 'search', 'controls'] %}
+<script src="{{ url_for('static', filename='js/star_map/' ~ module ~ '.js') }}?v={{ star_map_js_version }}" defer></script>
+{% endfor %}
 <script>
 // Auto-detect user location and set latitude/longitude
 document.addEventListener('DOMContentLoaded', function() {
