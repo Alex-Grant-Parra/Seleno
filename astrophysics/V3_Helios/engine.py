@@ -1,33 +1,27 @@
+"""
+Simulation engine for V3 Helios: initial conditions, masses, and the
+Propagator that runs the integrator in C++ (helios_core) or Python.
+"""
+
 import json
 import os
-import numpy as np
 from pathlib import Path
 
-try:
-    from .constants import G, DE440_GM, SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR
-    from .integrator import (
-        ForceModel,
-        velocityVerletStep,
-        yoshida4Step,
-        suzuki4Step,
-        splitSuzuki4Step,
-        adaptiveVerletStep,
-        loadCompiledCore,
-        compiledModel,
-        integrateSplitSuzuki4Compiled,
-    )
-except ImportError:
-    from constants import G, DE440_GM, SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR
-    from integrator import (ForceModel, velocityVerletStep, yoshida4Step,
-                            suzuki4Step, splitSuzuki4Step, adaptiveVerletStep,
-                            loadCompiledCore, compiledModel, integrateSplitSuzuki4Compiled)
+import numpy as np
 
-_STEP_FUNCS = {
-    "verlet": velocityVerletStep,
-    "yoshida4": yoshida4Step,
-    "suzuki4": suzuki4Step,
-    "splitSuzuki4": splitSuzuki4Step,
-}
+try:
+    from .constants import G, DE440_GM, SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR, EARTH_TIDAL_TIME_LAG_S
+    from .integrator import Physics, integratePython, propagatePython, loadCompiledCore, compiledModel
+except ImportError:
+    from constants import G, DE440_GM, SECONDS_PER_DAY, DAYS_PER_JULIAN_YEAR, EARTH_TIDAL_TIME_LAG_S
+    from integrator import Physics, integratePython, propagatePython, loadCompiledCore, compiledModel
+
+_BASE = Path(__file__).resolve().parent
+IC_PATH = _BASE / "initial_conditions.json"
+
+DEFAULT_DT = 7200.0                               # s; checked against DE440 (see ephemeris.py)
+DEFAULT_POLE_INTERVAL = 16 * SECONDS_PER_DAY      # = ephemeris checkpoint spacing
+DEFAULT_DURATION = 10 * DAYS_PER_JULIAN_YEAR * SECONDS_PER_DAY
 
 
 # ============================================================================
@@ -75,32 +69,28 @@ def earthSunDistance(r, earthIndex=3, sunIndex=0):
 # ============================================================================
 
 
+def _readInitialConditions(path=None):
+    with open(Path(path) if path else IC_PATH, "r") as f:
+        return json.load(f)
+
+
 def loadInitialConditions(path=None):
-    if path is None:
-        path = Path(__file__).resolve().parent / "initial_conditions.json"
-
-    with open(path, "r") as f:
-        data = json.load(f)
-
+    data = _readInitialConditions(path)
     names = list(data["bodies"].keys())
-
     r = np.array([data["bodies"][n]["position_m"] for n in names], dtype=np.float64)
     v = np.array([data["bodies"][n]["velocity_m_s"] for n in names], dtype=np.float64)
-
     return names, r, v
+
+
+def loadEpochEt(path=None):
+    """Epoch of the initial conditions in TDB seconds past J2000."""
+    return float(_readInitialConditions(path)["epoch_et"])
 
 
 def loadGravitationalParameters(names, path=None):
     """Return GM (m^3/s^2) per body: from initial_conditions.json when loader.py
     wrote them there, otherwise from the DE440_GM table."""
-    if path is None:
-        path = Path(__file__).resolve().parent / "initial_conditions.json"
-
-    bodies = {}
-    if Path(path).exists():
-        with open(path, "r") as f:
-            bodies = json.load(f).get("bodies", {})
-
+    bodies = _readInitialConditions(path).get("bodies", {}) if Path(path or IC_PATH).exists() else {}
     gm = []
     missing = []
     for name in names:
@@ -118,270 +108,168 @@ def getMasses(names, path=None):
     return loadGravitationalParameters(names, path) / G
 
 
-DEFAULT_DURATION = 10 * DAYS_PER_JULIAN_YEAR * SECONDS_PER_DAY
-
-
-def buildForceModel(names, masses, relativity="eih", earth_j2=True):
-    """Force model used by the simulation: Newtonian + relativity + Earth J2 on the Moon."""
-    has_earth_moon = "earth" in names and "moon" in names
-    return ForceModel(
-        masses,
-        relativity=relativity,
-        sun_idx=names.index("sun"),
-        oblate_idx=names.index("earth") if (earth_j2 and has_earth_moon) else None,
-        oblate_targets=[names.index("moon")] if (earth_j2 and has_earth_moon) else None,
-    )
-
-
-def runSimulation(steps=None, dt=7200, store_every=1, integrator="splitSuzuki4",
-                  relativity="eih", earth_j2=True, use_gr=None, adaptive=False,
-                  adaptive_tol=1e4, duration=None, initial_state=None,
-                  diag_every=100, progress_callback=None, backend="auto"):
-    """Integrate the solar system forward from initial_conditions.json.
-
-    The run length is `steps` fixed steps if given, otherwise `duration`
-    seconds (default 10 years).
-
-    Defaults (checked against DE440 over one year): EIH relativity + Earth
-    J2 with Suzuki 4th order at dt=7200 s, the relativistic part evaluated
-    once per step.  Planets stay within ~0.01", the Moon ~0.6 km/yr (0.3"/yr).
-
-    relativity : "eih" (full n-body 1PN), "sun" (Sun's Schwarzschild term
-        only) or None.  use_gr=False is kept as an alias for relativity=None.
-    earth_j2 : include Earth's equatorial bulge acting on the Moon.
+class Propagator:
+    """The solar-system integrator with the full force model, in C++ when available.
 
     backend : "auto" (C++ helios_core when built and current, else Python),
         "cpp" or "python".  The HELIOS_BACKEND environment variable overrides
-        "auto".  Only splitSuzuki4 has a C++ implementation.
+        "auto".  Both backends implement the same algorithm; results agree to
+        rounding (centimetres after a year).
 
+    The epoch state has the system's net centre-of-mass velocity removed, so
+    the barycentre of the eleven bodies stays put.
+    """
+
+    def __init__(self, *, dt=DEFAULT_DT, pole_interval=DEFAULT_POLE_INTERVAL, relativity="eih",
+                 earth_j2=True, lunar_figure=True, tides=True, precession=True, tidal_lag=None,
+                 backend="auto",
+                 ic_path=None, quiet=False):
+        names, r, v = loadInitialConditions(ic_path)
+        masses = getMasses(names, ic_path)
+        v_cm = np.sum(masses[:, None] * v, axis=0) / np.sum(masses)
+        self.names = names
+        self.masses = masses
+        self.epoch_r = r
+        self.epoch_v = v - v_cm
+        self.et0 = loadEpochEt(ic_path)
+        self.dt = float(dt)
+
+        def index(name):
+            return names.index(name) if name in names else None
+
+        self.physics = Physics(
+            masses, names.index("sun"), index("earth"), index("moon"),
+            relativity=relativity, earth_j2=earth_j2, lunar_figure=lunar_figure, tides=tides,
+            precession=precession,
+            et0=self.et0, pole_interval=pole_interval,
+            tidal_lag=EARTH_TIDAL_TIME_LAG_S if tidal_lag is None else tidal_lag,
+        )
+
+        choice = os.environ.get("HELIOS_BACKEND", backend) if backend == "auto" else backend
+        if choice not in ("auto", "cpp", "python"):
+            raise ValueError(f"backend must be 'auto', 'cpp' or 'python', not {choice!r}")
+        self.core = self.model = None
+        if choice in ("auto", "cpp"):
+            core, reason = loadCompiledCore()
+            if core is None:
+                if choice == "cpp":
+                    raise RuntimeError(f"C++ backend requested but helios_core is {reason}. "
+                                       "Build it with: python astrophysics/V3_Helios/build_core.py")
+                if not quiet:
+                    print(f"helios_core {reason}; using the Python integrator "
+                          "(build with: python astrophysics/V3_Helios/build_core.py)")
+            else:
+                self.core = core
+                self.model = compiledModel(core, self.physics)
+        self.backend = "cpp" if self.model is not None else "python"
+
+    def settings(self):
+        """Everything that changes the trajectory (used to validate caches)."""
+        return {"integrator": "splitSuzuki4", "dt": self.dt, **self.physics.settings()}
+
+    def integrate(self, r, v, t0, steps, store_every=1, direction=1):
+        """`steps` steps of dt (backwards if direction < 0) from time t0 (s from epoch).
+        Returns (r_hist, v_hist, r, v), a sample after every `store_every` steps."""
+        h = self.dt if direction >= 0 else -self.dt
+        if self.model is not None:
+            return self.core.integrate(self.model, r, v, float(t0), h, int(steps), int(store_every))
+        return integratePython(self.physics, r, v, float(t0), h, int(steps), int(store_every))
+
+    def propagate(self, r, v, t0, targets):
+        """States at `targets` (s from epoch; one side of t0, nearest first)."""
+        if self.model is not None:
+            return self.core.propagate(self.model, r, v, float(t0), self.dt, [float(x) for x in targets])
+        return propagatePython(self.physics, r, v, float(t0), self.dt, targets)
+
+
+def runSimulation(duration=None, dt=DEFAULT_DT, store_every=1, relativity="eih", earth_j2=True,
+                  lunar_figure=True, tides=True, precession=True, initial_state=None, diag_every=100,
+                  progress_callback=None, backend="auto", steps=None):
+    """Integrate from initial_conditions.json and return the sampled trajectory.
+
+    duration : seconds to run, default 10 years; negative runs backwards.
+        `steps` (fixed steps of dt) overrides it.
     initial_state : dict with "r", "v", "t" (as returned in "finalState")
         Continue a previous run from its final state instead of starting at
         the epoch.  The t=0 sample is only emitted for fresh runs, so the
         histories of consecutive runs can be concatenated directly.
-    """
-    names, r, v = loadInitialConditions()
-    masses = np.asarray(getMasses(names), dtype=np.float64)
+    backend : see Propagator.
 
+    For positions at arbitrary dates use ephemeris.py, which caches
+    checkpoints; this is for experiments and diagnostics.
+    """
+    prop = Propagator(dt=dt, relativity=relativity, earth_j2=earth_j2, lunar_figure=lunar_figure,
+                      tides=tides, precession=precession, backend=backend)
+    names, masses = prop.names, prop.masses
     if initial_state is None:
-        r = np.asarray(r, dtype=np.float64)
-        v = np.asarray(v, dtype=np.float64)
-        # Remove net center-of-mass velocity to eliminate bulk drift
-        total_mass = np.sum(masses)
-        v_cm = np.sum(masses[:, None] * v, axis=0) / total_mass
-        v = v - v_cm
-        t0 = 0.0
+        r, v, t0 = prop.epoch_r.copy(), prop.epoch_v.copy(), 0.0
     else:
         r = np.array(initial_state["r"], dtype=np.float64)
         v = np.array(initial_state["v"], dtype=np.float64)
         t0 = float(initial_state["t"])
     total_mass = np.sum(masses)
 
+    duration = DEFAULT_DURATION if duration is None else float(duration)
+    direction = -1 if duration < 0 else 1
+    if steps is None:
+        steps = int(np.ceil(abs(duration) / prop.dt - 1e-9))
+    h = direction * prop.dt
+
     initial_momentum = totalMomentum(v, masses)
     initial_energy = totalEnergy(r, v, masses)
     initial_angular_momentum = totalAngularMomentum(r, v, masses)
 
-    if use_gr is False:
-        relativity = None
-    force = buildForceModel(names, masses, relativity, earth_j2)
-
-    dt = float(dt)
-    if steps is None:
-        steps = int(np.ceil(float(duration if duration is not None else DEFAULT_DURATION) / dt - 1e-9))
-    t_end = float(duration if (duration is not None and adaptive) else steps * dt)
-
-    if integrator == "auto":
-        integrator = "verlet" if adaptive else "splitSuzuki4"
-    if adaptive:
-        integrator = "verlet"
-    if integrator not in _STEP_FUNCS:
-        raise ValueError(f"Unknown integrator {integrator!r}; choose from {sorted(_STEP_FUNCS)}")
-    step_func = _STEP_FUNCS[integrator]
-    # splitSuzuki4 carries its own (positional, correction) state; the others
-    # carry the total acceleration.
-    a = None if step_func is splitSuzuki4Step else force(r, v)
-
-    backend = os.environ.get("HELIOS_BACKEND", backend) if backend == "auto" else backend
-    core = None
-    if step_func is splitSuzuki4Step and not adaptive and backend in ("auto", "cpp"):
-        core, reason = loadCompiledCore()
-        if core is None:
-            if backend == "cpp":
-                raise RuntimeError(f"C++ backend requested but helios_core is {reason}. "
-                                   "Build it with: python astrophysics/V3_Helios/build_core.py")
-            print(f"helios_core {reason}; using the Python integrator "
-                  "(build with: python astrophysics/V3_Helios/build_core.py)")
-    elif backend == "cpp":
-        raise RuntimeError("The C++ backend only implements the fixed-step splitSuzuki4 integrator.")
-    print(f"Backend: {'C++ helios_core' if core is not None else 'Python'}")
-    print(f"Integrator: {integrator}  adaptive={adaptive}  relativity={relativity}  "
-          f"J2={force.oblate_idx is not None}  dt={dt:.0f}s  "
-          f"t={t0/SECONDS_PER_DAY:.1f}..{(t0 + t_end)/SECONDS_PER_DAY:.1f} days")
+    print(f"Backend: {'C++ helios_core' if prop.backend == 'cpp' else 'Python'}")
+    print(f"Integrator: splitSuzuki4  relativity={relativity}  J2={prop.physics.earth_j2}  "
+          f"lunar figure={prop.physics.lunar_figure}  tides={prop.physics.tides}  precession={precession}  dt={h:.0f}s  "
+          f"t={t0/SECONDS_PER_DAY:.1f}..{(t0 + steps * h)/SECONDS_PER_DAY:.1f} days")
 
     def diagnostics(r, v):
         return (totalEnergy(r, v, masses) - initial_energy,
                 totalMomentum(v, masses) - initial_momentum,
                 totalAngularMomentum(r, v, masses) - initial_angular_momentum,
-                earthSunDistance(r))
+                earthSunDistance(r, names.index("earth"), names.index("sun")))
 
     emit_start = initial_state is None
+    n_bodies = len(names)
+    n_store = steps // store_every + (1 if emit_start else 0)
+    rHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
+    vHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
+    tHistory = np.empty(n_store, dtype=np.float64)
+    store_idx = 0
+    if emit_start:
+        rHistory[0], vHistory[0], tHistory[0] = r, v, t0
+        store_idx = 1
 
-    if not adaptive and core is not None:
-        # ---- Fixed-step loop in C++, in chunks for progress reporting -------
-        n_bodies = len(names)
-        model = compiledModel(core, force)
-        n_store = steps // store_every + (1 if emit_start else 0)
-        rHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
-        vHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
-        tHistory = np.empty(n_store, dtype=np.float64)
-        store_idx = 0
-        if emit_start:
-            rHistory[0], vHistory[0], tHistory[0] = r, v, t0
-            store_idx = 1
+    # Run in ~10 chunks for progress reporting (chunking does not change the result).
+    chunk = max(store_every, (steps // 10) // store_every * store_every)
+    done = 0
+    while done < steps:
+        n = min(chunk, steps - done)
+        rh, vh, r, v = prop.integrate(r, v, t0 + done * h, n, store_every, direction)
+        k = len(rh)
+        rHistory[store_idx:store_idx + k] = rh
+        vHistory[store_idx:store_idx + k] = vh
+        tHistory[store_idx:store_idx + k] = t0 + (done + store_every * np.arange(1, k + 1)) * h
+        store_idx += k
+        done += n
+        percent = 100 * done // steps
+        if progress_callback is not None:
+            try:
+                progress_callback(done, steps, percent, 0.0, 0.0, 0.0)
+            except Exception:
+                pass
+        else:
+            print(f"Step {done:6d}/{steps} ({percent:3d}%)")
 
-        chunk = max(store_every, (steps // 10) // store_every * store_every)
-        done = 0
-        while done < steps:
-            n = min(chunk, steps - done)
-            rh, vh, r, v = integrateSplitSuzuki4Compiled(core, model, r, v, dt, n, store_every)
-            k = len(rh)
-            rHistory[store_idx:store_idx + k] = rh
-            vHistory[store_idx:store_idx + k] = vh
-            tHistory[store_idx:store_idx + k] = t0 + (done + store_every * np.arange(1, k + 1)) * dt
-            store_idx += k
-            done += n
-            percent = 100 * done // steps
-            if progress_callback is not None:
-                try:
-                    progress_callback(done, steps, percent, 0.0, 0.0, 0.0)
-                except Exception:
-                    pass
-            else:
-                print(f"Step {done:6d}/{steps} ({percent:3d}%)")
-
-        # Diagnostics from the stored samples, about every diag_every steps.
-        stride = max(1, diag_every // store_every)
-        diag = [diagnostics(rHistory[i], vHistory[i]) for i in range(0, n_store, stride)]
-        energyLog = np.array([d[0] for d in diag], dtype=np.float64)
-        momentumLog = np.array([d[1] for d in diag], dtype=np.float64).reshape(-1, 3)
-        angularMomentumLog = np.array([d[2] for d in diag], dtype=np.float64).reshape(-1, 3)
-        earthDistanceLog = np.array([d[3] for d in diag], dtype=np.float64)
-        t_sim = t0 + steps * dt
-
-    elif not adaptive:
-        n_bodies = len(names)
-        n_store = steps // store_every + (1 if emit_start else 0)
-        n_diag = (steps - 1) // diag_every + 1 if steps > 0 else 0
-
-        rHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
-        vHistory = np.empty((n_store, n_bodies, 3), dtype=np.float64)
-        tHistory = np.empty(n_store, dtype=np.float64)
-
-        energyLog = np.empty(n_diag, dtype=np.float64)
-        momentumLog = np.empty((n_diag, 3), dtype=np.float64)
-        angularMomentumLog = np.empty((n_diag, 3), dtype=np.float64)
-        earthDistanceLog = np.empty(n_diag, dtype=np.float64)
-
-        store_idx = 0
-        diag_idx = 0
-        if emit_start:
-            rHistory[0], vHistory[0], tHistory[0] = r, v, t0
-            store_idx = 1
-
-        report_every = max(1, steps // 10)
-
-        # ---- Fixed-step loop --------------------------------------------------
-        for step in range(steps):
-            r, v, a = step_func(r, v, a, force, dt)
-
-            if (step + 1) % store_every == 0:
-                rHistory[store_idx] = r
-                vHistory[store_idx] = v
-                tHistory[store_idx] = t0 + (step + 1) * dt
-                store_idx += 1
-
-            if step % diag_every == 0:
-                (energyLog[diag_idx], momentumLog[diag_idx],
-                 angularMomentumLog[diag_idx], earthDistanceLog[diag_idx]) = diagnostics(r, v)
-                diag_idx += 1
-
-            if step % report_every == 0:
-                p_mag = np.linalg.norm(momentumLog[diag_idx - 1]) if diag_idx > 0 else 0
-                e_val = energyLog[diag_idx - 1] if diag_idx > 0 else 0
-                baseline = np.linalg.norm(initial_momentum)
-                p_drift_pct = (p_mag / baseline) * 100 if baseline > 0 else 0
-                percent = 100 * step // steps
-                if progress_callback is not None:
-                    try:
-                        progress_callback(step, steps, percent, e_val, p_mag, p_drift_pct)
-                    except Exception:
-                        pass
-                else:
-                    print(f"Step {step:6d}/{steps} ({percent:2d}%)  E={e_val:.3e} J  p={p_mag:.3e} kg*m/s")
-
-        t_sim = t0 + steps * dt
-
-    else:
-        # ---- Adaptive-step loop -----------------------------------------------
-        rHistory, vHistory, tHistory = [], [], []
-        energyLog, momentumLog, angularMomentumLog, earthDistanceLog = [], [], [], []
-        if emit_start:
-            rHistory.append(r.copy())
-            vHistory.append(v.copy())
-            tHistory.append(t0)
-
-        t_sim = 0.0
-        current_dt = dt
-        accepted = 0
-        diag_interval = diag_every * dt
-        diag_t_next = 0.0
-        report_interval = t_end / 10.0
-        report_t_next = 0.0
-
-        while t_sim < t_end:
-            step_dt = min(current_dt, t_end - t_sim)
-            if step_dt <= 0.0:
-                break
-
-            r, v, a, dt_used, current_dt = adaptiveVerletStep(
-                r, v, a, force, step_dt, adaptive_tol
-            )
-            t_sim += dt_used
-            accepted += 1
-
-            if accepted % store_every == 0:
-                rHistory.append(r.copy())
-                vHistory.append(v.copy())
-                tHistory.append(t0 + t_sim)
-
-            if t_sim >= diag_t_next:
-                e_val, p_val, l_val, d_val = diagnostics(r, v)
-                energyLog.append(e_val)
-                momentumLog.append(p_val)
-                angularMomentumLog.append(l_val)
-                earthDistanceLog.append(d_val)
-                diag_t_next = t_sim + diag_interval
-
-            if t_sim >= report_t_next:
-                p_mag = np.linalg.norm(momentumLog[-1]) if momentumLog else 0
-                e_val = energyLog[-1] if energyLog else 0
-                percent = int(100 * t_sim / t_end)
-                if progress_callback is not None:
-                    try:
-                        progress_callback(accepted, int(t_end / dt), percent, e_val, p_mag, 0.0)
-                    except Exception:
-                        pass
-                else:
-                    print(f"t={t_sim:.0f}s ({percent:2d}%)  dt={current_dt:.1f}s  accepted={accepted}  E={e_val:.3e} J")
-                report_t_next = t_sim + report_interval
-
-        t_sim = t0 + t_sim
-        rHistory = np.array(rHistory, dtype=np.float64)
-        vHistory = np.array(vHistory, dtype=np.float64)
-        tHistory = np.array(tHistory, dtype=np.float64)
-        energyLog = np.array(energyLog, dtype=np.float64)
-        momentumLog = np.array(momentumLog, dtype=np.float64)
-        angularMomentumLog = np.array(angularMomentumLog, dtype=np.float64)
-        earthDistanceLog = np.array(earthDistanceLog, dtype=np.float64)
+    # Diagnostics from the stored samples, about every diag_every steps.
+    stride = max(1, diag_every // store_every)
+    diag = [diagnostics(rHistory[i], vHistory[i]) for i in range(0, n_store, stride)]
+    energyLog = np.array([d[0] for d in diag], dtype=np.float64)
+    momentumLog = np.array([d[1] for d in diag], dtype=np.float64).reshape(-1, 3)
+    angularMomentumLog = np.array([d[2] for d in diag], dtype=np.float64).reshape(-1, 3)
+    earthDistanceLog = np.array([d[3] for d in diag], dtype=np.float64)
+    t_sim = t0 + steps * h
 
     # Final diagnostics for conservation laws
     final_momentum = totalMomentum(v, masses)

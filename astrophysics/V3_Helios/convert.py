@@ -6,13 +6,17 @@ import sys
 import numpy as np
 
 try:
-    from .chebyshev import evaluateAt, evaluateAtBatch, getEpochUTC
-    from .constants import (AU_M, OBLIQUITY_J2000_RAD, SECONDS_PER_DAY, JD_UNIX_EPOCH,
+    from .ephemeris import evaluateAt, evaluateAtBatch, getEpochEt
+    from .frames import eclipticToEquatorial, precessionMatrix
+    from .timescales import utcToEt
+    from .constants import (AU_M, SECONDS_PER_DAY, SECONDS_PER_JULIAN_CENTURY, JD_UNIX_EPOCH,
                             JD_J2000, DAYS_PER_JULIAN_CENTURY, WGS84_A_M, WGS84_F,
                             METERS_PER_KM, MOON_MEAN_DISTANCE_KM)
 except ImportError:
-    from chebyshev import evaluateAt, evaluateAtBatch, getEpochUTC
-    from constants import (AU_M, OBLIQUITY_J2000_RAD, SECONDS_PER_DAY, JD_UNIX_EPOCH,
+    from ephemeris import evaluateAt, evaluateAtBatch, getEpochEt
+    from frames import eclipticToEquatorial, precessionMatrix
+    from timescales import utcToEt
+    from constants import (AU_M, SECONDS_PER_DAY, SECONDS_PER_JULIAN_CENTURY, JD_UNIX_EPOCH,
                            JD_J2000, DAYS_PER_JULIAN_CENTURY, WGS84_A_M, WGS84_F,
                            METERS_PER_KM, MOON_MEAN_DISTANCE_KM)
 
@@ -21,14 +25,6 @@ except ImportError:
 LONDON_LAT_DEG = 51.5074
 LONDON_LON_DEG = -0.1278
 LONDON_ALT_M = 35.0
-
-
-def _eclToEqu(vec):
-    eps = OBLIQUITY_J2000_RAD
-    rot = np.array(
-        [[1.0, 0.0, 0.0], [0.0, np.cos(eps), -np.sin(eps)], [0.0, np.sin(eps), np.cos(eps)]]
-    )
-    return vec @ rot.T
 
 
 def _cartToRaDec(vec):
@@ -56,7 +52,8 @@ def _gmstRadians(dtUtc):
 
 
 def _observerEciM(dtUtc, latDeg, lonDeg, altM=0.0):
-    # WGS84 geodetic observer position converted to ECI using GMST.
+    # WGS84 geodetic observer position rotated by GMST: this gives it on the
+    # mean equator and equinox of date, not J2000 (see _observerJ2000M).
     lat = np.deg2rad(float(latDeg))
     lon = np.deg2rad(float(lonDeg))
     alt = float(altM)
@@ -82,21 +79,29 @@ def _observerEciM(dtUtc, latDeg, lonDeg, altM=0.0):
     return np.array([x_eci, y_eci, z_ecef], dtype=np.float64)
 
 
+def _observerJ2000M(dtUtc, latDeg, lonDeg, altM=0.0):
+    # Undo precession so the observer offset is in the same J2000 frame as the
+    # planet vectors.  Skipping this puts the Moon ~20" off today (~26 years of
+    # precession) and ~30' off at +-2000 years.  Nutation (<0.3" here) is ignored.
+    T = utcToEt(dtUtc) / SECONDS_PER_JULIAN_CENTURY
+    return precessionMatrix(T).T @ _observerEciM(dtUtc, latDeg, lonDeg, altM)
+
+
 def _degToHms(raDeg):
-    totalHours = raDeg / 15.0
-    hours = int(totalHours) % 24
-    minutes = int((totalHours - hours) * 60.0)
-    seconds = (totalHours - hours - minutes / 60.0) * 3600.0
-    return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}"
+    # Round once, in milliseconds of time, so 59.9996 s carries into the minute
+    # instead of printing as 60.000.
+    total = int(round((raDeg % 360.0) / 15.0 * 3600.0 * 1000.0)) % (24 * 3600 * 1000)
+    hours, rest = divmod(total, 3600 * 1000)
+    minutes, millis = divmod(rest, 60 * 1000)
+    return f"{hours:02d}:{minutes:02d}:{millis / 1000.0:06.3f}"
 
 
 def _degToDms(decDeg):
     sign = "+" if decDeg >= 0 else "-"
-    absDeg = abs(decDeg)
-    degrees = int(absDeg)
-    minutes = int((absDeg - degrees) * 60.0)
-    seconds = (absDeg - degrees - minutes / 60.0) * 3600.0
-    return f"{sign}{degrees:02d}:{minutes:02d}:{seconds:05.2f}"
+    total = int(round(abs(decDeg) * 3600.0 * 100.0))       # centi-arcseconds
+    degrees, rest = divmod(total, 3600 * 100)
+    minutes, centis = divmod(rest, 60 * 100)
+    return f"{sign}{degrees:02d}:{minutes:02d}:{centis / 100.0:05.2f}"
 
 
 def _angleDeg(vecA, vecB):
@@ -256,12 +261,13 @@ def getRaDecAtTime(timeInput=None, observerLatDeg=None, observerLonDeg=None, obs
             topocentric RA/Dec for that geodetic location.
         - observer_alt_m: observer height in meters (default 0.0).
 
-    Requires cheb_table.npz to exist. Build it once with:
-        python astrophysics/V3_Helios/chebyshev.py
+    Times are civil time (UTC, or UT before 1972 and in the far future); see
+    timescales.py for the conversion to dynamical time.  RA/Dec are geometric
+    (no light-time or aberration), J2000 equator and equinox.  Positions come
+    from ephemeris.py, which covers +-2000 years around the epoch.
     """
     reqTime = _normalizeTimeInput(timeInput)
-    epoch = getEpochUTC()
-    tSec = (reqTime - epoch).total_seconds()
+    tSec = utcToEt(reqTime) - getEpochEt()
 
     positions = evaluateAt(tSec)
     names = list(positions.keys())
@@ -270,7 +276,7 @@ def getRaDecAtTime(timeInput=None, observerLatDeg=None, observerLonDeg=None, obs
     observerPos = positions[observer]
     observerOffset = None
     if observerLatDeg is not None and observerLonDeg is not None:
-        observerOffset = _observerEciM(reqTime, observerLatDeg, observerLonDeg, observerAltM)
+        observerOffset = _observerJ2000M(reqTime, observerLatDeg, observerLonDeg, observerAltM)
 
     output = {}
     for body, pos in positions.items():
@@ -278,7 +284,7 @@ def getRaDecAtTime(timeInput=None, observerLatDeg=None, observerLonDeg=None, obs
             continue
 
         vector = pos - observerPos
-        vectorEqu = _eclToEqu(vector)
+        vectorEqu = eclipticToEquatorial(vector)
         if observerOffset is not None:
             # observer_offset is in equatorial J2000 (ECI), so apply it in
             # the same frame as the target vector.
@@ -310,8 +316,8 @@ def getRaDecAtTimes(timeInputs, observerLatDeg=None, observerLonDeg=None, observ
         A list with one output dict per requested time.
     """
     reqTimes = [_normalizeTimeInput(value) for value in timeInputs]
-    epoch = getEpochUTC()
-    tSeconds = np.array([(value - epoch).total_seconds() for value in reqTimes], dtype=np.float64)
+    epochEt = getEpochEt()
+    tSeconds = np.array([utcToEt(value) - epochEt for value in reqTimes], dtype=np.float64)
     positionsByBody = evaluateAtBatch(tSeconds)
     names = list(positionsByBody.keys())
     observer = "earth" if "earth" in names else names[0]
@@ -319,7 +325,7 @@ def getRaDecAtTimes(timeInputs, observerLatDeg=None, observerLonDeg=None, observ
     observerOffsets = None
     if observerLatDeg is not None and observerLonDeg is not None:
         observerOffsets = np.array(
-            [_observerEciM(value, observerLatDeg, observerLonDeg, observerAltM) for value in reqTimes],
+            [_observerJ2000M(value, observerLatDeg, observerLonDeg, observerAltM) for value in reqTimes],
             dtype=np.float64,
         )
 
@@ -333,7 +339,7 @@ def getRaDecAtTimes(timeInputs, observerLatDeg=None, observerLonDeg=None, observ
                 continue
 
             vector = posSeries[idx] - observerPos
-            vectorEqu = _eclToEqu(vector)
+            vectorEqu = eclipticToEquatorial(vector)
             if observerOffsets is not None:
                 vectorEqu = vectorEqu - observerOffsets[idx]
 

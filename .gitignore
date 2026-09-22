@@ -28,9 +28,8 @@ downloads
 astrophysics/V3_Helios/data
 initial_conditions.json
 
-# Helios auto-generated cache files
-astrophysics/V3_Helios/rHistory.npz
-astrophysics/V3_Helios/cheb_table.npz
+# Helios auto-generated ephemeris checkpoints (built by astrophysics/V3_Helios/ephemeris.py)
+astrophysics/V3_Helios/ephemeris_cache/
 # Helios C++ extension (built by astrophysics/V3_Helios/build_core.py)
 astrophysics/V3_Helios/helios_core*.so
 
