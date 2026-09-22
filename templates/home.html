@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block title %}Home - SELENO{% endblock %}
+{% block body_class %}home-page{% endblock %}
 
 {% block content %}
 <main class="home-dashboard">
@@ -10,7 +11,11 @@
             <h1>Everything you need for tonight's session.</h1>
             <p class="home-subtitle">Launch capture workflows, monitor telescope status, plan sky targets, and manage bookings from one clean dashboard.</p>
             <div class="home-hero-actions">
+                {% if current_user.is_authenticated %}
                 <a class="btn btn-primary" href="{{ url_for('interface.interface') }}">Open Interface</a>
+                {% else %}
+                <span class="btn btn-primary home-action-disabled" aria-disabled="true">Open Interface</span>
+                {% endif %}
                 <a class="btn btn-ghost" href="{{ url_for('star_map.star_map') }}">Star Map</a>
             </div>
         </div>
@@ -22,6 +27,7 @@
     </section>
 
     <section class="home-grid" aria-label="Primary navigation">
+        {% if current_user.is_authenticated %}
         <a class="home-card" href="{{ url_for('interface.interface') }}">
             <h2>Interface</h2>
             <p>Live view, camera controls, telescope targeting, and tracking tools.</p>
@@ -34,6 +40,20 @@
             <h2>Album</h2>
             <p>Browse and manage astrophotography captured during your sessions.</p>
         </a>
+        {% else %}
+        <div class="home-card home-card-disabled" aria-disabled="true">
+            <h2>Interface</h2>
+            <p>Live view, camera controls, telescope targeting, and tracking tools.</p>
+        </div>
+        <div class="home-card home-card-disabled" aria-disabled="true">
+            <h2>Book</h2>
+            <p>Reserve telescope time, review bookings, and manage owner requests.</p>
+        </div>
+        <div class="home-card home-card-disabled" aria-disabled="true">
+            <h2>Album</h2>
+            <p>Browse and manage astrophotography captured during your sessions.</p>
+        </div>
+        {% endif %}
         <a class="home-card" href="{{ url_for('map.map_page') }}">
             <h2>World Map</h2>
             <p>Check weather and sky brightness layers before you plan observations.</p>

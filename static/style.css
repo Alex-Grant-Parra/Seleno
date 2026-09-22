@@ -137,6 +137,30 @@ a:hover {
     background: color-mix(in oklab, var(--primary) 20%, transparent);
 }
 
+body.home-page[data-authenticated='false'] .navbar-nav .nav-link {
+    color: var(--text);
+}
+
+.nav-link-disabled,
+.home-card-disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.nav-link-disabled {
+    pointer-events: none;
+}
+
+.home-card-disabled {
+    user-select: none;
+}
+
+.home-action-disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    user-select: none;
+}
+
 .navbar-toggler {
     border: 1px solid var(--line);
 }

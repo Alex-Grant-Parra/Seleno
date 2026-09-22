@@ -51,7 +51,7 @@
 <body
     data-authenticated="{{ current_user.is_authenticated|tojson|lower }}"
     data-night-mode="{% if current_user.is_authenticated %}{{ current_user.get_night_mode()|tojson }}{% else %}false{% endif %}"
-    class="{% if current_user.is_authenticated and current_user.get_night_mode() %}night-mode{% endif %}">
+    class="{% block body_class %}{% endblock %}{% if current_user.is_authenticated and current_user.get_night_mode() %} night-mode{% endif %}">
 
     <div class="site-shell">
         <header class="site-header">
@@ -64,10 +64,16 @@
                     <div class="collapse navbar-collapse" id="navbarNav">
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('home.home') }}">Home</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('interface.interface') }}">Interface</a></li>
+                            <li class="nav-item">
+                                {% if current_user.is_authenticated %}<a class="nav-link" href="{{ url_for('interface.interface') }}">Interface</a>{% else %}<span class="nav-link nav-link-disabled" aria-disabled="true">Interface</span>{% endif %}
+                            </li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('star_map.star_map') }}">Star Map</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('book.book_page') }}">Book</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('album.album') }}">Album</a></li>
+                            <li class="nav-item">
+                                {% if current_user.is_authenticated %}<a class="nav-link" href="{{ url_for('book.book_page') }}">Book</a>{% else %}<span class="nav-link nav-link-disabled" aria-disabled="true">Book</span>{% endif %}
+                            </li>
+                            <li class="nav-item">
+                                {% if current_user.is_authenticated %}<a class="nav-link" href="{{ url_for('album.album') }}">Album</a>{% else %}<span class="nav-link nav-link-disabled" aria-disabled="true">Album</span>{% endif %}
+                            </li>
                         </ul>
 
                         <div class="d-flex align-items-center gap-2">
