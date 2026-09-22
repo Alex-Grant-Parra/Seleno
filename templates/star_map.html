@@ -72,7 +72,11 @@
             border-radius: 6px;
             box-shadow: 0 3px 10px rgba(0,0,0,0.6);
         }
-        #controls details .advanced-control label { width: 100%; justify-content: space-between; }
+        #controls details .advanced-control label,
+        #controls details .advanced-control .advanced-control-row { width: 100%; justify-content: space-between; }
+        #controls details .advanced-control .advanced-control-row { display: flex; align-items: center; }
+        #controls .advanced-control-inline { display: flex; align-items: center; gap: 4px; }
+        #controls .advanced-control-inline button { margin-top: 0; padding: 2px 8px; font-size: 0.85em; }
         #render-stats {
             position: fixed;
             left: 10px;
@@ -407,10 +411,13 @@
             <label for="show-unknown-mag" title="Catalogue objects with no recorded V-Mag. They are drawn separately, in blue.">
                 <span><input type="checkbox" id="show-unknown-mag"> Unknown magnitude<span id="unknown-mag-count"></span></span>
             </label>
-            <label for="show-below-horizon">
-                <span><input type="checkbox" id="show-below-horizon" checked> Below-horizon tint</span>
-                <input type="number" id="horizon-tint-opacity" min="0" max="1" step="0.01" value="0.10" title="Tint opacity">
-            </label>
+            <div class="advanced-control-row">
+                <label><input type="checkbox" id="show-below-horizon" checked> <span>Below-horizon tint</span></label>
+                <span class="advanced-control-inline">
+                    <input type="number" id="horizon-tint-opacity" min="0" max="1" step="0.01" value="0.10" title="Tint opacity">
+                    <button type="button" id="horizon-tint-apply">Apply</button>
+                </span>
+            </div>
             <label for="show-render-stats">
                 <span><input type="checkbox" id="show-render-stats"> Render stats</span>
             </label>
@@ -490,7 +497,7 @@
 <script type="application/json" id="telescope-data">{{ selected_telescope | tojson }}</script>
 <script src="{{ url_for('static', filename='js/csrf-protection.js') }}" defer></script>
 <!-- Cache-busting query param to ensure latest JS is fetched -->
-<script src="{{ url_for('static', filename='js/star_map.js') }}?v=2026-09-22-4" defer></script>
+<script src="{{ url_for('static', filename='js/star_map.js') }}?v=2026-09-22-6" defer></script>
 <script>
 // Auto-detect user location and set latitude/longitude
 document.addEventListener('DOMContentLoaded', function() {

@@ -2966,6 +2966,11 @@ showEquatorialGrid.addEventListener('change', draw);
 if (showEcliptic) showEcliptic.addEventListener('change', draw);
 if (showBelowHorizon) showBelowHorizon.addEventListener('change', draw);
 if (horizonTintOpacityInput) horizonTintOpacityInput.addEventListener('input', draw);
+const horizonTintApplyBtn = document.getElementById('horizon-tint-apply');
+if (horizonTintApplyBtn) horizonTintApplyBtn.addEventListener('click', () => {
+    horizonTintOpacityInput.blur();
+    draw();
+});
 if (showUnknownMag) {
     showUnknownMag.addEventListener('change', () => {
         // These sit at the end of the catalogue, so make sure the tail is on its way
