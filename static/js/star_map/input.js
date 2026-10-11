@@ -89,6 +89,8 @@ canvas.addEventListener('mousedown', e => {
 // Touch tracks the finger: one pixel of drag moves the sky by one pixel at
 // the view centre, where the projection gives max(w,h) * 0.35 * zoom px/rad.
 function applyRotationDelta(dx, dy, touch = false) {
+    // Dragging takes the view back from the phone's sensors
+    if (orientationModeActive()) stopOrientationMode();
     const radPerPx = touch
         ? 1 / (Math.max(width, height) * 0.35 * zoom)
         : 0.01 / zoom;
@@ -190,6 +192,12 @@ canvas.addEventListener('touchmove', (e) => {
         if (tapCandidate && Math.hypot(p.x - tapCandidate.x, p.y - tapCandidate.y) > TAP_MAX_MOVE_PX) {
             tapCandidate = null; // turned into a drag
         }
+        if (orientationModeActive() && tapCandidate) {
+            // Steady the sensor view: a finger resting for a tap shouldn't end it
+            lastTouchX = p.x;
+            lastTouchY = p.y;
+            return;
+        }
         applyRotationDelta(p.x - lastTouchX, p.y - lastTouchY, true);
         lastTouchX = p.x;
         lastTouchY = p.y;
@@ -208,7 +216,8 @@ canvas.addEventListener('touchmove', (e) => {
     if (magnitudeZoomEnabled && zoom !== oldZoom) {
         updateMagnitudeForZoom();
     }
-    applyRotationDelta(mid.x - lastTouchX, mid.y - lastTouchY, true);
+    // Pinching zooms without handing the view back from the phone's sensors
+    if (!orientationModeActive()) applyRotationDelta(mid.x - lastTouchX, mid.y - lastTouchY, true);
     lastTouchX = mid.x;
     lastTouchY = mid.y;
     beginInteraction();

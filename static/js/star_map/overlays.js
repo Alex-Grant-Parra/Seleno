@@ -209,7 +209,7 @@ function drawEcliptic() {
     const { raDeg, decDeg } = eclipticToEquatorial(lam, 0);
     const { altDeg, azDeg } = radecToAltAzFast(raDeg, decDeg, lstDegVal, sinLat, cosLat);
         let [x, y, z] = altazToXYZ(altDeg, azDeg);
-        [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+        [x, y, z] = horizonToView([x, y, z]);
         if (z <= cullThreshold) { started = false; continue; }
         const [cx, cy] = project([x, y, z]);
         if (!started) { ctx.moveTo(cx, cy); started = true; }
@@ -237,7 +237,7 @@ function drawHorizonGrid(lat, lon) {
         for (let az = 0; az <= 360; az += 3) {
             let [x, y, z] = altazToXYZ(alt, az);
             // Only apply user rotation, not lat/lon (horizon stays fixed)
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z <= cullThreshold) { firstPoint = true; continue; } // break path across back side
             const [cx, cy] = project([x, y, z]);
             
@@ -253,7 +253,7 @@ function drawHorizonGrid(lat, lon) {
         // Label altitude lines more frequently
         if (alt % 20 === 0 && alt !== 0) {
             let [x, y, z] = altazToXYZ(alt, 0); // North point
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z > cullThreshold) {
                 const [cx, cy] = project([x, y, z]);
                 ctx.fillText(`${alt}°`, cx + 5, cy - 5);
@@ -267,7 +267,7 @@ function drawHorizonGrid(lat, lon) {
         let firstPoint = true;
         for (let alt = -90; alt <= 90; alt += 2) {
             let [x, y, z] = altazToXYZ(alt, az);
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z <= cullThreshold) { firstPoint = true; continue; } // break path across back side
             const [cx, cy] = project([x, y, z]);
             
@@ -283,7 +283,7 @@ function drawHorizonGrid(lat, lon) {
         // Label azimuth lines more frequently
         if (az % 30 === 0) {
             let [x, y, z] = altazToXYZ(5, az); // 5° above horizon
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z > cullThreshold) {
                 const [cx, cy] = project([x, y, z]);
                 ctx.fillText(`${az}°`, cx - 8, cy + 15);
@@ -303,7 +303,7 @@ function drawHorizonGrid(lat, lon) {
     ctx.fillStyle = "rgba(100, 150, 255, 0.8)";
     for (const cardinal of cardinals) {
         let [x, y, z] = altazToXYZ(5, cardinal.az); // 5° above horizon
-        [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+        [x, y, z] = horizonToView([x, y, z]);
         if (z > cullThreshold) {
             const [cx, cy] = project([x, y, z]);
             ctx.fillText(cardinal.label, cx - 8, cy + 5);
@@ -336,10 +336,10 @@ function drawBelowHorizonTint() {
             let p4 = altazToXYZ(alt, az2);
 
             // Apply only user rotation (horizon base frame)
-            p1 = rotate(p1, rotX, rotY, 0, 0);
-            p2 = rotate(p2, rotX, rotY, 0, 0);
-            p3 = rotate(p3, rotX, rotY, 0, 0);
-            p4 = rotate(p4, rotX, rotY, 0, 0);
+            p1 = horizonToView(p1);
+            p2 = horizonToView(p2);
+            p3 = horizonToView(p3);
+            p4 = horizonToView(p4);
 
             // Cull any cell that is partially or fully behind the camera to avoid artifacts
             if (p1[2] <= cullThreshold || p2[2] <= cullThreshold || p3[2] <= cullThreshold || p4[2] <= cullThreshold) {
@@ -391,7 +391,7 @@ function drawEquatorialGrid() {
             const { altDeg, azDeg } = radecToAltAzFast(ra, dec, currentLSTDeg, sinLat, cosLat);
             let [x, y, z] = altazToXYZ(altDeg, azDeg);
             // Only apply user rotation; horizon is our base frame
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z <= cullThreshold) { firstPoint = true; continue; }
             const [cx, cy] = project([x, y, z]);
             if (firstPoint) { ctx.moveTo(cx, cy); firstPoint = false; }
@@ -403,7 +403,7 @@ function drawEquatorialGrid() {
         if (dec % 30 === 0) {
             const { altDeg, azDeg } = radecToAltAzFast(0, dec, currentLSTDeg, sinLat, cosLat); // RA=0h point
             let [x, y, z] = altazToXYZ(altDeg, azDeg);
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z > cullThreshold) {
                 const [cx, cy] = project([x, y, z]);
                 ctx.fillText(`${dec}°`, cx + 5, cy - 5);
@@ -421,7 +421,7 @@ function drawEquatorialGrid() {
         for (let dec = -90; dec <= 90; dec += 2) {
             const { altDeg, azDeg } = radecToAltAzFast(ra, dec, currentLSTDeg, sinLat, cosLat);
             let [x, y, z] = altazToXYZ(altDeg, azDeg);
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z <= cullThreshold) { firstPoint = true; continue; }
             const [cx, cy] = project([x, y, z]);
             if (firstPoint) { ctx.moveTo(cx, cy); firstPoint = false; }
@@ -434,7 +434,7 @@ function drawEquatorialGrid() {
         if (Math.abs(norm30) < 1e-6) {
             const { altDeg, azDeg } = radecToAltAzFast(ra, 0, currentLSTDeg, sinLat, cosLat);
             let [x, y, z] = altazToXYZ(altDeg, azDeg);
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z > cullThreshold) {
                 const [cx, cy] = project([x, y, z]);
                 let haHours = ha / 15;

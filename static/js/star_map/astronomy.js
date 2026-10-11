@@ -155,21 +155,57 @@ function unproject(screenX, screenY) {
     ];
 }
 
-// Inverse rotation: from view space back to horizon space
-function inverseRotate([x, y, z], rotX, rotY) {
-    // Reverse user rotations: inverse of X rotation first, then Y
-    const cx = Math.cos(rotX), sx = Math.sin(rotX);
-    const cy = Math.cos(rotY), sy = Math.sin(rotY);
-    
-    // Inverse X rotation (rotX is applied second in forward, so undo first)
-    let y1 = y * cx + z * sx;
-    let z1 = -y * sx + z * cx;
-    
-    // Inverse Y rotation
-    let x1 = x * cy + z1 * sy;
-    let z2 = -x * sy + z1 * cy;
-    
-    return [x1, y1, z2];
+// ---------------------------------------------------------------------------
+// User view rotation
+//
+// Normally the camera is two angles, rotY (turn) then rotX (tilt), so the
+// horizon always stays level. Phone-orientation mode (device_orientation.js)
+// also needs roll, so it can supply a whole horizon -> view matrix in
+// viewMatrixOverride instead. Everything that takes horizon vectors into view
+// space goes through userViewMatrix(), so both cases share one code path.
+// ---------------------------------------------------------------------------
+let viewMatrixOverride = null; // 3x3 horizon -> view rotation, or null to use rotX/rotY
+
+// Ry(rotY) followed by Rx(rotX), multiplied out
+function viewMatrixFromAngles(rx, ry) {
+    const sx = Math.sin(rx), cx = Math.cos(rx);
+    const sy = Math.sin(ry), cy = Math.cos(ry);
+    return [
+        [ cy,       0,  -sy     ],
+        [-sx * sy,  cx, -sx * cy],
+        [ cx * sy,  sx,  cx * cy]
+    ];
+}
+
+let angleViewMatrix = null, angleViewRotX = NaN, angleViewRotY = NaN;
+function userViewMatrix() {
+    if (viewMatrixOverride) return viewMatrixOverride;
+    if (rotX !== angleViewRotX || rotY !== angleViewRotY) {
+        angleViewRotX = rotX;
+        angleViewRotY = rotY;
+        angleViewMatrix = viewMatrixFromAngles(rotX, rotY);
+    }
+    return angleViewMatrix;
+}
+
+// Horizon space (x east, y up, z north) -> view space
+function horizonToView([x, y, z]) {
+    const R = userViewMatrix();
+    return [
+        R[0][0] * x + R[0][1] * y + R[0][2] * z,
+        R[1][0] * x + R[1][1] * y + R[1][2] * z,
+        R[2][0] * x + R[2][1] * y + R[2][2] * z
+    ];
+}
+
+// View space -> horizon space (the transpose, as the matrix is a rotation)
+function viewToHorizon([x, y, z]) {
+    const R = userViewMatrix();
+    return [
+        R[0][0] * x + R[1][0] * y + R[2][0] * z,
+        R[0][1] * x + R[1][1] * y + R[2][1] * z,
+        R[0][2] * x + R[1][2] * y + R[2][2] * z
+    ];
 }
 
 // Convert XYZ in horizon frame to Alt/Az
@@ -217,7 +253,7 @@ function getCoordsAtScreen(screenX, screenY) {
     const viewVec = unproject(screenX, screenY);
     
     // Inverse rotate to horizon space
-    const horizonVec = inverseRotate(viewVec, rotX, rotY);
+    const horizonVec = viewToHorizon(viewVec);
     
     // Convert to Alt/Az
     const { altDeg, azDeg } = xyzToAltAz(horizonVec);
@@ -229,8 +265,9 @@ function getCoordsAtScreen(screenX, screenY) {
 }
 
 // Build a 3x3 matrix that maps equatorial unit vectors (x=cosδcosα, y=sinδ, z=cosδsinα)
-// into view space (after converting to horizon frame using LST/latitude, then applying user rotY, rotX)
-function buildEqToViewMatrix(latDeg, lstDeg, rotX, rotY) {
+// into view space (after converting to horizon frame using LST/latitude, then
+// applying the user view rotation - see userViewMatrix)
+function buildEqToViewMatrix(latDeg, lstDeg) {
     const deg2rad = Math.PI / 180;
     const φ = latDeg * deg2rad;
     const Θ = lstDeg * deg2rad;
@@ -244,33 +281,17 @@ function buildEqToViewMatrix(latDeg, lstDeg, rotX, rotY) {
         [-sφ * cΘ,      cφ, -sφ * sΘ]
     ];
 
-    // User rotations: first around Y (rotY), then around X (rotX) in horizon frame
-    const sy = Math.sin(rotY), cy = Math.cos(rotY);
-    const sx = Math.sin(rotX), cx = Math.cos(rotX);
-    const Ry = [
-        [ cy,  0, -sy],
-        [  0,  1,   0],
-        [ sy,  0,  cy]
-    ];
-    const Rx = [
-        [ 1,  0,   0],
-        [ 0, cx, -sx],
-        [ 0, sx,  cx]
-    ];
+    return { Mview: mul3x3(userViewMatrix(), M), upRow: M[1] };
+}
 
-    // Multiply A*B helper
-    function mul3x3(A, B) {
-        const R = [ [0,0,0], [0,0,0], [0,0,0] ];
-        for (let i = 0; i < 3; i++) {
-            for (let j = 0; j < 3; j++) {
-                R[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j];
-            }
+function mul3x3(A, B) {
+    const R = [ [0,0,0], [0,0,0], [0,0,0] ];
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+            R[i][j] = A[i][0]*B[0][j] + A[i][1]*B[1][j] + A[i][2]*B[2][j];
         }
-        return R;
     }
-
-    const Ruser = mul3x3(Rx, Ry);
-    return { Mview: mul3x3(Ruser, M), upRow: M[1] };
+    return R;
 }
 
 function mulMat3Vec3(M, v) {

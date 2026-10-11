@@ -99,6 +99,7 @@ if (flipVerticalCheckbox) {
     });
 }
 resetBtn.addEventListener('click', () => {
+    stopOrientationMode({ immediate: true });
     rotX = 0; rotY = 0;
     zoom = 1.0; // Reset zoom level
     magFilter.value = "4.0"; // Reset magnitude to 4

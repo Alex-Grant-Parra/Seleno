@@ -239,7 +239,7 @@ function draw() {
     }
 
     // Everything from here on shares one equatorial -> view transform
-    const { Mview, upRow } = buildEqToViewMatrix(latDeg, currentLSTDeg, rotX, rotY);
+    const { Mview, upRow } = buildEqToViewMatrix(latDeg, currentLSTDeg);
 
     // Constellation figures sit under the stars so the sprites stay on top
     if (showConstellations && showConstellations.checked) {
@@ -299,7 +299,7 @@ function draw() {
         if (effectiveMag <= magLimit) {
             const { altDeg, azDeg } = radecToAltAz(searchedObject.ra, searchedObject.dec, selectedDate, latDeg, lonDeg);
             let [x, y, z] = altazToXYZ(altDeg, azDeg);
-            [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+            [x, y, z] = horizonToView([x, y, z]);
             if (z > 0) {
                 const [cx, cy] = project([x, y, z]);
                 highlightAnimation += 0.1;
@@ -375,6 +375,8 @@ function draw() {
             ctx.fillText(decStr, cx + crossSize + 10, cy + 5);
         }
     }
+
+    drawOrientationOverlay(Mview);
 
     const frameMs = performance.now() - drawStart;
     lastDrawStats = { drawn, ms: frameMs, capped };

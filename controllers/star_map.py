@@ -361,6 +361,41 @@ def get_stars_meta():
         "unknownCount": catalog.unknown_count,
     })
 
+_geomag_model = None
+
+
+def _get_geomag_model():
+    # WMM2025 (valid 2025-2030), parsed once on first use
+    global _geomag_model
+    if _geomag_model is None:
+        from pygeomag import GeoMag
+        _geomag_model = GeoMag(coefficients_file="wmm/WMM_2025.COF")
+    return _geomag_model
+
+
+@star_map_bp.route("/api/magnetic_declination")
+def get_magnetic_declination():
+    """Magnetic declination at a location, from the World Magnetic Model.
+
+    Phone compasses point at magnetic north; the star map's phone-orientation
+    mode adds this (degrees, east positive) to turn their headings into true
+    ones. Returns 400 unless lat and lon are given and in range.
+    """
+    lat = request.args.get("lat", type=float)
+    lon = request.args.get("lon", type=float)
+    # Written as "not in range" so NaN is rejected too
+    if lat is None or lon is None or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        return jsonify({"error": "lat and lon are required"}), 400
+
+    from pygeomag import decimal_year_from_date
+    year = decimal_year_from_date(datetime.now(timezone.utc))
+    result = _get_geomag_model().calculate(
+        glat=lat, glon=lon, alt=0, time=year, allow_date_outside_lifespan=True)
+    resp = jsonify({"declination": round(result.d, 3), "model": "WMM2025"})
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
 @star_map_bp.route("/api/planets")
 def get_planets():
     # Returns only planets, sun, and moon; accepts optional datetime param

@@ -202,6 +202,13 @@ function searchObject() {
 
 // Function to move camera to look at an object
 function moveToObject(obj) {
+    // In phone-pointing mode the phone decides where the view looks; an arrow
+    // on the map (drawOrientationOverlay) guides it to the object instead
+    if (orientationModeActive()) {
+        draw();
+        return;
+    }
+
     // Observer/time
     const latDeg = parseFloat(latInput.value) || 0;
     const lonDeg = parseFloat(lonInput.value) || 0;

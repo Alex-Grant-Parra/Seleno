@@ -61,6 +61,7 @@ change, so this file stays current.
 | blinker | 1.9.0 | MIT License | https://github.com/pallets-eco/blinker/ |
 | python-docx | 1.2.0 | MIT License | https://github.com/python-openxml/python-docx |
 | six | 1.17.0 | MIT License | https://github.com/benjaminp/six |
+| pygeomag | 1.1.0 | MIT License | https://github.com/boxpet/pygeomag |
 | pillow | 12.1.0 | MIT-CMU | https://python-pillow.github.io |
 | certifi | 2026.1.4 | Mozilla Public License 2.0 (MPL 2.0) | https://github.com/certifi/python-certifi |
 | typing_extensions | 4.15.0 | PSF-2.0 | https://github.com/python/typing_extensions |

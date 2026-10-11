@@ -68,8 +68,7 @@ function showObjectInfoPanel(obj, data, ha) {
 // what you can click is exactly what you can see.
 function pickCatalogueStar(mx, my, magLimit, minHitRadius) {
     refreshStarSizeLUT();
-    const { Mview } = buildEqToViewMatrix(
-        parseFloat(latInput.value) || 0, currentLSTDeg, rotX, rotY);
+    const { Mview } = buildEqToViewMatrix(parseFloat(latInput.value) || 0, currentLSTDeg);
     const m00 = Mview[0][0], m01 = Mview[0][1], m02 = Mview[0][2];
     const m10 = Mview[1][0], m11 = Mview[1][1], m12 = Mview[1][2];
     const m20 = Mview[2][0], m21 = Mview[2][1], m22 = Mview[2][2];
@@ -132,7 +131,7 @@ function selectObjectAt(mx, my, { touch = false } = {}) {
 
         const { altDeg, azDeg } = radecToAltAz(obj.ra, obj.dec, selectedDate, latDeg, lonDeg);
         let [x, y, z] = altazToXYZ(altDeg, azDeg);
-        [x, y, z] = rotate([x, y, z], rotX, rotY, 0, 0);
+        [x, y, z] = horizonToView([x, y, z]);
         if (z <= 0) continue;
         const [cx, cy] = project([x, y, z]);
 

@@ -326,12 +326,171 @@
         html.sm-touch #controls input,
         html.sm-touch #mag-context-menu input { font-size: 16px; }
         html.sm-touch #stop-tracking-btn { min-height: 44px; }
+
+        /* ---------------------------------------------------------------
+           Phone pointing (star_map/device_orientation.js)
+           --------------------------------------------------------------- */
+        #orient-toggle {
+            -webkit-user-select: none; user-select: none;
+            display: flex;
+            position: fixed;
+            left: 10px;
+            bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+            z-index: 30;
+            width: 44px;
+            height: 44px;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 10px;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Phones: under the ☰ button, clear of the bottom sheet */
+        html.sm-compact #orient-toggle {
+            left: auto; bottom: auto;
+            top: calc(64px + env(safe-area-inset-top, 0px));
+            right: 10px;
+        }
+        #orient-toggle[hidden] { display: none; }
+        #orient-toggle.active { background: #2e7d32; border-color: #66bb6a; }
+        #orient-bar {
+            position: fixed;
+            left: 50%;
+            bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+            transform: translateX(-50%);
+            z-index: 15;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: calc(100vw - 24px);
+            box-sizing: border-box;
+            padding: 8px 10px 8px 14px;
+            background: rgba(0,0,0,0.75);
+            color: #fff;
+            border-radius: 10px;
+            font-family: sans-serif;
+            font-size: 0.85em;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            -webkit-user-select: none; user-select: none;
+        }
+        #orient-bar[hidden] { display: none; }
+        #orient-bar .orient-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        #orient-bar button,
+        #align-picker button,
+        #align-camera button {
+            min-height: 40px;
+            padding: 8px 14px;
+            border: 1px solid #555;
+            border-radius: 6px;
+            background: #333;
+            color: #fff;
+            font-size: 15px;
+            touch-action: manipulation;
+            cursor: pointer;
+        }
+        #orient-bar button[hidden] { display: none; }
+        #orient-align-btn, #align-lock { background: #2e7d32; border-color: #66bb6a; }
+        #align-picker {
+            position: fixed; inset: 0;
+            z-index: 250;
+            display: flex; align-items: flex-end; justify-content: center;
+            background: rgba(0,0,0,0.55);
+            font-family: sans-serif;
+        }
+        #align-picker[hidden] { display: none; }
+        #align-picker .align-sheet {
+            width: 100%;
+            max-width: 480px;
+            max-height: 80vh; max-height: 80dvh;
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+            background: #1c1c1c;
+            color: #fff;
+            border-radius: 14px 14px 0 0;
+        }
+        #align-picker p { margin: 6px 0 10px; font-size: 0.85em; color: #bbb; line-height: 1.4; }
+        #align-candidates { list-style: none; margin: 0 0 12px; padding: 0; }
+        #align-candidates li { margin: 0 0 6px; }
+        #align-candidates li button {
+            width: 100%;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            text-align: left;
+        }
+        #align-candidates .align-name { font-weight: 600; }
+        #align-candidates .align-where { color: #aaa; font-size: 0.85em; white-space: nowrap; }
+        #align-candidates .align-empty { color: #bbb; font-size: 0.9em; padding: 8px 0; }
+        #align-camera {
+            position: fixed; inset: 0;
+            z-index: 300;
+            background: #000;
+            font-family: sans-serif;
+        }
+        #align-camera[hidden] { display: none; }
+        #align-video {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover; /* keeps the optical centre at the screen centre */
+        }
+        #align-camera.no-video #align-video { display: none; }
+        .align-crosshair {
+            position: absolute;
+            left: 50%; top: 50%;
+            width: 64px; height: 64px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            border: 2px solid rgba(255, 80, 80, 0.9);
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.6);
+        }
+        .align-crosshair::before, .align-crosshair::after {
+            content: '';
+            position: absolute;
+            left: 50%; top: 50%;
+            background: rgba(255, 80, 80, 0.9);
+            transform: translate(-50%, -50%);
+        }
+        .align-crosshair::before { width: 120px; height: 1px; }
+        .align-crosshair::after { width: 1px; height: 120px; }
+        #align-hint {
+            position: absolute;
+            left: 12px; right: 12px;
+            top: calc(12px + env(safe-area-inset-top, 0px));
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.65);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 0.95em;
+            line-height: 1.4;
+            white-space: pre-line;
+        }
+        #align-camera .align-actions {
+            position: absolute;
+            left: 12px; right: 12px;
+            bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            display: flex; gap: 12px;
+        }
+        #align-camera .align-actions button { flex: 1; min-height: 52px; font-size: 17px; }
     </style>
 </head>
 <body>
 <div id="loading">Loading planetarium...</div>
 <canvas id="planetarium"></canvas>
 <button id="ui-toggle" type="button" aria-label="Toggle controls" aria-expanded="false" aria-controls="controls">☰</button>
+<button id="orient-toggle" type="button" aria-label="Point your phone at the sky" aria-pressed="false" title="Point your phone at the sky" hidden>🧭</button>
+<div id="orient-bar" hidden>
+    <span id="orient-status" aria-live="polite"></span>
+    <div class="orient-actions">
+        <button id="orient-align-btn" type="button">Align</button>
+        <button id="orient-unalign-btn" type="button" hidden>Use compass</button>
+    </div>
+</div>
 <div id="info">Drag to rotate. Click a star/planet for info.</div>
 <div id="tracking-info">
     <div class="tracking-header">🎯 Tracking Status</div>
@@ -443,6 +602,7 @@
             <li class="touch-only">Touch: tap a star/planet for info</li>
             <li class="touch-only">Touch: use the ☰ button to show/hide these controls</li>
             <li class="touch-only">Touch: press and hold the magnitude slider for custom values</li>
+            <li class="touch-only">Phone: tap 🧭 and hold your phone up to the sky - the map follows where the back of the phone points. Tap Align and centre a bright object in the camera to correct the compass; align on a second object for the best accuracy. Pinch still zooms; dragging hands control back to your finger</li>
             <li>Adjust magnitude filter to show/hide faint stars</li>
             <li>Toggle "Auto-adjust magnitude on zoom" to link zoom level with star visibility</li>
             <li>Set your latitude/longitude for local sky orientation</li>
@@ -470,6 +630,23 @@
     </div>
 </div>
 <!-- Cursor coordinate labels -->
+<div id="align-picker" hidden>
+    <div class="align-sheet" role="dialog" aria-modal="true" aria-labelledby="align-picker-title">
+        <b id="align-picker-title">Align on a bright object</b>
+        <p>Pick one you can see. You'll centre it in the camera, which corrects the compass. Aligning on a second object, well away from the first, fixes all three axes.</p>
+        <ul id="align-candidates"></ul>
+        <button id="align-picker-cancel" type="button">Cancel</button>
+    </div>
+</div>
+<div id="align-camera" hidden>
+    <video id="align-video" playsinline muted autoplay></video>
+    <div class="align-crosshair" aria-hidden="true"></div>
+    <div id="align-hint" aria-live="polite"></div>
+    <div class="align-actions">
+        <button id="align-cancel" type="button">Cancel</button>
+        <button id="align-lock" type="button">Lock</button>
+    </div>
+</div>
 <div id="cursor-coords"></div>
 <!-- Render statistics HUD (opt-in) -->
 <div id="render-stats"></div>
@@ -499,9 +676,10 @@
 <!-- Star map scripts share one global scope and must load in this order
      (controls.js last: it wires up functions defined in the others).
      Cache-busting query param to ensure latest JS is fetched. -->
-{% set star_map_js_version = '2026-09-22-7' %}
+{% set star_map_js_version = '2026-10-11-1' %}
 {% for module in ['core', 'astronomy', 'time_control', 'catalogue', 'planets', 'overlays',
-                  'render', 'input', 'object_info', 'telescope', 'search', 'controls'] %}
+                  'render', 'input', 'object_info', 'telescope', 'search', 'device_orientation',
+                  'controls'] %}
 <script src="{{ url_for('static', filename='js/star_map/' ~ module ~ '.js') }}?v={{ star_map_js_version }}" defer></script>
 {% endfor %}
 <script>
