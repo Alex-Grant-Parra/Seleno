@@ -64,6 +64,10 @@ class HDSTARtable(BaseTable):
     DEC = db.Column(db.Float, nullable=True)
     V_Mag = db.Column('V-Mag', db.Float, nullable=True)
     commonNames = db.Column(db.Text, nullable=True)
+    # Star-map metadata, see HD_STAR_MAP_COLUMNS below
+    bayer = db.Column(db.Text, nullable=True)
+    variableId = db.Column(db.Text, nullable=True)
+    magSource = db.Column(db.Text, nullable=True)
 
     @staticmethod
     def query_by_name(name):
@@ -140,6 +144,8 @@ class IndexTable(BaseTable):
     RA = db.Column(db.Float, nullable=True)
     DEC = db.Column(db.Float, nullable=True)
     V_Mag = db.Column('V-Mag', db.Float, nullable=True)
+    M = db.Column(db.Float, nullable=True)                  # Messier number
+    Common_names = db.Column('Common names', db.Text, nullable=True)
 
     @staticmethod
     def query_by_name(name):
@@ -165,6 +171,7 @@ class NGCtable(BaseTable):
     DEC = db.Column(db.Float, nullable=True)
     V_Mag = db.Column('V-Mag', db.Float, nullable=True)
     Messier = db.Column(db.String(64), nullable=True)
+    M = db.Column(db.Float, nullable=True)                  # Messier number
     Common_names = db.Column('Common names', db.Text, nullable=True)
 
     @staticmethod

@@ -10,6 +10,7 @@ from datetime import datetime
 import time
 
 from app.telescopeLink import Telescope, current_telescope  # Updated import
+from models import star_catalog
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +98,23 @@ def extract_friendly_common_name(common_names_field: str) -> str:
         return name
     return ''
 
+def _catalog_search_result(entry):
+    """A star_catalog.lookup() entry keyed like the catalogue tables' columns,
+    which is what the search result's detail table has always shown."""
+    name, record = entry["name"], entry["record"]
+    result = {"Name": name, "RA": entry["ra"], "DEC": entry["dec"], "V-Mag": entry["mag"]}
+    names_cell = ", ".join(record.get("aliases", ())) or None
+    if name.upper().startswith("HD"):
+        result["commonNames"] = names_cell
+    else:
+        result["Common names"] = names_cell
+        if record.get("messier"):
+            result["Messier"] = record["messier"]
+    return result
+
+
 @interface_bp.route("/search_object", methods=["POST"])
 def search_object():
-    from models.tables import HDSTARtable, IndexTable, NGCtable
     data = request.json
     search_value = data.get("searchValue", "").strip()
 
@@ -109,34 +124,8 @@ def search_object():
 
     searchableCelestials = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"]
     try:
-        # Normalize search for robust matching
-        raw = search_value
-        norm = raw.strip()
-        norm_upper = norm.upper()
-        # Determine the table based on prefix or content
-        if norm_upper.startswith("HD"):
-            # Accept variations like hd48915 or hd 48915
-            print(f"Querying HDSTARtable (flex) for {norm}")
-            result = HDSTARtable.query_by_name_flexible(norm)
-            if not result:
-                # As a fallback, try exact
-                result = HDSTARtable.query_by_name(norm)
-
-        elif norm_upper.startswith("NGC"):
-            print(f"Querying NGCtable for {search_value}")
-            result = NGCtable.query_by_name(search_value)
-
-        elif norm_upper.startswith("IC"):
-            print(f"Querying IndexTable for {search_value}")
-            result = IndexTable.query_by_name(search_value)
-
-        elif norm_upper.startswith("M") and len(norm_upper) > 1 and norm_upper[1:].isdigit():
-            # Handle Messier objects (e.g., "M1", "m42", "M104")
-            messier_designation = norm_upper
-            print(f"Querying NGCtable for Messier object {messier_designation}")
-            result = NGCtable.query_by_messier(messier_designation)
-
-        elif norm.lower() in searchableCelestials:
+        norm = search_value.strip()
+        if norm.lower() in searchableCelestials:
             search_value = norm.lower()
             now = datetime.utcnow()
             CelestialData = getAllCelestialData(now.year, now.month, now.day, now.hour, now.minute, now.second)
@@ -149,23 +138,18 @@ def search_object():
                 print("Celestial object not found.")
 
         else:
-            print(f"Searching by common name across stars and NGC: {norm}")
-            # Exact alias match first (so "Deneb" doesn't land on Denebola),
-            # then the substring search below
-            from app import star_catalog
-            designation = star_catalog.find_by_proper_name(norm)
-            if designation:
-                result = HDSTARtable.query_by_name(designation)
-
-            if not result:
-                result = HDSTARtable.query_by_common_name(norm)
-            if not result:
-                # Then try NGC common names (exact ilike on full cell)
-                result = NGCtable.query_by_common_name(norm)
-            
-            if not result:
-                print("Object not found by common name")
+            # Designations in any common spelling (HD 48915, NGC224, M31), then
+            # names: exact alias first (so "Deneb" doesn't land on Denebola),
+            # then a name prefix, then a substring of any alias
+            entry = star_catalog.lookup(norm)
+            if entry is None:
+                print(f"Searching by common name across the catalogue: {norm}")
+                designation = star_catalog.find_by_proper_name(norm)
+                entry = star_catalog.lookup(designation) if designation else None
+            if entry is None:
+                print("Object not found")
                 return jsonify({"status": "error", "message": "Object not found"})
+            result = _catalog_search_result(entry)
 
     except ValueError as e:
         print(f"Error during search: {e}")
@@ -185,7 +169,6 @@ def search_object():
 
         # Bayer letter, variable-star ID and displayed name from the catalogue
         try:
-            from app import star_catalog
             record = star_catalog.star_name_record(name) or {}
         except Exception:
             record = {}

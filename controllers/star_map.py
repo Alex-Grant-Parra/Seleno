@@ -2,10 +2,7 @@ import logging
 from flask import Blueprint, Response, jsonify, render_template, request, session
 from datetime import datetime, timezone
 from typing import Optional
-from models.tables import HDSTARtable, IndexTable, NGCtable
-from app.db import db
-from app import star_catalog
-from sqlalchemy import func
+from models import star_catalog
 
 from astrophysics.planetary_model import getAllCelestialData
 from astrophysics.V1_Keplarian.convert import convert
@@ -76,9 +73,7 @@ def loadStarsFromTables(tables=None):
 
 def get_all_celestial_objects(_dt: Optional[datetime] = None):
 
-    tables = [HDSTARtable, IndexTable, NGCtable]
-
-    all_objects = loadStarsFromTables(tables)
+    all_objects = loadStarsFromTables()
 
     # Get celestial objects positions for current UTC date/time
     if _dt is None:
@@ -108,24 +103,6 @@ def get_all_celestial_objects(_dt: Optional[datetime] = None):
 
     return all_objects
 
-
-def _star_magnitude(star, default=None):
-    """Magnitude of an ORM row, or `default` when it is unknown.
-
-    Unknown means NULL, or one of the Henry Draper "not recorded" placeholders
-    (20/30/40/50) that HDSTARTable stores in place of a real magnitude.
-    """
-    value = getattr(star, "V_Mag", None)
-    if value is None:
-        return default
-    try:
-        value = float(value)
-    except Exception:
-        return default
-    is_hd = getattr(type(star), "__tablename__", "") == "HDSTARTable"
-    if is_hd and value in star_catalog.HD_PLACEHOLDER_MAGS:
-        return default
-    return value
 
 @star_map_bp.route("/api/stars")
 def get_stars():
@@ -325,13 +302,12 @@ def get_star_names():
     client can label the brightest ones without another lookup.
     """
     catalog = star_catalog.get_catalog()
-    index = {name: i for i, name in enumerate(catalog.names)}
     entries = []
     for designation, record in star_catalog.get_star_names().items():
         proper = record.get("name")
         if not proper:
             continue
-        i = index.get(designation)
+        i = catalog.find(designation)
         if i is None:
             continue
         mag = catalog.mag[i]
@@ -441,23 +417,6 @@ def star_map():
     selected_telescope = session.get('selected_telescope')
     return render_template("star_map.html", stars=[], selected_telescope=selected_telescope)
 
-def extract_friendly_common_name(common_names_field: str) -> str:
-    # Extract the first friendly name from commonNames field; skip catalog designations
-    if not common_names_field:
-        return ''
-    parts = [p.strip() for p in common_names_field.split(',')]
-    for name in parts:
-        name_upper = name.upper()
-        # Skip catalog designations (HD, NGC, IC, M followed by number)
-        if (name_upper.startswith('HD') or 
-            name_upper.startswith('NGC') or 
-            name_upper.startswith('IC') or 
-            (name_upper.startswith('M') and len(name) > 1 and name[1:].strip().replace(' ', '').isdigit())):
-            continue
-        # Found a friendly name
-        return name
-    return ''
-
 @star_map_bp.route("/star_info/<star_name>")
 def star_info(star_name):
     _now = datetime.utcnow()
@@ -484,39 +443,31 @@ def star_info(star_name):
         }
         return jsonify(_add_celestial_phase_fields(obj_payload, coords))
 
-    tables = [HDSTARtable, IndexTable, NGCtable]
+    # Served from the in-memory catalogue rather than the three tables
+    entry = star_catalog.lookup(star_name)
+    if entry is not None:
+        mag = entry["mag"]  # None when the catalogue has no magnitude
+        record = entry["record"]
 
-    for table in tables:
-        result = table.query.filter_by(Name=star_name).first()
-        if result:
-            mag = _star_magnitude(result)  # None when the catalogue has no magnitude
-            record = star_catalog.star_name_record(result.Name) or {}
-
-            response_data = {
-                "name": result.Name,
-                "ra": float(result.RA) if result.RA is not None else 0,
-                "dec": float(result.DEC) if result.DEC is not None else 0,
-                "mag": mag,
-                "type": "star"
-            }
-            if mag is None:
-                response_data["magUnknown"] = True
-            if record.get("magSource"):
-                # V-Mag was filled in by scripts/import_star_names.py
-                response_data["magSource"] = record["magSource"]
-            if record.get("bayer"):
-                response_data["bayer"] = record["bayer"]
-            if record.get("var"):
-                response_data["variableId"] = record["var"]
-
-            friendly_name = record.get("name")
-            if not friendly_name:
-                common_names_raw = getattr(result, 'commonNames', None) or getattr(result, 'Common_names', None)
-                if common_names_raw:
-                    friendly_name = extract_friendly_common_name(common_names_raw)
-            if friendly_name:
-                response_data['friendlyName'] = friendly_name
-            return jsonify(response_data)
+        response_data = {
+            "name": entry["name"],
+            "ra": entry["ra"],
+            "dec": entry["dec"],
+            "mag": mag,
+            "type": "star"
+        }
+        if mag is None:
+            response_data["magUnknown"] = True
+        if record.get("magSource"):
+            # V-Mag was filled in by scripts/import_star_names.py
+            response_data["magSource"] = record["magSource"]
+        if record.get("bayer"):
+            response_data["bayer"] = record["bayer"]
+        if record.get("var"):
+            response_data["variableId"] = record["var"]
+        if record.get("name"):
+            response_data['friendlyName'] = record["name"]
+        return jsonify(response_data)
 
     return jsonify({"error": "Star not found"}), 404
 

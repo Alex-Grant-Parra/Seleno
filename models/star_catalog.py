@@ -4,7 +4,12 @@ The three catalogue tables (272k Henry Draper stars plus the NGC/IC indexes)
 never change at runtime, so we read them once with a column-only query and keep
 them as flat typed arrays sorted by magnitude. Every star-map request is then a
 slice of those arrays instead of a full ORM scan, and the client can ask for the
-data in a compact binary form rather than 25 MB of JSON.
+data in a compact binary form rather than 25 MB of JSON. Single-object lookups
+(star info, search) go through the same arrays via a designation index, so no
+request reads the catalogue tables.
+
+The arrays hold float64 so lookups return the database's values exactly; the
+binary payload narrows them to float32.
 
 Magnitude handling
 ------------------
@@ -19,7 +24,8 @@ Names and figures
 -----------------
 Proper names come from the catalogue tables' own name columns (HDSTARTable
 `commonNames`, NGC/IC `Common names`), plus the `bayer`, `variableId` and
-`magSource` columns that scripts/import_star_names.py adds to HDSTARTable.
+`magSource` columns that scripts/import_star_names.py adds to HDSTARTable
+(ensure_star_catalogue_schema() creates them at startup, before the warm-up).
 Constellation figures come from ConstellationsTable/ConstellationLinesTable
 (scripts/import_constellations.py), whose lines reference stars by designation.
 Both are built together with the arrays, so they share the catalogue's cache
@@ -30,11 +36,16 @@ import array
 import gzip
 import math
 import os
+import re
 import struct
 import threading
 from bisect import bisect_left, bisect_right
 
-from models.tables import HDSTARtable, IndexTable, NGCtable
+from sqlalchemy import or_
+
+from app.db import db
+from models.tables import (ConstellationLinesTable, ConstellationsTable,
+                           HDSTARtable, IndexTable, NGCtable)
 
 # Magnitudes HDSTARTable uses as "not recorded" placeholders. IndexTable and
 # NGCtable magnitudes are genuine all the way out to ~20.4, so the substitution
@@ -55,9 +66,28 @@ _lock = threading.RLock()
 _catalog = None
 _payload_cache = {}
 
-# Name columns per catalogue table
-_NAME_COLUMNS = {"HDSTARTable": "commonNames", "NGCtable": "Common names", "IndexTable": "Common names"}
-_HD_EXTRA_COLUMNS = ("bayer", "variableId", "magSource")
+# Per catalogue table: its names column, and extra columns as (record key, column)
+_NAME_SOURCES = (
+    (HDSTARtable, HDSTARtable.commonNames, (
+        ("bayer", HDSTARtable.bayer),
+        ("var", HDSTARtable.variableId),
+        ("magSource", HDSTARtable.magSource),
+    )),
+    (NGCtable, NGCtable.Common_names, ()),
+    (IndexTable, IndexTable.Common_names, ()),
+)
+
+
+# Designation spellings that should find the same object: "HD 48915", "hd48915",
+# "NGC 224", "NGC0224"
+_DESIGNATION = re.compile(r"(HD|NGC|IC)0*(\d.*)")
+
+
+def normalize_designation(text):
+    """Index key for a designation: upper case, no spaces, no zero padding."""
+    key = str(text).upper().replace(" ", "")
+    match = _DESIGNATION.fullmatch(key)
+    return match.group(1) + match.group(2) if match else key
 
 
 def split_aliases(cell):
@@ -75,8 +105,8 @@ def is_designation(alias):
 
 
 def get_star_names():
-    """designation -> {name, aliases, bayer?, var?, magSource?} for every named
-    or annotated catalogue object. Shares the catalogue's cache."""
+    """designation -> {name, aliases, bayer?, var?, magSource?, messier?} for
+    every named or annotated catalogue object. Shares the catalogue's cache."""
     return get_catalog().name_records
 
 
@@ -92,20 +122,43 @@ def find_by_proper_name(query):
 
     Any alias counts as an exact match ("Toliman" finds the star displayed as
     "Rigil Kentaurus B"); failing that, a prefix of the displayed name does
-    ("alpha cen" finds "Alpha Centauri A").
+    ("alpha cen" finds "Alpha Centauri A"), and failing that, any alias
+    containing the query ("andromeda" finds "Andromeda Galaxy"). Henry Draper
+    stars are tried before NGC, and NGC before IC.
     """
     needle = (query or "").strip().lower()
     if not needle:
         return None
-    prefix_hit = None
+    prefix_hit = substring_hit = None
     for designation, record in get_star_names().items():
-        aliases = record.get("aliases", ())
-        if any(alias.lower() == needle for alias in aliases):
+        aliases = [alias.lower() for alias in record.get("aliases", ())]
+        if needle in aliases:
             return designation
         name = (record.get("name") or "").lower()
         if prefix_hit is None and name and name.startswith(needle):
             prefix_hit = designation
-    return prefix_hit
+        if substring_hit is None and any(needle in alias for alias in aliases):
+            substring_hit = designation
+    return prefix_hit or substring_hit
+
+
+def lookup(query):
+    """The object a designation names, in any common spelling ("HD 48915",
+    "NGC224", "M31"), as {name, ra, dec, mag, record}. `mag` is None when the
+    catalogue has no magnitude; `record` is its name record, possibly empty.
+    None when nothing matches."""
+    catalog = get_catalog()
+    i = catalog.find(query)
+    if i is None:
+        return None
+    name, mag = catalog.names[i], catalog.mag[i]
+    return {
+        "name": name,
+        "ra": catalog.ra[i],
+        "dec": catalog.dec[i],
+        "mag": None if math.isnan(mag) else mag,
+        "record": catalog.name_records.get(name, {}),
+    }
 
 
 def get_constellations():
@@ -113,34 +166,17 @@ def get_constellations():
     return get_catalog().constellations
 
 
-def _existing_columns(table):
-    from sqlalchemy import text
-    from app.db import db
-    try:
-        return {row[1] for row in db.session.execute(text(f'PRAGMA table_info("{table}")'))}
-    except Exception:
-        return set()
-
-
 def _load_name_records():
     """Names and annotations from the catalogue tables' own columns."""
-    from sqlalchemy import text
-    from app.db import db
-
     records = {}
-    for table, name_column in _NAME_COLUMNS.items():
-        columns = _existing_columns(table)
-        if name_column not in columns:
-            continue
-        extras = [c for c in _HD_EXTRA_COLUMNS if c in columns] if table == "HDSTARTable" else []
-        selected = ", ".join([f'"{name_column}"'] + [f'"{c}"' for c in extras])
-        condition = " OR ".join(f'"{c}" IS NOT NULL' for c in [name_column] + extras)
+    for table, name_column, extras in _NAME_SOURCES:
+        columns = [name_column] + [column for _, column in extras]
         try:
-            rows = db.session.execute(text(
-                f'SELECT Name, {selected} FROM "{table}" WHERE {condition}'
-            )).fetchall()
+            rows = (db.session.query(table.Name, *columns)
+                    .filter(or_(*(column.isnot(None) for column in columns)))
+                    .all())
         except Exception as exc:
-            print(f"star_catalog: could not read names from {table}: {exc}")
+            print(f"star_catalog: could not read names from {table.__tablename__}: {exc}")
             continue
         for row in rows:
             aliases = split_aliases(row[1])
@@ -148,25 +184,46 @@ def _load_name_records():
             record = {"aliases": aliases}
             if names:
                 record["name"] = names[0]
-            for column, value in zip(extras, row[2:]):
+            for (key, _), value in zip(extras, row[2:]):
                 if value:
-                    record["var" if column == "variableId" else column] = value
+                    record[key] = value
             if len(record) > 1 or aliases:
                 records[row[0]] = record
     return records
 
 
+def _load_messier():
+    """Messier number -> catalogue designation. The numeric `M` column is the
+    fuller source; NGCtable's `Messier` text column only fills its gaps."""
+    numbers = {}
+    for table in (NGCtable, IndexTable):
+        try:
+            for name, number in db.session.query(table.Name, table.M).filter(table.M.isnot(None)):
+                numbers.setdefault(int(number), name)
+        except Exception as exc:
+            print(f"star_catalog: could not read Messier numbers from {table.__tablename__}: {exc}")
+    try:
+        for name, label in (db.session.query(NGCtable.Name, NGCtable.Messier)
+                            .filter(NGCtable.Messier.isnot(None))):
+            digits = str(label).upper().replace(" ", "").lstrip("M")
+            if digits.isdigit():
+                numbers.setdefault(int(digits), name)
+    except Exception as exc:
+        print(f"star_catalog: could not read Messier labels from NGCtable: {exc}")
+    return numbers
+
+
 def _load_constellation_rows():
     """(figures, lines) straight from the constellation tables, or empty."""
-    from sqlalchemy import text
-    from app.db import db
     try:
-        figures = db.session.execute(text(
-            'SELECT Abbr, Name, LabelRA, LabelDEC FROM "ConstellationsTable" ORDER BY Name'
-        )).fetchall()
-        lines = db.session.execute(text(
-            'SELECT Constellation, StarA, StarB FROM "ConstellationLinesTable" ORDER BY id'
-        )).fetchall()
+        figures = (db.session.query(ConstellationsTable.Abbr, ConstellationsTable.Name,
+                                    ConstellationsTable.LabelRA, ConstellationsTable.LabelDEC)
+                   .order_by(ConstellationsTable.Name)
+                   .all())
+        lines = (db.session.query(ConstellationLinesTable.Constellation,
+                                  ConstellationLinesTable.StarA, ConstellationLinesTable.StarB)
+                 .order_by(ConstellationLinesTable.id)
+                 .all())
     except Exception:
         return [], []  # tables not created yet: no figures, not an error
     return figures, lines
@@ -194,24 +251,40 @@ def _resolve_constellations(figures, lines, coordinates):
 class StarCatalog:
     """Flat, magnitude-sorted view of every catalogue object."""
 
-    __slots__ = ("names", "ra", "dec", "mag", "count", "known_count", "known_mags",
-                 "min_mag", "max_mag", "version", "name_records", "constellations")
+    __slots__ = ("names", "ra", "dec", "mag", "count", "known_count", "min_mag",
+                 "max_mag", "version", "name_records", "constellations", "index")
 
     def __init__(self, names, ra, dec, mag, known_count, version,
-                 name_records=None, constellations=None):
+                 name_records=None, constellations=None, messier=None):
         self.names = names
         self.ra = ra
         self.dec = dec
         self.mag = mag
         self.count = len(names)
         self.known_count = known_count
-        # Plain list of the known magnitudes, for bisect() band lookups
-        self.known_mags = list(mag[:known_count])
-        self.min_mag = self.known_mags[0] if known_count else -2.0
-        self.max_mag = self.known_mags[-1] if known_count else 20.0
+        self.min_mag = mag[0] if known_count else -2.0
+        self.max_mag = mag[known_count - 1] if known_count else 20.0
         self.version = version
         self.name_records = name_records or {}
         self.constellations = constellations or []
+
+        # normalize_designation(name) -> position. Most names are already
+        # normalised; reusing the name string then saves a copy of each.
+        self.index = {}
+        for i, name in enumerate(names):
+            key = normalize_designation(name)
+            self.index[name if key == name else key] = i
+        for number, designation in (messier or {}).items():
+            i = self.index.get(normalize_designation(designation))
+            if i is not None:
+                self.index[f"M{number}"] = i
+                self.name_records.setdefault(designation, {"aliases": []})["messier"] = f"M{number}"
+
+    def find(self, query):
+        """Position of the object a designation names, or None."""
+        if not query:
+            return None
+        return self.index.get(normalize_designation(query))
 
     @property
     def unknown_count(self):
@@ -221,8 +294,8 @@ class StarCatalog:
         """Index range [lo, hi) of known-magnitude stars inside a band."""
         if not self.known_count:
             return 0, 0
-        lo = bisect_left(self.known_mags, min_mag - 1e-9)
-        hi = bisect_right(self.known_mags, max_mag + 1e-9)
+        lo = bisect_left(self.mag, min_mag - 1e-9, 0, self.known_count)
+        hi = bisect_right(self.mag, max_mag + 1e-9, 0, self.known_count)
         return lo, max(lo, hi)
 
 
@@ -244,8 +317,6 @@ def _catalog_version():
 
 def _rows_from_table(table, placeholders):
     """Yield (mag_or_None, name, ra, dec) using a column-only streaming query."""
-    from app.db import db
-
     query = db.session.query(table.Name, table.RA, table.DEC, table.V_Mag)
     for name, ra_val, dec_val, mag_val in query.yield_per(20000):
         if name is None or ra_val is None or dec_val is None:
@@ -296,9 +367,9 @@ def build_catalog():
 
     total = len(known) + len(unknown)
     names = [""] * total
-    ra_arr = array.array("f", bytes(4 * total))
-    dec_arr = array.array("f", bytes(4 * total))
-    mag_arr = array.array("f", bytes(4 * total))
+    ra_arr = array.array("d", bytes(8 * total))
+    dec_arr = array.array("d", bytes(8 * total))
+    mag_arr = array.array("d", bytes(8 * total))
 
     for i, (mag, name, ra, dec) in enumerate(known):
         names[i] = name
@@ -316,6 +387,7 @@ def build_catalog():
         names, ra_arr, dec_arr, mag_arr, len(known), _catalog_version(),
         name_records=_load_name_records(),
         constellations=_resolve_constellations(figures, figure_lines, figure_coordinates),
+        messier=_load_messier(),
     )
 
 
@@ -368,7 +440,7 @@ def encode_binary(catalog, lo, hi, include_unknown=False, include_names=True):
     out += _HEADER.pack(_MAGIC, _FORMAT_VERSION, flags, count, len(names_blob), hi - lo)
     for group in (pieces_ra, pieces_dec, pieces_mag):
         for piece in group:
-            out += piece.tobytes()
+            out += array.array("f", piece).tobytes()  # float64 -> wire float32
     out += names_blob
     return bytes(out)
 

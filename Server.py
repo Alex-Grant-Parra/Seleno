@@ -421,7 +421,7 @@ with app.app_context():
         def _warm_star_catalog():
             with app.app_context():
                 try:
-                    from app.star_catalog import warm_cache
+                    from models.star_catalog import warm_cache
                     count = warm_cache()
                     print(f"Star catalogue ready ({count} objects)")
                 except Exception as exc:
