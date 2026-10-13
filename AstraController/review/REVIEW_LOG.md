@@ -19,6 +19,59 @@ Purpose: confirm schematic is ready for PCB layout; identify parts/circuits to s
 - [x] 6. Write final findings report (`review/SCHEMATIC_REVIEW.md`) ← **authoritative list; the first-pass list below is superseded**
 - [ ] 7. Discuss part swaps / removals with Alex (no schematic edits made yet) – 4 open questions at end of SCHEMATIC_REVIEW.md
 
+## Alex's answers (2026-10-13)
+1. Host = Pi Zero 2 on J6 port 1 (the Pi is the USB data host but takes its power from the board through the cable). Keep the hub + CH340 for now; may later drop both and use Pi GPIO UART (research separately).
+   → B4 withdrawn: VBUS1→+5V is intentional (it powers the Pi). VBUS_DET→3.3V is OK (host is permanently attached and board-powered).
+2. 3.3 V from a second AP62300: approved (Alex asked for the reasoning).
+3. IMU is external (on the OTA dovetail) → G1 becomes a cable connector to the BNO085 breakout.
+4. Wire U8/J2. Motors = SIMAX3D NEMA17 1.5 A, 6-pin PH, pins 1,3,4,6 used → coil A = 1&3, coil B = 4&6. Keep 6-pin JST-PH (S6 XH suggestion withdrawn).
+5. Single shared UART for both TMCs: approved. **Claude to write the half-duplex UART firmware.**
+6. Motor 1.5 A → 0.15 Ω (1.35 A RMS max) is fine.
+7. LCD = generic ST7735S module (no link) → keep BL on IO5, note to verify.
+8. LEDs are unknown 0805 parts in 5 colours → choose resistors for roughly even brightness.
+9. JLCPCB assembly for hard parts, hand-solder the rest → LCSC part numbers to be picked later.
+Extras: yes to camera-port PTC, USB ESD, 12 V TVS, MCP INTA→ESP32.
+
+## Implementation plan (git base: 201f042 "temp commit")
+Tooling: scratchpad/schedit.py (span-preserving editor; pin-geometry validated 356/356 against the KiCad netlist).
+Verify after each batch: ERC + netlist diff against expected changes.
+- [x] Batch 1 – APPLIED to real file (netlist partition identical to baseline; ERC unchanged). Backup: scratchpad/work/after_b1.kicad_sch. property-only: R25-28 1206 0.5W; L2 → Device:L 3.3uH; D6 BZT52C10 SOD-123; F1 rating; Q1 AO3407A;
+      R29/R30 52.3k/10k; LED R (R/Y 330R, G 150R, B/W 47R); cap voltages; C14 + G1 on board; G1→J5 JST-SH 9p;
+      C34 100nF; Q2/Q3 → MMBT3904; R9 1%
+- [x] Batch 2 – APPLIED (every netlist change audited as intended; ERC = only +5V power flag, which Batch 3 fixes). Backup: scratchpad/work/after_b2.kicad_sch.
+      Also: VCC/AD0/IMU_CS/PS0/CS labels → plain text; U2 hidden stacked supply pins unhidden; nets renamed 1TX→TMC_TX, 1RX/2RX→TMC_UART;
+      IO25=IMU_INT, IO26=IMU_RST, IO39=EXP_INT, IO4=LCD RES, IO2 + GPA7 no-connect. Rewires: SELECT→GPA2; RES→IO4; shared UART (delete R17, U8 PDN→1RX); IO25=IMU_INT, IO26=IMU_RST;
+      MCP INTA→IO39; VCC/AD0 labels→text; U8→J2 + J1 6-pin (1,3,4,6); Y1 crystal fix; delete C18/C20; delete U4/C10
+- [x] Batch 3 – APPLIED. Real-file ERC: 0 errors / 0 warnings. 405/405 connected pins geometry-verified; all remaining open pins reviewed and intentional.
+      New refs: U9 C39 C40 L3 C41 C42 R33 R34 (3V3 buck), C43-C46, R35-R38 (pull-ups), D7 (TVS), F2 (cam PTC), U10/U11 (ESD), #FLG1/2; sheet A3, rev 7.
+      Backup: scratchpad/work/after_b3.kicad_sch. New circuits (sheet → A3, new blocks on right): 3V3 buck (AP62300 31.6k/10k, 3.3uH, 10uF, 2x22uF, 100nF BST, EN shared);
+      TVS SMAJ15A on +12V; PTC on J6 VBUS2 (VBUS_CAM); 2x USBLC6-2SC6; ENN pull-ups x2; IMU_INT pull-up; EXP_INT pull-up;
+      22uF at ESP32; hub decoupling 2x100nF + 4.7uF
+- [ ] Final: ERC, netlist audit, PDF visual check, update SCHEMATIC_REVIEW.md, commit
+- [x] DONE 2026-10-13: hierarchical design installed. Files: ASTRA.kicad_sch (root: 6 sheet boxes + overview), power / mcu / usb /
+      motors / ui / imu .kicad_sch (A4 each). Netlist partition identical to the flat rev 7 (135/135 nets); ERC 0/0 with NO exclusions
+      (cleared 134 stale flat-design exclusions; added PWR_FLAGs on +12V/GND; U2 CRFILT/PLLFILT pin type → passive; 31 explicit no-connects).
+      Readability pre-pass: ESP32EN exit above Q3, IMU reset RC detached from J5 (own IMU_RST label), Q3 fields moved.
+      Flat backup: scratchpad/work/flat_rev7_backup.kicad_sch/.kicad_pro. Generator: scratchpad/hier_prepass.py + hier_build.py.
+      Original plan:
+- [ ] Reorganise into a hierarchical multi-sheet design (Alex chose this 2026-10-13). Root = sheet symbols + notes;
+      sub-sheets Power / MCU / USB / Motors / UI / IMU+expansion (A4 each). Blocks move rigidly; nets crossing sheets become global labels.
+      Acceptance: netlist partition identical to after_b3; ERC clean; PDF check per page.
+      PCB note for Alex: symbol paths change → in "Update PCB from Schematic" tick "Re-link footprints to schematic symbols based on their reference designators".
+- [x] FINAL PRE-PCB REVIEW 2026-10-13 (hierarchical rev 7): PASS, no schematic changes needed.
+      ERC 0/0. 135 nets; all 37 single-pin nets are explicit no-connects. Every footprint resolves and every symbol pin has a pad
+      (extra pads: JST-SH MP tabs + USB2512B NC pins 6-9/18-21 only). Pin tables re-checked against datasheet text:
+      TMC2209 (p9-10), AP62300 TSOT26 (p3), USB2512B CRFILT/PLLFILT "up to 0.1 uF" (p14, now actually verified) + straps 47-100k (p15).
+      AP62300 VFB = 0.800 V (non-T), so 4.98 V / 3.33 V. The AP62300**T** is 0.763 V: do NOT order it.
+      Custom hub QFN footprint: CCW numbering, 0.5 mm pitch, EP 3.7 mm with 4 windowed paste apertures (~50%). Add GND vias in layout.
+      PCB parity vs old ASTRA.kicad_pcb: +25 footprints, -6 (C10 C18 C20 R17 U4 + stale R24), 11 footprint swaps, 137 pad-net changes.
+      Old PCB routing is largely invalid (Q1 S/D, Q2/Q3 TO-92, ESP32 pin moves, crystal). Plan a re-route, not a patch.
+      Open items for Alex: BOM-excluded SW1-7/S1 (JST-SH, 1 mm pitch) are hard to hand-solder; mark the USB port roles on silkscreen;
+      12 V wiring = VH pin 2 positive; LCSC picks (crystal CL 12 pF, SMAJ15A not CA, USB2512B /M2 SQFN, AP62300WU-7).
+- [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
+      it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
+      DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)
+
 ## Verification outcomes (2026-10-13)
 - B6 (CRFILT/PLLFILT 1uF) was **WRONG** (my memory was based on an older datasheet revision). DS00001692C says "up to 0.1 µF or leave unconnected" → downgraded to minor m1 (remove the 10nF caps).
 - M3 (TMC STDBY floating) **resolved**: internal pull-down; leaving it floating is allowed.
