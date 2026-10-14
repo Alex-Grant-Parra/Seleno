@@ -68,6 +68,13 @@ Verify after each batch: ERC + netlist diff against expected changes.
       Old PCB routing is largely invalid (Q1 S/D, Q2/Q3 TO-92, ESP32 pin moves, crystal). Plan a re-route, not a patch.
       Open items for Alex: BOM-excluded SW1-7/S1 (JST-SH, 1 mm pitch) are hard to hand-solder; mark the USB port roles on silkscreen;
       12 V wiring = VH pin 2 positive; LCSC picks (crystal CL 12 pF, SMAJ15A not CA, USB2512B /M2 SQFN, AP62300WU-7).
+- [x] NEW PCB (SELENO v0.3) INSTALLED 2026-10-14:
+      - 85×50 mm, 4 layers, 1.6 mm, JLC04161H-7628 stackup; all parts on top.
+      - In1 is GND. In2 is +3V3 with +12V and +5V islands. GND pours on F.Cu and B.Cu.
+      - Net classes are in `.kicad_pro`.
+      - DRC: 0 errors, schematic parity 0.
+      - 6 nets are left for Alex to route by hand (SCL, TMC_UART, MOSI, DC, 1EN, UART2).
+      - Details: review/PCB_HANDOFF.md. Not committed.
 - [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
       it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
       DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)
