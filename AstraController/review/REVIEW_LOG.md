@@ -68,6 +68,11 @@ Verify after each batch: ERC + netlist diff against expected changes.
       Old PCB routing is largely invalid (Q1 S/D, Q2/Q3 TO-92, ESP32 pin moves, crystal). Plan a re-route, not a patch.
       Open items for Alex: BOM-excluded SW1-7/S1 (JST-SH, 1 mm pitch) are hard to hand-solder; mark the USB port roles on silkscreen;
       12 V wiring = VH pin 2 positive; LCSC picks (crystal CL 12 pF, SMAJ15A not CA, USB2512B /M2 SQFN, AP62300WU-7).
+- [x] 2026-10-14 IMU moved to its own small board (Alex). Removed J4 (2nd Qwiic), J5 (BNO085 9p cable), R20/C34 (IMU reset RC)
+      and R37 (IMU_INT pull-up). J3 (JST-SH 4p: 1 GND, 2 3V3, 3 SDA, 4 SCL) is now the only IMU/I2C connector; the IMU's own
+      R/C go on the IMU board. R7/R8 bus pull-ups stay. IMU_INT/IMU_RST deleted: U5 IO25/IO26 are now explicit no-connects.
+      Notes on root, MCU pin map and IMU sheet updated. ERC 0/0. PCB updated to match (see PCB_HANDOFF.md).
+      Backups: review/backup/*.pre_imu_strip.
 - [x] NEW PCB (SELENO v0.3) INSTALLED 2026-10-14:
       - 85×50 mm, 4 layers, 1.6 mm, JLC04161H-7628 stackup; all parts on top.
       - In1 is GND. In2 is +3V3 with +12V and +5V islands. GND pours on F.Cu and B.Cu.

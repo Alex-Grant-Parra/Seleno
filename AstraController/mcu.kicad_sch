@@ -1724,16 +1724,6 @@
 	)
 	(wire
 		(pts
-			(xy 82.55 77.47) (xy 86.36 77.47)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cfb074e4-4ee9-4a55-b5ef-c88fa9b88a60")
-	)
-	(wire
-		(pts
 			(xy 43.18 34.29) (xy 48.26 34.29)
 		)
 		(stroke
@@ -1741,16 +1731,6 @@
 			(type default)
 		)
 		(uuid "d65186f8-b4b2-4c06-b53f-418419dc8d26")
-	)
-	(wire
-		(pts
-			(xy 82.55 80.01) (xy 86.36 80.01)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d9936644-2ead-4d2f-bfc9-e610131c54ce")
 	)
 	(wire
 		(pts
@@ -2120,28 +2100,6 @@
 			)
 		)
 	)
-	(global_label "IMU_RST"
-		(shape passive)
-		(at 86.36 80.01 0)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "ccf6f94f-72c5-4aec-b637-80d153166776")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 86.36 80.01 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-				(hide yes)
-			)
-		)
-	)
 	(global_label "SCK"
 		(shape passive)
 		(at 86.36 54.61 0)
@@ -2155,28 +2113,6 @@
 		(uuid "d40ec264-2d9a-4354-92d4-3125121ded12")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 86.36 54.61 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-				(hide yes)
-			)
-		)
-	)
-	(global_label "IMU_INT"
-		(shape passive)
-		(at 86.36 77.47 0)
-		(fields_autoplaced yes)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "57dd2622-e6f6-4d71-8fb6-9bad80af795e")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 86.36 77.47 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -3206,6 +3142,14 @@
 				)
 			)
 		)
+	)
+	(no_connect
+		(at 82.55 77.47)
+		(uuid "e7fedcda-0bda-44ff-a435-c6bee0315c12")
+	)
+	(no_connect
+		(at 82.55 80.01)
+		(uuid "85a6b7ce-6ec9-4033-b759-6257052d2c0b")
 	)
 	(no_connect
 		(at 52.07 39.37)
@@ -4369,7 +4313,7 @@
 			)
 		)
 	)
-	(text "ESP32 PIN MAP\nIO1/IO3  UART0 <-> CH340C (UART1/UART2)      IO0/EN  auto-program (Q2/Q3)\nIO32/33  I2C SCL/SDA (R7/R8 4.7k)            IO39    EXP_INT (MCP23017 INTA)\nIO25     IMU_INT                             IO26    IMU_RST\nIO18     TMC_TX (via R16 1k)                 IO19    TMC_UART (both TMC2209, addr 0/1)\nIO17/16/21  M1 STEP/DIR/EN                   IO23/22/27  M2 STEP/DIR/EN\nIO34/35  T1_DIAG/T2_DIAG                     IO14/13  LCD SCK/MOSI\nIO15 LCD DC   IO4 LCD RES   IO5 LCD BL       IO2, IO12: strapping - keep free\nC43 22uF: place at U5 pin 2"
+	(text "ESP32 PIN MAP\nIO1/IO3  UART0 <-> CH340C (UART1/UART2)      IO0/EN  auto-program (Q2/Q3)\nIO32/33  I2C SCL/SDA (R7/R8 4.7k)            IO39    EXP_INT (MCP23017 INTA)\nIO25/26  no-connect (IMU board is I2C-only, J3)\nIO18     TMC_TX (via R16 1k)                 IO19    TMC_UART (both TMC2209, addr 0/1)\nIO17/16/21  M1 STEP/DIR/EN                   IO23/22/27  M2 STEP/DIR/EN\nIO34/35  T1_DIAG/T2_DIAG                     IO14/13  LCD SCK/MOSI\nIO15 LCD DC   IO4 LCD RES   IO5 LCD BL       IO2, IO12: strapping - keep free\nC43 22uF: place at U5 pin 2"
 		(exclude_from_sim no)
 		(at 115 45 0)
 		(effects

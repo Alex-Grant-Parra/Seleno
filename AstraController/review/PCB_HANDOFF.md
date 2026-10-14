@@ -28,7 +28,7 @@
 
 ## Update 2026-10-14 (read this first)
 - Placement is finished and DRC-clean. Changes from the plan below:
-  - R35/R36 (ENN pull-ups) moved to the ESP32 end of 1EN/2EN. R35 is at (70.47, 28.1); R36 is at (62.85, 6.15) and feeds from J5 pin 1.
+  - R35/R36 (ENN pull-ups) moved to the ESP32 end of 1EN/2EN. R35 is at (70.47, 28.1); R36 is at (62.85, 6.15) with its own +3V3 via at (62.2, 5.5).
   - C28/C30 moved to block x 3.7.
   - TP1 (+12V) moved to (1.7, 34) and TP5 (GND) to (1.7, 36.6), by the TVS. TP2/TP4 (+5V/GND) are at the left edge by the USB. TP3 (+3V3) is at (83.45, 12.8).
 - New scripts in `pcb_build/`:
@@ -120,10 +120,10 @@ Start here in a new chat. Read this file, then `review/REVIEW_LOG.md`. The scrip
 | Part | u range | Notes |
 |---|---|---|
 | J6 USB-A stacked, rot −90, anchor (19.0, 13.55) | 6.6–24.4 | Opening on the top edge; body courtyard down to v 18.9 |
-| J4 Qwiic | 31.2–39.1 | |
-| J3 Qwiic | 39.3–47.2 | |
+| J4 Qwiic | 31.2–39.1 | Removed 2026-10-14 |
+| J3 Qwiic | 39.3–47.2 | Now the IMU board's I2C cable (silk "IMU") |
 | S1 LCD | 47.4–59.3 | |
-| J5 IMU | 59.5–72.4 | |
+| J5 IMU | 59.5–72.4 | Removed 2026-10-14 |
 | SW7 reset | 72.5–78.4 | |
 
 The top edge between u 24.4 and 31.2 holds C25, TP11 and TP12.
@@ -220,3 +220,44 @@ The top edge between u 24.4 and 31.2 holds C25, TP11 and TP12.
    - check for KiCad lock files and ask Alex to close KiCad;
    - copy the board into the project and add the netclasses to `ASTRA.kicad_pro`;
    - run final DRC with parity.
+
+## 2026-10-14: hand-routing done, vias moved off pads
+Alex hand-routed the last 6 nets in KiCad. Five of the vias he placed sat in SMD pads: R16.1, and U5 pins 23, 31, 33 and 34.
+These were fixed directly on the installed board with a local rip-up and re-route (not by regenerating the board from scripts):
+- TMC_UART (U5.31 → R16.1) and 1EN (U5.33 → R35.2): now straight F.Cu tracks, with no vias.
+- UART1's left branch: removed from F.Cu under pins 31–35. It now drops to B.Cu at (71.1, 27.15) and runs left under the module at y = 24.
+- UART2: a via just below pin 34.
+- GPIO0: now all on B.Cu at y ≈ 27.4.
+- 2STEP: re-routed below R35.
+- DC: the via is now beside pin 23 at (57.9, 19.76). RES and BL jog left by about 0.6 mm to make room.
+
+Result: DRC 0 errors, 0 unconnected, parity 0. No vias in any pad, apart from the intended thermal vias in U1 and U2.
+The tool is `scratchpad/lroute.py`; the delete and re-route list is `ops2.json`. The board before the fix is in `scratchpad/backup/ASTRA.kicad_pcb.alex_viainpad`.
+
+## 2026-10-14: minimum drill raised to 0.3 mm (JLC cost)
+At JLC, a 0.2 mm hole forces extra testing: £35 instead of £6. Every 0.2 mm drill is now 0.3 mm, and the copper diameters are unchanged:
+- 42 board vias: now 0.45/0.3. They were 0.45/0.2.
+- 44 footprint thermal vias: U5 (12), U7 (16) and U8 (16), now with 0.3 mm drills.
+
+Rules in `ASTRA.kicad_pro`: min via annular ring is now 0.075 mm (was 0.1). Min through-hole is now 0.3 mm (was 0.2). The 0.45/0.2 via preset is now 0.45/0.3.
+
+Result: zones refilled, DRC 0 errors, 0 unconnected. The 16 warnings are all `lib_footprint_mismatch`: the 13 test pads, plus U5, U7 and U8. Those three are stock KiCad footprints, so "Update footprints from library" would bring back the 0.2 mm holes.
+
+The `pcb_build/` scripts (`rules.py`, `route.py`, `hand.py`) still use 0.45/0.2 vias. Update them before any rebuild.
+
+JLC order setting: "Min via hole size" is 0.3mm/(0.4/0.45mm).
+
+The board before this change is in `review/backup/ASTRA.kicad_pcb.pre_0p3drill`, along with the matching `.kicad_pro`.
+
+## 2026-10-14: J4, J5 and the IMU passives removed (IMU moves to its own board)
+Alex: the IMU goes on a separate small board, so this board keeps only one JST-SH 1x4 connector (3V3, GND, SDA, SCL).
+- **Removed:** J4 (second Qwiic), J5 (BNO085 9-pin cable), R20/C34 (IMU reset RC), R37 (IMU_INT pull-up). Schematic and board both.
+- **J3 stays** where it was: pin 1 GND, 2 3V3, 3 SDA, 4 SCL. Its silk label is now "IMU" (was "QWIIC"). R7/R8 bus pull-ups stay.
+- **IMU_INT / IMU_RST are gone.** U5 IO25/IO26 (pads 10/11) are no-connects in the schematic and on the board; their tracks are deleted.
+- **I2C bus repair.** The bus was daisy-chained through the connector pads, so it was patched by hand rather than with a dangling-track prune (a prune eats J3's feed):
+  - SCL: J4.4 and J5.3 were stubs off B.Cu junction vias. Stubs deleted. The vias at (36.2, 3.0) and (63.6, 5.1) became single-layer, so each was replaced by a 0.2 mm B.Cu joint.
+  - SDA: J4.3 and J5.4 were pass-throughs. Bridged on F.Cu: (35.0, 5.3)-(36.3, 5.3), and (64.5, 3.0)-(65.1, 3.6)-(65.1, 6.1).
+  - +3V3/GND stubs at the removed pads and their plane vias were deleted. The +3V3 via at (79.7, 17.8) stays, because R8.1 uses it.
+- **Result:** ERC 0. DRC 0 errors, 0 unconnected, 0 parity. The 16 warnings are the same `lib_footprint_mismatch` set as before.
+- **Backups:** `review/backup/*.pre_imu_strip` (board, root, imu and mcu sheets).
+- **Build scripts are now stale for these parts.** `place.py` still places J4/J5/R20/C34/R37, and `finish.py` still writes the J5 "IMU" label. Fix both before any rebuild from scripts (which would also wipe the hand routing).

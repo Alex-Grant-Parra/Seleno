@@ -297,7 +297,7 @@
 			)
 		)
 	)
-	(text "J5 BNO085 cable, J3/J4 Qwiic,\nIMU reset/INT pull-ups"
+	(text "J3: I2C cable to the IMU board\n(GND, 3V3, SDA, SCL)"
 		(exclude_from_sim no)
 		(at 192.54 98.81 0)
 		(effects
@@ -354,7 +354,7 @@
 			)
 		)
 	)
-	(text "ASTRA Telescope Node - controller board, rev 7\nPower: 12V in, protection, 5V + 3.3V bucks      MCU: ESP32-WROOM-32UE\nUSB & Serial: USB2512B hub (Pi Zero 2 host), CH340C, ESD, camera port\nMotors: 2x TMC2209 on one shared UART           User Interface: MCP23017 buttons/LEDs, ST7735S LCD\nIMU & Expansion: BNO085 cable connector, 2x Qwiic\nNets that cross sheets use global labels; power rails use power symbols."
+	(text "ASTRA Telescope Node - controller board, rev 7\nPower: 12V in, protection, 5V + 3.3V bucks      MCU: ESP32-WROOM-32UE\nUSB & Serial: USB2512B hub (Pi Zero 2 host), CH340C, ESD, camera port\nMotors: 2x TMC2209 on one shared UART           User Interface: MCP23017 buttons/LEDs, ST7735S LCD\nIMU & Expansion: J3, JST-SH 4p I2C cable to the IMU board\nNets that cross sheets use global labels; power rails use power symbols."
 		(exclude_from_sim no)
 		(at 30 150 0)
 		(effects
