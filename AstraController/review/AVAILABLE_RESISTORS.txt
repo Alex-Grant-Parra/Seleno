@@ -1,0 +1,36 @@
+AVAILABLE RESISTOR VALUES (JLC, no loading fee)
+===============================================
+Recorded 2026-10-14 from Alex's JLC parts-search screenshots.
+Package not shown in the screenshots; assumed 0402 (what the board uses).
+Values shown highlighted in blue on the page: 0R, 100R, 510R, 5.1k, 49.9k, 200k.
+(Unknown why they were highlighted; check this if it matters.)
+
+Ohms:   0R, 1R, 10R, 22R, 33R, 47R, 49.9R, 51R, 75R, 100R, 120R, 150R,
+        200R, 220R, 300R, 330R, 470R, 510R
+kOhms:  1k, 1.2k, 1.5k, 2k, 2.2k, 2.4k, 3.3k, 3.9k, 4.7k, 5.1k, 5.6k,
+        6.8k, 7.5k, 8.2k, 10k, 12k, 15k, 18k, 20k, 22k, 24k, 27k, 33k,
+        39k, 47k, 49.9k, 51k, 56k, 68k, 75k
+High:   100k, 120k, 150k, 200k, 220k, 300k, 330k, 470k, 510k, 1M, 10M
+
+NOT available (common E24 values missing from the list):
+        3k, 6.2k, 9.1k, 11k, 13k, 16k, 30k, 31.6k, 36k, 43k, 52.3k, 62k, 82k, 91k
+
+Every other resistor value already on the board is in this list
+(47R, 150R, 330R, 1k, 4.7k, 6.8k, 10k, 12k, 47k, 100k).
+
+
+AP62300 FEEDBACK DIVIDERS (Vout = 0.8V x (1 + Rtop/Rbot))
+--------------------------------------------------------
+Best pairs from the values above:
+
+3.3V rail (U9, R33 top / R34 bottom), target ratio 3.125
+  75k / 24k   -> 3.300V
+  47k / 15k   -> 3.307V   <- recommended (47k already on the board)
+  56k / 18k   -> 3.289V
+  68k / 22k   -> 3.273V
+  24k / 7.5k  -> 3.360V
+
+5V rail (U6, R29 top / R30 bottom), target ratio 5.25
+  27k / 5.1k  -> 5.035V   <- recommended
+  39k / 7.5k  -> 4.960V
+  51k / 10k   -> 4.880V   (OK but low)

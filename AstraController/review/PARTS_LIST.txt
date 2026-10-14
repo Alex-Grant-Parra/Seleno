@@ -1,0 +1,190 @@
+ASTRA CONTROLLER - PCB PARTS LIST
+=================================
+Generated 2026-10-14 from ASTRA.kicad_sch (BOM export) and ASTRA.kicad_pcb.
+
+Totals: 102 placed parts in 50 line items, plus 10 more parts that are
+excluded from the KiCad BOM but still have to be bought (section 9).
+H1-H4 (mounting holes) and TP1-TP13 (test pads) are board-only copper:
+nothing to buy.
+
+Sourcing plan:
+  - JLC basic / promotional extended parts (no loading fee)
+  - All QFN chips from JLC, even if extended ($3 loading fee per part type)
+  - ESP32 (and maybe a few others) from personal supplies
+  - Everything else from AliExpress
+
+The "Source" column is a first guess based on those rules. LCSC part numbers
+and basic/extended status are NOT verified yet. "Check" = needs a lookup.
+
+
+1. CAPACITORS (39 SMD + 1 THT)
+------------------------------
+Value                         Pkg     Qty  Refs                                   Source
+100nF (no voltage given)      0402    17   C3,4,6,9,11-14,16,17,19,21,22,36,      JLC basic
+                                           40,44,45
+100nF 50V                     0402     2   C2, C32                                JLC basic
+100nF 25V                     0402     2   C26, C29                               JLC basic
+22nF 50V                      0402     2   C28, C30                               JLC basic
+18pF                          0402     2   C23, C24                               JLC basic
+1uF                           0402     1   C7                                     JLC basic
+2.2uF 16V                     0603     2   C27, C31                               JLC basic
+4.7uF 10V                     0603     1   C46                                    JLC basic
+10uF (no voltage given)       0805     3   C15, C25, C33                          JLC basic
+22uF 10V                      0805     5   C37, C38, C41-43                       JLC basic
+10uF 25V                      1206     2   C35, C39                               JLC basic
+680uF 25V low-ESR electrolyt. THT radial 10mm dia, 5mm pitch
+                                       1   C1                                     AliExpress, hand-solder
+
+
+2. RESISTORS (34)
+-----------------
+Value                         Pkg     Qty  Refs                                   Source
+10k                           0402     9   R6,10,19,21,22,23,35,36,38             JLC basic
+10k 1%                        0402     2   R30, R34                               JLC basic
+47k                           0402     5   R12-15, R31                            JLC basic
+100k                          0402     2   R11, R18                               JLC basic
+4.7k                          0402     2   R7, R8                                 JLC basic
+330R                          0402     2   R1, R5                                 JLC basic
+47R                           0402     2   R3, R4                                 JLC basic
+150R                          0402     1   R2                                     JLC basic
+1k                            0402     1   R16                                    JLC basic
+6.8k                          0402     1   R32                                    JLC basic
+12k 1%                        0402     1   R9                                     JLC basic
+31.6k 1%                      0402     1   R33                                    Check (may be extended)
+52.3k 1%                      0402     1   R29                                    Check (may be extended)
+0.15R 0.5W 1% (current sense) 1206     4   R25-R28                                Check (may be extended)
+
+
+3. DIODES AND LEDS (7)
+----------------------
+Part                          Pkg     Qty  Refs                                   Source
+LED red                       0805     1   D1                                     JLC basic
+LED green                     0805     1   D2                                     JLC basic
+LED white                     0805     1   D3                                     JLC basic
+LED blue                      0805     1   D4                                     JLC basic
+LED yellow                    0805     1   D5                                     JLC basic
+BZT52C10 (10V Zener)          SOD-123  1   D6                                     JLC basic
+SMAJ15A (TVS diode)           SMA      1   D7                                     JLC promo
+
+
+4. TRANSISTORS (3)
+------------------
+Part                          Pkg     Qty  Refs                                   Source
+AO3407A (P-channel MOSFET)    SOT-23   1   Q1                                     JLC basic
+MMBT3904 (NPN)                SOT-23   2   Q2, Q3                                 JLC basic
+
+
+5. ICS AND MODULES (10)
+-----------------------
+Part                          Pkg       Qty  Refs                                 Source
+TMC2209-LA (stepper driver)   VQFN-28    2   U7, U8                               JLC, QFN rule (extended)
+MCP23017-E/ML (I/O expander)  QFN-28     1   U1                                   JLC, QFN rule (extended)
+USB2512B (USB hub)            SQFN-36    1   U2                                   JLC, QFN rule (extended)
+CH340C (USB-serial)           SOIC-16    1   U3                                   JLC (prob. extended) or AliExpress
+AP62300WU (3A buck)           TSOT-23-6  2   U6, U9                               JLC (prob. extended)
+USBLC6-2SC6 (USB ESD)         SOT-23-6   2   U10, U11                             JLC basic or promo
+ESP32-WROOM-32UE              Module     1   U5                                   Personal supplies
+
+
+6. POWER PASSIVES (4)
+---------------------
+Part                          Pkg       Qty  Refs                                 Source
+3.3uH inductor, Wurth         WE-PD M/S  2   L2, L3                               Personal Supplies
+  7447789003 (Isat 4.2A)
+PTC fuse 3A hold, 16V+        2920       1   F1                                   Check
+PTC fuse 0.75A hold, 6V+      1206       1   F2                                   JLC basic or promo
+
+
+7. CRYSTAL (1)
+--------------
+Part                          Pkg       Qty  Refs                                 Source
+24MHz crystal, 12pF load      3225 4-pin 1   Y1                                   JLC extended: C70590 (YXC X322524MOB4SI) - DECIDED
+
+
+8. CONNECTORS IN THE BOM (4)
+----------------------------
+Part                          Footprint       Qty  Refs                           Source
+JST PH 6-pin vertical         B6B-PH-K         2   J1, J2 (stepper motors)        AliExpress, hand-solder
+JST SH 4-pin vertical         BM04B-SRSS-TB    1   J3                             AliExpress or JLC
+USB-A stacked, through-hole   CUI UJ2-ADH-TH   1   J6                             AliExpress, hand-solder
+
+
+9. PARTS EXCLUDED FROM THE KICAD BOM (10) - STILL NEED BUYING
+-------------------------------------------------------------
+Part                          Footprint       Qty  Refs        Notes
+JST SH 2-pin vertical         BM02B-SRSS-TB    7   SW1-SW7     Off-board button headers (TOP, BOTTOM,
+                                                               LEFT, RIGHT, SELECT, RETURN, RESET)
+JST SH 8-pin vertical         BM08B-SRSS-TB    1   S1          ST7735S LCD header
+JST VH 2-pin vertical         B2P-VH           1   P1          12V power input
+680uF 25V electrolytic        10mm radial      1   C1          Listed in section 1
+
+Also needed but off the board: the 7 buttons, the ST7735S LCD, and the
+matching JST cable housings/crimps.
+
+
+WAYS TO REDUCE PART TYPES
+-------------------------
+- 100nF: three versions (no voltage, 25V, 50V), 21 total. One 50V 0402 part
+  can cover all of them.
+- 10k: plain 10k and 10k 1% can be one part (JLC basic resistors are already
+  1%). 11 total.
+- 10uF 0805: C15, C25, C33 have no voltage rating. Check which rail each sits
+  on before picking a part.
+
+
+LOADING FEE ESTIMATE
+--------------------
+QFN parts (TMC2209, MCP23017, USB2512B) + Y1 crystal (C70590): 4 types x $3 = ~$12.
+CH340C and AP62300WU are likely extended too: +~$6 unless JLC has them as
+promotional extended parts or they're sourced elsewhere.
+
+
+NEXT STEP
+---------
+Look up actual LCSC part numbers and basic/extended status for each line,
+resolving the "Check" entries.
+
+
+=====================================================================
+NON-BASIC PARTS (extended / maybe promo / AliExpress / personal)
+=====================================================================
+Everything not expected to be JLC basic. Not yet verified against LCSC.
+
+A. EXTENDED, BUY FROM JLC UNDER THE QFN RULE ($3 loading fee per type)
+Part                          Qty  Refs        Notes
+TMC2209-LA (VQFN-28)           2   U7, U8
+MCP23017-E/ML (QFN-28)         1   U1
+USB2512B (SQFN-36)             1   U2
+
+B. PROBABLY EXTENDED - CHECK FOR PROMO
+Part                          Qty  Refs        Fallback if paid extended
+AP62300WU buck (TSOT-23-6)     2   U6, U9      Pay the $3, or AliExpress
+CH340C (SOIC-16)               1   U3          AliExpress (easy hand-solder)
+3.3uH Wurth 7447789003         2   L2, L3      Cheaper equiv, same footprint, Isat >= 4A
+0.15R 0.5W 1% (1206)           4   R25-R28     AliExpress
+31.6k 1% (0402)                1   R33         Nearest basic value if feedback math allows
+52.3k 1% (0402)                1   R29         Same as above
+SMAJ15A TVS (SMA)              1   D7          AliExpress
+PTC fuse 3A hold (2920)        1   F1          AliExpress
+
+C. COULD BE BASIC OR PROMO - CHECK FIRST
+Part                          Qty  Refs
+BZT52C10 Zener (SOD-123)       1   D6
+USBLC6-2SC6 (SOT-23-6)         2   U10, U11
+PTC fuse 0.75A hold (1206)     1   F2
+24MHz crystal C70590           1   Y1          DECIDED: JLC extended (no basic 24MHz exists)
+
+D. ALIEXPRESS, HAND-SOLDER (through-hole parts and connectors)
+Part                          Qty  Refs
+680uF 25V low-ESR electrolytic 1   C1          (10mm radial, 5mm pitch)
+JST PH 6-pin vertical          2   J1, J2
+JST SH 4-pin vertical          1   J3
+JST SH 2-pin vertical          7   SW1-SW7
+JST SH 8-pin vertical          1   S1
+JST VH 2-pin vertical          1   P1
+USB-A stacked, through-hole    1   J6
+(JST SH headers are SMD, so JLC could place them, but likely extended.)
+
+E. PERSONAL SUPPLIES
+Part                          Qty  Refs
+ESP32-WROOM-32UE               1   U5
