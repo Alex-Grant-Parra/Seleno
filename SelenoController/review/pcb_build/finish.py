@@ -169,7 +169,7 @@ def replace_stackup(path):
 
 
 if __name__ == '__main__':
-    path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(WORK, 'ASTRA.kicad_pcb')
+    path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(WORK, 'SELENO.kicad_pcb')
     b = pcbnew.LoadBoard(path)
     silk(b)
     pcbnew.SaveBoard(path, b)

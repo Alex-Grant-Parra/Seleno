@@ -5,7 +5,7 @@
 	(uuid "b5ed9a09-c593-4f23-9cbf-a235c2c98de3")
 	(paper "A4")
 	(title_block
-		(title "ASTRA Telescope Node")
+		(title "SELENO Telescope Node")
 		(date "2026-09-11")
 		(rev "6")
 		(comment 1 "Author: Alex Grant-Parra")
@@ -11513,7 +11513,7 @@
 			(uuid "12c7d057-9732-4779-92b7-7acff5a6b545")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR03")
 					(unit 1)
@@ -11591,7 +11591,7 @@
 			(uuid "0c767397-e132-49fe-8e33-98bedfcd3432")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR069")
 					(unit 1)
@@ -11668,7 +11668,7 @@
 			(uuid "35512f99-f8c1-4e92-9c47-91a9a1e254ca")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR090")
 					(unit 1)
@@ -11791,7 +11791,7 @@
 			(uuid "e6623e6c-fd5a-4a8b-a5e3-23376d51f963")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R23")
 					(unit 1)
@@ -11868,7 +11868,7 @@
 			(uuid "9959e1ed-0663-42cd-84de-6df32065df31")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR088")
 					(unit 1)
@@ -11991,7 +11991,7 @@
 			(uuid "03d5e959-c4a5-4f2a-a7ea-ffcd84707b2d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R24")
 					(unit 1)
@@ -12114,7 +12114,7 @@
 			(uuid "fe645ff7-8087-4e7a-8297-3a5582534154")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R17")
 					(unit 1)
@@ -12237,7 +12237,7 @@
 			(uuid "fa5dc329-c983-4e36-8140-2a939f2e7318")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R13")
 					(unit 1)
@@ -12360,7 +12360,7 @@
 			(uuid "3631ed32-bb2f-4b16-822b-8df6e90fd3d4")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R7")
 					(unit 1)
@@ -12437,7 +12437,7 @@
 			(uuid "457bfda5-44ae-4a87-9ed0-2a41ed60a3a5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR012")
 					(unit 1)
@@ -12562,7 +12562,7 @@
 			(uuid "4a005df3-8ab3-46eb-ad22-48f069399b87")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C10")
 					(unit 1)
@@ -12640,7 +12640,7 @@
 			(uuid "dcdcac9e-60ca-4f98-85bc-5527a2082598")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR063")
 					(unit 1)
@@ -12718,7 +12718,7 @@
 			(uuid "1611acec-e2dd-4191-a769-4aead2217bd8")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0108")
 					(unit 1)
@@ -12841,7 +12841,7 @@
 			(uuid "979595b9-351a-48e4-bcb1-94956202128a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R3")
 					(unit 1)
@@ -12919,7 +12919,7 @@
 			(uuid "b2c24096-f2d4-450d-9d9e-b89896640f6b")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR09")
 					(unit 1)
@@ -12997,7 +12997,7 @@
 			(uuid "a8c938e9-14e1-4077-b4a1-b78ce183b4ba")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR014")
 					(unit 1)
@@ -13075,7 +13075,7 @@
 			(uuid "885767d5-a203-4d14-91f1-1585a523f454")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR050")
 					(unit 1)
@@ -13200,7 +13200,7 @@
 			(uuid "64b09a9e-563b-45e9-9a50-bfb20df5268a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C6")
 					(unit 1)
@@ -13279,7 +13279,7 @@
 			(uuid "171859cc-d18b-4748-83f2-f5d82ad6f2a6")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR035")
 					(unit 1)
@@ -13358,7 +13358,7 @@
 			(uuid "05530767-ee07-4ea7-a5a3-a0538db86d75")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR049")
 					(unit 1)
@@ -13444,7 +13444,7 @@
 			(uuid "782d5440-a070-47b2-b4f6-75bf469271b5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "Q1")
 					(unit 1)
@@ -13522,7 +13522,7 @@
 			(uuid "68eeeae0-b343-4c00-b1f7-3c16efd2cf1d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR045")
 					(unit 1)
@@ -13563,7 +13563,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "ASTRAfootprints:Quadruple 1x02 screw connector"
+		(property "Footprint" "SELENOfootprints:Quadruple 1x02 screw connector"
 			(at 175.26 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -13665,7 +13665,7 @@
 			(uuid "1ea03e78-624c-4354-9273-79ec7f0c461c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "S1")
 					(unit 1)
@@ -13743,7 +13743,7 @@
 			(uuid "f4660b44-dd4f-484a-aeda-b11161dbb12b")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR05")
 					(unit 1)
@@ -13868,7 +13868,7 @@
 			(uuid "0b88757a-294e-4037-a61c-1ca12a4e74e7")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C28")
 					(unit 1)
@@ -13994,7 +13994,7 @@
 			(uuid "f4029a6f-e0ea-4b66-89cd-cb89e53700a9")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "P1")
 					(unit 1)
@@ -14117,7 +14117,7 @@
 			(uuid "dda18bf0-b8a0-4025-a0a0-6c597b2ec632")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R20")
 					(unit 1)
@@ -14195,7 +14195,7 @@
 			(uuid "3a124c51-2a59-4cab-87d2-363b9f649507")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR080")
 					(unit 1)
@@ -14272,7 +14272,7 @@
 			(uuid "a56ce353-5e4b-46ae-a2ce-141528e73443")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR089")
 					(unit 1)
@@ -14397,7 +14397,7 @@
 			(uuid "9fa6431e-3716-4c99-8efa-f51466f50c7b")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C2")
 					(unit 1)
@@ -14474,7 +14474,7 @@
 			(uuid "29dc4718-0a10-4038-af3a-5d61350c41ce")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR057")
 					(unit 1)
@@ -14553,7 +14553,7 @@
 			(uuid "4eeda372-3f3f-4712-87f0-896d9fe34d16")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR071")
 					(unit 1)
@@ -14631,7 +14631,7 @@
 			(uuid "581f908e-678b-41f5-ade7-01768eb8e770")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR07")
 					(unit 1)
@@ -14765,7 +14765,7 @@
 			(uuid "bbb1a0a6-20c8-4135-98e5-d6aaf7a64a27")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "D4")
 					(unit 1)
@@ -14890,7 +14890,7 @@
 			(uuid "0f51824d-f77e-4355-a781-447b20cac266")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C15")
 					(unit 1)
@@ -14969,7 +14969,7 @@
 			(uuid "9d810049-0e1b-4e54-9d4c-35278afd335d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR08")
 					(unit 1)
@@ -15047,7 +15047,7 @@
 			(uuid "f9aa66c6-9a83-41a8-97c0-a5cc7d863633")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR074")
 					(unit 1)
@@ -15125,7 +15125,7 @@
 			(uuid "e91a0e9a-e7bf-4b40-9263-9643a36d0324")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0102")
 					(unit 1)
@@ -15233,7 +15233,7 @@
 			(uuid "9b3ff49a-2395-4b31-bc17-99033d00fcac")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "Q3")
 					(unit 1)
@@ -15358,7 +15358,7 @@
 			(uuid "7b6820bd-af1b-4594-ba23-8893fca12998")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C30")
 					(unit 1)
@@ -15436,7 +15436,7 @@
 			(uuid "920939b2-1d58-4ed2-b538-45ee4b090944")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR015")
 					(unit 1)
@@ -15515,7 +15515,7 @@
 			(uuid "d625fd83-7762-4fb5-9521-aa286c9d6755")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR024")
 					(unit 1)
@@ -15640,7 +15640,7 @@
 			(uuid "2624981b-cfdf-4a83-9e98-894d386c348f")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C32")
 					(unit 1)
@@ -15719,7 +15719,7 @@
 			(uuid "c24e41a8-43b6-4195-bba2-ec2e4317cba7")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR053")
 					(unit 1)
@@ -15842,7 +15842,7 @@
 			(uuid "d8da423d-3605-4fea-815b-c21b7321b42d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R1")
 					(unit 1)
@@ -15920,7 +15920,7 @@
 			(uuid "625c5a6e-5e43-49f5-8ccc-ae0660d9e108")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR061")
 					(unit 1)
@@ -16043,7 +16043,7 @@
 			(uuid "1d8b45bb-2022-4170-a8c9-28f3c53fa1d6")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R8")
 					(unit 1)
@@ -16122,7 +16122,7 @@
 			(uuid "74deedbc-ce49-44dc-ba04-3e5b32d7164f")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR036")
 					(unit 1)
@@ -16200,7 +16200,7 @@
 			(uuid "19b03a4d-6f83-4fea-a067-c6fb850ff411")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR098")
 					(unit 1)
@@ -16323,7 +16323,7 @@
 			(uuid "d7758962-89bb-4cea-b6ab-480eafea5ef3")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R15")
 					(unit 1)
@@ -16448,7 +16448,7 @@
 			(uuid "232bf36c-e9d0-4a27-8f00-b63110c9f998")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C22")
 					(unit 1)
@@ -16581,7 +16581,7 @@
 			(uuid "b651b862-1853-408e-871d-d3c5734f61c5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "U4")
 					(unit 1)
@@ -16704,7 +16704,7 @@
 			(uuid "dd05727d-f988-47b3-a903-a146d3519ea9")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R11")
 					(unit 1)
@@ -16782,7 +16782,7 @@
 			(uuid "511a25d9-c108-4445-ad4d-70b2a5f7749b")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR096")
 					(unit 1)
@@ -16860,7 +16860,7 @@
 			(uuid "18259ce3-c765-4a77-8871-f1f7abcf7655")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR099")
 					(unit 1)
@@ -16937,7 +16937,7 @@
 			(uuid "587b3956-7957-491f-9e09-91e3b35139cd")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR091")
 					(unit 1)
@@ -17014,7 +17014,7 @@
 			(uuid "367b4b53-92af-4d98-b694-9abbdbc22acc")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR032")
 					(unit 1)
@@ -17091,7 +17091,7 @@
 			(uuid "ad5c566a-8fdd-490e-9fa6-6b1720006144")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0101")
 					(unit 1)
@@ -17169,7 +17169,7 @@
 			(uuid "c8c6a616-6e61-40c3-a2ed-271c5e612f73")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR047")
 					(unit 1)
@@ -17247,7 +17247,7 @@
 			(uuid "eaf90d50-629f-4277-90c6-64200b0d538a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR017")
 					(unit 1)
@@ -17325,7 +17325,7 @@
 			(uuid "b45d178e-b52b-4e85-a89c-768d055b795c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR072")
 					(unit 1)
@@ -17438,7 +17438,7 @@
 			(uuid "2cad03de-9e8d-429b-a9da-51f6637bb7be")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "Y1")
 					(unit 1)
@@ -17564,7 +17564,7 @@
 			(uuid "d820aa4c-0d38-44d2-b027-99f1c524dec4")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "SW4")
 					(unit 1)
@@ -17687,7 +17687,7 @@
 			(uuid "00a895d0-3c40-48de-b466-2fa6eefe70d4")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R21")
 					(unit 1)
@@ -17764,7 +17764,7 @@
 			(uuid "79495c93-2b0a-4f21-886b-805fc5712ca2")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR075")
 					(unit 1)
@@ -17841,7 +17841,7 @@
 			(uuid "bf445401-11b0-4814-ac0c-b2d32428927c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR076")
 					(unit 1)
@@ -17964,7 +17964,7 @@
 			(uuid "89a7d0d8-2024-4bc7-a427-f1503b62c0f8")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R18")
 					(unit 1)
@@ -18041,7 +18041,7 @@
 			(uuid "b228648a-0559-4eb0-9f7b-0fbcc562c761")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR078")
 					(unit 1)
@@ -18210,7 +18210,7 @@
 			(uuid "1949e534-1b66-4760-9ce4-9e576d6005ba")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "U3")
 					(unit 1)
@@ -18335,7 +18335,7 @@
 			(uuid "72f942ca-fd4e-4104-baa1-52ed871f5640")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C11")
 					(unit 1)
@@ -18460,7 +18460,7 @@
 			(uuid "45c5eef8-dfab-4230-8e1d-955f1568a367")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C9")
 					(unit 1)
@@ -18604,7 +18604,7 @@
 			(uuid "e5ad5483-690d-408e-a63c-647986a44ab1")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "J2")
 					(unit 1)
@@ -18729,7 +18729,7 @@
 			(uuid "3a80aa53-7838-4480-98e1-5f0402501623")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C4")
 					(unit 1)
@@ -18808,7 +18808,7 @@
 			(uuid "0e8f452f-e242-4832-ab65-78273ff878eb")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR030")
 					(unit 1)
@@ -18885,7 +18885,7 @@
 			(uuid "46c12ef9-3fda-4d81-ab62-e50afa745594")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR097")
 					(unit 1)
@@ -19010,7 +19010,7 @@
 			(uuid "7e913e3b-1c98-4188-afa9-c4d4da9c2f0c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C18")
 					(unit 1)
@@ -19089,7 +19089,7 @@
 			(uuid "e1ad142c-8ef2-4cd2-a162-eb617b08ed2e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR064")
 					(unit 1)
@@ -19212,7 +19212,7 @@
 			(uuid "b9b3f62a-d939-4614-8309-7b1126900360")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R19")
 					(unit 1)
@@ -19291,7 +19291,7 @@
 			(uuid "864a1871-84ec-49af-90a5-8c68b95a19b6")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR039")
 					(unit 1)
@@ -19416,7 +19416,7 @@
 			(uuid "78d543f3-d231-4680-b2bd-afd5b41400ee")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C3")
 					(unit 1)
@@ -19494,7 +19494,7 @@
 			(uuid "c9f57724-0210-4b79-94a3-de119c8aca94")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR016")
 					(unit 1)
@@ -19571,7 +19571,7 @@
 			(uuid "3c7cadc4-e93f-4646-8852-f13f9753e4e9")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR06")
 					(unit 1)
@@ -19648,7 +19648,7 @@
 			(uuid "2249e4cf-a285-415b-a506-222b56935764")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR013")
 					(unit 1)
@@ -19773,7 +19773,7 @@
 			(uuid "0ab2bc3f-bf7e-41c7-9d0b-31e71497e094")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C34")
 					(unit 1)
@@ -19852,7 +19852,7 @@
 			(uuid "086a3c47-3d96-4521-9aba-fb150a4291b6")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR025")
 					(unit 1)
@@ -19931,7 +19931,7 @@
 			(uuid "f04b2d82-ebcb-42d4-abf9-7540b88bb209")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR038")
 					(unit 1)
@@ -20136,7 +20136,7 @@
 			(uuid "aca460c9-774d-4cb7-9dba-9aed43f3203e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "U1")
 					(unit 1)
@@ -20214,7 +20214,7 @@
 			(uuid "5bf8da76-5638-4d9a-8674-e348b6044a32")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR040")
 					(unit 1)
@@ -20410,7 +20410,7 @@
 			(uuid "83dfed5f-d830-4b89-875b-0657753108f5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "U7")
 					(unit 1)
@@ -20487,7 +20487,7 @@
 			(uuid "c749cfef-26b7-4c99-8507-10a3f0169a9f")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0114")
 					(unit 1)
@@ -20565,7 +20565,7 @@
 			(uuid "6a2d4f78-8cc4-428e-b4d6-0a00b092fb5b")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR067")
 					(unit 1)
@@ -20700,7 +20700,7 @@
 			(uuid "47a0f523-0e30-4f01-a8b7-dcd5fdbdac3f")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "J6")
 					(unit 1)
@@ -20778,7 +20778,7 @@
 			(uuid "5c7fe248-35e3-473c-b01c-9f12dc6c3262")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR041")
 					(unit 1)
@@ -20856,7 +20856,7 @@
 			(uuid "dd0af117-27e9-4938-aca8-fd9bee5ecc2e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR021")
 					(unit 1)
@@ -20934,7 +20934,7 @@
 			(uuid "7c673998-a606-4704-822f-d5561ae83152")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0100")
 					(unit 1)
@@ -21011,7 +21011,7 @@
 			(uuid "5cbdd511-3004-46e4-ba6c-c7b157ed754d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0115")
 					(unit 1)
@@ -21136,7 +21136,7 @@
 			(uuid "149fea66-3ed5-4392-909a-3e6cf50d7712")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C23")
 					(unit 1)
@@ -21213,7 +21213,7 @@
 			(uuid "7fccbe60-8cc9-479a-8428-eeb8b36c5f03")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR087")
 					(unit 1)
@@ -21336,7 +21336,7 @@
 			(uuid "e59cded9-a87b-45a9-a280-2aaedec9c599")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R5")
 					(unit 1)
@@ -21462,7 +21462,7 @@
 			(uuid "90ae3ed9-1616-42b9-b06f-1c3980ba99bf")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "SW1")
 					(unit 1)
@@ -21539,7 +21539,7 @@
 			(uuid "20cc6139-5db7-481a-978c-597215b88620")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0107")
 					(unit 1)
@@ -21662,7 +21662,7 @@
 			(uuid "ba233bc4-63af-4701-b6b9-4743b86af72c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R2")
 					(unit 1)
@@ -21785,7 +21785,7 @@
 			(uuid "6a6eb319-3ead-4907-8705-86a4016d7e7c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R4")
 					(unit 1)
@@ -21824,7 +21824,7 @@
 				)
 			)
 		)
-		(property "Footprint" "ASTRAfootprints:QFN37P50_600X600X100L62X24T370N"
+		(property "Footprint" "SELENOfootprints:QFN37P50_600X600X100L62X24T370N"
 			(at 74.93 166.37 0)
 			(hide yes)
 			(show_name no)
@@ -22076,7 +22076,7 @@
 			(uuid "f6b59ad2-6a78-4076-9c70-b2006ba32735")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "U2")
 					(unit 1)
@@ -22201,7 +22201,7 @@
 			(uuid "fc052d0e-8642-4f93-a4bc-cf8fdb969ac1")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C29")
 					(unit 1)
@@ -22308,7 +22308,7 @@
 			(uuid "b5c458ee-52c4-4fbe-ae0e-cb136f6d53cb")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "Q2")
 					(unit 1)
@@ -22433,7 +22433,7 @@
 			(uuid "b7a20c51-4f76-43f3-bdbd-5de066fea064")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C8")
 					(unit 1)
@@ -22511,7 +22511,7 @@
 			(uuid "b1afb3f1-7291-4849-ad01-8eee5d5fd7b5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR095")
 					(unit 1)
@@ -22590,7 +22590,7 @@
 			(uuid "cd9f98f9-6aa1-46f9-a3b6-b9c1511312df")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR027")
 					(unit 1)
@@ -22667,7 +22667,7 @@
 			(uuid "5e46e972-feaa-48f8-9020-a7f5fb155247")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR055")
 					(unit 1)
@@ -22792,7 +22792,7 @@
 			(uuid "a287ff59-7972-4b1c-9dfb-58a37763a937")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C24")
 					(unit 1)
@@ -22917,7 +22917,7 @@
 			(uuid "b50fb8d0-a5a3-4cbe-a7b4-300ee41296f7")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C19")
 					(unit 1)
@@ -22995,7 +22995,7 @@
 			(uuid "e56b183d-0eee-4ca8-a227-5d32e8dc9313")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR079")
 					(unit 1)
@@ -23073,7 +23073,7 @@
 			(uuid "fcb00386-97d4-423a-9ef7-47b076892cc9")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0106")
 					(unit 1)
@@ -23151,7 +23151,7 @@
 			(uuid "9d0d15f5-349a-4107-8e8f-daa50ab14724")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR060")
 					(unit 1)
@@ -23230,7 +23230,7 @@
 			(uuid "ceba0e9d-1e24-491f-a48b-97f49f0f5336")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR037")
 					(unit 1)
@@ -23355,7 +23355,7 @@
 			(uuid "7686f082-5933-4f6e-972f-d9eef0c12edf")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C7")
 					(unit 1)
@@ -23478,7 +23478,7 @@
 			(uuid "ffd9f73e-6296-4d38-8731-2c80d69e16e5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R16")
 					(unit 1)
@@ -23603,7 +23603,7 @@
 			(uuid "682f8e08-a354-4446-b691-f9966fd0be1c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C25")
 					(unit 1)
@@ -23681,7 +23681,7 @@
 			(uuid "cb188b80-3e63-42bb-8e90-050010fdc873")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR033")
 					(unit 1)
@@ -23760,7 +23760,7 @@
 			(uuid "83977ef8-5fa2-40f7-9eda-4590879eaf91")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR023")
 					(unit 1)
@@ -23838,7 +23838,7 @@
 			(uuid "87ce257b-e480-4ec7-a23d-97bb6039fcdd")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR084")
 					(unit 1)
@@ -23916,7 +23916,7 @@
 			(uuid "9d44b8e1-9369-46ed-9b49-85cf7f47a0be")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0103")
 					(unit 1)
@@ -24041,7 +24041,7 @@
 			(uuid "f557119f-8436-495b-86f2-7f2d22e1571f")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C17")
 					(unit 1)
@@ -24118,7 +24118,7 @@
 			(uuid "211b4084-4d5c-4d88-b5dc-1e04b006cbcc")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR068")
 					(unit 1)
@@ -24196,7 +24196,7 @@
 			(uuid "46517df6-5f02-4173-9ca7-872cffbd1569")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0111")
 					(unit 1)
@@ -24274,7 +24274,7 @@
 			(uuid "515f3fce-62a0-406f-8caa-191a7e087b7e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0112")
 					(unit 1)
@@ -24400,7 +24400,7 @@
 			(uuid "658c024c-2cf9-49c6-b9a5-439398abaabe")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "SW3")
 					(unit 1)
@@ -24525,7 +24525,7 @@
 			(uuid "61c7efee-2183-481c-a1c3-7301e78e9b1c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C13")
 					(unit 1)
@@ -24603,7 +24603,7 @@
 			(uuid "fa996ce1-1dcc-476a-9235-477140677904")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR081")
 					(unit 1)
@@ -24681,7 +24681,7 @@
 			(uuid "9eda889f-b398-47c9-b92c-3b2009abdf73")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR082")
 					(unit 1)
@@ -24806,7 +24806,7 @@
 			(uuid "4e0a20b6-26ff-4b95-9c1f-abd1945209ab")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C33")
 					(unit 1)
@@ -24884,7 +24884,7 @@
 			(uuid "958593eb-6814-4052-bc7d-bcf9c4bbc37c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0110")
 					(unit 1)
@@ -24963,7 +24963,7 @@
 			(uuid "4142067c-cec8-4c25-908f-344530af33ff")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0116")
 					(unit 1)
@@ -25041,7 +25041,7 @@
 			(uuid "823e33ca-24c3-41a8-9fae-d0e999f3f4f2")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0104")
 					(unit 1)
@@ -25118,7 +25118,7 @@
 			(uuid "f6d560ea-88b3-4dfb-9a3d-792ac7c5e769")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR086")
 					(unit 1)
@@ -25195,7 +25195,7 @@
 			(uuid "45021fc4-eeb9-4133-b678-b80d7779cc7e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR094")
 					(unit 1)
@@ -25272,7 +25272,7 @@
 			(uuid "f16c0ab0-a105-41e7-9805-2ffac6e070d2")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR04")
 					(unit 1)
@@ -25350,7 +25350,7 @@
 			(uuid "448379a1-1145-48b1-b755-c47b0143e1d0")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR020")
 					(unit 1)
@@ -25464,7 +25464,7 @@
 			(uuid "8fb3a503-a36c-4d7e-a9b5-c08c290ec19d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "F1")
 					(unit 1)
@@ -25542,7 +25542,7 @@
 			(uuid "0f61c3e9-11e7-42eb-b164-7b89170b1134")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR059")
 					(unit 1)
@@ -25667,7 +25667,7 @@
 			(uuid "a464e81b-d81f-41ed-b624-86257ea30446")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C27")
 					(unit 1)
@@ -25746,7 +25746,7 @@
 			(uuid "3b8cf846-7695-482d-9156-61d1ef2e1bb8")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR054")
 					(unit 1)
@@ -25871,7 +25871,7 @@
 			(uuid "4ac609c3-5ae0-4252-81f2-27691754fa2a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C12")
 					(unit 1)
@@ -25949,7 +25949,7 @@
 			(uuid "1c84ad68-fac7-4e77-9d20-4eecd50d6345")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR051")
 					(unit 1)
@@ -26028,7 +26028,7 @@
 			(uuid "ba9539fa-69d5-438c-ade4-f679f03c4da6")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR011")
 					(unit 1)
@@ -26154,7 +26154,7 @@
 			(uuid "83f9bb3b-f4bb-4854-88dd-c753e063f9e0")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "SW6")
 					(unit 1)
@@ -26298,7 +26298,7 @@
 			(uuid "df8ac7e4-442f-460f-99c7-7d2cf1f0ac09")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "J1")
 					(unit 1)
@@ -26423,7 +26423,7 @@
 			(uuid "5dab6a7d-5f32-4c8c-859b-d098306638c4")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "SW7")
 					(unit 1)
@@ -26502,7 +26502,7 @@
 			(uuid "57ada32e-0768-4eab-9ae1-1481bae57912")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR070")
 					(unit 1)
@@ -26730,7 +26730,7 @@
 			(uuid "b0de04d6-127d-446b-a5bd-a930073f2f39")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "U5")
 					(unit 1)
@@ -26807,7 +26807,7 @@
 			(uuid "6834086d-1324-4477-be20-f01f34ff4f15")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR083")
 					(unit 1)
@@ -26886,7 +26886,7 @@
 			(uuid "4dd9b36e-9130-4ab5-b38a-33cd1831447a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR056")
 					(unit 1)
@@ -26964,7 +26964,7 @@
 			(uuid "17e1a2b1-dc46-43ef-a87b-40010aeb2f8a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR022")
 					(unit 1)
@@ -27042,7 +27042,7 @@
 			(uuid "10d94e57-b37f-4610-abb2-047b2ee86eb3")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR058")
 					(unit 1)
@@ -27120,7 +27120,7 @@
 			(uuid "42f6808b-4207-4cf4-9c2b-3c549936444a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR046")
 					(unit 1)
@@ -27199,7 +27199,7 @@
 			(uuid "4e12a242-9a2e-4152-90f5-0e08c657d55c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR026")
 					(unit 1)
@@ -27341,7 +27341,7 @@
 			(uuid "289645a5-cdb6-401c-bfa6-c7ac7e432d7f")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "J3")
 					(unit 1)
@@ -27464,7 +27464,7 @@
 			(uuid "0f98cd44-5440-450d-8904-4f3be06f0e2c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R9")
 					(unit 1)
@@ -27542,7 +27542,7 @@
 			(uuid "3ccab206-4e56-4dd7-91bb-7f9bdeeef907")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR048")
 					(unit 1)
@@ -27665,7 +27665,7 @@
 			(uuid "bf461ee4-361c-4a1c-8347-4c543ffe33fb")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R6")
 					(unit 1)
@@ -27743,7 +27743,7 @@
 			(uuid "85fcafb1-811c-468a-97ce-d9c7764013e0")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0109")
 					(unit 1)
@@ -27877,7 +27877,7 @@
 			(uuid "5141f8a7-7619-4081-b027-0fb1c404dcb8")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "D1")
 					(unit 1)
@@ -27919,7 +27919,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "ASTRAfootprints:Double 1x02 screw connector"
+		(property "Footprint" "SELENOfootprints:Double 1x02 screw connector"
 			(at 152.4 121.92 0)
 			(hide yes)
 			(show_name no)
@@ -28009,7 +28009,7 @@
 			(uuid "dd581ad3-0416-4de1-9e91-6f344489f06e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "B1")
 					(unit 1)
@@ -28134,7 +28134,7 @@
 			(uuid "da065a46-877f-4dcd-adb4-a1dc77045421")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C16")
 					(unit 1)
@@ -28259,7 +28259,7 @@
 			(uuid "0485ff69-6f80-4045-b726-4a29521177e7")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C31")
 					(unit 1)
@@ -28385,7 +28385,7 @@
 			(uuid "1ecac699-945c-4406-aefd-338c5d0ef3df")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "SW2")
 					(unit 1)
@@ -28464,7 +28464,7 @@
 			(uuid "b6098a35-807c-471c-b557-aa94cc08ea5d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR065")
 					(unit 1)
@@ -28589,7 +28589,7 @@
 			(uuid "f68f1564-e3ab-4e92-aa3f-e49047b7a1ab")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C1")
 					(unit 1)
@@ -28712,7 +28712,7 @@
 			(uuid "d054e440-08f9-47bb-b35d-dfe7eb96935a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R12")
 					(unit 1)
@@ -28790,7 +28790,7 @@
 			(uuid "1713664e-9ab9-4b84-83e4-a94b5429d87c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0105")
 					(unit 1)
@@ -28913,7 +28913,7 @@
 			(uuid "5a01d358-d950-477b-8b9e-77c6ddb7e71d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R14")
 					(unit 1)
@@ -28992,7 +28992,7 @@
 			(uuid "5106b4f9-baec-4dcf-8d5f-86cfc23177ea")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR029")
 					(unit 1)
@@ -29071,7 +29071,7 @@
 			(uuid "f77510ca-70f4-4b99-b425-644f45b17dce")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR028")
 					(unit 1)
@@ -29267,7 +29267,7 @@
 			(uuid "edc02500-cced-4222-abe4-e20490fa1335")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "U8")
 					(unit 1)
@@ -29345,7 +29345,7 @@
 			(uuid "395fe698-d8c4-4e4d-95a7-dcd2b9b7c695")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR093")
 					(unit 1)
@@ -29424,7 +29424,7 @@
 			(uuid "cf0f6074-c872-4be3-b39c-73c6cb13cf6e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR034")
 					(unit 1)
@@ -29558,7 +29558,7 @@
 			(uuid "b768a77b-dbdc-4c34-8aa7-0e69bec9cfc8")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "D2")
 					(unit 1)
@@ -29683,7 +29683,7 @@
 			(uuid "f9f7209b-d04e-4318-978c-55595805c446")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C20")
 					(unit 1)
@@ -29762,7 +29762,7 @@
 			(uuid "ad166c95-dd3f-4ec9-b7cb-edb785538913")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR010")
 					(unit 1)
@@ -29888,7 +29888,7 @@
 			(uuid "a3c1303b-be4d-48ab-9e20-edfb2ae4f125")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "SW5")
 					(unit 1)
@@ -30011,7 +30011,7 @@
 			(uuid "856ba529-d312-4d95-a92b-53b032db3c72")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R22")
 					(unit 1)
@@ -30090,7 +30090,7 @@
 			(uuid "1682df77-e1b5-4502-86cf-1fadf1d28959")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR085")
 					(unit 1)
@@ -30167,7 +30167,7 @@
 			(uuid "cde32e31-a048-41b6-ae65-dd2eda55ec6c")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR0113")
 					(unit 1)
@@ -30292,7 +30292,7 @@
 			(uuid "8412c30d-4c2e-43af-9a53-df7b68649e63")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C14")
 					(unit 1)
@@ -30369,7 +30369,7 @@
 			(uuid "496d687a-4944-449b-b041-1b9b7857c09d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR052")
 					(unit 1)
@@ -30503,7 +30503,7 @@
 			(uuid "3cef61f4-2461-42f3-8c1d-d82b124ad675")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "D3")
 					(unit 1)
@@ -30581,7 +30581,7 @@
 			(uuid "70405d19-2dcd-484e-abf9-92991fb75589")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR018")
 					(unit 1)
@@ -30659,7 +30659,7 @@
 			(uuid "ce653d1d-c65f-40c5-896f-7a367360329d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR02")
 					(unit 1)
@@ -30737,7 +30737,7 @@
 			(uuid "65e5f358-5a45-4450-afa6-e6ebfdd7b26b")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR062")
 					(unit 1)
@@ -30815,7 +30815,7 @@
 			(uuid "84397988-e4b0-445e-aa11-def885779238")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR019")
 					(unit 1)
@@ -30958,7 +30958,7 @@
 			(uuid "7bbb1984-2827-40ca-8399-cf6435c95071")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "J4")
 					(unit 1)
@@ -31036,7 +31036,7 @@
 			(uuid "b5999789-98e8-47f3-8006-5f8f0fdc5abf")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR066")
 					(unit 1)
@@ -31115,7 +31115,7 @@
 			(uuid "e2ec0d3c-8537-4830-9e76-2aa993e28fe5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR073")
 					(unit 1)
@@ -31240,7 +31240,7 @@
 			(uuid "3595f372-f530-44df-991c-ed33eb233a00")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C21")
 					(unit 1)
@@ -31317,7 +31317,7 @@
 			(uuid "ffb9163e-e357-4730-bb1c-e73f24168658")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR077")
 					(unit 1)
@@ -31395,7 +31395,7 @@
 			(uuid "01421823-4bc6-4b98-8465-9371184f680e")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR031")
 					(unit 1)
@@ -31518,7 +31518,7 @@
 			(uuid "a4ef0b0d-8b00-48e1-b914-f7f8b1295859")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "R10")
 					(unit 1)
@@ -31664,7 +31664,7 @@
 			(uuid "80328fab-f5f3-4ee5-9620-7330dd051ed5")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "G1")
 					(unit 1)
@@ -31742,7 +31742,7 @@
 			(uuid "5ffbe614-3e0f-4035-a957-43ed841d37ab")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "#PWR092")
 					(unit 1)
@@ -31867,7 +31867,7 @@
 			(uuid "7b1367fe-9408-4636-a41c-7ffd07e871b6")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "C26")
 					(unit 1)
@@ -32001,7 +32001,7 @@
 			(uuid "81ecde03-3ba5-4564-9643-c321f2246551")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(reference "D5")
 					(unit 1)

@@ -5,7 +5,7 @@
 	(uuid "ebc5266e-faad-44b4-9880-c64f49e60cc1")
 	(paper "A4")
 	(title_block
-		(title "ASTRA Telescope Node - IMU & Expansion")
+		(title "SELENO Telescope Node - IMU & Expansion")
 		(date "2026-10-14")
 		(rev "8")
 		(comment 1 "Author: Alex Grant-Parra")
@@ -617,7 +617,7 @@
 			(uuid "1564a386-a2d5-4374-99e4-6e46bd24e480")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/f761b0c1-fb2d-4800-881a-525f14ea580b"
 					(reference "#PWR047")
 					(unit 1)
@@ -703,7 +703,7 @@
 			(uuid "dd9e9e93-a053-48fd-a6e1-cb0918a4b507")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/f761b0c1-fb2d-4800-881a-525f14ea580b"
 					(reference "J3")
 					(unit 1)
@@ -782,7 +782,7 @@
 			(uuid "1d0d17dc-e6e7-4022-ab4d-62a788876411")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/f761b0c1-fb2d-4800-881a-525f14ea580b"
 					(reference "#PWR046")
 					(unit 1)

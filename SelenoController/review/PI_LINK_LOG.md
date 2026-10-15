@@ -48,7 +48,7 @@ C9 C13 C14 C17 C19 C21 C22 C23 C24 C25 C44 C45 C46, R9 R10 R11 R12 R13 R14 R15 R
       +5V = C12 C37 C38 L2 R29 J7.1 J7.2. UART1 = U5.35 + J7.5. UART2 = U5.34 + J7.4. DTR = Q2.2 R22.2 J7.6. RTS = Q3.2 R23.2 J7.8.
       PDF can't be rendered here (no poppler), so the visual check of the Pi Link sheet is for Alex.
 - [ ] 3. PCB (in scratch `pcb/`, built from the CURRENT installed board including Alex's hand routing; nothing regenerated)
-  - [x] 3a. `pi_pcb1.py orig/ASTRA.kicad_pcb pcb/step1.kicad_pcb`: 28 footprints, 103 dead-net items and 113 hanging stubs/plane-only vias deleted.
+  - [x] 3a. `pi_pcb1.py orig/SELENO.kicad_pcb pcb/step1.kicad_pcb`: 28 footprints, 103 dead-net items and 113 hanging stubs/plane-only vias deleted.
   - [x] 3b. `pi_pcb2.py pcb/step1.kicad_pcb pcb/step2.kicad_pcb work/pi_link.kicad_sch`:
     - DTR/RTS nets renamed to /Pi Link/...; all old DTR/RTS copper deleted (long detours; DTR had been left open).
     - J7 PinHeader_1x10 placed at rot 90 on the top edge: pin row v 2.2, pins at u 8.4 + 2.54(n-1) (pin 10 at 31.26). Linked to the symbol uuid.
@@ -79,7 +79,7 @@ Rules are the same as PCB_HANDOFF.md "What Alex asked for":
 - New: **every drill >= 0.3 mm**: vias 0.45/0.3 min, and the stock U5/U7/U8 thermal vias opened up to 0.3 after the build.
 - Time-box router runs to about a minute.
 
-Scratch root: session scratchpad `seleno/` (set `SELENO_SCR` to it). It holds `final/astra.net` (exported from the installed rev 8 schematic) and `pcbwork/` (a project copy).
+Scratch root: session scratchpad `seleno/` (set `SELENO_SCR` to it). It holds `final/seleno.net` (exported from the installed rev 8 schematic) and `pcbwork/` (a project copy).
 The scripts in `review/pcb_build/` are edited in place (the originals are in git 05cd8e3).
 
 - [x] P1. Scripts edited:
@@ -154,7 +154,7 @@ The scripts in `review/pcb_build/` are edited in place (the originals are in git
   - **Final: DRC 0 errors, 0 unconnected, parity 0** (36 lib_footprint_mismatch warnings).
 - [x] P4. Route, apply, dangling cleanup, finish, DRC + parity: done (above).
 - [x] P5. **INSTALLED 2026-10-15.**
-  - ASTRA.kicad_pcb + ASTRA.kicad_pro copied in; backups in `review/backup/*.pre_relayout`.
+  - SELENO.kicad_pcb + SELENO.kicad_pro copied in; backups in `review/backup/*.pre_relayout`.
   - Installed check: ERC 0; DRC 0 errors / 0 unconnected / parity 0.
   - PNGs: `review/board_3d.png` (3D top) and `review/board_copper.png` (copper, both layers).
   - Docs updated: PARTS_LIST.txt (rev 8), PCB_HANDOFF.md (new status section), REVIEW_LOG.md.

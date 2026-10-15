@@ -6,17 +6,17 @@ The full review is in `review/FINAL_PCB_REVIEW_LOG.md`. It found no blockers. Ap
 - **F2:** two more +5V vias (0.5/0.3) at the buck output, at (5.9, 15.6) and (12.5, 15.6), joined to the existing pair by 0.5 mm F.Cu. Four vias now feed the In2 +5V island, which supplies the Pi and the AMS1117.
 - **Result:**
   - DRC: 0 errors, 0 unconnected, parity 0, with 35 `lib_footprint_mismatch` warnings. ERC 0.
-  - Backup: `review/backup/ASTRA.kicad_pcb.pre_final_fix`.
+  - Backup: `review/backup/SELENO.kicad_pcb.pre_final_fix`.
 - **`jlcpcb/` regenerated:**
   - gerbers and drill: PTH now has 319 holes;
-  - `ASTRA_v0.8_gerbers.zip`;
+  - `SELENO_v0.8_gerbers.zip`;
   - BOM and CPL, unchanged because no footprint moved.
 
 ## STATUS 2026-10-15: power section redone — TPS5430 (5 V) + AMS1117-3.3 (3.3 V)
 Alex wanted the AP62300WU (extended, ~$3 fee) replaced by JLC basic parts. Both bucks are gone.
 - **U6 = TPS5430DDAR** (C9864): 12 V -> 5 V, 3 A, 500 kHz. TI_SO-PowerPAD-8_ThermalVias at (21.5, 17.0), rot 0. Laid out like TI datasheet Fig 7-12:
   - **D8 SS34** catch diode above U6 at (22.5, 11.9), rot 180. Its anode drops into the PowerPAD (1.2 mm trace + 2 GND vias). Its cathode feeds PH.
-  - **Switch node** `/Power/5V_SW` (BuckSW netclass, the pattern was updated in `ASTRA.kicad_pro`): a 1.0 mm strip at v 10.0 over D8, going to L2 pad 1. C36 (10 nF boot) hangs from it at (18.2, 12.6), rot 90.
+  - **Switch node** `/Power/5V_SW` (BuckSW netclass, the pattern was updated in `SELENO.kicad_pro`): a 1.0 mm strip at v 10.0 over D8, going to L2 pad 1. C36 (10 nF boot) hangs from it at (18.2, 12.6), rot 90.
   - **L2** = 15 uH Changjiang FXL0840-150-M (L_Changjiang_FXL0840) at (12.5, 11.5), rot 180. The SW pad is on the right.
   - **C35** (10 uF 50 V input) at (26.9, 17.0), rot -90, right beside VIN/GND. Two +12V vias (28.6, 15.2/16.0) go into In2.
   - **5 V output:** C37, C38, C48, C49 (4 x 22 uF) in a row at v 18.0, u 7.0-13.6. +5V vias (8.1/10.3, 15.6) and GND vias at v 20.2.
@@ -79,7 +79,7 @@ Every IC's pinout and support parts were checked against `datasheets/`. No block
 ## STATUS 2026-10-15: rev 8 board, fully re-laid-out and routed
 The schematic went to rev 8: the USB hub, CH340 and USB-A are gone, and J7 (1x10) links to the Pi Zero 2. Details: `review/PI_LINK_LOG.md`.
 The board was rebuilt from the `pcb_build/` scripts, so **the old hand routing is replaced**.
-- **Installed:** `ASTRA.kicad_pcb` and `ASTRA.kicad_pro`.
+- **Installed:** `SELENO.kicad_pcb` and `SELENO.kicad_pro`.
   - ERC 0. DRC: 0 errors, 0 unconnected, parity 0.
   - 36 warnings, all `lib_footprint_mismatch`: 33 test pads, plus U5/U7/U8, whose thermal-via drills are opened to 0.3.
   - The previous board is in `review/backup/*.pre_relayout`.
@@ -109,10 +109,10 @@ The board was rebuilt from the `pcb_build/` scripts, so **the old hand routing i
 - **Router note:** `Ctx` de-duplicates pads by (number, position). A footprint whose EP shares its number and centre with a thermal-via pad can therefore lose its EP from the router's view. That is why the 2 TMC_UART vias landed too close. Worth fixing (key on size too) before the next scripted rebuild.
 
 ## STATUS 2026-10-14 (latest): board installed, 6 nets left for Alex to route by hand
-- **Installed:** `AstraController/ASTRA.kicad_pcb` is the new SELENO v0.3 board.
+- **Installed:** `SelenoController/SELENO.kicad_pcb` is the new SELENO v0.3 board.
 - **2026-10-14, later:** Alex asked for no F.Cu/B.Cu GND pours. They were removed from the board and from `planes.py`. Only In1 (GND) and In2 (power islands) are filled now.
   - Old board: git HEAD 201f042, plus a scratch backup.
-  - `ASTRA.kicad_pro` now has the net classes (Default, Power, HV12, Motor, BuckSW, USB), their patterns and the new DRC minimums (0.15 clearance, 0.3 edge, 0.45/0.2 via).
+  - `SELENO.kicad_pro` now has the net classes (Default, Power, HV12, Motor, BuckSW, USB), their patterns and the new DRC minimums (0.15 clearance, 0.3 edge, 0.45/0.2 via).
 - **DRC with schematic parity:**
   - 0 errors, 0 parity issues;
   - 13 warnings, all `lib_footprint_mismatch` on the test pads (their silk rings were moved to F.Fab so the net labels fit);
@@ -128,7 +128,7 @@ The board was rebuilt from the `pcb_build/` scripts, so **the old hand routing i
 - **To rebuild the board from scripts:**
   1. `scratchpad/full.sh` runs build → route (about 3 min, time-boxed) → apply → DRC.
   2. `scratchpad/final.sh` runs build → apply `routes.json` → dangling cleanup → `finish.py` (silkscreen + stackup) → DRC.
-  3. Copy `pcbwork/ASTRA.kicad_pcb` into the project.
+  3. Copy `pcbwork/SELENO.kicad_pcb` into the project.
   - Don't regenerate once Alex has hand-edited the board in KiCad: the scripts start from scratch.
 - **Silkscreen:**
   - The USB note "PI:1-4 CAM:5-8" means pins 1–4 (Pi) and 5–8 (camera). Check against the CUI UJ2-ADH-TH drawing which physical port that is.
@@ -160,7 +160,7 @@ The board was rebuilt from the `pcb_build/` scripts, so **the old hand routing i
 Start here in a new chat. Read this file, then `review/REVIEW_LOG.md`. The scripts are in `review/pcb_build/`.
 
 ## What Alex asked for (all still in force)
-- **Wipe `ASTRA.kicad_pcb` and build a new board from scratch.** Do not touch the schematic.
+- **Wipe `SELENO.kicad_pcb` and build a new board from scratch.** Do not touch the schematic.
 - **Board size: exactly 85 × 50 mm, non-negotiable.** Keep the old outline: KiCad coordinates (76.5, 45.5) to (161.5, 95.5).
 - **Stackup:**
   - 4 layers: F.Cu (top), In1.Cu (GND plane), In2.Cu (power), B.Cu (bottom).
@@ -179,7 +179,7 @@ Start here in a new chat. Read this file, then `review/REVIEW_LOG.md`. The scrip
   | Buck switch nodes | 0.8 mm | |
   | USB pairs | 0.25 mm | 0.15 mm gap (≈90 Ω on JLC04161H-7628) |
 
-  Vias are 0.5/0.3 mm generally and 0.45/0.2 mm where tight. Write these classes into `ASTRA.kicad_pro` `net_settings` at install time. The existing classes there (+V12, +V5) have no patterns.
+  Vias are 0.5/0.3 mm generally and 0.45/0.2 mm where tight. Write these classes into `SELENO.kicad_pro` `net_settings` at install time. The existing classes there (+V12, +V5) have no patterns.
 - **LEDs near the edge.** Connectors near the edges where possible.
 - **Test pads.** Use board-only `TestPoint_Pad_D1.0mm` footprints.
 - **M2.5 mounting holes** near the four corners at (3.5, 3.5) from each corner. Board-only `MountingHole_2.7mm_M2.5`.
@@ -191,8 +191,8 @@ Start here in a new chat. Read this file, then `review/REVIEW_LOG.md`. The scrip
   - Don't contact GitHub.
 
 ## Status
-- **Nothing has been installed yet.** The real `AstraController/ASTRA.kicad_pcb` is untouched; the old version is also in git HEAD (201f042).
-- **Work happens in a scratch copy of the project.** It contains `ASTRA.kicad_pro`, all `.kicad_sch` files, `fp-lib-table` and `ASTRAfootprints.pretty`. The old scratch folder was `%TEMP%\claude\z--ASTRA\a7d97d99-...\scratchpad\pcbwork`. Recreate it if it's gone, by copying those files from `AstraController/`.
+- **Nothing has been installed yet.** The real `SelenoController/SELENO.kicad_pcb` is untouched; the old version is also in git HEAD (201f042).
+- **Work happens in a scratch copy of the project.** It contains `SELENO.kicad_pro`, all `.kicad_sch` files, `fp-lib-table` and `SELENOfootprints.pretty`. The old scratch folder was `%TEMP%\claude\z--ASTRA\a7d97d99-...\scratchpad\pcbwork`. Recreate it if it's gone, by copying those files from `SelenoController/`.
 - **Placement is about 85% done** (`place.py`). The last DRC still flags these, to fix next:
   - **Courtyard overlaps:** C30/U8, C28/U7 (charge-pump cap too close to the driver; move it right ~0.3 mm), D6/F1, U9/C40, U6/C36 (buck boost cap to IC; move it up ~0.3 mm), C15/C16, C44/R18, C25/J4.
   - **Clearance:** C15 pad to C16 pad.
@@ -212,14 +212,14 @@ Start here in a new chat. Read this file, then `review/REVIEW_LOG.md`. The scrip
 - **kicad-cli** is in the same `bin` folder.
   - `pcb drc --severity-all --format json [--schematic-parity] [--refill-zones --save-board]`
   - `pcb render --side top` (3D PNG)
-- **Netlist:** `kicad-cli sch export netlist -o astra.net ASTRA.kicad_sch`. The scripts expect it at `<SCR>/final/astra.net`.
+- **Netlist:** `kicad-cli sch export netlist -o seleno.net SELENO.kicad_sch`. The scripts expect it at `<SCR>/final/seleno.net`.
 - **Scripts** in `pcb_build/`:
   - `common.py`: paths, `rot()` using KiCad's rotation convention, `load_netlist()`.
   - `place.py`: all positions in board-local mm. u is right and v is down, origin at the top-left board corner; KiCad absolute = (76.5+u, 45.5+v). It contains block templates for the drivers and bucks, plus `HOLES` and `TESTPADS`.
   - `build.py`: builds the board from the netlist and `place.py`, links symbol paths, sheets and BOM flags, and writes `geom.json`.
   - `plot.py`: draws `geom.json` (plus an optional routes JSON) to PNG. Use `opts` "r" for ratsnest.
   - `fpsizes.py`, `paddump.py`: dump footprint geometry.
-- **Path fix needed after the move:** `common.py` sets `SCR` to the parent of its own folder. It imports `parse_net` from there and expects `final/astra.net` and `pcbwork/` there. Now that the scripts sit in `review/pcb_build/`, either point `SCR` at the new scratch folder or copy `parse_net.py` and the netlist accordingly.
+- **Path fix needed after the move:** `common.py` sets `SCR` to the parent of its own folder. It imports `parse_net` from there and expects `final/seleno.net` and `pcbwork/` there. Now that the scripts sit in `review/pcb_build/`, either point `SCR` at the new scratch folder or copy `parse_net.py` and the netlist accordingly.
 - **Stackup:** the API doesn't expose it (`GetStackupDescriptor` isn't wrapped). Add the `(stackup ...)` block to the saved file by text, using the old board's file (git HEAD) as a template.
 
 ## Floorplan (board-local u, v)
@@ -324,9 +324,9 @@ The top edge between u 24.4 and 31.2 holds C25, TP11 and TP12.
 5. Zones; then `kicad-cli pcb drc --refill-zones --save-board --schematic-parity`. Iterate to 0 errors.
 6. Silkscreen: hide passive refs, label connectors (12V+, M1/M2, PI/CAM, LCD, IMU, QWIIC, button names, RST), add "SELENOv0.3", fix the stackup text.
 7. Install:
-   - back up the old `ASTRA.kicad_pcb` (it's also in git);
+   - back up the old `SELENO.kicad_pcb` (it's also in git);
    - check for KiCad lock files and ask Alex to close KiCad;
-   - copy the board into the project and add the netclasses to `ASTRA.kicad_pro`;
+   - copy the board into the project and add the netclasses to `SELENO.kicad_pro`;
    - run final DRC with parity.
 
 ## 2026-10-14: hand-routing done, vias moved off pads
@@ -340,14 +340,14 @@ These were fixed directly on the installed board with a local rip-up and re-rout
 - DC: the via is now beside pin 23 at (57.9, 19.76). RES and BL jog left by about 0.6 mm to make room.
 
 Result: DRC 0 errors, 0 unconnected, parity 0. No vias in any pad, apart from the intended thermal vias in U1 and U2.
-The tool is `scratchpad/lroute.py`; the delete and re-route list is `ops2.json`. The board before the fix is in `scratchpad/backup/ASTRA.kicad_pcb.alex_viainpad`.
+The tool is `scratchpad/lroute.py`; the delete and re-route list is `ops2.json`. The board before the fix is in `scratchpad/backup/SELENO.kicad_pcb.alex_viainpad`.
 
 ## 2026-10-14: minimum drill raised to 0.3 mm (JLC cost)
 At JLC, a 0.2 mm hole forces extra testing: £35 instead of £6. Every 0.2 mm drill is now 0.3 mm, and the copper diameters are unchanged:
 - 42 board vias: now 0.45/0.3. They were 0.45/0.2.
 - 44 footprint thermal vias: U5 (12), U7 (16) and U8 (16), now with 0.3 mm drills.
 
-Rules in `ASTRA.kicad_pro`: min via annular ring is now 0.075 mm (was 0.1). Min through-hole is now 0.3 mm (was 0.2). The 0.45/0.2 via preset is now 0.45/0.3.
+Rules in `SELENO.kicad_pro`: min via annular ring is now 0.075 mm (was 0.1). Min through-hole is now 0.3 mm (was 0.2). The 0.45/0.2 via preset is now 0.45/0.3.
 
 Result: zones refilled, DRC 0 errors, 0 unconnected. The 16 warnings are all `lib_footprint_mismatch`: the 13 test pads, plus U5, U7 and U8. Those three are stock KiCad footprints, so "Update footprints from library" would bring back the 0.2 mm holes.
 
@@ -355,7 +355,7 @@ The `pcb_build/` scripts (`rules.py`, `route.py`, `hand.py`) still use 0.45/0.2 
 
 JLC order setting: "Min via hole size" is 0.3mm/(0.4/0.45mm).
 
-The board before this change is in `review/backup/ASTRA.kicad_pcb.pre_0p3drill`, along with the matching `.kicad_pro`.
+The board before this change is in `review/backup/SELENO.kicad_pcb.pre_0p3drill`, along with the matching `.kicad_pro`.
 
 ## 2026-10-14: J4, J5 and the IMU passives removed (IMU moves to its own board)
 Alex: the IMU goes on a separate small board, so this board keeps only one JST-SH 1x4 connector (3V3, GND, SDA, SCL).

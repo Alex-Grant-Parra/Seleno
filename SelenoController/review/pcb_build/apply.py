@@ -77,7 +77,7 @@ def apply(routes, path, fill=True):
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     routes = json.load(open(args[0]))
-    path = args[1] if len(args) > 1 else os.path.join(WORK, 'ASTRA.kicad_pcb')
-    rules.write_project(os.path.join(os.path.dirname(path), 'ASTRA.kicad_pro'))
+    path = args[1] if len(args) > 1 else os.path.join(WORK, 'SELENO.kicad_pcb')
+    rules.write_project(os.path.join(os.path.dirname(path), 'SELENO.kicad_pro'))
     apply(routes, path, fill='--nofill' not in sys.argv)
     print('applied', len(routes.get('tracks', [])), 'tracks', len(routes.get('vias', [])), 'vias', len(routes.get('zones', [])), 'zones')

@@ -1,4 +1,4 @@
-"""Net classes and design rules for SELENO v0.8 (also written into ASTRA.kicad_pro)."""
+"""Net classes and design rules for SELENO v0.8 (also written into SELENO.kicad_pro)."""
 import json, fnmatch
 
 # name: track, clearance, via diameter, via drill

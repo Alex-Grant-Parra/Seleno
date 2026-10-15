@@ -1,6 +1,6 @@
-# ASTRA Controller – Schematic Review (pre-PCB)
+# SELENO Controller – Schematic Review (pre-PCB)
 
-**Schematic:** `ASTRA.kicad_sch` rev 6 · **Reviewed:** 2026-10-13 · **Verified against:** datasheets in `../datasheets/`
+**Schematic:** `SELENO.kicad_sch` rev 6 · **Reviewed:** 2026-10-13 · **Verified against:** datasheets in `../datasheets/`
 
 **Verdict: not ready for layout yet.** There are 9 blockers and about 12 should-fix items. Most are quick schematic edits. The 3.3 V rail and the USB upstream port need a design decision from Alex first.
 

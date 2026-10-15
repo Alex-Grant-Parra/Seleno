@@ -5,22 +5,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from parse_net import parse, find, val  # noqa: E402
 
-# scratch root: holds final/astra.net and pcbwork/ (a copy of the project). Set SELENO_SCR to override.
+# scratch root: holds final/seleno.net and pcbwork/ (a copy of the project). Set SELENO_SCR to override.
 SCR = os.environ.get('SELENO_SCR', r'C:\Users\alexg\AppData\Local\Temp\claude\z--ASTRA\eb408975-1396-4e9d-95b0-74fe29751b13\scratchpad')
 
 FPDIR = r'C:\Users\alexg\AppData\Local\Programs\KiCad\10.0\share\kicad\footprints'
-PRJ = r'Z:\ASTRA\AstraController'
-NETLIST = os.path.join(SCR, 'final', 'astra.net')
+PRJ = r'Z:\ASTRA\SelenoController'
+NETLIST = os.path.join(SCR, 'final', 'seleno.net')
 WORK = os.path.join(SCR, 'pcbwork')          # scratch copy of the project used for building / DRC
 
-# board: 85 x 50 mm, same outline as the old ASTRA board
+# board: 85 x 50 mm, same outline as the old SELENO board
 OX, OY = 76.5, 45.5
 BW, BH = 85.0, 50.0
 
 
 def lib_path(lib):
-    if lib == 'ASTRAfootprints':
-        return os.path.join(PRJ, 'ASTRAfootprints.pretty')
+    if lib == 'SELENOfootprints':
+        return os.path.join(PRJ, 'SELENOfootprints.pretty')
     return os.path.join(FPDIR, lib + '.pretty')
 
 

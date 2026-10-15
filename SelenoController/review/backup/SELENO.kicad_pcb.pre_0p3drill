@@ -19354,7 +19354,7 @@
 			)
 		)
 	)
-	(footprint "ASTRAfootprints:QFN37P50_600X600X100L62X24T370N"
+	(footprint "SELENOfootprints:QFN37P50_600X600X100L62X24T370N"
 		(layer "F.Cu")
 		(uuid "87a4d2e0-ab99-4a47-9eb0-2dfa114b6b17")
 		(at 112 59.5 90)

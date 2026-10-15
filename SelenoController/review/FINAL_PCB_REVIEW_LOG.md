@@ -1,7 +1,7 @@
-# ASTRA v0.8: final pre-order PCB review (log)
+# SELENO v0.8: final pre-order PCB review (log)
 
 Started 2026-10-15. Alex is about to order the PCBs and asked for one last very deep review of
-`ASTRA.kicad_pcb`: check that every part works with the others and has the support parts it needs,
+`SELENO.kicad_pcb`: check that every part works with the others and has the support parts it needs,
 using the datasheets in `datasheets/`.
 
 > **Resume rule:** if this session is cut off, read this file top to bottom, then carry on from the
@@ -11,7 +11,7 @@ using the datasheets in `datasheets/`.
 
 ## Baseline
 - Branch `hardware`, HEAD 7a8d5f5 "v0.8.3". Untracked: `jlcpcb/`.
-- Board file `ASTRA.kicad_pcb` modified 2026-10-15 16:01; `.kicad_pro` 16:18; JLC outputs 16:15-16:16.
+- Board file `SELENO.kicad_pcb` modified 2026-10-15 16:01; `.kicad_pro` 16:18; JLC outputs 16:15-16:16.
 - No KiCad lock files when the review started.
 - Tools: KiCad 10.0.5 per-user install, `C:\Users\alexg\AppData\Local\Programs\KiCad\10.0\bin\`
   (`kicad-cli.exe`, `python.exe` with pcbnew).
@@ -46,7 +46,7 @@ using the datasheets in `datasheets/`.
 - [x] 9. Summary of findings + recommendations for Alex (below).
 - [x] 10. **APPLIED 2026-10-15 (Alex: "implement those two changes", then clear and regenerate the JLC files).**
       KiCad had the project open (locks); Alex closed it with no unsaved edits before the install.
-      Backup: `review/backup/ASTRA.kicad_pcb.pre_final_fix`. Applied on a fresh scratch copy of the project, then
+      Backup: `review/backup/SELENO.kicad_pcb.pre_final_fix`. Applied on a fresh scratch copy of the project, then
       semantic diff vs the old board: exactly +2 vias, +2 tracks (+5V) and 40 pads -> solid, nothing else.
       Installed board: DRC 0 errors / 0 unconnected / parity 0 (35 lib_footprint_mismatch warnings), ERC 0.
       `jlcpcb/`: old BOM, CPL, gerber/ and zip deleted and regenerated (gerbers with `--board-plot-params`; drill
@@ -70,8 +70,8 @@ Candidate result: DRC 0 errors / 0 unconnected / parity 0, same 35 lib_footprint
 In1, In2 and PTH.drl (317 -> 319 holes); masks, paste, silk, outline, NPTH unchanged.
 
 ### How to (re)apply F1 + F2 (if Alex says yes)
-1. Check for KiCad lock files (`~*.lck`) in `AstraController/`; back up `ASTRA.kicad_pcb` to
-   `review/backup/ASTRA.kicad_pcb.pre_final_fix`.
+1. Check for KiCad lock files (`~*.lck`) in `SelenoController/`; back up `SELENO.kicad_pcb` to
+   `review/backup/SELENO.kicad_pcb.pre_final_fix`.
 2. With KiCad's python (`-I`), on a scratch copy of the whole project folder (so Save keeps the real .kicad_pro):
    - U6 pads "9" and U7/U8 pads "29" with attribute PTH -> `SetLocalZoneConnection(ZONE_CONNECTION_FULL)`.
    - +5V vias 0.5/0.3 F.Cu-B.Cu at KiCad abs (82.4, 61.1) and (89.0, 61.1) [board-local (5.9, 15.6), (12.5, 15.6)];
@@ -80,7 +80,7 @@ In1, In2 and PTH.drl (317 -> 319 holes); masks, paste, silk, outline, NPTH uncha
 3. `kicad-cli pcb drc --severity-all --schematic-parity --refill-zones --save-board` -> expect 0/0/0 + 35 warnings.
 4. Copy the board into the project; regenerate `jlcpcb/gerber/` (`pcb export gerbers --board-plot-params`,
    `pcb export drill --format excellon --excellon-separate-th --excellon-units mm`), re-zip
-   `ASTRA_v0.8_gerbers.zip`, re-run `make_jlc_files.py` (BOM/CPL should be unchanged).
+   `SELENO_v0.8_gerbers.zip`, re-run `make_jlc_files.py` (BOM/CPL should be unchanged).
 5. Add a line to REVIEW_LOG.md / PCB_HANDOFF.md.
 
 ### Order-time reminders for Alex

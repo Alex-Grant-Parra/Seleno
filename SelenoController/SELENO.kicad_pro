@@ -524,7 +524,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "ASTRA.kicad_pro",
+    "filename": "SELENO.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -702,7 +702,7 @@
       "netlist": "",
       "plot": "gerber/",
       "specctra_dsn": "",
-      "step": "ASTRA.step",
+      "step": "SELENO.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""
@@ -922,7 +922,7 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "ASTRA.kicad_sch",
+        "filename": "SELENO.kicad_sch",
         "name": "Root",
         "uuid": "b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
       }

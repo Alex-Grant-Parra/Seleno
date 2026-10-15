@@ -1,6 +1,6 @@
-# ASTRA Controller – Pre-PCB Schematic Review Log
+# SELENO Controller – Pre-PCB Schematic Review Log
 
-Started: 2026-10-13 · Schematic: `AstraController/ASTRA.kicad_sch` (rev 6, KiCad 10.0.5)
+Started: 2026-10-13 · Schematic: `SelenoController/SELENO.kicad_sch` (rev 6, KiCad 10.0.5)
 Purpose: confirm schematic is ready for PCB layout; identify parts/circuits to swap or remove.
 
 > If the session disconnects, resume from **Progress** below. Tick items as completed.
@@ -14,7 +14,7 @@ Purpose: confirm schematic is ready for PCB layout; identify parts/circuits to s
 - [x] 1. Export BOM / netlist / PDF, run ERC (13 violations: 11 err, 2 warn)
 - [x] 2. Pin-by-pin connectivity dump of every part
 - [x] 3. First-pass review of every subsystem (findings below, some marked VERIFY)
-- [x] 4. Download datasheets → quarantine → safety scan → `AstraController/datasheets/` (20 PDFs, all clean, see MANIFEST.md; missing: Würth L2, 2N3904 – blocked 403)
+- [x] 4. Download datasheets → quarantine → safety scan → `SelenoController/datasheets/` (20 PDFs, all clean, see MANIFEST.md; missing: Würth L2, 2N3904 – blocked 403)
 - [x] 5. Verify VERIFY-flagged items against datasheets
 - [x] 6. Write final findings report (`review/SCHEMATIC_REVIEW.md`) ← **authoritative list; the first-pass list below is superseded**
 - [ ] 7. Discuss part swaps / removals with Alex (no schematic edits made yet) – 4 open questions at end of SCHEMATIC_REVIEW.md
@@ -48,7 +48,7 @@ Verify after each batch: ERC + netlist diff against expected changes.
       TVS SMAJ15A on +12V; PTC on J6 VBUS2 (VBUS_CAM); 2x USBLC6-2SC6; ENN pull-ups x2; IMU_INT pull-up; EXP_INT pull-up;
       22uF at ESP32; hub decoupling 2x100nF + 4.7uF
 - [ ] Final: ERC, netlist audit, PDF visual check, update SCHEMATIC_REVIEW.md, commit
-- [x] DONE 2026-10-13: hierarchical design installed. Files: ASTRA.kicad_sch (root: 6 sheet boxes + overview), power / mcu / usb /
+- [x] DONE 2026-10-13: hierarchical design installed. Files: SELENO.kicad_sch (root: 6 sheet boxes + overview), power / mcu / usb /
       motors / ui / imu .kicad_sch (A4 each). Netlist partition identical to the flat rev 7 (135/135 nets); ERC 0/0 with NO exclusions
       (cleared 134 stale flat-design exclusions; added PWR_FLAGs on +12V/GND; U2 CRFILT/PLLFILT pin type → passive; 31 explicit no-connects).
       Readability pre-pass: ESP32EN exit above Q3, IMU reset RC detached from J5 (own IMU_RST label), Q3 fields moved.
@@ -64,7 +64,7 @@ Verify after each batch: ERC + netlist diff against expected changes.
       TMC2209 (p9-10), AP62300 TSOT26 (p3), USB2512B CRFILT/PLLFILT "up to 0.1 uF" (p14, now actually verified) + straps 47-100k (p15).
       AP62300 VFB = 0.800 V (non-T), so 4.98 V / 3.33 V. The AP62300**T** is 0.763 V: do NOT order it.
       Custom hub QFN footprint: CCW numbering, 0.5 mm pitch, EP 3.7 mm with 4 windowed paste apertures (~50%). Add GND vias in layout.
-      PCB parity vs old ASTRA.kicad_pcb: +25 footprints, -6 (C10 C18 C20 R17 U4 + stale R24), 11 footprint swaps, 137 pad-net changes.
+      PCB parity vs old SELENO.kicad_pcb: +25 footprints, -6 (C10 C18 C20 R17 U4 + stale R24), 11 footprint swaps, 137 pad-net changes.
       Old PCB routing is largely invalid (Q1 S/D, Q2/Q3 TO-92, ESP32 pin moves, crystal). Plan a re-route, not a patch.
       Open items for Alex: BOM-excluded SW1-7/S1 (JST-SH, 1 mm pitch) are hard to hand-solder; mark the USB port roles on silkscreen;
       12 V wiring = VH pin 2 positive; LCSC picks (crystal CL 12 pF, SMAJ15A not CA, USB2512B /M2 SQFN, AP62300WU-7).
@@ -113,7 +113,7 @@ Verify after each batch: ERC + netlist diff against expected changes.
       F1, solid In1 connection for the 40 thermal-via pads of U6/U7/U8 (were thermal reliefs);
       F2, 2 more +5V vias at the buck output, at board-local (5.9, 15.6) and (12.5, 15.6), giving 4 in all.
       DRC 0/0/parity 0 (35 lib warnings), ERC 0. jlcpcb/ BOM, CPL and gerbers were cleared and regenerated; the BOM and CPL are unchanged.
-      Backup: review/backup/ASTRA.kicad_pcb.pre_final_fix.
+      Backup: review/backup/SELENO.kicad_pcb.pre_final_fix.
 - [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
       it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
       DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)

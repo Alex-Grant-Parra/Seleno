@@ -9,7 +9,7 @@ from common import *          # noqa
 import place
 importlib.reload(place)
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(WORK, 'ASTRA.kicad_pcb')
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(WORK, 'SELENO.kicad_pcb')
 mm = pcbnew.FromMM
 V = lambda u, v: pcbnew.VECTOR2I(mm(OX + u), mm(OY + v))
 

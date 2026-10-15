@@ -5,7 +5,7 @@
 	(uuid "84244944-5157-467a-aaad-a4b9616213a2")
 	(paper "A4")
 	(title_block
-		(title "ASTRA Telescope Node - Pi Link")
+		(title "SELENO Telescope Node - Pi Link")
 		(date "2026-10-15")
 		(rev "v0.8")
 		(comment 1 "Author: Alex Grant-Parra")
@@ -1270,7 +1270,7 @@
 			(uuid "de5d7ce0-7988-487d-9357-fd6528560a6a")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "Q3")
 					(unit 1)
@@ -1377,7 +1377,7 @@
 			(uuid "b5c458ee-52c4-4fbe-ae0e-cb136f6d53cb")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "Q2")
 					(unit 1)
@@ -1500,7 +1500,7 @@
 			(uuid "b015540f-61db-4820-a88f-3b01b3484935")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "R22")
 					(unit 1)
@@ -1623,7 +1623,7 @@
 			(uuid "e55322c0-19a8-4313-98fb-857b0167a905")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "R23")
 					(unit 1)
@@ -1769,7 +1769,7 @@
 			(uuid "f282c2d3-e762-4e47-adbf-e82dcc520b20")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "J7")
 					(unit 1)
@@ -1858,7 +1858,7 @@
 			(uuid "cd864cc5-2ed2-4ef4-90b8-b45c29c8ad5d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "#PWR156")
 					(unit 1)
@@ -1947,7 +1947,7 @@
 			(uuid "a43e5dae-10fa-40ef-ab26-2888a5a3f7e0")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "#PWR157")
 					(unit 1)
@@ -2036,7 +2036,7 @@
 			(uuid "6c4ab032-de2a-427f-bac4-6981169326fb")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "#PWR158")
 					(unit 1)
@@ -2209,7 +2209,7 @@
 			(uuid "52df6d8b-a8a0-4f83-8c96-83915ac1befa")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "#PWR159")
 					(unit 1)
@@ -2322,7 +2322,7 @@
 			(uuid "7ee8d059-a9d5-495e-95d0-33fc2484ff5d")
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ce2aa5b-7d28-44af-8b2e-b0a8b49da214"
 					(reference "#PWR160")
 					(unit 1)

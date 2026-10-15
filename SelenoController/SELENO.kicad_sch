@@ -5,7 +5,7 @@
 	(uuid "b5ed9a09-c593-4f23-9cbf-a235c2c98de3")
 	(paper "A4")
 	(title_block
-		(title "ASTRA Telescope Node")
+		(title "SELENO Telescope Node")
 		(date "2026-10-15")
 		(rev "v0.8")
 		(comment 1 "Author: Alex Grant-Parra")
@@ -62,7 +62,7 @@
 			)
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(page "2")
 				)
@@ -119,7 +119,7 @@
 			)
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(page "3")
 				)
@@ -176,7 +176,7 @@
 			)
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(page "4")
 				)
@@ -233,7 +233,7 @@
 			)
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(page "5")
 				)
@@ -290,7 +290,7 @@
 			)
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(page "6")
 				)
@@ -347,14 +347,14 @@
 			)
 		)
 		(instances
-			(project "ASTRA"
+			(project "SELENO"
 				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
 					(page "7")
 				)
 			)
 		)
 	)
-	(text "ASTRA Telescope Node - controller board, v0.8\nPower: 12V in, protection, 5V + 3.3V bucks      MCU: ESP32-WROOM-32UE\nPi Link: J7 1x10 header to the Pi Zero 2 (5V power, UART0, ESP32 reset/boot via Q2/Q3)\nMotors: 2x TMC2209 on one shared UART           User Interface: MCP23017 buttons/LEDs, ST7735S LCD\nIMU & Expansion: J3, JST-SH 4p I2C cable to the IMU board\nNets that cross sheets use global labels; power rails use power symbols."
+	(text "SELENO Telescope Node - controller board, v0.8\nPower: 12V in, protection, 5V + 3.3V bucks      MCU: ESP32-WROOM-32UE\nPi Link: J7 1x10 header to the Pi Zero 2 (5V power, UART0, ESP32 reset/boot via Q2/Q3)\nMotors: 2x TMC2209 on one shared UART           User Interface: MCP23017 buttons/LEDs, ST7735S LCD\nIMU & Expansion: J3, JST-SH 4p I2C cable to the IMU board\nNets that cross sheets use global labels; power rails use power symbols."
 		(exclude_from_sim no)
 		(at 30 150 0)
 		(effects

@@ -1,4 +1,4 @@
-"""Generate the JLCPCB assembly BOM and CPL for ASTRA.kicad_pcb.
+"""Generate the JLCPCB assembly BOM and CPL for SELENO.kicad_pcb.
 
 Run with KiCad's python (needs pcbnew):
   "C:/Users/alexg/AppData/Local/Programs/KiCad/10.0/bin/python.exe" -I make_jlc_files.py
@@ -16,9 +16,9 @@ import csv, os, re, sys
 import pcbnew
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-BOARD = os.path.join(HERE, "..", "ASTRA.kicad_pcb")
-BOM_OUT = os.path.join(HERE, "ASTRA_v0.8_BOM_JLCPCB.csv")
-CPL_OUT = os.path.join(HERE, "ASTRA_v0.8_CPL_JLCPCB.csv")
+BOARD = os.path.join(HERE, "..", "SELENO.kicad_pcb")
+BOM_OUT = os.path.join(HERE, "SELENO_v0.8_BOM_JLCPCB.csv")
+CPL_OUT = os.path.join(HERE, "SELENO_v0.8_CPL_JLCPCB.csv")
 
 # LCSC part, BOM comment, JLC package, board value must start with, refs
 ASSEMBLE = [

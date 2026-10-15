@@ -1,6 +1,6 @@
-ASTRA CONTROLLER - PCB PARTS LIST (v0.8)
+SELENO CONTROLLER - PCB PARTS LIST (v0.8)
 =========================================
-Checked line by line against ASTRA.kicad_pcb (the authority) on 2026-10-15,
+Checked line by line against SELENO.kicad_pcb (the authority) on 2026-10-15,
 after the design-check changes (C47 added, order-list values applied).
 The board, the schematic and this list agree (DRC schematic parity 0).
 

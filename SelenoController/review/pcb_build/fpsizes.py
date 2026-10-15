@@ -2,11 +2,11 @@ import pcbnew, sys, re
 sys.path.insert(0, r'C:\Users\alexg\AppData\Local\Temp\claude\z--ASTRA\a7d97d99-9fe0-411d-bfa9-89de7e274382\scratchpad')
 from parse_net import parse, find, val
 FP = r'C:\Users\alexg\AppData\Local\Programs\KiCad\10.0\share\kicad\footprints'
-PRJ = r'Z:\ASTRA\AstraController'
+PRJ = r'Z:\ASTRA\SelenoController'
 def libpath(lib):
     import os
-    return os.path.join(PRJ, 'ASTRAfootprints.pretty') if lib == 'ASTRAfootprints' else os.path.join(FP, lib + '.pretty')
-t = parse(open(r'C:\Users\alexg\AppData\Local\Temp\claude\z--ASTRA\a7d97d99-9fe0-411d-bfa9-89de7e274382\scratchpad\final\astra.net', encoding='utf-8').read())
+    return os.path.join(PRJ, 'SELENOfootprints.pretty') if lib == 'SELENOfootprints' else os.path.join(FP, lib + '.pretty')
+t = parse(open(r'C:\Users\alexg\AppData\Local\Temp\claude\z--ASTRA\a7d97d99-9fe0-411d-bfa9-89de7e274382\scratchpad\final\seleno.net', encoding='utf-8').read())
 fps = {}
 for c in find(find(t,'components')[0],'comp'):
     fps.setdefault(val(c,'footprint'), []).append(val(c,'ref'))

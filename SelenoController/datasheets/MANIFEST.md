@@ -1,4 +1,4 @@
-# Datasheet Manifest – ASTRA Controller
+# Datasheet Manifest – SELENO Controller
 
 Downloaded 2026-10-13 for the pre-PCB schematic review.
 

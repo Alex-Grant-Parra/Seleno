@@ -1,6 +1,6 @@
 "Reference","Qty","Value","Exclude from BOM","Exclude from Board","Footprint","Description","LCSC Part #"
 "J6","1","USB_A_Stacked","","","Connector_USB:USB_A_CUI_UJ2-ADH-TH_Horizontal_Stacked","USB Type A connector, stacked",""
-"U2","1","USB2512B_M2","","","ASTRAfootprints:QFN37P50_600X600X100L62X24T370N","USB Hub Controller USB 2.0 USB Interface 36-SQFN (6x6)",""
+"U2","1","USB2512B_M2","","","SELENOfootprints:QFN37P50_600X600X100L62X24T370N","USB Hub Controller USB 2.0 USB Interface 36-SQFN (6x6)",""
 "U4","1","SPX3819M5-L-3-3","","","Package_TO_SOT_SMD:SOT-23-5","500mA Low drop-out regulator, Fixed Output 3.3V, SOT-23-5","C9055"
 "D5","1","LED_YELLOW","","","LED_SMD:LED_0805_2012Metric","Light emitting diode",""
 "D3","1","LED_WHITE","","","LED_SMD:LED_0805_2012Metric","Light emitting diode",""

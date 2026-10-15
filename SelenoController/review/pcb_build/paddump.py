@@ -1,10 +1,10 @@
 import pcbnew, os, sys
 FP = r'C:\Users\alexg\AppData\Local\Programs\KiCad\10.0\share\kicad\footprints'
-PRJ = r'Z:\ASTRA\AstraController'
+PRJ = r'Z:\ASTRA\SelenoController'
 mm = pcbnew.ToMM
 for fpid in sys.argv[1:]:
     lib, name = fpid.split(':')
-    path = os.path.join(PRJ, 'ASTRAfootprints.pretty') if lib == 'ASTRAfootprints' else os.path.join(FP, lib + '.pretty')
+    path = os.path.join(PRJ, 'SELENOfootprints.pretty') if lib == 'SELENOfootprints' else os.path.join(FP, lib + '.pretty')
     f = pcbnew.FootprintLoad(path, name)
     print('==', fpid)
     rows = {}
