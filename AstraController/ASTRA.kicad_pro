@@ -162,7 +162,7 @@
         "min_resolved_spokes": 2,
         "min_silk_clearance": 0.0,
         "min_text_height": 0.8,
-        "min_text_thickness": 0.08,
+        "min_text_thickness": 0.12,
         "min_through_hole_diameter": 0.3,
         "min_track_width": 0.15,
         "min_via_annular_width": 0.075,
@@ -552,13 +552,14 @@
         "bus_width": 12,
         "clearance": 0.2,
         "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.25,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "BuckSW",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 3,
+        "priority": 4,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.8,
         "tuning_profile": "",
@@ -570,13 +571,14 @@
         "bus_width": 12,
         "clearance": 0.2,
         "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.25,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "HV12",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 1,
+        "priority": 2,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 1.0,
         "tuning_profile": "",
@@ -588,13 +590,14 @@
         "bus_width": 12,
         "clearance": 0.2,
         "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.25,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "Motor",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 2,
+        "priority": 3,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.6,
         "tuning_profile": "",
@@ -606,13 +609,14 @@
         "bus_width": 12,
         "clearance": 0.15,
         "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.25,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "Power",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 0,
+        "priority": 1,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.4,
         "tuning_profile": "",
@@ -624,13 +628,14 @@
         "bus_width": 12,
         "clearance": 0.15,
         "diff_pair_gap": 0.15,
+        "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.25,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "USB",
         "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 4,
+        "priority": 5,
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.25,
         "tuning_profile": "",
@@ -656,10 +661,6 @@
       {
         "netclass": "Power",
         "pattern": "GND"
-      },
-      {
-        "netclass": "Power",
-        "pattern": "/USB & Serial/VBUS_CAM"
       },
       {
         "netclass": "HV12",
@@ -696,14 +697,6 @@
       {
         "netclass": "BuckSW",
         "pattern": "Net-(U9-SW)"
-      },
-      {
-        "netclass": "USB",
-        "pattern": "/USB & Serial/upstream D*"
-      },
-      {
-        "netclass": "USB",
-        "pattern": "/USB & Serial/downstream* D*"
       }
     ]
   },
@@ -956,7 +949,7 @@
     ],
     [
       "b5b310b9-319c-4861-a2fc-92d746a6d757",
-      "USB & Serial"
+      "Pi Link"
     ],
     [
       "690a9611-d35f-4ae9-ab47-70031296622f",

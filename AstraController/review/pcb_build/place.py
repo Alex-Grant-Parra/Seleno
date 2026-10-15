@@ -1,4 +1,4 @@
-"""Placement for SELENO v0.7 (85 x 50 mm, all parts on top).
+"""Placement for SELENO v0.8 (85 x 50 mm, all parts on top).
 
 Coordinates are board-local (u right, v down, origin = top-left board corner), mm.
 Rotation is KiCad footprint orientation in degrees.
@@ -21,11 +21,10 @@ def block(ou, ov, brot, items):
 
 
 # ---------------------------------------------------------------- edges / connectors
-put('J6', 19.0, 13.55, -90)                 # stacked USB-A, opening on the top edge (port 1 = Pi, port 2 = camera)
-put('J4', 35.14, 2.75, 0)                   # Qwiic
-put('J3', 43.24, 2.75, 0)                   # Qwiic
+put('J7', 8.4, 2.2, 90)                     # Pi link 1x10 (pin 1 = 5V at the left, pins run east to u 31.26)
+put('C12', 9.7, 5.4, 0)                     # +5V decoupling at J7 pins 1/2
+put('J3', 43.24, 2.75, 0)                   # I2C cable to the IMU board
 put('S1', 53.35, 2.75, 0)                   # LCD
-put('J5', 65.95, 2.75, 0)                   # BNO085 cable
 put('SW7', 75.46, 2.75, 0)                  # reset button cable
 
 # bottom edge: button cables, ordered to match the MCP23017 pins
@@ -36,25 +35,35 @@ put('P1', 4.45, 29.0, 90)                   # 12 V in, left edge (pin 2 = +12V a
 
 
 # ---------------------------------------------------------------- motor driver blocks (driver rotated 180, motor side down)
+# Every support part sits outside DRV_ENV, the footprint envelope of the leaded alternative (TMC2226-SA,
+# HTSSOP-28 4.4x9.7 mm, long side horizontal, courtyard 10.3 x 7.8), so the QFN can be swapped later
+# without moving anything else.
+DRV_ENV = (5.3, 4.1)                # half-width, half-height around the driver centre
+ENVELOPES = {}                      # ref -> (u0, v0, u1, v1, what): keep-clear areas for leaded replacements
+
+
 def driver(cx, cy, U, Rbra, Rbrb, Ccp, Cvcp, C5v, Cio, Cvs, J):
     block(cx, cy, 0, [
         (U, 0, 0, 180),
-        (Rbra, -3.03, 4.6, 0),      # pad 2 (BRA) east, GND pad west
-        (Rbrb, 3.03, 4.6, 180),     # pad 2 (BRB) west, GND pad east
-        (Ccp, 3.7, -0.25, 90),      # CPO south / CPI north
-        (Cvcp, 4.4, -1.9, 0),       # VCP west / VS east
-        (C5v, 2.6, -3.95, 0),       # 5VOUT west / GND east
-        (Cio, -4.2, -2.2, 180),     # +3V3 east / GND west
-        (Cvs, -4.6, 2.3, 90),       # VS decoupling
-        (J, -5.5, 8.5, 0),
+        (Rbra, -3.03, 5.3, 0),      # pad 2 (BRA) east, GND pad west
+        (Rbrb, 3.03, 5.3, 180),     # pad 2 (BRB) west, GND pad east
+        (Ccp, 6.0, -0.25, 90),      # CPO south / CPI north
+        (Cvcp, 6.4, -2.0, 0),       # VCP west / VS east
+        (C5v, 2.6, -5.0, 0),        # 5VOUT west / GND east
+        (Cio, -3.72, -5.1, 90),     # +3V3 south / GND north
+        (Cvs, -5.9, 2.3, 90),       # VS decoupling
+        (J, -5.5, 10.0, 0),
     ])
+    ENVELOPES[U] = (cx - DRV_ENV[0], cy - DRV_ENV[1], cx + DRV_ENV[0], cy + DRV_ENV[1], 'TMC2226-SA HTSSOP-28')
 
 
-driver(14.6, 38.05, 'U7', 'R25', 'R26', 'C28', 'C26', 'C27', 'C3', 'C2', 'J1')
-driver(30.0, 38.05, 'U8', 'R27', 'R28', 'C30', 'C29', 'C31', 'C4', 'C32', 'J2')
+DRV_Y = 36.55                       # (motor connectors stay at v 46.55)
+driver(14.6, DRV_Y, 'U7', 'R25', 'R26', 'C28', 'C26', 'C27', 'C3', 'C2', 'J1')
+driver(30.0, DRV_Y, 'U8', 'R27', 'R28', 'C30', 'C29', 'C31', 'C4', 'C32', 'J2')
+put('C47', 21.9, 39.9, 90)                  # shared 22uF VS ceramic between the drivers (vias are hand-added on the board)
 # ENN pull-ups sit at the ESP32 end of 1EN / 2EN (keeps +3V3 pads out of the +12V plane area)
-put('R35', 70.47, 28.1, 90)                 # under U5 pin 33: 1EN north, +3V3 south
-put('R36', 62.85, 6.15, 0)                  # above U5 pin 12: +3V3 west (to J5 pin 1), 2EN east
+put('R35', 72.47, 28.1, 90)                 # under U5 pin 33: 1EN north, +3V3 south
+put('R36', 60.3, 6.2, 0)                    # 2EN pull-up, beside the module's top-left corner (keeps the pin-escape strip free)
 put('C1', 41.0, 38.6, 0)                    # 680 uF bulk next to the drivers (+ west)
 
 # ---------------------------------------------------------------- input protection
@@ -79,63 +88,40 @@ def buck(cx, cy, U, Cin, Cbst, L, Co1, Co2, Rtop, Rbot):
     ])
 
 
-buck(45.0, 25.5, 'U6', 'C35', 'C36', 'L2', 'C37', 'C38', 'R29', 'R30')     # 5 V
-buck(59.6, 34.0, 'U9', 'C39', 'C40', 'L3', 'C41', 'C42', 'R33', 'R34')     # 3.3 V
-put('R31', 48.8, 23.4, 0)                   # BUCK_EN divider (shared by both bucks)
-put('R32', 48.8, 22.3, 0)
-put('C12', 18.3, 21.2, 0)                   # +5V rail by the USB connector
-put('C15', 56.0, 40.6, 0)                   # +3.3V rail
-put('C16', 59.0, 40.6, 0)
+U6_AT = (19.0, 11.5)                        # 5 V buck, top-left under J7 (input from the +12V corridor below)
+U9_AT = (38.0, 11.5)                        # 3.3 V buck, beside U6: one power strip under J7 (fed by its own +12V corridor)
+buck(*U6_AT, 'U6', 'C35', 'C36', 'L2', 'C37', 'C38', 'R29', 'R30')       # 5 V
+buck(*U9_AT, 'U9', 'C39', 'C40', 'L3', 'C41', 'C42', 'R33', 'R34')       # 3.3 V
+put('R31', 16.4, 18.0, 0)                   # BUCK_EN divider (shared by both bucks), in the +12V corridor
+put('R32', 16.4, 19.1, 180)                 # BUCK_EN east, GND west
+put('C15', 33.2, 17.3, -90)                 # +3.3V bulk at the 3.3 V buck output
+put('C16', 35.0, 17.3, -90)
 
-# ---------------------------------------------------------------- USB: ESD, hub, crystal, CH340
-put('U10', 30.1, 10.6, 90)                  # Pi port ESD, pair flows north -> south through it
-put('U11', 26.9, 23.0, 180)                 # camera port ESD, pair flows west -> east
-put('F2', 22.3, 20.3, 0)                    # camera VBUS PTC (+5V west, VBUS_CAM east)
-put('U2', 35.5, 14.0, 90)                   # USB2512B hub (upstream + crystal on the west side)
-put('Y1', 28.5, 16.3, 90)                   # XO top-left, XI bottom-right
-put('C23', 26.2, 15.6, -90)
-put('C24', 29.35, 19.45, -90)
-put('C19', 31.35, 19.0, 90)                 # PLLFILT
-put('R9', 32.45, 19.6, -90)                 # RBIAS
-put('C45', 30.3, 21.3, 180)                 # VDDA36
-# hub straps above the chip (pin order left->right: RESET_N, HS_IND, SCL, VDD33, SDA)
-for ref, u in (('R10', 33.2), ('R15', 34.3), ('R11', 35.4), ('C14', 36.5), ('R18', 37.6)):
-    put(ref, u, 8.6, 90)
-put('R13', 31.9, 7.4, 90)                   # SUSP_IND strap
-put('C44', 39.05, 7.9, 0)                    # VDDA29 / spare 3V3 decoupling
-put('C25', 29.45, 3.0, 0)                    # hub reset delay cap
-# hub east side (pin order top->bottom: PRTPWR2, VDD33, CRFILT, PRTPWR1, VDDA10)
-for ref, v in (('R12', 12.4), ('C21', 13.5), ('C17', 14.6), ('R14', 15.7), ('C22', 16.8)):
-    put(ref, 40.6, v, 180 if ref == 'C17' else 0)
-put('C46', 36.6, 19.0, -90)                 # hub bulk (VDDA5)
-
-put('U3', 47.0, 15.0, 90)                   # CH340C: USB at the bottom, RTS/DTR at the top
-put('C9', 42.6, 10.2, 0)
-put('C13', 46.4, 19.9, -90)
-put('Q3', 55.0, 13.0, 0)                    # RTS -> EN
-put('Q2', 55.0, 17.0, 0)                    # DTR -> IO0
-put('R22', 55.0, 10.6, 0)
-put('R23', 55.0, 19.4, 0)
+# ---------------------------------------------------------------- ESP32 programming / debug group (bottom-middle, under the
+# module's IO0 / TX / RX corner): auto-program pair driven by the Pi (J7 DTR/RTS) + one 2x4 test-pad block
+put('R22', 51.5, 30.6, 0)
+put('Q3', 51.5, 33.0, 0)                    # RTS -> EN
+put('Q2', 51.5, 37.0, 0)                    # DTR -> IO0
+put('R23', 51.5, 39.4, 0)
 
 # ---------------------------------------------------------------- ESP32 and its support parts
-put('U5', 68.41, 16.79, -90)                # antenna end (u.FL) towards the right edge
+put('U5', 70.41, 16.79, -90)                # antenna end (u.FL) towards the right edge; 7 mm free channel on its left
 put('C11', 76.9, 6.25, 0)
 put('R6', 73.5, 6.25, 0)
 put('C43', 81.6, 10.0, 90)
 put('C7', 81.6, 13.4, 90)
-put('R7', 80.6, 16.2, 0)
-put('R8', 80.6, 17.3, 0)
-put('R37', 80.6, 18.4, 0)
-put('R20', 80.6, 19.5, 0)
-put('C34', 80.6, 20.6, 0)
-put('R16', 67.3, 28.0, 180)
+put('R7', 81.8, 16.2, 0)
+put('R8', 81.8, 17.3, 0)
+put('R16', 69.3, 28.0, 180)               # TMC_TX / TMC_UART, under U5 pins 30/31
 
 # ---------------------------------------------------------------- I/O expander, LEDs, buttons
 put('U1', 70.5, 36.5, 180)
-put('C6', 75.4, 34.6, 90)
-put('R19', 68.6, 30.9, 90)
-put('C33', 66.9, 30.9, 90)
-put('R38', 65.6, 35.2, 0)
+# keep-clear square for the leaded MCP23017-E/SS (SSOP-28 5.3x10.2, courtyard 9.5 x 10.8) in either rotation
+ENVELOPES['U1'] = (70.5 - 5.4, 36.5 - 5.4, 70.5 + 5.4, 36.5 + 5.4, 'MCP23017-E/SS SSOP-28')
+put('C6', 77.2, 34.6, 90)
+put('R19', 69.2, 29.6, 90)                  # MCP reset pull-up / RC (C33 is 0805) and EXP_INT pull-up,
+put('C33', 66.8, 29.9, 0)                   # all above the U1 envelope and below R16
+put('R38', 64.0, 28.6, 0)
 for i, (led, res) in enumerate((('D4', 'R4'), ('D5', 'R5'), ('D3', 'R3'), ('D2', 'R2'), ('D1', 'R1'))):
     v = 30.0 + 2.5 * i                      # top to bottom: blue, yellow, white, green, red
     put(led, 82.4, v, 180)                  # anode west, cathode (GND) east
@@ -143,11 +129,26 @@ for i, (led, res) in enumerate((('D4', 'R4'), ('D5', 'R5'), ('D3', 'R3'), ('D2',
 
 # ---------------------------------------------------------------- mounting holes and test pads (board-only)
 HOLES = [('H1', 3.5, 3.5), ('H2', 81.5, 3.5), ('H3', 3.5, 46.5), ('H4', 81.5, 46.5)]
-TESTPADS = [  # ref, net, u, v
-    ('TP1', '+12V', 1.7, 34.0), ('TP5', 'GND', 1.7, 36.6),            # left edge by the TVS
-    ('TP2', '+5V', 2.6, 10.9), ('TP4', 'GND', 2.6, 13.4),             # left edge by the USB ports
-    ('TP3', '+3.3V', 83.45, 12.8),
-    ('TP6', 'ESP32EN', 83.2, 15.0), ('TP7', 'GPIO0', 83.2, 17.5), ('TP8', 'UART1', 83.2, 20.0),
-    ('TP9', 'UART2', 83.2, 22.5), ('TP10', 'GND', 83.2, 25.0),
-    ('TP11', 'SCL', 26.0, 2.2), ('TP12', 'SDA', 26.0, 4.6), ('TP13', 'TMC_UART', 22.6, 35.6),   # between the drivers, on the shared TMC UART
+TESTPADS = [  # ref, net, u, v, label, label side (l / r = left / right, u / d1 = above / below, d = vertical below)
+    # power: 12V + GND at the input, 5V + GND at the 5 V buck, 3V3 + GND at the 3.3 V buck
+    ('TP1', '+12V', 1.7, 34.0, '12V', 'u'), ('TP2', 'GND', 1.7, 36.6, 'GND', 'd1'),
+    ('TP3', '+5V', 2.6, 10.9, '5V', 'r'), ('TP4', 'GND', 2.6, 13.4, 'GND', 'r'),
+    ('TP5', '+3.3V', 41.6, 17.6, '3V3', 'd1'), ('TP6', 'GND', 44.2, 17.6, 'GND', 'd1'),
+    # I2C, beside J3
+    ('TP7', 'SCL', 34.3, 2.2, 'SCL', 'd1'), ('TP8', 'SDA', 37.0, 2.2, 'SDA', 'd1'),
+    # LCD column, left of the S1 -> ESP32 channel (not in it)
+    ('TP9', 'SCK', 47.0, 9.6, 'SCK', 'r'), ('TP10', 'MOSI', 47.0, 11.8, 'MOSI', 'r'), ('TP11', 'DC', 47.0, 14.0, 'DC', 'r'),
+    ('TP12', 'RES', 47.0, 16.2, 'RES', 'r'), ('TP13', 'BL', 47.0, 18.4, 'BL', 'r'),
+    # ESP32 programming / debug block (2 x 4) next to Q2/Q3
+    ('TP14', 'GND', 55.0, 31.0, 'GND', 'd1'), ('TP15', '+3.3V', 57.6, 31.0, '3V3', 'd1'),
+    ('TP16', 'UART1', 60.2, 31.0, 'TX', 'd1'), ('TP17', 'UART2', 62.8, 31.0, 'RX', 'd1'),
+    ('TP18', 'ESP32EN', 55.0, 34.0, 'EN', 'd1'), ('TP19', 'GPIO0', 57.6, 34.0, 'IO0', 'd1'),
+    ('TP20', '/Pi Link/DTR', 60.2, 34.0, 'DTR', 'd1'), ('TP21', '/Pi Link/RTS', 62.8, 34.0, 'RTS', 'd1'),
+    # motor block (2 x 5) above C1, beside the ESP32 -> driver bus
+    ('TP22', '1STEP', 33.5, 26.8, '1STEP', 'u'), ('TP23', '1DIR', 36.9, 26.8, '1DIR', 'u'), ('TP24', '1EN', 40.3, 26.8, '1EN', 'u'),
+    ('TP25', 'T1_DIAG', 43.7, 26.8, '1DIAG', 'u'), ('TP26', 'TMC_UART', 47.1, 26.8, 'UART', 'u'),
+    ('TP27', '2STEP', 33.5, 29.2, '2STEP', 'd1'), ('TP28', '2DIR', 36.9, 29.2, '2DIR', 'd1'), ('TP29', '2EN', 40.3, 29.2, '2EN', 'd1'),
+    ('TP30', 'T2_DIAG', 43.7, 29.2, '2DIAG', 'd1'), ('TP31', 'TMC_TX', 67.25, 27.75, 'TTX', 'l'),   # beside R16 (its block slot was walled in)
+    # misc
+    ('TP32', '/Power/BUCK_EN', 19.0, 18.55, 'BEN', 'r'), ('TP33', 'EXP_INT', 61.6, 28.6, 'INT', 'l'),
 ]

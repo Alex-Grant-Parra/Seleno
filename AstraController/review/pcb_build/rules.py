@@ -1,4 +1,4 @@
-"""Net classes and design rules for SELENO v0.7 (also written into ASTRA.kicad_pro)."""
+"""Net classes and design rules for SELENO v0.8 (also written into ASTRA.kicad_pro)."""
 import json, fnmatch
 
 # name: track, clearance, via diameter, via drill
@@ -11,18 +11,17 @@ CLASSES = {
     'USB':     dict(track=0.25, clr=0.15, via=0.5, drill=0.3, dp_gap=0.15),
 }
 PATTERNS = [   # first match wins
-    ('+3.3V', 'Power'), ('+5V', 'Power'), ('GND', 'Power'), ('/USB & Serial/VBUS_CAM', 'Power'),
+    ('+3.3V', 'Power'), ('+5V', 'Power'), ('GND', 'Power'),
     ('+12V', 'HV12'), ('Net-(F1-Pad2)', 'HV12'), ('Net-(Q1-D)', 'HV12'),
     ('Net-(J1-Pin_*)', 'Motor'), ('Net-(J2-Pin_*)', 'Motor'),
     ('Net-(U7-BR*)', 'Motor'), ('Net-(U8-BR*)', 'Motor'),
     ('Net-(U6-SW)', 'BuckSW'), ('Net-(U9-SW)', 'BuckSW'),
-    ('/USB & Serial/upstream D*', 'USB'), ('/USB & Serial/downstream* D*', 'USB'),
 ]
-TIGHT_VIA = dict(via=0.45, drill=0.2)
+TIGHT_VIA = dict(via=0.45, drill=0.3)     # every drill >= 0.3 mm (JLC: 0.2 mm holes cost extra)
 PLANE_NETS = ('GND', '+3.3V', '+5V', '+12V')
 
 # board-level minimums (JLCPCB 4-layer capable, with margin)
-MIN = dict(clearance=0.15, track=0.15, via=0.45, drill=0.2, annular=0.1, edge=0.3, hole_clr=0.2, hole_hole=0.25)
+MIN = dict(clearance=0.15, track=0.15, via=0.45, drill=0.3, annular=0.075, edge=0.3, hole_clr=0.2, hole_hole=0.25)
 
 
 def netclass(net):
@@ -59,7 +58,7 @@ def write_project(path):
              min_copper_edge_clearance=MIN['edge'], min_hole_clearance=MIN['hole_clr'], min_hole_to_hole=MIN['hole_hole'])
     ds = d['board']['design_settings']
     ds['track_widths'] = [0.0, 0.2, 0.25, 0.4, 0.6, 0.8, 1.0]
-    ds['via_dimensions'] = [dict(diameter=0.0, drill=0.0), dict(diameter=0.45, drill=0.2), dict(diameter=0.5, drill=0.3), dict(diameter=0.6, drill=0.3)]
+    ds['via_dimensions'] = [dict(diameter=0.0, drill=0.0), dict(diameter=0.45, drill=0.3), dict(diameter=0.5, drill=0.3), dict(diameter=0.6, drill=0.3)]
     ds['diff_pair_dimensions'] = [dict(gap=0.0, via_gap=0.0, width=0.0), dict(gap=0.15, via_gap=0.25, width=0.25)]
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         json.dump(d, f, indent=2)

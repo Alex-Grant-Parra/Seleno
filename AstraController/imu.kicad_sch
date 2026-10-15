@@ -6,8 +6,8 @@
 	(paper "A4")
 	(title_block
 		(title "ASTRA Telescope Node - IMU & Expansion")
-		(date "2026-10-13")
-		(rev "7")
+		(date "2026-10-15")
+		(rev "v0.8")
 		(comment 1 "Author: Alex Grant-Parra")
 	)
 	(lib_symbols

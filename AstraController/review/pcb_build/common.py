@@ -1,4 +1,4 @@
-"""Shared helpers for the SELENO v0.7 board build (run with KiCad's python.exe)."""
+"""Shared helpers for the SELENO v0.8 board build (run with KiCad's python.exe)."""
 import os, sys, math, json
 
 HERE = os.path.dirname(os.path.abspath(__file__))

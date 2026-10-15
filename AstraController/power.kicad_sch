@@ -6,8 +6,8 @@
 	(paper "A4")
 	(title_block
 		(title "ASTRA Telescope Node - Power")
-		(date "2026-10-13")
-		(rev "7")
+		(date "2026-10-15")
+		(rev "v0.8")
 		(comment 1 "Author: Alex Grant-Parra")
 	)
 	(lib_symbols
@@ -3344,7 +3344,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "10uF"
+		(property "Value" "10uF 25V"
 			(at 57.404 101.6 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3546,7 +3546,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF 50V"
 			(at 51.054 101.346 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4179,7 +4179,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "22uF 10V"
+		(property "Value" "22uF 25V"
 			(at 64.516 24.638 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4615,7 +4615,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF 50V"
 			(at 56.642 35.56 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5018,7 +5018,7 @@
 				)
 			)
 		)
-		(property "Value" "10kR 1%"
+		(property "Value" "5.1kR 1%"
 			(at 49.53 52.07 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5141,7 +5141,7 @@
 				)
 			)
 		)
-		(property "Value" "52.3kR 1%"
+		(property "Value" "27kR 1%"
 			(at 39.37 52.07 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5265,7 +5265,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "10uF 25V"
+		(property "Value" "10uF 50V"
 			(at 23.876 32.512 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5680,7 +5680,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "22uF 10V"
+		(property "Value" "22uF 25V"
 			(at 64.77 36.068 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5913,7 +5913,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF 50V"
 			(at 28.194 103.886 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6148,7 +6148,7 @@
 				)
 			)
 		)
-		(property "Description" "3A buck, 3.3V rail (ESP32, hub, CH340, MCP23017, LCD, IMU)"
+		(property "Description" "3A buck, 3.3V rail (ESP32, MCP23017, LCD, IMU)"
 			(at 137.16 38.1 0)
 			(hide yes)
 			(show_name no)
@@ -6208,7 +6208,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "10uF 25V"
+		(property "Value" "10uF 50V"
 			(at 126.746 33.782 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6333,7 +6333,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF 50V"
 			(at 159.512 36.83 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6548,7 +6548,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "22uF 10V"
+		(property "Value" "22uF 25V"
 			(at 167.64 37.338 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6673,7 +6673,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "22uF 10V"
+		(property "Value" "22uF 25V"
 			(at 167.386 25.908 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6797,7 +6797,7 @@
 				)
 			)
 		)
-		(property "Value" "31.6kR 1%"
+		(property "Value" "47kR 1%"
 			(at 142.24 53.34 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6920,7 +6920,7 @@
 				)
 			)
 		)
-		(property "Value" "10kR 1%"
+		(property "Value" "15kR 1%"
 			(at 152.4 53.34 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8191,82 +8191,82 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "power:+12V")
-		(at 83.82 93.98 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "5b3219e0-e47a-46d3-a5b2-95f959ad6de9")
-		(property "Reference" "#PWR154"
-			(at 83.82 97.79 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+12V"
-			(at 84.582 90.424 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 83.82 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 83.82 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+12V\""
-			(at 83.82 93.98 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "fb01ee58-137d-40ef-8771-e75adb0ef0d6")
-		)
-		(instances
-			(project "ASTRA"
-				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/3dd04e5d-a088-4160-b2d1-6a5bf40fa372"
-					(reference "#PWR154")
-					(unit 1)
-				)
-			)
-		)
+	(symbol
+		(lib_id "power:+12V")
+		(at 83.82 93.98 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "5b3219e0-e47a-46d3-a5b2-95f959ad6de9")
+		(property "Reference" "#PWR154"
+			(at 83.82 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 84.582 90.424 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 83.82 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 83.82 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+12V\""
+			(at 83.82 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "fb01ee58-137d-40ef-8771-e75adb0ef0d6")
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/3dd04e5d-a088-4160-b2d1-6a5bf40fa372"
+					(reference "#PWR154")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(wire
 		(pts
@@ -8442,83 +8442,83 @@
 		)
 		(uuid "891f65de-eddd-471b-88af-025df928b0aa")
 	)
-	(symbol
-		(lib_id "power:GND")
-		(at 96.52 99.06 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "b76cb1bc-d0a1-462d-9e03-82ade9ac4c3b")
-		(property "Reference" "#PWR155"
-			(at 96.52 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 96.52 104.14 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 96.52 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 96.52 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 96.52 99.06 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "5ea09799-14c1-46c7-bb52-bdb2dfa351fa")
-		)
-		(instances
-			(project "ASTRA"
-				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/3dd04e5d-a088-4160-b2d1-6a5bf40fa372"
-					(reference "#PWR155")
-					(unit 1)
-				)
-			)
-		)
+	(symbol
+		(lib_id "power:GND")
+		(at 96.52 99.06 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b76cb1bc-d0a1-462d-9e03-82ade9ac4c3b")
+		(property "Reference" "#PWR155"
+			(at 96.52 105.41 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 96.52 104.14 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 96.52 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 96.52 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 96.52 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5ea09799-14c1-46c7-bb52-bdb2dfa351fa")
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/3dd04e5d-a088-4160-b2d1-6a5bf40fa372"
+					(reference "#PWR155")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(text "12V IN -> F1 3A PTC -> Q1 reverse-polarity PFET (D6 clamps Vgs) -> +12V\nD7 SMAJ15A TVS on +12V (15V standoff: off at 14.4V charging, clamps below AP62300 20V max)\nU6: +12V -> +5V  (R29/R30 52.3k/10k, L2 3.3uH)   U9: +12V -> +3.3V (R33/R34 31.6k/10k, L3 3.3uH)\nBUCK_EN: R31/R32 divider shared by U6 and U9 -> both rails start at ~9.3V\nLayout: keep each buck input loop (C35/C39 -> IN -> GND) and SW node tiny"
 		(exclude_from_sim no)
@@ -8530,6 +8530,171 @@
 			(justify left top)
 		)
 		(uuid "c4b3c4b0-0ea0-48c9-b359-34e2d933c549")
+	)
+	(symbol
+		(lib_id "power:+3.3V")
+		(at 109.22 93.98 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "efd2b420-477b-4254-8291-c374ca7b33e9")
+		(property "Reference" "#PWR161"
+			(at 109.22 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3.3V"
+			(at 109.22 88.9 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 109.22 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 109.22 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3.3V\""
+			(at 109.22 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3928f0a7-c0b5-48fd-bef6-2610304b4ecf")
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/3dd04e5d-a088-4160-b2d1-6a5bf40fa372"
+					(reference "#PWR161")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:PWR_FLAG")
+		(at 109.22 96.52 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board no)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "afa6b4e5-2c86-43cc-b62a-6e44e36079b4")
+		(property "Reference" "#FLG5"
+			(at 113.03 92.71 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 113.03 92.71 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 109.22 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 109.22 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Special symbol for telling ERC where power comes to a net"
+			(at 109.22 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2e579aaf-ee64-4647-a9a0-bd785563e907")
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/3dd04e5d-a088-4160-b2d1-6a5bf40fa372"
+					(reference "#FLG5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 109.22 93.98) (xy 109.22 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "26f72980-1694-4f30-bd81-8dcdbf983b40")
 	)
 	(embedded_fonts no)
 )

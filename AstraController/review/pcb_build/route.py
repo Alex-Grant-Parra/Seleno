@@ -1,4 +1,4 @@
-"""Grid A* router for SELENO v0.7 (F.Cu + B.Cu, through vias, 0.1 mm grid). Time-boxed.
+"""Grid A* router for SELENO v0.8 (F.Cu + B.Cu, through vias, 0.1 mm grid). Time-boxed.
 
 python.exe route.py <geom.json> <routes.json>
 Order: hand routes -> exposed-pad vias -> plane fanout -> signal nets (with rip-up and retry) -> zones.
@@ -371,8 +371,8 @@ def fanout(R, log):
         minw = min(p.minw for p in comp['pads'])
         done = False
         for w, via, lim, maxc in ((min(cls['track'], 0.4, max(0.2, minw)), (0.5, 0.3), 6000, 40),
-                                  (min(0.25, max(0.2, minw)), (0.45, 0.2), 12000, 60),
-                                  (0.3, (0.45, 0.2), 120000, INF)):
+                                  (min(0.25, max(0.2, minw)), (0.45, 0.3), 12000, 60),
+                                  (0.3, (0.45, 0.3), 120000, INF)):
             ok_b, tight_b, vok_b, okm, vok = R.masks(net, w, via)
             isl = R.island(net, via[0] / 2)
             goal = (vok & isl).astype(np.uint8).tobytes()
@@ -393,7 +393,7 @@ def fanout(R, log):
         if not done:   # far from its island: route straight to the nearest plane-connected copper of the net
             plane_comp = next((k for k in comps if k['plane']), None)
             if plane_comp is not None:
-                ok_b, tight_b, vok_b, okm, vok = R.masks(net, 0.3, (0.45, 0.2))
+                ok_b, tight_b, vok_b, okm, vok = R.masks(net, 0.3, (0.45, 0.3))
                 src = R.comp_nodes(comp, okm)
                 tgn = R.comp_nodes(plane_comp, okm)
                 tg = {(n << 1) | L for n, L in tgn}
@@ -404,7 +404,7 @@ def fanout(R, log):
                     path = R.astar(ok_b, tight_b, vok_b, src, tg, limit=200000, hw_=1.3, tboxes=None,
                                    deadline=time.time() + 4)
                     if path:
-                        R.commit(net, path, 0.3, (0.45, 0.2), 'fan')
+                        R.commit(net, path, 0.3, (0.45, 0.3), 'fan')
                         done = True
         if not done:
             fails.append((net, [p.name for p in comp['pads']]))
@@ -485,9 +485,9 @@ def try_route(R, net):
     cls = rules.netclass(net)
     w = rules.CLASSES[cls]['track'] if cls in ('Default', 'USB') else 0.3
     t = 2.0 + net_span(R.c, net) / 15.0          # seconds: ~2 s for local nets, ~8 s for board-crossing ones
-    return (route_net(R, net, w, (0.5, 0.3), budget=t) or route_net(R, net, w, (0.45, 0.2), budget=t)
-            or (w > 0.2 and route_net(R, net, 0.2, (0.45, 0.2), budget=t))
-            or route_net(R, net, 0.15, (0.45, 0.2), budget=t))      # last resort: 0.15 mm neck-down
+    return (route_net(R, net, w, (0.5, 0.3), budget=t) or route_net(R, net, w, (0.45, 0.3), budget=t)
+            or (w > 0.2 and route_net(R, net, 0.2, (0.45, 0.3), budget=t))
+            or route_net(R, net, 0.15, (0.45, 0.3), budget=t))      # last resort: 0.15 mm neck-down
 
 
 def one_pass(R, order, log):
@@ -502,7 +502,7 @@ def one_pass(R, order, log):
     return failed
 
 
-def route_signals(R, nets, log, budget=200.0, passes=3):
+def route_signals(R, nets, log, budget=100.0, passes=2):
     """Pass 1 routes long nets first. Each later pass restarts from the fanout state with the nets
     that failed so far routed first (they are the hard ones). Keeps the best pass. Time-boxed."""
     c = R.c
@@ -556,7 +556,7 @@ def blockers(R, net, base):
                  [v for v in c.vias if v['src'] != 'route' or v['net'] == net])
     n0 = len(c.tracks)
     w = 0.2
-    okr = route_net(R, net, w, (0.45, 0.2), budget=4.0)
+    okr = route_net(R, net, w, (0.45, 0.3), budget=4.0)
     newt = c.tracks[n0:]
     newv = [v for v in c.vias if v['src'] == 'route' and v['net'] == net]
     c.restore(cur)
@@ -667,14 +667,14 @@ def cleanup(c, log=print):
 
 
 def ep_vias(c):
-    """GND via grids in the exposed pads that have none in the footprint (hub U2, expander U1)."""
-    for ref in ('U2', 'U1'):
+    """GND via grid in the exposed pad of the expander U1 (its footprint has none)."""
+    for ref in ('U1',):
         ep = max((p for p in c.pads if p.ref == ref and p.net == 'GND'), key=lambda p: p.minw)
         cx, cy = ep.pos
         s = 1.0 if ep.minw > 3.0 else 0.9
         for du in (-s, 0, s):
             for dv in (-s, 0, s):
-                c.add_via('GND', (cx + du, cy + dv), 0.45, 0.2, 'hand')
+                c.add_via('GND', (cx + du, cy + dv), 0.45, 0.3, 'hand')
 
 
 def main(geom, out):
@@ -716,6 +716,62 @@ def repair(geom, routes_in, out):
     c.dump(out, planes.zones())
 
 
+def ripup(geom, routes_in, out, budget=120.0):
+    """Rip-up and re-route: for each unconnected net, find the routed nets in its way (blockers()), tear them up,
+    route the stuck net first, then re-route the torn-up ones. A move is kept only if the number of unconnected
+    nets drops; otherwise the board is restored. Time-boxed."""
+    t0 = time.time()
+    c = Ctx(geom)
+    d = json.load(open(routes_in))
+    for t in d['tracks']:
+        if t['src'] != 'route':
+            c.add_track(t['net'], LAYER_NAMES.index(t['layer']), t['a'], t['b'], t['w'], t['src'])
+    for v in d['vias']:
+        if v['src'] != 'route':
+            c.add_via(v['net'], v['p'], v['d'], v['drill'], v['src'])
+    base = c.snapshot()                       # hand + fanout only
+    for t in d['tracks']:
+        if t['src'] == 'route':
+            c.add_track(t['net'], LAYER_NAMES.index(t['layer']), t['a'], t['b'], t['w'], t['src'])
+    for v in d['vias']:
+        if v['src'] == 'route':
+            c.add_via(v['net'], v['p'], v['d'], v['drill'], v['src'])
+    R = Router(c)
+
+    def unrouted():
+        return [n for n in signal_nets(c) if len([k for k in components(c, n, None) if k['pads'] or k['tracks']]) > 1]
+
+    failed = unrouted()
+    print(f'ripup start: {len(failed)} unrouted {failed} ({time.time() - t0:.1f}s)')
+    tried = set()
+    while failed and time.time() - t0 < budget:
+        net = next((n for n in failed if n not in tried), None)
+        if net is None:
+            break
+        tried.add(net)
+        hit, clean = blockers(R, net, base)
+        if not hit:
+            ok = try_route(R, net)
+            print(f'  {net}: no blockers, direct {"ok" if ok else "FAIL"}')
+        else:
+            before = c.snapshot()
+            c.rebuild(lambda t: not (t['src'] == 'route' and t['net'] in hit))
+            ok = try_route(R, net)
+            redo = [n for n in hit if not try_route(R, n)]
+            now = unrouted()
+            if len(now) < len(failed):
+                print(f'  {net}: ripped {hit}, kept ({len(failed)} -> {len(now)} unrouted, lost {redo})')
+                tried = {n for n in tried if n not in now}     # earlier nets may be routable now
+            else:
+                c.restore(before)
+                bump_history(R, clean)
+                print(f'  {net}: ripped {hit}, no gain (lost {redo}), restored')
+        failed = unrouted()
+    print(f'ripup done: {len(failed)} unrouted {failed} ({time.time() - t0:.1f}s)')
+    cleanup(c)
+    c.dump(out, planes.zones())
+
+
 def clean_only(geom, routes_in, out):
     c = Ctx(geom)
     d = json.load(open(routes_in))
@@ -732,5 +788,7 @@ if __name__ == '__main__':
         clean_only(sys.argv[2], sys.argv[3], sys.argv[4])
     elif sys.argv[1] == '--repair':
         repair(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif sys.argv[1] == '--ripup':
+        ripup(sys.argv[2], sys.argv[3], sys.argv[4])
     else:
         main(sys.argv[1], sys.argv[2])

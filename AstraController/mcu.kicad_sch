@@ -6,8 +6,8 @@
 	(paper "A4")
 	(title_block
 		(title "ASTRA Telescope Node - MCU")
-		(date "2026-10-13")
-		(rev "7")
+		(date "2026-10-15")
+		(rev "v0.8")
 		(comment 1 "Author: Alex Grant-Parra")
 	)
 	(lib_symbols
@@ -2915,7 +2915,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "1uF"
+		(property "Value" "1uF 25V"
 			(at 36.83 30.734 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -3774,7 +3774,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF 50V"
 			(at 53.594 98.806 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4055,7 +4055,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "22uF 10V"
+		(property "Value" "22uF 25V"
 			(at 128.524 31.496 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4313,7 +4313,7 @@
 			)
 		)
 	)
-	(text "ESP32 PIN MAP\nIO1/IO3  UART0 <-> CH340C (UART1/UART2)      IO0/EN  auto-program (Q2/Q3)\nIO32/33  I2C SCL/SDA (R7/R8 4.7k)            IO39    EXP_INT (MCP23017 INTA)\nIO25/26  no-connect (IMU board is I2C-only, J3)\nIO18     TMC_TX (via R16 1k)                 IO19    TMC_UART (both TMC2209, addr 0/1)\nIO17/16/21  M1 STEP/DIR/EN                   IO23/22/27  M2 STEP/DIR/EN\nIO34/35  T1_DIAG/T2_DIAG                     IO14/13  LCD SCK/MOSI\nIO15 LCD DC   IO4 LCD RES   IO5 LCD BL       IO2, IO12: strapping - keep free\nC43 22uF: place at U5 pin 2"
+	(text "ESP32 PIN MAP\nIO1/IO3  UART0 <-> Pi, J7 (UART1/UART2)      IO0/EN  auto-program (Q2/Q3)\nIO32/33  I2C SCL/SDA (R7/R8 4.7k)            IO39    EXP_INT (MCP23017 INTA)\nIO25/26  no-connect (IMU board is I2C-only, J3)\nIO18     TMC_TX (via R16 1k)                 IO19    TMC_UART (both TMC2209, addr 0/1)\nIO17/16/21  M1 STEP/DIR/EN                   IO23/22/27  M2 STEP/DIR/EN\nIO34/35  T1_DIAG/T2_DIAG                     IO14/13  LCD SCK/MOSI\nIO15 LCD DC   IO4 LCD RES   IO5 LCD BL       IO2, IO12: strapping - keep free\nC43 22uF: place at U5 pin 2"
 		(exclude_from_sim no)
 		(at 115 45 0)
 		(effects

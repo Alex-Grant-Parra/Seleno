@@ -6,8 +6,8 @@
 	(paper "A4")
 	(title_block
 		(title "ASTRA Telescope Node")
-		(date "2026-10-13")
-		(rev "7")
+		(date "2026-10-15")
+		(rev "v0.8")
 		(comment 1 "Author: Alex Grant-Parra")
 	)
 	(lib_symbols
@@ -126,7 +126,7 @@
 			)
 		)
 	)
-	(text "U2 USB2512B hub + Y1, U3 CH340C,\nQ2/Q3 auto-program, J6, U10/U11 ESD, F2"
+	(text "J7 1x10 to the Pi Zero 2 (5V, GND,\nUART0, Q2/Q3 auto-program)"
 		(exclude_from_sim no)
 		(at 192.54 43.81 0)
 		(effects
@@ -153,7 +153,7 @@
 			(color 0 0 0 0.0000)
 		)
 		(uuid "9ce2aa5b-7d28-44af-8b2e-b0a8b49da214")
-		(property "Sheetname" "USB & Serial"
+		(property "Sheetname" "Pi Link"
 			(at 190 39.2884 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -164,7 +164,7 @@
 				(justify left bottom)
 			)
 		)
-		(property "Sheetfile" "usb.kicad_sch"
+		(property "Sheetfile" "pi_link.kicad_sch"
 			(at 190 71.0646 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -354,7 +354,7 @@
 			)
 		)
 	)
-	(text "ASTRA Telescope Node - controller board, rev 7\nPower: 12V in, protection, 5V + 3.3V bucks      MCU: ESP32-WROOM-32UE\nUSB & Serial: USB2512B hub (Pi Zero 2 host), CH340C, ESD, camera port\nMotors: 2x TMC2209 on one shared UART           User Interface: MCP23017 buttons/LEDs, ST7735S LCD\nIMU & Expansion: J3, JST-SH 4p I2C cable to the IMU board\nNets that cross sheets use global labels; power rails use power symbols."
+	(text "ASTRA Telescope Node - controller board, v0.8\nPower: 12V in, protection, 5V + 3.3V bucks      MCU: ESP32-WROOM-32UE\nPi Link: J7 1x10 header to the Pi Zero 2 (5V power, UART0, ESP32 reset/boot via Q2/Q3)\nMotors: 2x TMC2209 on one shared UART           User Interface: MCP23017 buttons/LEDs, ST7735S LCD\nIMU & Expansion: J3, JST-SH 4p I2C cable to the IMU board\nNets that cross sheets use global labels; power rails use power symbols."
 		(exclude_from_sim no)
 		(at 30 150 0)
 		(effects

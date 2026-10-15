@@ -80,6 +80,20 @@ Verify after each batch: ERC + netlist diff against expected changes.
       - DRC: 0 errors, schematic parity 0.
       - 6 nets are left for Alex to route by hand (SCL, TMC_UART, MOSI, DC, 1EN, UART2).
       - Details: review/PCB_HANDOFF.md. Not committed.
+- [x] 2026-10-14/15 REV 8 (cost cut): the USB2512B hub, Y1, CH340C, J6 USB-A, U10/U11 ESD, F2 and 22 passives were removed.
+      J7, a 1x10 header to the Pi Zero 2 even row (pins 2-20), was added; the Pi drives the ESP32 UART0 and the Q2/Q3 auto-program pair (GPIO18 = DTR, GPIO23 = RTS).
+      The usb.kicad_sch sheet is now pi_link.kicad_sch ("Pi Link"). A +3V3 PWR_FLAG was added (the CH340 had been the rail's only ERC driver).
+      ERC 0. The PCB was fully re-laid-out and routed (see PCB_HANDOFF.md), with DRC clean. Full log: review/PI_LINK_LOG.md.
+- [x] 2026-10-15 DEEP DESIGN CHECK (every IC vs its datasheet: pinouts, support parts, placement, power paths). No blockers.
+      Applied: more buck GND vias (U6/U9 pin 1), 3 extra vias each on the +5V/+3.3V buck outputs, solid plane connection on P1/C1/J7, and C37/C38 changed to 22uF 25V.
+      Alex: the LCD BL on IO5 is OK (used before); TMC heat will be handled with heatsinks.
+      Then (Alex: "let's do it"): C47 22uF 25V was added between U7/U8 as a VS ceramic, and the PARTS_LIST order-list values were applied to the schematic and board.
+      The order-list values are R29/R30 27k/5.1k, R33/R34 47k/15k, R2-R4 330R, and voltage ratings on the caps. The KiCad BOM now matches PARTS_LIST.txt.
+      PARTS_LIST.txt was then rewritten with the board as the authority (123 footprints: 76 BOM + 10 excluded + H1-4 + TP1-33).
+      It was machine-cross-checked against the board: every ref once, in the right section, quantities matching, 0 problems.
+- [x] 2026-10-15 VERSION: everything is now labelled **v0.8** (Alex): the schematic title blocks (were rev "8"), the board title block and silk (were v0.7), the root note, the pcb_build scripts and the PARTS_LIST headers.
+      From here on "v0.8" names the current design; "rev 8" in the older entries above is the same schematic before today's fixes. ERC 0, DRC 0/0/parity 0.
+      Details are in the top section of PCB_HANDOFF.md. ERC 0, DRC 0/0/parity 0.
 - [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
       it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
       DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)

@@ -1,4 +1,71 @@
-# SELENO v0.3 PCB build — handoff (2026-10-13, updated 2026-10-14)
+# SELENO PCB build — handoff (2026-10-13, updated 2026-10-15; the board is now v0.8)
+
+## STATUS 2026-10-15 (latest): datasheet design check, fixes applied — board is v0.8
+- **Version: everything is labelled v0.8** (Alex, 2026-10-15). That covers:
+  - all 7 schematic title blocks (rev "v0.8", 2026-10-15);
+  - the board title block;
+  - the silk title SELENO.v0.8;
+  - the root-sheet note;
+  - the `pcb_build/` scripts (`finish.py` TITLE, `build.py` SetRevision).
+  - v0.8 = the rev 8 Pi-link schematic + re-layout + the fixes below. v0.7 (git 05cd8e3) was the board with the USB hub. Backups: `review/backup/*.pre_v08`.
+
+
+Every IC's pinout and support parts were checked against `datasheets/`. No blockers. These fixes were edited into the installed board (not regenerated):
+- **U6/U9 GND pin 1:** more GND vias (0.45/0.3).
+  - U6: (17.65, 9.95) above pin 1 and (19.0, 11.4) under the body, giving 3 vias.
+  - U9: (36.65, 9.95), giving 2. Its B.Cu BUCK_EN leg is now one straight segment (34.8, 9.9) -> (38.2, 11.2) to make room.
+- **Buck outputs into In2:** 3 more vias each.
+  - +5V at (9.3, 13.75/14.6/15.45), so the Pi feed has 4 vias.
+  - +3.3V at (28.3, same v).
+- **Solid zone connection** (no thermal spokes) on P1.1, C1.1/2 and J7.1/2/3/7/10. These THT joints take a bit more heat to solder.
+- **C37/C38 (5 V output):** 22uF 10V -> 22uF 25V 0805, for less DC-bias loss at 5 V. Changed in the schematic and on the board.
+- **New C47** (22uF 25V 0805, Motors sheet): an extra VS ceramic between U7/U8 at (21.9, 39.9), rot 90. Pad 1 is +12V (bottom), pad 2 GND (top).
+  - Two 0.5/0.3 vias per pad, at u 20.85 and 22.95.
+  - Outside the swap envelopes (`check_envelopes`: 0 intrusions).
+  - C1 680 uF stays as the bulk.
+- **Order-list values applied** to the schematic and board (value text only, no copper change):
+  - FB dividers: R29/R30 27k/5.1k (5.04 V) and R33/R34 47k/15k (3.31 V).
+  - LED resistors: R2-R4 330R.
+  - Capacitor ratings: C41-43 22uF 25V, C35/C39 10uF 50V, C15/C33 10uF 25V, every 100nF now "100nF 50V", C7 1uF 25V.
+  - The KiCad BOM export now matches PARTS_LIST.txt.
+- Result: ERC 0. DRC 0 errors / 0 unconnected / parity 0 (36 `lib_footprint_mismatch` warnings, unchanged).
+  - Backups: `review/backup/*.pre_check` (before the via/pad fixes) and `*.pre_values` (before the values/C47).
+- **Notes for Alex:**
+  - **TMC2209 heat:** no F/B pours and 0.5 oz inner copper, so the full 1.35 A rms will likely trip the 143 °C shutdown. Alex will fit stick-on heatsinks: 9x9 mm fits, nothing taller than the QFN under it. A local B.Cu GND patch under each driver would add more.
+  - **ESP32 variant:** use -N4/-N8/-N16 only, not -NxR2. The R2 PSRAM takes IO16, which is 1DIR here.
+  - **R3/R4 330R:** the white and blue LEDs (Vf about 3 V) get only about 1 mA from 3.3 V. The old 47R was there to compensate. Check the brightness.
+
+## STATUS 2026-10-15: rev 8 board, fully re-laid-out and routed
+The schematic went to rev 8: the USB hub, CH340 and USB-A are gone, and J7 (1x10) links to the Pi Zero 2. Details: `review/PI_LINK_LOG.md`.
+The board was rebuilt from the `pcb_build/` scripts, so **the old hand routing is replaced**.
+- **Installed:** `ASTRA.kicad_pcb` and `ASTRA.kicad_pro`.
+  - ERC 0. DRC: 0 errors, 0 unconnected, parity 0.
+  - 36 warnings, all `lib_footprint_mismatch`: 33 test pads, plus U5/U7/U8, whose thermal-via drills are opened to 0.3.
+  - The previous board is in `review/backup/*.pre_relayout`.
+- **Every drill is at least 0.3 mm.** Vias are 0.45/0.3, 0.5/0.3 or 0.6/0.3.
+- **Floorplan:**
+  - J7 on the top-left edge.
+  - **Power strip** under it: U6 5 V buck at (19, 11.5) and U9 3.3 V buck at (38, 11.5).
+  - 12 V input chain on the left edge.
+  - Drivers U7/U8 at v 36.55, with J1/J2 below.
+  - **ESP32 programming/debug group** bottom-middle: Q2/Q3/R22/R23 plus a 2x4 test-pad block (GND 3V3 TX RX / EN IO0 DTR RTS).
+  - ESP32 U5 at (70.41, 16.79).
+  - MCP23017 + LEDs + buttons bottom-right.
+- **33 labelled test pads** (`place.TESTPADS`). TP31 (TMC_TX) is beside R16; its slot in the motor block was walled in.
+- **Leaded-swap envelopes** (`place.ENVELOPES`, checked by `build.check_envelopes()` on every build):
+  - U7/U8: TMC2226-SA, HTSSOP-28.
+  - U1: MCP23017-E/SS, SSOP-28.
+- **In2:**
+  - +3V3 everywhere, with islands for +5V (top-left: J7 + the U6 output) and +12V (input, drivers, C1).
+  - The +12V island has a band at v 19.6-22.4 and corridors up to both buck inputs.
+  - A +3V3 band at v 32.4-36.45 runs between the driver tops and the +12V region.
+- **How the board was made** (scratch paths are in PI_LINK_LOG.md):
+  1. `build.py`, then `route.py` (2 passes, about 2.5 min): 66/73.
+  2. `route.py --ripup` (new: tears up blockers and re-routes, time-boxed 120 s): 71/73.
+  3. Last pieces by hand with `lroute.py`: TMC_TX, SDA (3 links), 2 TMC_UART vias nudged off the driver EP corners, TP31 moved.
+  4. `finish.py`, then silk nudges.
+- **Rebuilding from scripts no longer reproduces the board exactly.** The hand steps above live only in scratch scripts. Edit the installed board directly from now on.
+- **Router note:** `Ctx` de-duplicates pads by (number, position). A footprint whose EP shares its number and centre with a thermal-via pad can therefore lose its EP from the router's view. That is why the 2 TMC_UART vias landed too close. Worth fixing (key on size too) before the next scripted rebuild.
 
 ## STATUS 2026-10-14 (latest): board installed, 6 nets left for Alex to route by hand
 - **Installed:** `AstraController/ASTRA.kicad_pcb` is the new SELENO v0.3 board.

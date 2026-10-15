@@ -1,0 +1,374 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "b5ed9a09-c593-4f23-9cbf-a235c2c98de3")
+	(paper "A4")
+	(title_block
+		(title "ASTRA Telescope Node")
+		(date "2026-10-14")
+		(rev "8")
+		(comment 1 "Author: Alex Grant-Parra")
+	)
+	(lib_symbols
+	)
+	(text "P1 12V in, F1 PTC, Q1/D6 polarity,\nD7 TVS, U6 5V buck, U9 3.3V buck"
+		(exclude_from_sim no)
+		(at 32.54 43.81 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "f5f45580-f6be-4dc7-9880-009f62437ff3")
+	)
+	(sheet
+		(at 30 40)
+		(size 55.88 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "3dd04e5d-a088-4160-b2d1-6a5bf40fa372")
+		(property "Sheetname" "Power"
+			(at 30 39.2884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "power.kicad_sch"
+			(at 30 71.0646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
+					(page "2")
+				)
+			)
+		)
+	)
+	(text "U5 ESP32-WROOM-32UE\nreset/boot, I2C pull-ups, pin map"
+		(exclude_from_sim no)
+		(at 112.54 43.81 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "88242622-83a8-468d-b434-8c9799e4fc64")
+	)
+	(sheet
+		(at 110 40)
+		(size 55.88 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "0f677968-202c-43df-9ca1-aea9a187cd34")
+		(property "Sheetname" "MCU"
+			(at 110 39.2884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "mcu.kicad_sch"
+			(at 110 71.0646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
+					(page "3")
+				)
+			)
+		)
+	)
+	(text "J7 1x10 to the Pi Zero 2 (5V, GND,\nUART0, Q2/Q3 auto-program)"
+		(exclude_from_sim no)
+		(at 192.54 43.81 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "36bc6951-ccbf-4177-be4e-889e5426645f")
+	)
+	(sheet
+		(at 190 40)
+		(size 55.88 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "9ce2aa5b-7d28-44af-8b2e-b0a8b49da214")
+		(property "Sheetname" "Pi Link"
+			(at 190 39.2884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "pi_link.kicad_sch"
+			(at 190 71.0646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
+					(page "4")
+				)
+			)
+		)
+	)
+	(text "U7/U8 TMC2209 (shared UART)\nJ1/J2 motor connectors, ENN pull-ups"
+		(exclude_from_sim no)
+		(at 32.54 98.81 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "46b15e0f-4926-4dca-907b-76a71439e84a")
+	)
+	(sheet
+		(at 30 95)
+		(size 55.88 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "9ad28a88-ae9b-4ca5-8f85-4ddc0774d011")
+		(property "Sheetname" "Motors"
+			(at 30 94.2884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "motors.kicad_sch"
+			(at 30 126.0646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
+					(page "5")
+				)
+			)
+		)
+	)
+	(text "U1 MCP23017, SW1-SW6 buttons,\nD1-D5 LEDs, S1 ST7735S LCD"
+		(exclude_from_sim no)
+		(at 112.54 98.81 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "53e15c21-a5c9-44bd-b001-8672c473ffd6")
+	)
+	(sheet
+		(at 110 95)
+		(size 55.88 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "eff2e076-62ae-4b3a-b069-f06b0977600a")
+		(property "Sheetname" "User Interface"
+			(at 110 94.2884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "ui.kicad_sch"
+			(at 110 126.0646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
+					(page "6")
+				)
+			)
+		)
+	)
+	(text "J3: I2C cable to the IMU board\n(GND, 3V3, SDA, SCL)"
+		(exclude_from_sim no)
+		(at 192.54 98.81 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "2997e8b1-cb8a-4b34-a9f2-705695755095")
+	)
+	(sheet
+		(at 190 95)
+		(size 55.88 30.48)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "f761b0c1-fb2d-4800-881a-525f14ea580b")
+		(property "Sheetname" "IMU & Expansion"
+			(at 190 94.2884 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "imu.kicad_sch"
+			(at 190 126.0646 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3"
+					(page "7")
+				)
+			)
+		)
+	)
+	(text "ASTRA Telescope Node - controller board, rev 8\nPower: 12V in, protection, 5V + 3.3V bucks      MCU: ESP32-WROOM-32UE\nPi Link: J7 1x10 header to the Pi Zero 2 (5V power, UART0, ESP32 reset/boot via Q2/Q3)\nMotors: 2x TMC2209 on one shared UART           User Interface: MCP23017 buttons/LEDs, ST7735S LCD\nIMU & Expansion: J3, JST-SH 4p I2C cable to the IMU board\nNets that cross sheets use global labels; power rails use power symbols."
+		(exclude_from_sim no)
+		(at 30 150 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "33b3f1a5-7b7f-4c2c-bd1b-df18c8f28fc9")
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

@@ -33,24 +33,41 @@ LABELS = [
     # power input and motors
     ('12V+', 4.45, 21.9, 0.8, 0),
     ('M1', 5.6, 42.0, 1.0, 0), ('M2', 22.3, 43.4, 1.0, 0),
-    # top-edge connectors (labels just below the connector bodies)
-    ('QWIIC', 35.14, 6.05, 0.8, 0), ('QWIIC', 43.24, 6.05, 0.8, 0), ('LCD', 53.35, 6.05, 0.8, 0),
-    ('IMU', 66.4, 6.05, 0.8, 0), ('RST', 79.0, 3.0, 0.8, 90),
-    # USB: pins 1-4 = Pi (upstream), pins 5-8 = camera.  Verify which physical port is which (CUI UJ2-ADH-TH).
-    ('PI:1-4 CAM:5-8', 20.0, 22.35, 0.8, 0),
+    # top-edge connectors
+    ('PI: EVEN ROW, PIN 2 ... PIN 20', 19.83, 4.55, 0.8, 0),
+    ('IMU', 43.24, 6.05, 0.8, 0), ('LCD', 53.35, 6.05, 0.8, 0), ('RST', 79.0, 3.0, 0.8, 90),
     # buttons (labels just above the connector bodies)
     ('SELECT', 40.34, 44.2, 0.8, 0), ('RETURN', 46.62, 44.2, 0.8, 0), ('TOP', 52.9, 44.2, 0.8, 0),
     ('BOTTOM', 59.18, 44.2, 0.8, 0), ('LEFT', 65.46, 44.2, 0.8, 0), ('RIGHT', 71.74, 44.2, 0.8, 0),
+    # ESP32 programming / debug test-pad block
+    ('ESP32 PROG', 58.9, 36.7, 0.8, 0),
     # LED colours, left of the series resistors
-    ('B', 78.0, 30.0, 0.8, 0), ('Y', 78.0, 32.5, 0.8, 0), ('W', 78.0, 35.0, 0.8, 0),
-    ('G', 78.0, 37.5, 0.8, 0), ('R', 78.0, 40.0, 0.8, 0),
-    # test pads
-    ('12V', 1.7, 32.75, 0.8, 0), ('GND', 1.45, 37.85, 0.8, 0), ('5V', 4.3, 10.9, 0.8, 0), ('GND', 4.5, 13.4, 0.8, 0),
-    ('3V3', 83.45, 13.95, 0.8, 0), ('EN', 83.2, 16.2, 0.8, 0), ('IO0', 83.2, 18.7, 0.8, 0), ('TX', 83.2, 21.2, 0.8, 0),
-    ('RX', 83.2, 23.7, 0.8, 0), ('GND', 83.2, 26.2, 0.8, 0),
-    ('SCL', 24.2, 2.2, 0.8, 0), ('SDA', 24.2, 4.6, 0.8, 0), ('UART', 22.6, 37.0, 0.8, 0),
+    ('B', 78.3, 30.0, 0.8, 0), ('Y', 78.3, 32.5, 0.8, 0), ('W', 78.3, 35.0, 0.8, 0),
+    ('G', 78.3, 37.5, 0.8, 0), ('R', 78.3, 40.0, 0.8, 0),
 ]
-TITLE = ('SELENO.v0.7', 9.0, 20.2, 1.5)
+
+
+def tp_labels():
+    """Silk label per test pad from place.TESTPADS: side l / r = left / right, u / d1 = above / below,
+    d = vertical text below the pad."""
+    import place
+    out = []
+    for ref, net, u, v, lab, side in place.TESTPADS:
+        w = len(lab) * 0.8 * 0.75
+        if side == 'l':
+            out.append((lab, u - 0.85 - w / 2, v, 0.8, 0))
+        elif side == 'r':
+            out.append((lab, u + 0.85 + w / 2, v, 0.8, 0))
+        elif side == 'u':
+            out.append((lab, u, v - 1.25, 0.8, 0))
+        elif side == 'd1':
+            out.append((lab, u - (0.25 if u < 3 else 0), v + 1.2 + (0.2 if u < 3 else 0), 0.8, 0))   # (left-edge pads: clear of D7)
+        else:
+            out.append((lab, u, v + 0.85 + w / 2, 0.8, 90))
+    return out
+
+
+TITLE = ('SELENO.v0.8', 28.5, 21.2, 1.5)
 
 
 def text(b, s, u, v, size=0.8, rot=0, layer=pcbnew.F_SilkS, bold=False, thick=None):
@@ -67,7 +84,7 @@ def text(b, s, u, v, size=0.8, rot=0, layer=pcbnew.F_SilkS, bold=False, thick=No
 
 
 HIDE_REF = ('R', 'C', 'TP', 'H')      # passives, test pads and holes: refs only on F.Fab
-LED_REFS = ('D1', 'D2', 'D3', 'D4', 'D5', 'J6')   # LEDs: colour letters; J6: the PI/CAM note
+LED_REFS = ('D1', 'D2', 'D3', 'D4', 'D5')   # LEDs: colour letters
 
 
 def _bb(item):
@@ -93,7 +110,7 @@ def silk(b):
             if g.GetLayer() == pcbnew.F_SilkS and g.Type() == pcbnew.PCB_SHAPE_T:
                 obstacles.append(_bb(g))
     placed = []
-    for s, u, v, size, rot in LABELS:
+    for s, u, v, size, rot in LABELS + tp_labels():
         t = text(b, s, u, v, size, rot)
         placed.append(_bb(t))
     x0, y0, x1, y1 = OX + 0.4, OY + 0.4, OX + 84.6, OY + 49.6

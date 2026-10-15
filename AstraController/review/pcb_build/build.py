@@ -1,4 +1,4 @@
-"""Build the SELENO v0.7 board (footprints, nets, outline, holes, test pads) from the netlist + place.py.
+"""Build the SELENO v0.8 board (footprints, nets, outline, holes, test pads) from the netlist + place.py.
 
 Run with KiCad's python:  python.exe build.py [out.kicad_pcb]
 Also writes geom.json (pads, courtyards) for the plotter / router.
@@ -29,8 +29,8 @@ def new_board(path):
     ds.m_MinClearance = mm(0.15)
     ds.m_TrackMinWidth = mm(0.15)
     ds.m_ViasMinSize = mm(0.45)
-    ds.m_ViasMinAnnularWidth = mm(0.1)
-    ds.m_MinThroughDrill = mm(0.2)
+    ds.m_ViasMinAnnularWidth = mm(0.075)
+    ds.m_MinThroughDrill = mm(0.3)          # every hole >= 0.3 mm (JLC: 0.2 mm holes cost extra)
     ds.m_HoleToHoleMin = mm(0.25)
     ds.m_HoleClearance = mm(0.2)
     ds.m_CopperEdgeClearance = mm(0.3)
@@ -104,6 +104,9 @@ def build(out=OUT):
             n = pinnet.get((ref, pad.GetNumber()))
             if n:
                 pad.SetNet(nets[n])
+            # stock U5/U7/U8 thermal vias are 0.2 mm: open them to 0.3 (copper size unchanged)
+            if pad.GetAttribute() == pcbnew.PAD_ATTRIB_PTH and 0 < pad.GetDrillSize().x < mm(0.3):
+                pad.SetDrillSize(pcbnew.VECTOR2I(mm(0.3), mm(0.3)))
         u, v, r = place.P.get(ref, (BW / 2, BH + 10, 0))
         place_fp(b, fp, u, v, r)
 
@@ -114,7 +117,7 @@ def build(out=OUT):
         fp.SetValue('M2.5')
         fp.SetAttributes(fp.GetAttributes() | pcbnew.FP_BOARD_ONLY | pcbnew.FP_EXCLUDE_FROM_BOM | pcbnew.FP_EXCLUDE_FROM_POS_FILES)
         place_fp(b, fp, u, v, 0)
-    for ref, net, u, v in place.TESTPADS:
+    for ref, net, u, v, *_ in place.TESTPADS:
         fp = load_fp('TestPoint:TestPoint_Pad_D1.0mm')
         fp.SetReference(ref)
         fp.SetValue(net.lstrip('/'))
@@ -134,14 +137,33 @@ def build(out=OUT):
 
     tb = b.GetTitleBlock()
     tb.SetTitle('SELENO controller')
-    tb.SetRevision('v0.7')
+    tb.SetRevision('v0.8')
     tb.SetDate('2026-10-13')
     tb.SetComment(0, '4 layers: F.Cu signals / In1 GND / In2 power / B.Cu signals, 1.6 mm')
     b.SetTitleBlock(tb)
 
+    check_envelopes(b)
     pcbnew.SaveBoard(out, b)
     dump_geom(b, os.path.join(os.path.dirname(out), 'geom.json'))
     return b
+
+
+def check_envelopes(b):
+    """Warn if any other part's courtyard intrudes on a keep-clear envelope (place.ENVELOPES)."""
+    bad = 0
+    for owner, (u0, v0, u1, v1, what) in place.ENVELOPES.items():
+        for fp in b.GetFootprints():
+            if fp.GetReference() == owner:
+                continue
+            fp.BuildCourtyardCaches()
+            cy = fp.GetCourtyard(pcbnew.F_CrtYd)
+            bb = cy.BBox() if cy.OutlineCount() else fp.GetBoundingBox(False)
+            L, T = pcbnew.ToMM(bb.GetLeft()) - OX, pcbnew.ToMM(bb.GetTop()) - OY
+            R_, B_ = pcbnew.ToMM(bb.GetRight()) - OX, pcbnew.ToMM(bb.GetBottom()) - OY
+            if L < u1 and R_ > u0 and T < v1 and B_ > v0:
+                print('ENVELOPE %s (%s): %s intrudes' % (owner, what, fp.GetReference()))
+                bad += 1
+    print('envelopes: %d checked, %d intrusions' % (len(place.ENVELOPES), bad))
 
 
 def poly_points(sps):

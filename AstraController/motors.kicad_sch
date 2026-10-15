@@ -6,8 +6,8 @@
 	(paper "A4")
 	(title_block
 		(title "ASTRA Telescope Node - Motors")
-		(date "2026-10-13")
-		(rev "7")
+		(date "2026-10-15")
+		(rev "v0.8")
 		(comment 1 "Author: Alex Grant-Parra")
 	)
 	(lib_symbols
@@ -3937,7 +3937,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF 25V"
+		(property "Value" "100nF 50V"
 			(at 68.326 19.05 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5923,7 +5923,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF 25V"
+		(property "Value" "100nF 50V"
 			(at 68.326 85.09 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6884,6 +6884,287 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:C")
+		(at 121.92 93.98 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "9a9544df-8fc1-4e5f-947d-67bc7b5664c9")
+		(property "Reference" "C47"
+			(at 125.984 91.694 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Value" "22uF 25V"
+			(at 128.524 96.266 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 122.8852 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC Part #" ""
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PARTREV" ""
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "SNAPEDA_PN" ""
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "STANDARD" ""
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4b38add2-8944-462b-9bc3-724ad3af76d8")
+		)
+		(pin "2"
+			(uuid "f893e4cf-a6b9-4cb1-b318-9fd46ae43d2f")
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ad28a88-ae9b-4ca5-8f85-4ddc0774d011"
+					(reference "C47")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+12V")
+		(at 121.92 90.17 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e98b1ab2-ac3a-4479-aa20-9ab59973a0df")
+		(property "Reference" "#PWR162"
+			(at 121.92 93.98 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 121.92 85.09 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 121.92 90.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 121.92 90.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+12V\""
+			(at 121.92 90.17 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "658accf3-73ca-40b4-ad3a-29a6eadea0de")
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ad28a88-ae9b-4ca5-8f85-4ddc0774d011"
+					(reference "#PWR162")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 121.92 97.79 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "25467222-ce16-4813-8498-4f2a49958928")
+		(property "Reference" "#PWR163"
+			(at 121.92 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 121.92 102.87 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 121.92 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 121.92 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 121.92 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "a8cbd54d-28af-4012-9dee-7a94ca0ecaec")
+		)
+		(instances
+			(project "ASTRA"
+				(path "/b5ed9a09-c593-4f23-9cbf-a235c2c98de3/9ad28a88-ae9b-4ca5-8f85-4ddc0774d011"
+					(reference "#PWR163")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 110.49 97.79 0)
 		(unit 1)
@@ -7061,7 +7342,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF 50V"
 			(at 101.854 96.266 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7342,7 +7623,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "100nF"
+		(property "Value" "100nF 50V"
 			(at 99.314 32.766 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8065,7 +8346,7 @@
 			)
 		)
 	)
-	(text "Shared single-wire UART: R16 1k from ESP32 TX; U7 addr 0 (MS1=0), U8 addr 1 (MS1=1).\nSet microsteps over UART (U8 standalone would be 1/32).\nR35/R36 hold ENN high so drivers are OFF while the ESP32 boots.\nRsense 0.15R 1206 0.5W -> 1.35A RMS max. J1/J2: coil A = pins 1-3, coil B = 4-6.\nLayout: thermal vias under U7/U8, short separate sense-resistor GND returns."
+	(text "Shared single-wire UART: R16 1k from ESP32 TX; U7 addr 0 (MS1=0), U8 addr 1 (MS1=1).\nSet microsteps over UART (U8 standalone would be 1/32).\nR35/R36 hold ENN high so drivers are OFF while the ESP32 boots.\nRsense 0.15R 1206 0.5W -> 1.35A RMS max. J1/J2: coil A = pins 1-3, coil B = 4-6.\nLayout: thermal vias under U7/U8, short separate sense-resistor GND returns.\nC47 22uF 25V: extra VS ceramic between U7/U8 (C1 680uF stays the bulk)."
 		(exclude_from_sim no)
 		(at 140 45 0)
 		(effects
