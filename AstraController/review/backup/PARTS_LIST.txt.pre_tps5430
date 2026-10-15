@@ -1,0 +1,230 @@
+ASTRA CONTROLLER - PCB PARTS LIST (v0.8)
+=========================================
+Checked line by line against ASTRA.kicad_pcb (the authority) on 2026-10-15,
+after the design-check changes (C47 added, order-list values applied).
+The board, the schematic and this list agree (DRC schematic parity 0).
+
+v0.8 change (vs v0.7): the USB hub, crystal, CH340C, USB-A socket, USB ESD chips, camera
+PTC and their 22 passives are gone. The Pi Zero 2 now connects through J7, a
+1x10 2.54 mm header wired to the EVEN row of the Pi header (pins 2-20); see
+section 9 for the cable. The camera plugs into the Pi's own USB port.
+
+Board contents (123 footprints):
+  - 76 parts in the KiCad BOM (36 lines in the BOM export): sections 1-7.
+  - 10 parts excluded from the KiCad BOM that still have to be bought:
+    C1, P1, S1, SW1-SW7 (section 9).
+  - H1-H4 (M2.5 mounting holes) and TP1-TP33 (test pads) are board-only
+    copper: nothing to buy.
+
+Sourcing plan:
+  - JLC basic / promotional extended parts (no loading fee).
+  - All QFN chips from JLC, even if extended ($3 loading fee per part type).
+  - ESP32 (and maybe a few others) from personal supplies.
+  - Everything else from AliExpress.
+
+The C-numbers in sections 1 and 2 come from Alex's JLC order list (not
+re-verified here). Elsewhere the "Source" column is still a first guess;
+"Check" = needs a lookup. The symbols' "LCSC Part #" fields are still empty.
+
+
+1. CAPACITORS (27 SMD + 1 THT)
+------------------------------
+Value                         Pkg     Qty  Refs                         JLC part / source
+100nF 50V X7R                 0402    12   C2,3,4,6,11,12,16,26,29,     C307331 CL05B104KB54PNC
+                                           32,36,40
+22nF 50V                      0402     2   C28, C30                     C1532
+1uF 25V                       0402     1   C7                           C52923
+2.2uF 16V                     0603     2   C27, C31                     C23630
+10uF 25V                      0805     2   C15, C33                     C15850
+22uF 25V                      0805     6   C37, C38, C41-43, C47        C45783 (C47: VS ceramic between U7/U8,
+                                                                                 added 2026-10-15)
+10uF 50V                      1206     2   C35, C39                     C13585
+680uF 25V low-ESR electrolyt. THT radial 10mm dia, 5mm pitch
+                               1   C1                           Personal Supplies
+
+
+2. RESISTORS (26)   (all 0402 except R25-R28)
+-----------------
+Value                         Qty  Refs                        JLC part / note
+10k                            8   R6,19,21,22,23,35,36,38     C25744
+47k                            2   R31, R33                    C25792 (board labels: R31 "47kR", R33 "47kR 1%")
+4.7k                           2   R7, R8                      C25900
+330R                           5   R1-R5                       C25104 (all five LEDs)
+1k                             1   R16                         C11702
+6.8k                           1   R32                         C25917
+27k                            1   R29 (5 V divider top)       C25771
+5.1k                           1   R30 (5 V divider bottom)    C25905
+15k                            1   R34 (3.3 V divider bottom)  C25756
+0.15R 0.5W 1% (sense) 1206     4   R25-R28                     AliExpress
+Buck dividers (AP62300WU, 0.8 V ref): 27k/5.1k -> 5.035 V, 47k/15k -> 3.307 V.
+(The datasheet's 52.3k/10k and 31.6k/10k are not JLC stock.)
+
+
+3. DIODES AND LEDS (7)
+----------------------
+Part                          Pkg     Qty  Refs                                   Source
+LED red                       0805     1   D1                                     JLC basic
+LED green                     0805     1   D2                                     JLC basic
+LED white                     0805     1   D3                                     JLC basic
+LED blue                      0805     1   D4                                     JLC basic
+LED yellow                    0805     1   D5                                     JLC basic
+BZT52C10 (10V Zener)          SOD-123  1   D6                                     JLC promo
+SMAJ15A (TVS diode)           SMA      1   D7                                     JLC promo
+Note: with 330R from 3.3 V, the white and blue LEDs (Vf ~3 V) get only
+about 1 mA, so they will be dimmer than red/yellow. Check on the first board.
+
+
+4. TRANSISTORS (3)
+------------------
+Part                          Pkg     Qty  Refs                                   Source
+AO3407A (P-channel MOSFET)    SOT-23   1   Q1                                     JLC basic
+MMBT3904 (NPN)                SOT-23   2   Q2, Q3 (ESP32 auto-program, from Pi)   JLC basic
+
+
+5. ICS AND MODULES (6)
+----------------------
+Part                          Pkg       Qty  Refs                                 Source
+TMC2209-LA (stepper driver)   VQFN-28    2   U7, U8                               JLC, QFN rule (extended)
+MCP23017-E/ML (I/O expander)  QFN-28     1   U1                                   JLC, QFN rule (extended)
+AP62300WU (3A buck)           TSOT-23-6  2   U6, U9                               JLC (prob. extended)
+ESP32-WROOM-32UE              Module     1   U5                                   Personal supplies
+  -N4, -N8 or -N16 only. NOT the -NxR2 (PSRAM) versions: their PSRAM uses
+  IO16, which is motor 1 DIR on this board.
+
+Leaded alternatives (the board keeps space free for them; see PI_LINK_LOG.md):
+  U7/U8: TMC2226-SA (HTSSOP-28, same driver and UART as the TMC2209)
+  U1:    MCP23017-E/SS (SSOP-28)
+A swap needs a footprint change plus re-routing that chip; no other part moves.
+
+
+6. POWER PASSIVES (3)
+---------------------
+Part                          Pkg       Qty  Refs                                 Source
+3.3uH inductor, Wurth         WE-PD M/S  2   L2, L3                               Personal supplies
+  7447789003 (Isat 4.2A)
+PTC fuse 3A hold, 16V+        2920       1   F1                                   Check
+
+
+7. CONNECTORS IN THE BOM (4)
+----------------------------
+Part                          Footprint       Qty  Refs                           Source
+JST PH 6-pin vertical         B6B-PH-K         2   J1, J2 (stepper motors)        AliExpress, hand-solder
+JST SH 4-pin vertical         BM04B-SRSS-TB    1   J3 (IMU board, I2C)            AliExpress or JLC
+1x10 pin header, 2.54 mm      PinHeader_1x10   1   J7 (Pi Zero 2 link)            AliExpress, hand-solder
+  (or a 10-pin KF2510 / Molex KK 254 locking header: same holes, latching plug)
+Note: J1, J2 and J7 are planned as hand-soldered but ARE in the KiCad BOM
+(unlike C1 and P1). Mark them "do not place" when uploading the BOM to JLC,
+or exclude them from the BOM in KiCad.
+
+
+8. (removed in v0.8: the crystal section)
+
+
+9. PARTS EXCLUDED FROM THE KICAD BOM (10) - STILL NEED BUYING
+-------------------------------------------------------------
+Part                          Footprint       Qty  Refs        Notes
+JST SH 2-pin vertical         BM02B-SRSS-TB    7   SW1-SW7     Off-board button headers (TOP, BOTTOM,
+                                                               LEFT, RIGHT, SELECT, RETURN, RESET)
+JST SH 8-pin vertical         BM08B-SRSS-TB    1   S1          ST7735S LCD header
+JST VH 2-pin vertical         B2P-VH           1   P1          12V power input
+680uF 25V electrolytic        10mm radial      1   C1          Listed in section 1
+
+Also needed but off the board:
+  - the 7 buttons and the ST7735S LCD, with their JST cable housings/crimps;
+  - the Pi cable: a 10-way female-female Dupont ribbon from J7 to Pi header
+    pins 2-20. Board end: 1x10 housing. Pi end: preferably a 2x10 housing
+    with only the even-row positions wired, so it can't go on the odd row
+    (J7 pin 1 = 5V would land on the Pi's 3V3 pin 1 and kill the Pi).
+    Don't plug in the Pi's own USB power while J7 is connected: both
+    supplies would drive the same 5V rail;
+  - a Pi Zero 2 WH (pre-soldered header), or a GPIO Hammer Header for a bare
+    Pi Zero 2 W;
+  - optional: two stick-on heatsinks for U7/U8 (up to 9x9 mm fits).
+
+
+VALUE CHANGES APPLIED 2026-10-15 (record; schematic and board both changed)
+--------------------------------------------------------------------------
+Refs                          Was                  Now                  Why
+R2                            150R                 330R                 one LED resistor value
+R3, R4                        47R                  330R                   (check white/blue brightness)
+R29 / R30                     52.3k / 10k 1%       27k / 5.1k 1%        JLC stock, 5.035 V
+R33 / R34                     31.6k / 10k 1%       47k / 15k 1%         JLC stock, 3.307 V
+C37, C38                      22uF 10V             22uF 25V             less DC-bias loss at 5 V
+C41-C43                       22uF 10V             22uF 25V             one 22uF part (C45783)
+C35, C39                      10uF 25V             10uF 50V             order-list part (C13585)
+C15, C33                      10uF                 10uF 25V             order-list part (C15850)
+C3,4,6,11,12,16,36,40         100nF                100nF 50V            one 100nF part (C307331)
+C26, C29                      100nF 25V            100nF 50V            one 100nF part
+C7                            1uF                  1uF 25V              order-list part (C52923)
+C47                           (new)                22uF 25V 0805        extra VS ceramic between U7/U8
+
+
+REMOVED / ADDED IN v0.8 (vs v0.7, per board)
+------------------------------------
+Removed: USB2512B (C626661) 1, 24 MHz crystal (C70590) 1, CH340C 1, USB-A stacked 1,
+         USBLC6-2SC6 2, PTC 0.75 A 1206 1, 100nF 9, 18pF 2, 10uF 0805 1, 4.7uF 0603 1,
+         47k 4, 100k 2, 12k 1, 10k 1.
+Added:   J7 1x10 2.54 mm header 1 (or KF2510 locking), 10-way Dupont ribbon 1 (off-board).
+Added 2026-10-15: C47 22uF 25V 0805.
+
+
+PART-TYPE NOTES
+---------------
+- Already consolidated: one 100nF part, one 22uF part, one LED-resistor value.
+- R31 and R33 are the same part (C25792) but show as two KiCad BOM lines,
+  because R33's value says "1%". Merge them when uploading to JLC.
+
+
+LOADING FEE ESTIMATE
+--------------------
+QFN parts (TMC2209, MCP23017): 2 types x $3 = ~$6.
+AP62300WU is likely extended too: +~$3 unless JLC has it as a promotional
+extended part or it's sourced elsewhere.
+(Rev 7 also had the USB2512B, the 24 MHz crystal and the CH340C.)
+
+
+NEXT STEP
+---------
+- Look up LCSC numbers and basic/extended status for sections 3-7
+  (sections 1-2 are done), resolving the "Check" entries (R25-R28, F1).
+- Optionally copy all C-numbers into the symbols' "LCSC Part #" fields, so
+  the KiCad BOM export uploads straight to JLC.
+
+
+=====================================================================
+NON-BASIC PARTS (extended / maybe promo / AliExpress / personal)
+=====================================================================
+Everything not expected to be JLC basic. Not yet verified against LCSC.
+
+A. EXTENDED, BUY FROM JLC UNDER THE QFN RULE ($3 loading fee per type)
+Part                          Qty  Refs        Notes
+TMC2209-LA (VQFN-28)           2   U7, U8
+MCP23017-E/ML (QFN-28)         1   U1
+
+B. PROBABLY EXTENDED - CHECK FOR PROMO
+Part                          Qty  Refs        Fallback if paid extended
+AP62300WU buck (TSOT-23-6)     2   U6, U9      Pay the $3, or AliExpress
+0.15R 0.5W 1% (1206)           4   R25-R28     AliExpress
+SMAJ15A TVS (SMA)              1   D7          AliExpress
+PTC fuse 3A hold (2920)        1   F1          AliExpress
+
+C. COULD BE BASIC OR PROMO - CHECK FIRST
+Part                          Qty  Refs
+BZT52C10 Zener (SOD-123)       1   D6
+
+D. ALIEXPRESS, HAND-SOLDER (through-hole parts and connectors)
+Part                          Qty  Refs
+680uF 25V low-ESR electrolytic 1   C1          (10mm radial, 5mm pitch)
+JST PH 6-pin vertical          2   J1, J2
+JST SH 4-pin vertical          1   J3
+JST SH 2-pin vertical          7   SW1-SW7
+JST SH 8-pin vertical          1   S1
+JST VH 2-pin vertical          1   P1
+1x10 2.54 mm pin header        1   J7          (or a KF2510 10-pin locking header)
+(JST SH headers are SMD, so JLC could place them, but likely extended.)
+
+E. PERSONAL SUPPLIES
+Part                          Qty  Refs
+ESP32-WROOM-32UE               1   U5          -N4, -N8 or -N16 only (not -NxR2)
+3.3uH Wurth 7447789003         2   L2, L3      or an equivalent with the same
+                                               footprint and Isat >= 4 A

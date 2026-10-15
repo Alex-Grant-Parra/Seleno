@@ -1,6 +1,34 @@
 # SELENO PCB build — handoff (2026-10-13, updated 2026-10-15; the board is now v0.8)
 
-## STATUS 2026-10-15 (latest): datasheet design check, fixes applied — board is v0.8
+## STATUS 2026-10-15 (latest): power section redone — TPS5430 (5 V) + AMS1117-3.3 (3.3 V)
+Alex wanted the AP62300WU (extended, ~$3 fee) replaced by JLC basic parts. Both bucks are gone.
+- **U6 = TPS5430DDAR** (C9864): 12 V -> 5 V, 3 A, 500 kHz. TI_SO-PowerPAD-8_ThermalVias at (21.5, 17.0), rot 0. Laid out like TI datasheet Fig 7-12:
+  - **D8 SS34** catch diode above U6 at (22.5, 11.9), rot 180. Its anode drops into the PowerPAD (1.2 mm trace + 2 GND vias). Its cathode feeds PH.
+  - **Switch node** `/Power/5V_SW` (BuckSW netclass, the pattern was updated in `ASTRA.kicad_pro`): a 1.0 mm strip at v 10.0 over D8, going to L2 pad 1. C36 (10 nF boot) hangs from it at (18.2, 12.6), rot 90.
+  - **L2** = 15 uH Changjiang FXL0840-150-M (L_Changjiang_FXL0840) at (12.5, 11.5), rot 180. The SW pad is on the right.
+  - **C35** (10 uF 50 V input) at (26.9, 17.0), rot -90, right beside VIN/GND. Two +12V vias (28.6, 15.2/16.0) go into In2.
+  - **5 V output:** C37, C38, C48, C49 (4 x 22 uF) in a row at v 18.0, u 7.0-13.6. +5V vias (8.1/10.3, 15.6) and GND vias at v 20.2.
+  - **Feedback / compensation row** under U6 at v 21.4: C52 1 nF, R29 15k, R30 4.7k, C53 100 pF, C54 100 nF, R39 330R (TI Fig 7-11, all-ceramic output). VSENSE goes straight down into it. R29/R30 = 15k/4.7k -> 5.12 V.
+  - **EN is left open** (internal pull-up, 5.3 V UVLO). R31/R32 (BUCK_EN) and TP32 are gone, and so is TP32's "BEN" label.
+- **U9 = AMS1117-3.3** (C6186), LDO from +5V, SOT-223 at (32.6, 20.6).
+  - The tab sits on a small F.Cu +3.3V copper patch (zone "U9 tab heat spreader", priority 2) with 4 vias into the In2 3V3 plane. It runs at about 0.5 W at 0.3 A.
+  - C50 (10 uF in) at (26.4, 22.9). C51 (22 uF out) at (38.1, 20.6). C15/C16 moved next to it at (40.2/42.0, 21.0).
+  - +5V reaches C50 on B.Cu: via (14.6, 23.3) -> v 23.3 -> via (26.4, 24.1).
+- **Removed:** U6/U9 AP62300, L3, C39-C42, R31-R34, TP32. **Changed:** C36 100nF -> 10nF, R29/R30 27k/5.1k -> 15k/4.7k, L2 3.3uH Wurth -> 15uH FXL0840. **Added:** D8, C48-C54, R39. The full list is in PARTS_LIST.txt, "POWER CHANGE".
+- **In2 islands redrawn:**
+  - +5V: u 0-16.4 down to v 22 (v 23.7 for u 10.5-16.4).
+  - +12V: a 6 mm corridor u 23.8-29.8 up to v 14.4 for C35, with a wide joint at v 24.1-27.5. The old buck corridors are gone.
+  - 3V3 everywhere else.
+- **Silk:** the SELENO.v0.8 title moved to (37.0, 12.0). U6/U9/L2/D8 references are shown.
+- **Loop check:** a model built from the datasheet (internal type III from Eq 15, feed-forward gain 25 from Eq 7) gives 57-72 deg phase margin and 24-30 dB gain margin. That covers 35-60 uF effective output capacitance and 0.2-2 A of load. TI's own Fig 7-11 design gives 66-71 deg in the same model. Without the compensation network the loop is unstable.
+- **Result:** ERC 0. DRC 0 errors / 0 unconnected / parity 0. There are 35 `lib_footprint_mismatch` warnings: the 36 before, minus TP32.
+  - Backups: `review/backup/*.pre_tps5430` (board, power sheet, project, PARTS_LIST).
+  - The board was edited with a script on a scratch copy and then installed. `pcb_build/` still describes the old buck strip, so **don't regenerate the board from it**.
+- **Datasheets added:** TPS5430, AMS1117 and the Changjiang FXL series, with SHA-256 hashes in `datasheets/MANIFEST.md`.
+- **Gotcha:** `BOARD.Save()` from Python rewrites the `.kicad_pro` beside the output. Load the board from a folder that has its real project file, or the rules get replaced with defaults.
+
+## STATUS 2026-10-15: datasheet design check, fixes applied — board is v0.8
+(The U6/U9/C39/C41/C42/R33/R34 items below describe the old AP62300 strip and were superseded by the power change above.)
 - **Version: everything is labelled v0.8** (Alex, 2026-10-15). That covers:
   - all 7 schematic title blocks (rev "v0.8", 2026-10-15);
   - the board title block;

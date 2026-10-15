@@ -94,6 +94,12 @@ Verify after each batch: ERC + netlist diff against expected changes.
 - [x] 2026-10-15 VERSION: everything is now labelled **v0.8** (Alex): the schematic title blocks (were rev "8"), the board title block and silk (were v0.7), the root note, the pcb_build scripts and the PARTS_LIST headers.
       From here on "v0.8" names the current design; "rev 8" in the older entries above is the same schematic before today's fixes. ERC 0, DRC 0/0/parity 0.
       Details are in the top section of PCB_HANDOFF.md. ERC 0, DRC 0/0/parity 0.
+- [x] 2026-10-15 POWER CHANGE (Alex: replace the AP62300WU, an extended part, with JLC basic parts): U6 is now a TPS5430DDAR 12V->5V buck and U9 an AMS1117-3.3 LDO fed from +5V.
+      Removed: AP62300 x2, L3, C39-C42, R31-R34 (BUCK_EN divider + 3.3 V buck), TP32. Added: D8 SS34, C48-C54, R39. Changed: C36 10nF (boot), R29/R30 15k/4.7k (5.12 V), L2 15uH FXL0840-150-M.
+      The all-ceramic output uses TI datasheet Fig 7-11 compensation (C52 1nF, C53 100pF, C54 100nF + R39 330R). 680pF/47pF were dropped because 680pF is extended at JLC.
+      A loop model from the datasheet (Eq 15 internal comp, feed-forward gain 25) gives PM 57-72 deg and GM 24-30 dB.
+      U6 EN is left open (TI: no resistor to GND). The layout follows TI Fig 7-12. In2 islands were redrawn, the silk title moved to (37, 12), and the BuckSW pattern is now /Power/5V_SW.
+      ERC 0, DRC 0/0/parity 0 (35 lib warnings). PARTS_LIST rewritten (122 footprints, 76 BOM parts in 37 lines), cross-check 0 problems. Backups *.pre_tps5430. Details: top of PCB_HANDOFF.md.
 - [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
       it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
       DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)

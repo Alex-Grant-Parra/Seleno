@@ -692,11 +692,7 @@
       },
       {
         "netclass": "BuckSW",
-        "pattern": "Net-(U6-SW)"
-      },
-      {
-        "netclass": "BuckSW",
-        "pattern": "Net-(U9-SW)"
+        "pattern": "/Power/5V_SW"
       }
     ]
   },
