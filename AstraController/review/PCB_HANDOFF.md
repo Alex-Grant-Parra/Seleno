@@ -1,6 +1,18 @@
 # SELENO PCB build — handoff (2026-10-13, updated 2026-10-15; the board is now v0.8)
 
-## STATUS 2026-10-15 (latest): power section redone — TPS5430 (5 V) + AMS1117-3.3 (3.3 V)
+## STATUS 2026-10-15 (latest): final pre-order review done, two fixes applied
+The full review is in `review/FINAL_PCB_REVIEW_LOG.md`. It found no blockers. Applied to the installed board by script; nothing was regenerated from `pcb_build/`:
+- **F1:** the thermal-via pads of U6 (pad 9, 8 vias) and U7/U8 (pad 29, 16 vias each) now connect **solid** to the In1 GND plane. They used thermal-relief spokes (0.25 mm gap / 0.4 mm spokes), which cost about 4-6 °C per driver at full current.
+- **F2:** two more +5V vias (0.5/0.3) at the buck output, at (5.9, 15.6) and (12.5, 15.6), joined to the existing pair by 0.5 mm F.Cu. Four vias now feed the In2 +5V island, which supplies the Pi and the AMS1117.
+- **Result:**
+  - DRC: 0 errors, 0 unconnected, parity 0, with 35 `lib_footprint_mismatch` warnings. ERC 0.
+  - Backup: `review/backup/ASTRA.kicad_pcb.pre_final_fix`.
+- **`jlcpcb/` regenerated:**
+  - gerbers and drill: PTH now has 319 holes;
+  - `ASTRA_v0.8_gerbers.zip`;
+  - BOM and CPL, unchanged because no footprint moved.
+
+## STATUS 2026-10-15: power section redone — TPS5430 (5 V) + AMS1117-3.3 (3.3 V)
 Alex wanted the AP62300WU (extended, ~$3 fee) replaced by JLC basic parts. Both bucks are gone.
 - **U6 = TPS5430DDAR** (C9864): 12 V -> 5 V, 3 A, 500 kHz. TI_SO-PowerPAD-8_ThermalVias at (21.5, 17.0), rot 0. Laid out like TI datasheet Fig 7-12:
   - **D8 SS34** catch diode above U6 at (22.5, 11.9), rot 180. Its anode drops into the PowerPAD (1.2 mm trace + 2 GND vias). Its cathode feeds PH.

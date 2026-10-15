@@ -109,6 +109,11 @@ Verify after each batch: ERC + netlist diff against expected changes.
       Pinout 1 OA1, 2 OA2, 3 OB1, 4 OB2. XH rows at y 91.55 (0.5 up so the body clears the edge), pins x 86.6-94.1 / 102.0-109.5; OB1/OB2 drop straight
       in, OA1 (B.Cu) and OA2 got new tails. Ref text inside the body, M2 label moved to (97.9, 88.9).
       ERC 0, DRC 0 unconnected / parity 0 (35 lib warnings, same as before). Backups *.pre_conn_bom, *.pre_r_bom, *.pre_xh.
+- [x] 2026-10-15 FINAL PRE-ORDER REVIEW (log: review/FINAL_PCB_REVIEW_LOG.md): no blockers. Two fixes applied:
+      F1, solid In1 connection for the 40 thermal-via pads of U6/U7/U8 (were thermal reliefs);
+      F2, 2 more +5V vias at the buck output, at board-local (5.9, 15.6) and (12.5, 15.6), giving 4 in all.
+      DRC 0/0/parity 0 (35 lib warnings), ERC 0. jlcpcb/ BOM, CPL and gerbers were cleared and regenerated; the BOM and CPL are unchanged.
+      Backup: review/backup/ASTRA.kicad_pcb.pre_final_fix.
 - [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
       it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
       DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)
