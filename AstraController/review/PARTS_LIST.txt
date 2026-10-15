@@ -15,9 +15,10 @@ fee) are gone. U6 is now a TPS5430DDAR 12 V -> 5 V buck and U9 an AMS1117-3.3
 LDO making 3.3 V from the 5 V rail, both JLC basic. See POWER CHANGE below.
 
 Board contents (122 footprints):
-  - 76 parts in the KiCad BOM (37 lines in the BOM export): sections 1-7.
-  - 10 parts excluded from the KiCad BOM that still have to be bought:
-    C1, P1, S1, SW1-SW7 (section 9).
+  - 68 parts in the KiCad BOM (33 lines in the BOM export): sections 1-6.
+  - 18 parts excluded from the KiCad BOM that still have to be bought
+    (AliExpress / hand-solder): C1, all connectors (J1, J2, J3, J7, P1, S1,
+    SW1-SW7) and the R25-R28 sense resistors (sections 7 and 9).
   - H1-H4 (M2.5 mounting holes) and 32 test pads (TP1-TP31, TP33; TP32 left
     with the BUCK_EN divider) are board-only copper: nothing to buy.
 
@@ -61,7 +62,7 @@ Value                         Qty  Refs                        JLC part / note
 4.7k                           3   R7, R8, R30                 C25900 (board labels: R7/R8 "4.7kR", R30 "4.7kR 1%")
 15k                            1   R29 (5 V divider top)       C25756
 1k                             1   R16                         C11702
-0.15R 0.5W 1% (sense) 1206     4   R25-R28                     AliExpress
+0.15R 0.5W 1% (sense) 1206     4   R25-R28                     AliExpress (excluded from KiCad BOM)
 U6 divider (TPS5430, 1.221 V ref): R29/R30 15k/4.7k -> 5.12 V.
 
 
@@ -115,24 +116,30 @@ Part                          Pkg       Qty  Refs                               
 PTC fuse 3A hold, 16V+        2920       1   F1                                   Check
 
 
-7. CONNECTORS IN THE BOM (4)
-----------------------------
-Part                          Footprint       Qty  Refs                           Source
-JST PH 6-pin vertical         B6B-PH-K         2   J1, J2 (stepper motors)        AliExpress, hand-solder
-JST SH 4-pin vertical         BM04B-SRSS-TB    1   J3 (IMU board, I2C)            AliExpress or JLC
-1x10 pin header, 2.54 mm      PinHeader_1x10   1   J7 (Pi Zero 2 link)            AliExpress, hand-solder
+7. CONNECTORS (all excluded from the KiCad BOM; AliExpress, hand-solder)
+-------------------------------------------------------------------------
+Part                          Footprint       Qty  Refs                           Mates with
+JST XH 4-pin vertical         B4B-XH-A         2   J1, J2 (stepper motors)        PH2.0-6P -> XH2.54-4P stepper cable, 1 m
+JST SH 4-pin vertical         BM04B-SRSS-TB    1   J3 (IMU board, I2C)            SH1.0 4P cable
+1x10 pin header, 2.54 mm      PinHeader_1x10   1   J7 (Pi Zero 2 link)            10-way F-F Dupont, 1x10 housings
   (or a 10-pin KF2510 / Molex KK 254 locking header: same holes, latching plug)
-Note: J1, J2 and J7 are planned as hand-soldered but ARE in the KiCad BOM
-(unlike C1 and P1). Mark them "do not place" when uploading the BOM to JLC,
-or exclude them from the BOM in KiCad.
+SH 2-pin, SH 8-pin, VH 2-pin: see section 9 (SW1-SW7, S1, P1).
+J1/J2 changed 2026-10-15 from JST PH 6-pin (B6B-PH-K) to XH 4-pin so the
+standard PH-to-XH stepper cable plugs straight in. Pinout: 1 = OA1, 2 = OA2
+(coil A), 3 = OB1, 4 = OB2 (coil B). Check a cable with a meter before use:
+XH pins 1-2 and 3-4 should each read the motor coil (~2-3 ohm).
 
 
 8. (removed in v0.8: the crystal section)
 
 
-9. PARTS EXCLUDED FROM THE KICAD BOM (10) - STILL NEED BUYING
+9. PARTS EXCLUDED FROM THE KICAD BOM (18) - STILL NEED BUYING
 -------------------------------------------------------------
 Part                          Footprint       Qty  Refs        Notes
+JST XH 4-pin vertical         B4B-XH-A         2   J1, J2      Stepper motors (section 7)
+JST SH 4-pin vertical         BM04B-SRSS-TB    1   J3          IMU (section 7)
+1x10 pin header, 2.54 mm      PinHeader_1x10   1   J7          Pi link (section 7)
+0.15R 0.5W 1% (sense)         1206             4   R25-R28     TMC2209 sense resistors (section 2)
 JST SH 2-pin vertical         BM02B-SRSS-TB    7   SW1-SW7     Off-board button headers (TOP, BOTTOM,
                                                                LEFT, RIGHT, SELECT, RETURN, RESET)
 JST SH 8-pin vertical         BM08B-SRSS-TB    1   S1          ST7735S LCD header
@@ -238,7 +245,7 @@ or pay +$3 to have JLC place it.
 NEXT STEP
 ---------
 - Look up LCSC numbers and basic/extended status for sections 3-7
-  (sections 1-2 are done), resolving the "Check" entries (R25-R28, F1).
+  (sections 1-2 are done), resolving the "Check" entries (F1).
 - Optionally copy all C-numbers into the symbols' "LCSC Part #" fields, so
   the KiCad BOM export uploads straight to JLC.
 
@@ -255,7 +262,6 @@ MCP23017-E/ML (QFN-28)         1   U1
 
 B. PROBABLY EXTENDED - CHECK FOR PROMO
 Part                          Qty  Refs        Fallback if paid extended
-0.15R 0.5W 1% (1206)           4   R25-R28     AliExpress
 SMAJ15A TVS (SMA)              1   D7          AliExpress
 PTC fuse 3A hold (2920)        1   F1          AliExpress
 
@@ -266,12 +272,13 @@ BZT52C10 Zener (SOD-123)       1   D6
 D. ALIEXPRESS, HAND-SOLDER (through-hole parts and connectors)
 Part                          Qty  Refs
 680uF 25V low-ESR electrolytic 1   C1          (10mm radial, 5mm pitch)
-JST PH 6-pin vertical          2   J1, J2
+JST XH 4-pin vertical          2   J1, J2      (B4B-XH-A)
 JST SH 4-pin vertical          1   J3
 JST SH 2-pin vertical          7   SW1-SW7
 JST SH 8-pin vertical          1   S1
 JST VH 2-pin vertical          1   P1
 1x10 2.54 mm pin header        1   J7          (or a KF2510 10-pin locking header)
+0.15R 0.5W 1% (1206)           4   R25-R28     SMD, excluded from the KiCad BOM
 (JST SH headers are SMD, so JLC could place them, but likely extended.)
 
 E. PERSONAL SUPPLIES

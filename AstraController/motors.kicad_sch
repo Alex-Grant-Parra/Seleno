@@ -11,7 +11,7 @@
 		(comment 1 "Author: Alex Grant-Parra")
 	)
 	(lib_symbols
-	(symbol "Connector_Generic:Conn_01x06"
+	(symbol "Connector_Generic:Conn_01x04"
 			(pin_names
 				(offset 1.016)
 				(hide yes)
@@ -22,7 +22,7 @@
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "J"
-				(at 0 7.62 0)
+				(at 0 5.08 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -31,8 +31,8 @@
 					)
 				)
 			)
-			(property "Value" "Conn_01x06"
-				(at 0 -10.16 0)
+			(property "Value" "Conn_01x04"
+				(at 0 -7.62 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
@@ -63,7 +63,7 @@
 					)
 				)
 			)
-			(property "Description" "Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(property "Description" "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -96,27 +96,16 @@
 					)
 				)
 			)
-			(symbol "Conn_01x06_1_1"
+			(symbol "Conn_01x04_1_1"
 				(rectangle
-					(start -1.27 6.35)
-					(end 1.27 -8.89)
+					(start -1.27 3.81)
+					(end 1.27 -6.35)
 					(stroke
 						(width 0.254)
 						(type default)
 					)
 					(fill
 						(type background)
-					)
-				)
-				(rectangle
-					(start -1.27 5.207)
-					(end 0 4.953)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
 					)
 				)
 				(rectangle
@@ -163,19 +152,8 @@
 						(type none)
 					)
 				)
-				(rectangle
-					(start -1.27 -7.493)
-					(end 0 -7.747)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
 				(pin passive line
-					(at -5.08 5.08 0)
+					(at -5.08 2.54 0)
 					(length 3.81)
 					(name "Pin_1"
 						(effects
@@ -193,7 +171,7 @@
 					)
 				)
 				(pin passive line
-					(at -5.08 2.54 0)
+					(at -5.08 0 0)
 					(length 3.81)
 					(name "Pin_2"
 						(effects
@@ -211,7 +189,7 @@
 					)
 				)
 				(pin passive line
-					(at -5.08 0 0)
+					(at -5.08 -2.54 0)
 					(length 3.81)
 					(name "Pin_3"
 						(effects
@@ -229,7 +207,7 @@
 					)
 				)
 				(pin passive line
-					(at -5.08 -2.54 0)
+					(at -5.08 -5.08 0)
 					(length 3.81)
 					(name "Pin_4"
 						(effects
@@ -239,42 +217,6 @@
 						)
 					)
 					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -5.08 0)
-					(length 3.81)
-					(name "Pin_5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -7.62 0)
-					(length 3.81)
-					(name "Pin_6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -2353,7 +2295,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -2829,19 +2771,19 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector_Generic:Conn_01x06")
-		(at 83.82 53.34 0)
+		(lib_id "Connector_Generic:Conn_01x04")
+		(at 83.82 50.8 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3e78dc77-188b-4bac-a29d-f347525430cd")
 		(property "Reference" "J1"
-			(at 86.36 53.3399 0)
+			(at 86.36 50.7999 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2852,7 +2794,7 @@
 			)
 		)
 		(property "Value" "Nema17"
-			(at 86.36 55.8799 0)
+			(at 86.36 53.3399 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2862,8 +2804,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_PH_B6B-PH-K_1x06_P2.00mm_Vertical"
-			(at 83.82 53.34 0)
+		(property "Footprint" "Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical"
+			(at 83.82 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2874,7 +2816,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 83.82 53.34 0)
+			(at 83.82 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2884,8 +2826,8 @@
 				)
 			)
 		)
-		(property "Description" "Stepper motor 1 (6-pin JST-PH, coil A = 1-3, coil B = 4-6)"
-			(at 83.82 53.34 0)
+		(property "Description" "Stepper motor 1 (4-pin JST-XH, coil A = 1-2, coil B = 3-4; standard PH2.0-6P to XH2.54-4P stepper cable)"
+			(at 83.82 50.8 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2897,12 +2839,6 @@
 		)
 		(pin "4"
 			(uuid "b2d5fa67-87dc-4756-83ab-deb442bbf09f")
-		)
-		(pin "5"
-			(uuid "1e9d1d61-1909-47e6-aa57-3590cf1532c8")
-		)
-		(pin "6"
-			(uuid "ce142e4f-3b69-4966-a5c3-fc2415ef56b8")
 		)
 		(pin "1"
 			(uuid "9604c0b9-49bb-4f61-a9d3-f3edc542e20c")
@@ -3006,7 +2942,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -4052,7 +3988,7 @@
 	)
 	(wire
 		(pts
-			(xy 73.66 50.8) (xy 76.2 50.8)
+			(xy 73.66 50.8) (xy 78.74 50.8)
 		)
 		(stroke
 			(width 0)
@@ -4062,17 +3998,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 50.8) (xy 76.2 53.34)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b3c806b4-988f-4636-8f4d-7063dee08811")
-	)
-	(wire
-		(pts
-			(xy 76.2 53.34) (xy 78.74 53.34)
+			(xy 74.93 53.34) (xy 78.74 53.34)
 		)
 		(stroke
 			(width 0)
@@ -4082,13 +4008,23 @@
 	)
 	(wire
 		(pts
-			(xy 73.66 55.88) (xy 78.74 55.88)
+			(xy 73.66 55.88) (xy 74.93 55.88)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "042c9226-d08c-4056-9587-ce6ba86d1008")
+	)
+	(wire
+		(pts
+			(xy 74.93 55.88) (xy 74.93 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f2ec917b-9952-4a0b-9309-6f86a2d0479b")
 	)
 	(wire
 		(pts
@@ -4102,7 +4038,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 58.42) (xy 76.2 60.96)
+			(xy 76.2 58.42) (xy 76.2 55.88)
 		)
 		(stroke
 			(width 0)
@@ -4112,21 +4048,13 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 60.96) (xy 78.74 60.96)
+			(xy 76.2 55.88) (xy 78.74 55.88)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "1d8461f8-9d79-498b-a6ec-aa5bab9a72b0")
-	)
-	(no_connect
-		(at 78.74 50.8)
-		(uuid "85ca5eb0-0d5a-491e-9c8a-d590109efdb9")
-	)
-	(no_connect
-		(at 78.74 58.42)
-		(uuid "0c45e4d3-93fe-4e54-a872-15772a0becdc")
 	)
 	(junction
 		(at 113.03 46.99)
@@ -4822,7 +4750,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -5022,7 +4950,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -5808,19 +5736,19 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector_Generic:Conn_01x06")
-		(at 83.82 119.38 0)
+		(lib_id "Connector_Generic:Conn_01x04")
+		(at 83.82 116.84 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "91edd4b7-6aa9-4b2a-85eb-2531915b37b8")
 		(property "Reference" "J2"
-			(at 86.36 119.3799 0)
+			(at 86.36 116.8399 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5831,7 +5759,7 @@
 			)
 		)
 		(property "Value" "Nema17"
-			(at 86.36 121.9199 0)
+			(at 86.36 119.3799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5841,8 +5769,8 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_PH_B6B-PH-K_1x06_P2.00mm_Vertical"
-			(at 83.82 119.38 0)
+		(property "Footprint" "Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical"
+			(at 83.82 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5853,7 +5781,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 83.82 119.38 0)
+			(at 83.82 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5863,8 +5791,8 @@
 				)
 			)
 		)
-		(property "Description" "Stepper motor 2 (6-pin JST-PH, coil A = 1-3, coil B = 4-6)"
-			(at 83.82 119.38 0)
+		(property "Description" "Stepper motor 2 (4-pin JST-XH, coil A = 1-2, coil B = 3-4; standard PH2.0-6P to XH2.54-4P stepper cable)"
+			(at 83.82 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5877,14 +5805,8 @@
 		(pin "3"
 			(uuid "61625f8f-a637-497d-9505-fdc10e8986c9")
 		)
-		(pin "5"
-			(uuid "c7b03949-add2-4f09-aafe-f1eb34607b22")
-		)
 		(pin "4"
 			(uuid "0c29133e-9946-4367-a0d8-25b29fdc9547")
-		)
-		(pin "6"
-			(uuid "9467c0ba-e2bf-4d0d-8b9f-2c029d80c0a1")
 		)
 		(pin "1"
 			(uuid "25d01530-cd6a-4ed6-9ca3-a995fc2eb581")
@@ -6682,7 +6604,7 @@
 	)
 	(wire
 		(pts
-			(xy 73.66 116.84) (xy 76.2 116.84)
+			(xy 73.66 116.84) (xy 78.74 116.84)
 		)
 		(stroke
 			(width 0)
@@ -6692,17 +6614,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 116.84) (xy 76.2 119.38)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "57bb0fea-6509-4d10-9cb6-e046f507da01")
-	)
-	(wire
-		(pts
-			(xy 76.2 119.38) (xy 78.74 119.38)
+			(xy 74.93 119.38) (xy 78.74 119.38)
 		)
 		(stroke
 			(width 0)
@@ -6712,13 +6624,23 @@
 	)
 	(wire
 		(pts
-			(xy 73.66 121.92) (xy 78.74 121.92)
+			(xy 73.66 121.92) (xy 74.93 121.92)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "21b6bd50-b1fb-41c2-8c2f-e7fc0232362a")
+	)
+	(wire
+		(pts
+			(xy 74.93 121.92) (xy 74.93 119.38)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "87d31f69-be12-48a1-844d-8e642cf5fa70")
 	)
 	(wire
 		(pts
@@ -6732,7 +6654,7 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 124.46) (xy 76.2 127)
+			(xy 76.2 124.46) (xy 76.2 121.92)
 		)
 		(stroke
 			(width 0)
@@ -6742,21 +6664,13 @@
 	)
 	(wire
 		(pts
-			(xy 76.2 127) (xy 78.74 127)
+			(xy 76.2 121.92) (xy 78.74 121.92)
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
 		(uuid "23f27447-4dab-472b-9088-2346cfc9d66f")
-	)
-	(no_connect
-		(at 78.74 116.84)
-		(uuid "4155af2f-76f9-4617-9df7-ac3958b8c439")
-	)
-	(no_connect
-		(at 78.74 124.46)
-		(uuid "e1626f02-7c0b-4e1a-b4c0-fa02154dd9cf")
 	)
 	(symbol
 		(lib_id "Device:C")

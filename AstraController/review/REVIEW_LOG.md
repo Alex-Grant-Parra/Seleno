@@ -103,6 +103,12 @@ Verify after each batch: ERC + netlist diff against expected changes.
 - [x] 2026-10-15 Q1 AO3407A -> AO3401A (Alex). Every JLC AO3407A is extended; the AO3401A (C15127) is JLC basic and a drop-in (same SOT-23, G1 S2 D3; the symbol was already AO3401A).
       Vgs limit is ±12 V vs ±20 V; D6 (BZT52C10) holds Vgs at about -10 V, so it stays within rating with ~1.4 V margin. Value and Datasheet fields changed in the schematic and on the board.
       ERC 0, DRC 0/0/parity 0, PARTS_LIST cross-check 0 problems. Backups *.pre_ao3401a.
+- [x] 2026-10-15 BOM + motor connectors (Alex): every connector (J1, J2, J3, J7 newly; SW1-7, S1, P1 already) and R25-R28 are excluded from the KiCad BOM
+      (schematic in_bom no + PCB exclude_from_bom); they are bought on AliExpress and hand-soldered. BOM export: 68 parts, 33 lines.
+      J1/J2 JST-PH 6P (B6B-PH-K) -> JST-XH 4P (B4B-XH-A) so the standard PH2.0-6P -> XH2.54-4P stepper cable fits (motors confirmed PH by measurement).
+      Pinout 1 OA1, 2 OA2, 3 OB1, 4 OB2. XH rows at y 91.55 (0.5 up so the body clears the edge), pins x 86.6-94.1 / 102.0-109.5; OB1/OB2 drop straight
+      in, OA1 (B.Cu) and OA2 got new tails. Ref text inside the body, M2 label moved to (97.9, 88.9).
+      ERC 0, DRC 0 unconnected / parity 0 (35 lib warnings, same as before). Backups *.pre_conn_bom, *.pre_r_bom, *.pre_xh.
 - [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
       it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
       DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)

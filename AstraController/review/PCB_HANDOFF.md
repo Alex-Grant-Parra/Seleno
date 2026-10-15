@@ -249,7 +249,7 @@ The top edge between u 24.4 and 31.2 holds C25, TP11 and TP12.
   - OA2 is at the bottom of the left side and OB2 at the bottom of the right side.
   - Logic side: STEP/DIR/VCC_IO/VREF on the left side; UART/DIAG/MS/5VOUT on the top.
   - Sense resistors in 1206 at (±3.03, 4.6).
-  - **OA1 must hop to B.Cu** (via below its pad, then to J1 pin 1). This is the only crossing, because J1's pin order is OA1, NC, OA2, OB1, NC, OB2.
+  - **OA1 must hop to B.Cu** (via below its pad, then to J1 pin 1). This is the only crossing. J1/J2 are JST-XH 4P (B4B-XH-A, since 2026-10-15; was PH 6P), pin order OA1, OA2, OB1, OB2, row at y 91.55.
   - VS pins go to In2 +12V by vias at about (∓2.15, 3.3). OA2 and OB2 run down at u ∓3.0, between the sense-resistor pads.
 - **C1** (680 µF THT) at anchor (41.0, 38.6).
 - **Buck template** (`place.buck()`):
