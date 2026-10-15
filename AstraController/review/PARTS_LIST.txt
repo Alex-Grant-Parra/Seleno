@@ -83,7 +83,10 @@ about 1 mA, so they will be dimmer than red/yellow. Check on the first board.
 4. TRANSISTORS (3)
 ------------------
 Part                          Pkg     Qty  Refs                                   Source
-AO3407A (P-channel MOSFET)    SOT-23   1   Q1                                     JLC basic
+AO3401A (P-channel MOSFET)    SOT-23   1   Q1                                     JLC basic C15127
+Note: Q1 was the AO3407A (Vgs +-20 V) until 2026-10-15, but every JLC AO3407A is
+extended. The AO3401A is a drop-in (same SOT-23 pinout); its Vgs limit is +-12 V and
+D6 (10 V zener) holds the gate at about -10 V, so it stays within rating.
 MMBT3904 (NPN)                SOT-23   2   Q2, Q3 (ESP32 auto-program, from Pi)   JLC basic
 
 
@@ -213,6 +216,7 @@ Removed: USB2512B (C626661) 1, 24 MHz crystal (C70590) 1, CH340C 1, USB-A stacke
 Added:   J7 1x10 2.54 mm header 1 (or KF2510 locking), 10-way Dupont ribbon 1 (off-board).
 Added 2026-10-15: C47 22uF 25V 0805.
 Power change 2026-10-15: see POWER CHANGE above.
+Changed 2026-10-15: Q1 AO3407A -> AO3401A (C15127, JLC basic; drop-in).
 
 
 PART-TYPE NOTES

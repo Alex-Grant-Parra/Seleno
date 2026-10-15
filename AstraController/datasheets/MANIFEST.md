@@ -31,7 +31,7 @@ Tip: open these in a viewer with JavaScript disabled, e.g. Edge or SumatraPDF. A
 | SPX3819_datasheet.pdf | U4 | maxlinear.com | Official | `43b63129331150a20339623920ea9f7be758d93e700a3459beb190d483ad35a2` |
 | AP62300_datasheet.pdf | U6, U9 until 2026-10-15 (replaced by the TPS5430 + AMS1117) | diodes.com | Official | `a9c6bcf391ba2df0e2e81cd1c881f579b4fdf000e9ba87073920cb4ffba1e1cc` |
 | AO3401A_datasheet.pdf | Q1 (current part) | aosmd.com | Official | `0d8e3261ae280e007b5837fff60c55142f2d92af71edc4d02aee6f7a760a785c` |
-| AO3407A_datasheet.pdf | Q1 (proposed ±20 V Vgs replacement) | aosmd.com | Official | `aff0ea069d574266a52bb479a734d753531940c773accdb3c43605a01d8de6df` |
+| AO3407A_datasheet.pdf | Q1 until 2026-10-15 (±20 V Vgs part; every JLC listing is extended, so Q1 went back to the AO3401A) | aosmd.com | Official | `aff0ea069d574266a52bb479a734d753531940c773accdb3c43605a01d8de6df` |
 | MMBT3904_datasheet.pdf (onsemi) | Q2, Q3 (proposed SMD replacement for 2N3904) | docs.rs-online.com (onsemi blocks scripts) | Distributor | `97d19af406d5445cb06862cb018dd23196824a9ac1d894015bb792295a96c2fb` |
 | BZT52C_zener_series.pdf | D6 (representative; no part chosen yet) | diodes.com | Official | `0fbd7d137524820f0160594065cbceb8c6b3188757c328416d08fceb7418202f` |
 | BNO080_085_datasheet.pdf | G1 | ceva-ip.com | Official | `34ac0ca1dda8fb0ecf347b35042bb32d22c953b127a0e414852213edc2c502ca` |

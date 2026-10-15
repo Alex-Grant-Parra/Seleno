@@ -100,6 +100,9 @@ Verify after each batch: ERC + netlist diff against expected changes.
       A loop model from the datasheet (Eq 15 internal comp, feed-forward gain 25) gives PM 57-72 deg and GM 24-30 dB.
       U6 EN is left open (TI: no resistor to GND). The layout follows TI Fig 7-12. In2 islands were redrawn, the silk title moved to (37, 12), and the BuckSW pattern is now /Power/5V_SW.
       ERC 0, DRC 0/0/parity 0 (35 lib warnings). PARTS_LIST rewritten (122 footprints, 76 BOM parts in 37 lines), cross-check 0 problems. Backups *.pre_tps5430. Details: top of PCB_HANDOFF.md.
+- [x] 2026-10-15 Q1 AO3407A -> AO3401A (Alex). Every JLC AO3407A is extended; the AO3401A (C15127) is JLC basic and a drop-in (same SOT-23, G1 S2 D3; the symbol was already AO3401A).
+      Vgs limit is ±12 V vs ±20 V; D6 (BZT52C10) holds Vgs at about -10 V, so it stays within rating with ~1.4 V margin. Value and Datasheet fields changed in the schematic and on the board.
+      ERC 0, DRC 0/0/parity 0, PARTS_LIST cross-check 0 problems. Backups *.pre_ao3401a.
 - [ ] Firmware: DEFERRED – Alex has not asked for software work yet. (Read-only notes: live firmware is on origin/Client/Rpi5, esp32-firmware/;
       it uses STEP/DIR/EN only, no TMC UART. When software is requested: U8 MS1=high gives standalone 1/32 vs U7 1/8, so the UART must set MRES;
       DISPLAY_RES is 12 in display.h but the board now uses IO4; LEDs/buttons now go through the MCP23017; enable the ENN pull-ups → drivers start disabled.)

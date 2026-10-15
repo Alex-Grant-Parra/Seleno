@@ -2621,7 +2621,7 @@
 				)
 			)
 		)
-		(property "Value" "AO3407A"
+		(property "Value" "AO3401A"
 			(at 0 2.4 180)
 			(layer "F.Fab")
 			(uuid "dc5c45c8-1446-4a9c-8610-00a96a7dcefd")
@@ -2632,7 +2632,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.aosmd.com/res/datasheets/AO3407A.pdf"
+		(property "Datasheet" "https://www.aosmd.com/res/datasheets/AO3401A.pdf"
 			(at 0 0 180)
 			(layer "F.Fab")
 			(hide yes)

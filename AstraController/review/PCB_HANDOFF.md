@@ -25,6 +25,7 @@ Alex wanted the AP62300WU (extended, ~$3 fee) replaced by JLC basic parts. Both 
   - Backups: `review/backup/*.pre_tps5430` (board, power sheet, project, PARTS_LIST).
   - The board was edited with a script on a scratch copy and then installed. `pcb_build/` still describes the old buck strip, so **don't regenerate the board from it**.
 - **Datasheets added:** TPS5430, AMS1117 and the Changjiang FXL series, with SHA-256 hashes in `datasheets/MANIFEST.md`.
+- **Q1 is now the AO3401A** (C15127, JLC basic). It drops straight in for the AO3407A, which is extended at JLC. Its Vgs limit is ±12 V; D6 holds the gate at about -10 V. Only the value text changed. Backups: `*.pre_ao3401a`.
 - **Gotcha:** `BOARD.Save()` from Python rewrites the `.kicad_pro` beside the output. Load the board from a folder that has its real project file, or the rules get replaced with defaults.
 
 ## STATUS 2026-10-15: datasheet design check, fixes applied — board is v0.8
