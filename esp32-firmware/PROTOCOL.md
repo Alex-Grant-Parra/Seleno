@@ -72,33 +72,80 @@ The board has two fixed axes, registered at boot and disengaged:
 
 Every motor command needs `"motor": "<id>"`.
 
+### Units
+
+Positions and speeds are in **logical steps**: `steps_per_rev` per motor
+revolution, 1600 by default (1/8 steps, as the old firmware used). The
+logical unit doesn't depend on the driver's actual microstep setting.
+Internally the position is kept in 1/256 microsteps (51200 per revolution),
+so changing the microstep setting never loses position. `position` is the
+floor of that value in logical steps; `position_fine` is the exact
+1/256-microstep count.
+
+### Automatic microsteps and chopper (the defaults)
+
+- **Microsteps `auto`.** When a move starts, the firmware picks the finest
+  power of two in [`min_microsteps`, `max_microsteps`] (default 4–256)
+  whose STEP pulse rate stays within `max_pulse_hz` (default 5000). It
+  judges by the fastest speed the move actually reaches, given its distance
+  and the acceleration. Typical results at 1600 steps/rev:
+
+  | Move | Microsteps |
+  |---|---|
+  | Sidereal tracking (6.7 sps), 150 sps refine | 1/256 |
+  | Short nudges at slew speed | 1/64 |
+  | 2000 sps slew | 1/16 |
+  | 6000 sps | 1/8 |
+  | 9000 sps | 1/4 |
+
+  The change is one CHOPCONF write, made while the axis is idle. A coarse
+  move can end up to half a physical step from its target; `position_fine`
+  shows exactly where it ended.
+- **Chopper `auto`.** TMC hybrid mode: StealthChop (quiet, smooth) below
+  200 full steps/s (1 rev/s), SpreadCycle (torque) above. The switch-over
+  register value doesn't depend on the microstep setting.
+- **Acceleration.** A move starts at up to `start_sps` (default 400 =
+  0.25 rev/s) with no ramp, then accelerates at `accel_sps2` (default
+  3200 = 2 rev/s²). It decelerates so it reaches the start speed on its
+  last pulse, and always lands on its exact pulse count. `stop` ramps down.
+  The emergency stop, driver faults and `disengage` stop at once. Tracking
+  and refine speeds are below the start speed, so they start instantly.
+
+### Commands
+
 | Command | Fields | Notes |
 |---|---|---|
 | `list_motors` | | `motors`: registered ids |
-| `create_motor` | `motor`; `step`,`dir`,`en` (must match an axis) or `axis`; optional `microsteps` or `steps_per_rev` (= 200 × microsteps), `speed_us`/`sps`, `engage` | Binds or reconfigures; replies with `status` data |
+| `create_motor` | `motor`; `step`,`dir`,`en` (must match an axis) or `axis`; optional `steps_per_rev`, `microsteps` (number or `"auto"`), `speed_us`/`sps`, `engage` | Binds or reconfigures; replies with `status` data |
 | `delete_motor` | | Stops, disengages and frees the axis |
 | `engage` / `disengage` / `enable` (`value`) | | Real board: engage fails if the driver didn't answer on UART |
-| `set_speed` | `sps` or `speed_us` | Changes a running move too. Max 9999 sps |
-| `turn_degrees` | `degrees`, `forward` | Negative degrees reverse. Sub-step moves are a no-op |
-| `move_steps` | `steps` (signed) | |
+| `set_speed` | `sps` or `speed_us` (logical) | A running move ramps to the new speed |
+| `turn_degrees` | `degrees`, `forward` | Negative degrees reverse |
+| `move_steps` | `steps` (signed, logical) | |
 | `start_continuous` | `forward` | Runs until `stop`; the sidereal tracking path |
-| `stop` | | Ends the move at the next 50 µs tick |
-| `status` | | `enabled`, `moving`, `position`, `steps_remaining` (−1 = continuous), `speed_sps`, `speed_us`, `microsteps`, `steps_per_rev`, `driver_present`, `chopper` |
-| `get_position` | | `position`, `steps_per_rev`, `moving` |
-| `reset_position` / `set_position` (`position`) | | |
-| `set_microsteps` | `microsteps` (1–256, power of two) or `steps_per_rev` | Refused while moving. Position and speed are rescaled so angles stay the same |
-| `set_chopper` | `mode`: `stealthchop` (`stealth`, `silent`) / `spreadcycle` (`spread`) / `hybrid` + `hybrid_threshold_sps` | Hybrid uses StealthChop below the threshold and SpreadCycle above it (TPWMTHRS) |
+| `stop` | | Ramps down from above the start speed, otherwise immediate |
+| `status` | | `enabled`, `moving`, `position`, `position_fine`, `steps_per_rev`, `speed_sps`, `speed_us`, `accel_sps2`, `start_sps`, `pulses_remaining` (−1 = continuous), `pulse_rate` (cruise), `pulse_rate_now`, `microsteps` (driver), `microstep_mode` (`auto`/`fixed`), `auto{}`, `chopper`, `chopper_threshold_fsps`, `driver_present` |
+| `get_position` | | `position`, `position_fine`, `steps_per_rev`, `moving` |
+| `reset_position` / `set_position` (`position`, logical) | | |
+| `set_microsteps` | `microsteps`: `"auto"` or 1–256 (power of two) | A fixed value applies now (refused while moving) and turns auto off |
+| `set_auto` | `min_microsteps`, `max_microsteps`, `max_pulse_hz` | Tunes automatic selection |
+| `set_accel` | `accel` (logical steps/s², 0 = no ramp), `start_sps` | Applies to a running move too |
+| `set_steps_per_rev` | `steps_per_rev` (200 × power of two) | Changes the logical unit; position keeps its angle, speeds keep their angular speed |
+| `set_chopper` | `mode`: `auto` / `stealthchop` (`stealth`, `silent`) / `spreadcycle` (`spread`) / `hybrid` + `hybrid_threshold_sps` (logical) or `hybrid_threshold_fsps` (full steps/s) | |
 | `set_current` | `run_ma` (1–1350), `hold_multiplier` (0–1) or `hold_ma` | Replies with `driver status` |
-| `driver` | `action`: `status` (default) / `reinit` / `set` (`interpolate`, `stall_threshold` 0–255, `invert_direction`) / `read_reg` (`reg`) / `write_reg` (`reg`, `value`) | status: `present`, `version` (0x21), `configured`, `enabled`, `diag`, `settings{}`, and `live{}` (`ifcnt`, `gstat_*`, chip `microsteps`, `irun`, `ihold`, `rms_current_ma`, `tstep`, `sg_result`, `mscnt`, `drv_status{otpw, ot, s2ga, s2gb, s2vsa, s2vsb, ola, olb, t120, t143, t150, t157, cs_actual, stealth, standstill}`) |
+| `driver` | `action`: `status` (default) / `reinit` / `set` (`interpolate`, `stall_threshold` 0–255, `invert_direction`) / `read_reg` (`reg`) / `write_reg` (`reg`, `value`) | status: `present`, `version` (0x21), `configured`, `enabled`, `diag`, `settings{}` (incl. `chopper_threshold_fsps`, `tpwmthrs`), and `live{}` (`ifcnt`, `gstat_*`, chip `microsteps`, `irun`, `ihold`, `rms_current_ma`, `tstep`, `sg_result`, `mscnt`, `drv_status{...}`) |
 
-Defaults: 1/8 microsteps (1600 steps/rev), StealthChop, 1.0 A run current,
-0.5 A hold current, 256-step interpolation, StallGuard off.
+Other defaults: 1.0 A run current, 0.5 A hold current, 256-step
+interpolation, StallGuard off.
 
 ### Step timing
 
 Step pulses come from one 20 kHz timer interrupt with a 32-bit phase
 accumulator per axis, so the long-run rate is exact to about 5 µsteps/s.
-Measured on the dev kit: 6.68 sps for 10.1 s gave 68 steps.
+A 1 kHz ramp task adjusts the rate during acceleration. The maximum pulse
+rate is 9999/s. Measured on the dev kit: 6.68 sps for 10.1 s gave 68
+steps; a 360° slew at 2000 sps with ramps took 1.23 s and landed on
+exactly 51200 fine units.
 
 ## Display (`"cmd":"display"`, field `action`)
 
@@ -130,7 +177,7 @@ Call `init` first; until then drawing is ignored.
 | `boot` | `fw`, `board`, `devkit`, `reset_reason`, `drivers[]`, `expander` | After every start |
 | `estop` | `active`, `source`, `already_latched` | Trigger and clear |
 | `button` | `button` (`select`, `return`, `top`, `bottom`, `left`, `right`), `action` (`press`, `release` with `held_ms`, `hold` after 1 s), `t` | Debounced 15 ms |
-| `motion_done` | `motor`, `axis`, `reason` (`complete`, `stopped`, `estop`, `driver_fault`), `position` | A move ends |
+| `motion_done` | `motor`, `axis`, `reason` (`complete`, `stopped`, `estop`, `driver_fault`, `disengaged`), `position`, `position_fine` | A move ends |
 | `driver_fault` / `driver_fault_cleared` | `motor`, `axis`, `drv_status{}` | DIAG pin rises or falls; the axis stops on a fault |
 | `driver_temperature` | `motor`, `drv_status{}` | `otpw` or `ot` changes |
 | `driver_reset` | `motor` | Driver brown-out; it has been reconfigured and the axis stopped |

@@ -1,11 +1,22 @@
 // Named motors on the two fixed axes. Axis 0 is RA (U7, J1), axis 1 is DEC
 // (U8, J2). They boot registered as "motor1" and "motor2", disengaged.
+//
+// Positions and speeds are in logical steps: steps_per_rev per revolution
+// (default 1600, i.e. 1/8 steps). That unit is independent of the driver's
+// microstep setting, which by default is chosen automatically when each move
+// starts: fine for slow tracking, coarse for fast slews.
 #pragma once
 
 #include <ArduinoJson.h>
 #include <cstdint>
 
 #include "stepper.h"
+
+struct AutoMicrostepParams {
+  uint16_t minMicrosteps;
+  uint16_t maxMicrosteps;
+  float maxPulseHz;
+};
 
 void motorsBegin();
 
@@ -24,6 +35,7 @@ void motorUnregister(int axis);
 bool motorEngage(int axis, bool on, const char** error);
 bool motorEngaged(int axis);
 
+// Speed in logical steps per second.
 bool motorSetSpeedSps(int axis, double stepsPerSecond, const char** error);
 bool motorSetSpeedUs(int axis, uint32_t stepDelayUs, const char** error);
 double motorSpeedSps(int axis);
@@ -34,11 +46,32 @@ bool motorStartContinuous(int axis, bool forward, const char** error);
 void motorStop(int axis);
 void motorsStopAll(MotionEnd reason);
 
+// Logical resolution: steps_per_rev = 200 x logicalMicrosteps.
 uint32_t motorStepsPerRev(int axis);
+uint16_t motorLogicalMicrosteps(int axis);
+// Refused while moving. The position keeps its angle; the stored speed keeps
+// its angular speed.
+bool motorSetResolution(int axis, uint16_t logicalMicrosteps, const char** error);
+
+// Logical position (floor of the exact 1/256-microstep count).
+int64_t motorPosition(int axis);
+int64_t motorPosition256(int axis);
+void motorSetPosition(int axis, int64_t logicalSteps);
+
+// The driver's current microstep setting.
 uint16_t motorMicrosteps(int axis);
-// Refused while moving. Rescales the position counter and speed so the
-// shaft angle and angular speed are unchanged.
+bool motorMicrostepsAuto(int axis);
+// microsteps = 0 selects automatic; otherwise a fixed power of two, applied
+// now (refused while moving).
 bool motorSetMicrosteps(int axis, uint16_t microsteps, const char** error);
+const AutoMicrostepParams& motorAutoParams(int axis);
+bool motorSetAutoParams(int axis, const AutoMicrostepParams& params, const char** error);
+
+// Acceleration ramp in logical steps/s^2 (0 = start and stop instantly) and
+// the speed a move may start at without ramping.
+bool motorSetAccel(int axis, double accelSps2, double startSps, const char** error);
+double motorAccel(int axis);
+double motorStartSpeed(int axis);
 
 void motorStatusJson(int axis, JsonObject out);
 

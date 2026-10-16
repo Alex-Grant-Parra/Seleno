@@ -77,8 +77,8 @@ DriverSettings defaultSettings() {
   s.microsteps = kDefaultMicrosteps;
   s.runCurrentMa = kDefaultRunCurrentMa;
   s.holdMultiplier = kDefaultHoldMultiplier;
-  s.chopper = ChopperMode::StealthChop;
-  s.hybridThresholdSps = 0.0;
+  s.chopper = ChopperMode::Auto;
+  s.chopperThresholdFsps = kAutoSpreadThresholdFsps;
   s.interpolate = true;
   s.stallThreshold = 0;
   s.invertDirection = false;
@@ -120,11 +120,16 @@ uint32_t gconfFor(const DriverSettings& s) {
   return g;
 }
 
+// TSTEP counts 1/256 microsteps, so a threshold in full steps per second
+// gives the same TPWMTHRS at every microstep setting.
 uint32_t tpwmthrsFor(const DriverSettings& s) {
-  if (s.chopper != ChopperMode::Hybrid) {
-    return 0;
+  if (s.chopper == ChopperMode::Auto) {
+    return seleno::tpwmthrsForFullSteps(kAutoSpreadThresholdFsps);
   }
-  return seleno::tpwmthrsForRate(s.hybridThresholdSps, s.microsteps);
+  if (s.chopper == ChopperMode::Hybrid) {
+    return seleno::tpwmthrsForFullSteps(s.chopperThresholdFsps);
+  }
+  return 0;
 }
 
 // Write every setting, then read GCONF and CHOPCONF back to confirm they
@@ -319,6 +324,7 @@ const char* chopperModeName(ChopperMode mode) {
   switch (mode) {
     case ChopperMode::SpreadCycle: return "spreadcycle";
     case ChopperMode::Hybrid: return "hybrid";
+    case ChopperMode::Auto: return "auto";
     default: return "stealthchop";
   }
 }
@@ -338,6 +344,10 @@ bool parseChopperMode(const char* text, ChopperMode& out) {
   }
   if (strcasecmp(text, "hybrid") == 0) {
     out = ChopperMode::Hybrid;
+    return true;
+  }
+  if (strcasecmp(text, "auto") == 0) {
+    out = ChopperMode::Auto;
     return true;
   }
   return false;
@@ -393,19 +403,54 @@ bool driverSetMicrosteps(int axis, uint16_t microsteps, const char** error) {
   return true;
 }
 
-bool driverSetChopper(int axis, ChopperMode mode, double hybridThresholdSps, const char** error) {
+bool driverSetChopper(int axis, ChopperMode mode, double thresholdFsps, const char** error) {
   if (!requireAxis(axis, error)) return false;
-  if (mode == ChopperMode::Hybrid && !(hybridThresholdSps > 0.0)) {
-    if (error) *error = "Hybrid mode needs hybrid_threshold_sps > 0";
+  if (mode == ChopperMode::Hybrid && !(thresholdFsps > 0.0)) {
+    if (error) *error = "Hybrid mode needs a threshold > 0";
     return false;
   }
   DriverSettings old = g_drivers[axis].settings;
   g_drivers[axis].settings.chopper = mode;
-  g_drivers[axis].settings.hybridThresholdSps = mode == ChopperMode::Hybrid ? hybridThresholdSps : 0.0;
+  if (mode == ChopperMode::Hybrid) {
+    g_drivers[axis].settings.chopperThresholdFsps = thresholdFsps;
+  } else if (mode == ChopperMode::Auto) {
+    g_drivers[axis].settings.chopperThresholdFsps = kAutoSpreadThresholdFsps;
+  }
   if (!commitSettings(axis, error)) {
     g_drivers[axis].settings = old;
     return false;
   }
+  return true;
+}
+
+bool driverApplyMicrosteps(int axis, uint16_t microsteps, const char** error) {
+  if (!requireAxis(axis, error)) return false;
+  if (!seleno::isValidMicrosteps(microsteps)) {
+    if (error) *error = "Microsteps must be a power of two from 1 to 256";
+    return false;
+  }
+  DriverState& d = g_drivers[axis];
+  if (d.settings.microsteps == microsteps && (d.configured || !d.present)) {
+    return true;
+  }
+  if (!d.present) {
+#if SELENO_DEVKIT
+    d.settings.microsteps = microsteps;
+    return true;
+#else
+    if (error) *error = "Driver not responding on TMC UART";
+    return false;
+#endif
+  }
+  // TMCStepper keeps a shadow CHOPCONF, so this is one register write.
+  d.tmc->microsteps(microsteps);
+  uint32_t chopconf = 0;
+  if (!readChecked(d, REG_CHOPCONF, chopconf) ||
+      ((chopconf >> 24) & 0x0F) != seleno::mresFromMicrosteps(microsteps)) {
+    if (error) *error = "Driver did not accept the microstep setting";
+    return false;
+  }
+  d.settings.microsteps = microsteps;
   return true;
 }
 
@@ -512,7 +557,8 @@ void driverStatusJson(int axis, JsonObject out) {
   cfg["run_ma"] = s.runCurrentMa;
   cfg["hold_multiplier"] = s.holdMultiplier;
   cfg["chopper"] = chopperModeName(s.chopper);
-  cfg["hybrid_threshold_sps"] = s.hybridThresholdSps;
+  cfg["chopper_threshold_fsps"] = s.chopperThresholdFsps;
+  cfg["tpwmthrs"] = tpwmthrsFor(s);
   cfg["interpolate"] = s.interpolate;
   cfg["stall_threshold"] = s.stallThreshold;
   cfg["invert_direction"] = s.invertDirection;

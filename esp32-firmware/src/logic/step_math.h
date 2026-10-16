@@ -66,13 +66,33 @@ inline uint32_t tpwmthrsForRate(double stepsPerSecond, uint32_t microsteps, doub
   return static_cast<uint32_t>(tstep);
 }
 
-// A microstep change keeps the shaft angle, so step counts scale with it.
-inline int32_t rescaleSteps(int32_t steps, uint32_t oldMicrosteps, uint32_t newMicrosteps) {
-  if (oldMicrosteps == 0 || newMicrosteps == oldMicrosteps) {
-    return steps;
+// TPWMTHRS for a speed in full steps per second. TSTEP counts 1/256
+// microsteps, so the value doesn't depend on the microstep setting.
+inline uint32_t tpwmthrsForFullSteps(double fullStepsPerSecond, double fclkHz = 12000000.0) {
+  return tpwmthrsForRate(fullStepsPerSecond, 1, fclkHz);
+}
+
+// Automatic microstep choice: the finest power of two in [minMicrosteps,
+// maxMicrosteps] whose STEP pulse rate at this speed stays within
+// maxPulseHz. Slow tracking gets fine steps (smooth, accurate); fast slews
+// get coarse ones (fewer pulses, so higher top speed). Returns minMicrosteps
+// when even that is too fast; the caller decides whether the rate is legal.
+inline uint32_t autoMicrosteps(double fullStepsPerSecond, uint32_t minMicrosteps, uint32_t maxMicrosteps,
+                               double maxPulseHz) {
+  uint32_t m = maxMicrosteps;
+  while (m > minMicrosteps && fullStepsPerSecond * m > maxPulseHz) {
+    m >>= 1;
   }
-  double scaled = static_cast<double>(steps) * newMicrosteps / oldMicrosteps;
-  return static_cast<int32_t>(std::llround(scaled));
+  return m < minMicrosteps ? minMicrosteps : m;
+}
+
+// Floor division for signed counts (C++ '/' truncates toward zero).
+inline int64_t floorDiv(int64_t a, int64_t b) {
+  int64_t q = a / b;
+  if ((a % b != 0) && ((a < 0) != (b < 0))) {
+    q--;
+  }
+  return q;
 }
 
 // IRUN/IHOLD current scale for a target RMS current, as TMCStepper computes

@@ -10,7 +10,8 @@
 enum class ChopperMode : uint8_t {
   StealthChop,  // quiet voltage-mode chopper ("silent")
   SpreadCycle,  // classic current-mode chopper, more torque at speed
-  Hybrid,       // StealthChop below hybridThresholdSps, SpreadCycle above
+  Hybrid,       // StealthChop below chopperThresholdFsps, SpreadCycle above
+  Auto,         // Hybrid at kAutoSpreadThresholdFsps (the default)
 };
 
 const char* chopperModeName(ChopperMode mode);
@@ -21,7 +22,7 @@ struct DriverSettings {
   uint16_t runCurrentMa;
   float holdMultiplier;      // hold current = run current x this
   ChopperMode chopper;
-  double hybridThresholdSps; // in full-resolution steps/s at `microsteps`
+  double chopperThresholdFsps;  // Hybrid/Auto switch-over, full steps per second
   bool interpolate;          // 256-microstep interpolation (intpol)
   uint8_t stallThreshold;    // SGTHRS; 0 disables StallGuard on DIAG
   bool invertDirection;      // GCONF.shaft
@@ -36,7 +37,11 @@ const DriverSettings& driverSettings(int axis);
 // Each setter updates the cached settings and, if the driver answers, writes
 // them. Return false with a reason in *error on failure.
 bool driverSetMicrosteps(int axis, uint16_t microsteps, const char** error);
-bool driverSetChopper(int axis, ChopperMode mode, double hybridThresholdSps, const char** error);
+// thresholdFsps (full steps/s) is used for Hybrid; Auto uses the default.
+bool driverSetChopper(int axis, ChopperMode mode, double thresholdFsps, const char** error);
+// Change only MRES (one CHOPCONF write, read back). For the automatic
+// per-move selection, so it is quick; the axis must be idle.
+bool driverApplyMicrosteps(int axis, uint16_t microsteps, const char** error);
 bool driverSetCurrent(int axis, uint16_t runCurrentMa, float holdMultiplier, const char** error);
 bool driverSetInterpolation(int axis, bool on, const char** error);
 bool driverSetStallThreshold(int axis, uint8_t threshold, const char** error);

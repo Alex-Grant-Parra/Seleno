@@ -9,7 +9,8 @@ power-up (steps 1-8) are done by hand before this.
 	./venv/bin/python -m esp32.bringup leds         # one check
 	./venv/bin/python -m esp32.bringup motor --motor motor1 --run-ma 400
 
-Checks: info, i2c, drivers, leds, buttons, estop, lcd, imu, motor.
+Checks: info, i2c, drivers, leds, buttons, estop, lcd, imu, motor, profile
+(profile: automatic microsteps/chopper while tracking and slewing).
 Checks that need someone at the board ask before and after (skip the
 questions with --yes; then look at the output instead).
 """
@@ -239,6 +240,35 @@ class Checks:
 				self.ask(f"Did {motor_id} turn {revolutions} rev forward, smoothly?"))
 		finally:
 			m.disengage()
+			# Back to the normal automatic selection.
+			m.set_microsteps("auto")
+			m.set_chopper("auto")
+
+	def profile(self, motor_id: str, slew_sps: float) -> None:
+		print(f"\n== Automatic microsteps and chopper: {motor_id} ==")
+		if not self.ask(f"{motor_id} will track for 3 s, then run at {slew_sps:.0f} sps for 3 s. Go?"):
+			return
+		m = ESP32Motor(self.conn, motor_id)
+		m.set_microsteps("auto")
+		m.set_chopper("auto")
+		m.engage()
+		try:
+			for label, sps, want_stealth in (("tracking", 6.68468, True), ("slew", slew_sps, False)):
+				m.set_speed_sps(sps)
+				m.start_continuous()
+				time.sleep(3.0)
+				status = m.status()
+				live = m.driver_status().get("live", {})
+				stealth = live.get("drv_status", {}).get("stealth")
+				m.stop()
+				self.conn.wait_for_event("motion_done", timeout=5.0, predicate=lambda e: e.get("motor") == motor_id)
+				print(f"  {label}: {sps} sps -> firmware 1/{status.get('microsteps')}, chip 1/{live.get('microsteps')}, "
+					f"pulse rate {status.get('pulse_rate', 0):.0f}/s, StealthChop active={stealth}")
+				self.record(f"{label}: chip microsteps match the firmware's choice",
+					live.get("microsteps") == status.get("microsteps"))
+				self.record(f"{label}: {'StealthChop' if want_stealth else 'SpreadCycle'} in use", stealth is want_stealth)
+		finally:
+			m.disengage()
 
 	def summary(self) -> int:
 		failed = [r for r in self.results if not r[1]]
@@ -250,7 +280,7 @@ class Checks:
 
 def main() -> int:
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-	parser.add_argument("check", choices=["all", "info", "i2c", "drivers", "leds", "buttons", "estop", "lcd", "imu", "motor"])
+	parser.add_argument("check", choices=["all", "info", "i2c", "drivers", "leds", "buttons", "estop", "lcd", "imu", "motor", "profile"])
 	parser.add_argument("--port", default="auto", help="serial port (default: auto)")
 	parser.add_argument("--transport", default="auto", choices=["auto", "usb", "gpio_uart"])
 	parser.add_argument("--yes", action="store_true", help="don't ask; assume every visual check passed")
@@ -259,6 +289,7 @@ def main() -> int:
 	parser.add_argument("--microsteps", type=int, default=16)
 	parser.add_argument("--revolutions", type=float, default=1.0)
 	parser.add_argument("--sps", type=float, default=800.0)
+	parser.add_argument("--slew-sps", type=float, default=3000.0, help="profile check: fast speed")
 	args = parser.parse_args()
 
 	conn = ESP32Connection(ESP32SerialConfig(port=args.port, transport=args.transport))
@@ -273,6 +304,7 @@ def main() -> int:
 		"lcd": [checks.lcd],
 		"imu": [checks.imu],
 		"motor": [lambda: checks.motor(args.motor, args.run_ma, args.microsteps, args.revolutions, args.sps)],
+		"profile": [lambda: checks.profile(args.motor, args.slew_sps)],
 	}
 	plan["all"] = plan["info"] + plan["i2c"] + plan["drivers"] + plan["leds"] + plan["buttons"] + plan["lcd"] + plan["imu"]
 	try:

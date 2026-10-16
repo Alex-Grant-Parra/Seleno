@@ -119,6 +119,7 @@ def _initialize_motors():
                     engage=bool(board.get("engage", True)),
                     replace=bool(board.get("replace", False)),
                     microsteps=board.get("microsteps"),
+                    chopper=board.get("chopper"),
                 )
                 motor_ids.add(motor_id)
                 _last_motor_steps[motor_id] = 0
@@ -478,7 +479,17 @@ def _start_ra_tracking() -> None:
         except Exception as e:
             print(f"[tracking] Warning: Error stopping motors: {e}")
         
-        time.sleep(0.3)  # Brief pause to ensure motors fully stop
+        # A stop from slew speed ramps down (up to about a second), so wait
+        # until both have actually stopped rather than a fixed pause.
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            try:
+                if not motor1.status().get("moving") and not motor2.status().get("moving"):
+                    break
+            except Exception as e:
+                print(f"[tracking] Warning: Error reading motor status: {e}")
+                break
+            time.sleep(0.1)
         
         # Set speed to configured tracking rate
         print(f"[tracking] Setting RA motor speed to {tracking_speed_sps:.4f} sps (sidereal, {ra_gear_ratio}:1)")

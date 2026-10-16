@@ -47,6 +47,25 @@ constexpr uint16_t kMaxRunCurrentMa = 1350;
 // 1/8 keeps the old 1600 steps/rev, so the Pi's speeds in steps/s are unchanged.
 constexpr uint16_t kDefaultMicrosteps = 8;
 constexpr uint16_t kFullStepsPerRev = 200;  // 1.8 degree motors
+// Units the host uses for positions and speeds: 1/8 steps, 1600 per rev, as
+// before. Independent of the driver's actual microstep setting.
+constexpr uint16_t kDefaultLogicalMicrosteps = 8;
+// Automatic microsteps, chosen when each move starts: the finest setting in
+// [min, max] whose STEP pulse rate stays within kAutoMaxPulseHz. Sidereal
+// tracking lands on 1/256, a 2000 sps slew on 1/16.
+constexpr uint16_t kAutoMinMicrosteps = 4;
+constexpr uint16_t kAutoMaxMicrosteps = 256;
+constexpr float kAutoMaxPulseHz = 5000.0f;
+// Automatic chopper (TMC hybrid mode): StealthChop below this speed for
+// quiet, smooth tracking, SpreadCycle above it for torque when slewing.
+constexpr float kAutoSpreadThresholdFsps = 200.0f;  // full steps/s = 1 rev/s
+// Acceleration ramps, in the host's logical units (1600 steps/rev). A move
+// starts at up to kDefaultStartSps with no ramp (the motor's pull-in speed;
+// tracking and refine speeds are below it), then accelerates; it decelerates
+// to land on its exact step count, and a stop ramps down. 3200 sps^2 is
+// 2 rev/s^2; 400 sps is 0.25 rev/s.
+constexpr float kDefaultAccelSps2 = 3200.0f;
+constexpr float kDefaultStartSps = 400.0f;
 constexpr uint32_t kDriverPollIntervalMs = 1000;
 
 // Step generation: one hardware-timer tick drives both axes.

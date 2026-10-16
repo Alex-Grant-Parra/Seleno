@@ -336,10 +336,23 @@ def _esp32_send(payload: Dict[str, Any], timeout: Optional[float] = None) -> Dic
         return _esp32_error_response(e)
 
 def espSetMicrosteps(value: Any, motor_id: str = "motor1") -> Dict[str, Any]:
-    # TMC2209 microsteps per full step (1, 2, 4 ... 256), set over the driver
-    # UART. Refused while the motor moves; the firmware rescales the position
-    # counter and speed so angles are unchanged.
-    return _esp32_send({"cmd": "set_microsteps", "motor": motor_id, "microsteps": int(value)}, timeout=2.0)
+    # TMC2209 microsteps: "auto" (default; chosen per move: fine for tracking,
+    # coarse for slews) or a fixed 1, 2, 4 ... 256. Positions and speeds keep
+    # their units (1600 steps/rev) either way.
+    microsteps: Any = "auto" if str(value).strip().lower() == "auto" else int(value)
+    return _esp32_send({"cmd": "set_microsteps", "motor": motor_id, "microsteps": microsteps}, timeout=2.0)
+
+def espSetAuto(motor_id: str = "motor1", min_microsteps: Optional[Any] = None,
+               max_microsteps: Optional[Any] = None, max_pulse_hz: Optional[Any] = None) -> Dict[str, Any]:
+    # Tune automatic microstep selection.
+    payload: Dict[str, Any] = {"cmd": "set_auto", "motor": motor_id}
+    if min_microsteps is not None:
+        payload["min_microsteps"] = int(min_microsteps)
+    if max_microsteps is not None:
+        payload["max_microsteps"] = int(max_microsteps)
+    if max_pulse_hz is not None:
+        payload["max_pulse_hz"] = float(max_pulse_hz)
+    return _esp32_send(payload, timeout=2.0)
 
 def espSetCurrent(mA: Any, motor_id: str = "motor1", hold_mA: Optional[Any] = None) -> Dict[str, Any]:
     # RMS run current in mA (1-1350 on the v0.8 board) and optional hold current.
@@ -349,17 +362,23 @@ def espSetCurrent(mA: Any, motor_id: str = "motor1", hold_mA: Optional[Any] = No
     return _esp32_send(payload, timeout=2.0)
 
 def espSetMode(mode: Any, motor_id: str = "motor1", hybrid_threshold_sps: Optional[Any] = None) -> Dict[str, Any]:
-    # Chopper mode: "stealth"/"stealthchop"/"silent" (quiet), "spread"/
-    # "spreadcycle" (more torque at speed) or "hybrid" (StealthChop below
+    # Chopper mode: "auto" (default; StealthChop below 1 rev/s, SpreadCycle
+    # above), "stealth"/"stealthchop"/"silent" (quiet), "spread"/"spreadcycle"
+    # (more torque at speed) or "hybrid" (StealthChop below
     # hybrid_threshold_sps, SpreadCycle above).
     payload: Dict[str, Any] = {"cmd": "set_chopper", "motor": motor_id, "mode": str(mode)}
     if hybrid_threshold_sps is not None:
         payload["hybrid_threshold_sps"] = float(hybrid_threshold_sps)
     return _esp32_send(payload, timeout=2.0)
 
-def espSetAccel(sps2: Any, motor_id: str = "motor1") -> Dict[str, Any]:
-    # The firmware steps at a constant rate; there is no acceleration ramp.
-    return {"error": "Acceleration ramps are not implemented in the ESP32 firmware"}
+def espSetAccel(sps2: Any, motor_id: str = "motor1", start_sps: Optional[Any] = None) -> Dict[str, Any]:
+    # Acceleration ramp in steps/s^2 (0 = instant starts and stops) and the
+    # speed moves may start at without ramping. Slews ramp up and down; the
+    # tracking rate is below the start speed, so tracking starts at once.
+    payload: Dict[str, Any] = {"cmd": "set_accel", "motor": motor_id, "accel": float(sps2)}
+    if start_sps is not None:
+        payload["start_sps"] = float(start_sps)
+    return _esp32_send(payload, timeout=2.0)
 
 def espDriverStatus(motor_id: str = "motor1") -> Dict[str, Any]:
     # Live TMC2209 registers: microsteps, currents, chopper, temperature flags.
@@ -583,18 +602,21 @@ def espCommand(command_data: Dict[str, Any]) -> Dict[str, Any]:
             mA = command_data.get('mA', command_data.get('current', 500))
             return espSetCurrent(mA, motor_id, command_data.get('hold_mA'))
         elif cmd_type == 'set_microsteps':
-            value = command_data.get('value', command_data.get('microsteps', 16))
+            value = command_data.get('value', command_data.get('microsteps', 'auto'))
             return espSetMicrosteps(value, motor_id)
         elif cmd_type in ('set_mode', 'set_chopper'):
             mode = command_data.get('mode', 'stealth')
             return espSetMode(mode, motor_id, command_data.get('hybrid_threshold_sps'))
         elif cmd_type == 'set_accel':
-            sps2 = command_data.get('sps2', command_data.get('accel', 1000))
-            return espSetAccel(sps2, motor_id)
+            sps2 = command_data.get('sps2', command_data.get('accel', 3200))
+            return espSetAccel(sps2, motor_id, command_data.get('start_sps'))
         elif cmd_type == 'status':
             return espStatus(motor_id)
         elif cmd_type == 'status_all':
             return espStatusAll()
+        elif cmd_type == 'set_auto':
+            return espSetAuto(motor_id, command_data.get('min_microsteps'),
+                              command_data.get('max_microsteps'), command_data.get('max_pulse_hz'))
         elif cmd_type == 'driver_status':
             return espDriverStatus(motor_id)
         elif cmd_type == 'estop':
@@ -642,6 +664,7 @@ function_map = {
     "espStartMotor": espStartWithMotorId,
     "espMoveStepsMotor": espMoveStepsWithMotorId,
     "espStopMotor": espStopWithMotorId,
+    "espSetAuto": espSetAuto,
     "espDriverStatus": espDriverStatus,
     "espEstop": espEstop,
     "espClearEstop": espClearEstop,

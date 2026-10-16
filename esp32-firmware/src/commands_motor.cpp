@@ -24,27 +24,43 @@ bool reportResult(bool ok, const char* error) {
   return ok;
 }
 
-// "microsteps" wins; otherwise "steps_per_rev" (what older Pi code sends) is
-// converted with 200 full steps per revolution. Returns 0 if neither is given.
-bool requestedMicrosteps(JsonDocument& req, uint16_t& out, const char** error) {
+// "microsteps": a power of two (fixed) or "auto". present=false if absent.
+// out = 0 means automatic.
+bool requestedMicrosteps(JsonDocument& req, bool& present, uint16_t& out, const char** error) {
+  present = !req["microsteps"].isNull();
   out = 0;
-  if (!req["microsteps"].isNull()) {
-    uint32_t m = req["microsteps"].as<uint32_t>();
-    if (!seleno::isValidMicrosteps(m)) {
-      *error = "Microsteps must be a power of two from 1 to 256";
-      return false;
-    }
-    out = static_cast<uint16_t>(m);
+  if (!present) {
     return true;
   }
-  if (!req["steps_per_rev"].isNull()) {
-    uint32_t spr = req["steps_per_rev"].as<uint32_t>();
-    if (spr == 0 || spr % kFullStepsPerRev != 0 || !seleno::isValidMicrosteps(spr / kFullStepsPerRev)) {
-      *error = "steps_per_rev must be 200 x a power of two (200-51200)";
-      return false;
+  if (req["microsteps"].is<const char*>()) {
+    if (strcasecmp(req["microsteps"].as<const char*>(), "auto") == 0) {
+      return true;
     }
-    out = static_cast<uint16_t>(spr / kFullStepsPerRev);
+    *error = "microsteps must be a power of two from 1 to 256, or \"auto\"";
+    return false;
   }
+  uint32_t m = req["microsteps"].as<uint32_t>();
+  if (!seleno::isValidMicrosteps(m)) {
+    *error = "microsteps must be a power of two from 1 to 256, or \"auto\"";
+    return false;
+  }
+  out = static_cast<uint16_t>(m);
+  return true;
+}
+
+// "steps_per_rev" (logical units for positions and speeds) as a logical
+// microstep count: 200 x a power of two. 0 if absent.
+bool requestedResolution(JsonDocument& req, uint16_t& out, const char** error) {
+  out = 0;
+  if (req["steps_per_rev"].isNull()) {
+    return true;
+  }
+  uint32_t spr = req["steps_per_rev"].as<uint32_t>();
+  if (spr == 0 || spr % kFullStepsPerRev != 0 || !seleno::isValidMicrosteps(spr / kFullStepsPerRev)) {
+    *error = "steps_per_rev must be 200 x a power of two (200-51200)";
+    return false;
+  }
+  out = static_cast<uint16_t>(spr / kFullStepsPerRev);
   return true;
 }
 
@@ -95,18 +111,24 @@ void handleCreateMotor(JsonDocument& req) {
   }
 
   const char* error = nullptr;
+  bool haveMicrosteps = false;
   uint16_t microsteps = 0;
-  if (!requestedMicrosteps(req, microsteps, &error)) {
+  uint16_t resolution = 0;
+  if (!requestedMicrosteps(req, haveMicrosteps, microsteps, &error) ||
+      !requestedResolution(req, resolution, &error)) {
     hostSendError(error);
     return;
   }
   if (!reportResult(motorRegister(axis, id, &error), error)) {
     return;
   }
-  if (microsteps != 0 && microsteps != motorMicrosteps(axis)) {
-    if (!reportResult(motorSetMicrosteps(axis, microsteps, &error), error)) {
+  if (resolution != 0 && resolution != motorLogicalMicrosteps(axis)) {
+    if (!reportResult(motorSetResolution(axis, resolution, &error), error)) {
       return;
     }
+  }
+  if (haveMicrosteps && !reportResult(motorSetMicrosteps(axis, microsteps, &error), error)) {
+    return;
   }
   bool sawSpeed = false;
   if (!reportResult(applySpeedFields(axis, req, sawSpeed, &error), error)) {
@@ -237,10 +259,14 @@ void handleSetCurrent(int axis, JsonDocument& req) {
 void handleSetChopper(int axis, JsonDocument& req) {
   ChopperMode mode;
   if (!parseChopperMode(req["mode"] | "", mode)) {
-    hostSendError("mode must be stealthchop, spreadcycle or hybrid");
+    hostSendError("mode must be auto, stealthchop, spreadcycle or hybrid");
     return;
   }
-  double threshold = req["hybrid_threshold_sps"] | 0.0;
+  // Threshold in full steps/s, or in the host's logical steps/s.
+  double threshold = req["hybrid_threshold_fsps"] | 0.0;
+  if (threshold <= 0.0 && !req["hybrid_threshold_sps"].isNull()) {
+    threshold = req["hybrid_threshold_sps"].as<double>() / motorLogicalMicrosteps(axis);
+  }
   const char* error = nullptr;
   if (!reportResult(driverSetChopper(axis, mode, threshold, &error), error)) {
     return;
@@ -267,7 +293,7 @@ bool handleMotorCommand(const char* cmd, JsonDocument& req) {
   static const char* const kMotorCommands[] = {
       "engage", "disengage", "enable", "set_speed", "turn_degrees", "move_steps",
       "start_continuous", "stop", "status", "get_position", "reset_position", "set_position",
-      "set_microsteps", "set_chopper", "set_current", "driver",
+      "set_microsteps", "set_auto", "set_steps_per_rev", "set_accel", "set_chopper", "set_current", "driver",
   };
   bool known = false;
   for (const char* name : kMotorCommands) {
@@ -331,31 +357,54 @@ bool handleMotorCommand(const char* cmd, JsonDocument& req) {
     JsonDocument resp;
     JsonObject data = resp["data"].to<JsonObject>();
     data["motor"] = id;
-    data["position"] = stepperPosition(axis);
+    data["position"] = motorPosition(axis);
+    data["position_fine"] = motorPosition256(axis);
     data["steps_per_rev"] = motorStepsPerRev(axis);
     data["moving"] = stepperIsMoving(axis);
     hostSendResponse(resp);
   } else if (strcmp(cmd, "reset_position") == 0) {
-    stepperSetPosition(axis, 0);
+    motorSetPosition(axis, 0);
     hostSendOk();
   } else if (strcmp(cmd, "set_position") == 0) {
     if (req["position"].isNull()) {
       hostSendError("Missing position");
       return true;
     }
-    stepperSetPosition(axis, req["position"].as<int32_t>());
+    motorSetPosition(axis, req["position"].as<int64_t>());
     hostSendOk();
   } else if (strcmp(cmd, "set_microsteps") == 0) {
+    bool present = false;
     uint16_t microsteps = 0;
-    if (!requestedMicrosteps(req, microsteps, &error)) {
+    if (!requestedMicrosteps(req, present, microsteps, &error)) {
       hostSendError(error);
       return true;
     }
-    if (microsteps == 0) {
+    if (!present) {
       hostSendError("Missing microsteps");
       return true;
     }
     if (reportResult(motorSetMicrosteps(axis, microsteps, &error), error)) sendMotorStatus(axis);
+  } else if (strcmp(cmd, "set_auto") == 0) {
+    AutoMicrostepParams params = motorAutoParams(axis);
+    if (!req["min_microsteps"].isNull()) params.minMicrosteps = req["min_microsteps"].as<uint16_t>();
+    if (!req["max_microsteps"].isNull()) params.maxMicrosteps = req["max_microsteps"].as<uint16_t>();
+    if (!req["max_pulse_hz"].isNull()) params.maxPulseHz = req["max_pulse_hz"].as<float>();
+    if (reportResult(motorSetAutoParams(axis, params, &error), error)) sendMotorStatus(axis);
+  } else if (strcmp(cmd, "set_accel") == 0) {
+    double accel = req["accel"] | motorAccel(axis);
+    double startSps = req["start_sps"] | motorStartSpeed(axis);
+    if (reportResult(motorSetAccel(axis, accel, startSps, &error), error)) sendMotorStatus(axis);
+  } else if (strcmp(cmd, "set_steps_per_rev") == 0) {
+    uint16_t resolution = 0;
+    if (!requestedResolution(req, resolution, &error)) {
+      hostSendError(error);
+      return true;
+    }
+    if (resolution == 0) {
+      hostSendError("Missing steps_per_rev");
+      return true;
+    }
+    if (reportResult(motorSetResolution(axis, resolution, &error), error)) sendMotorStatus(axis);
   } else if (strcmp(cmd, "set_chopper") == 0) {
     handleSetChopper(axis, req);
   } else if (strcmp(cmd, "set_current") == 0) {

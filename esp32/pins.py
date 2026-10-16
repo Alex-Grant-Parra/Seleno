@@ -52,10 +52,13 @@ ESP32_HARDWARE: Dict[str, Any] = {
             "label": "RA motor",
             "driver": "U7 (TMC2209, UART address 0), connector J1",
             "pins": {"step": 17, "dir": 16, "en": 21},
-            # 1/8 microstepping = 1600 steps/rev, as before; set over the TMC
-            # UART at runtime (ESP32Motor.set_microsteps).
-            "microsteps": 8,
+            # Positions/speeds in 1600 steps/rev, as before. The driver's
+            # microsteps and chopper are chosen by the firmware per move:
+            # 1/256 + StealthChop when tracking, down to 1/4 + SpreadCycle
+            # when slewing.
             "steps_per_rev": 1600,
+            "microsteps": "auto",
+            "chopper": "auto",
             "engage": True,
             "replace": False,
             "required": True,
@@ -65,8 +68,9 @@ ESP32_HARDWARE: Dict[str, Any] = {
             "label": "DEC motor",
             "driver": "U8 (TMC2209, UART address 1), connector J2",
             "pins": {"step": 23, "dir": 22, "en": 27},
-            "microsteps": 8,
             "steps_per_rev": 1600,
+            "microsteps": "auto",
+            "chopper": "auto",
             "engage": True,
             "replace": False,
             "required": False,

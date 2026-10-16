@@ -715,12 +715,22 @@ class ESP32Buttons:
 			callback(event)
 
 
+def _microsteps_arg(value: int | str) -> int | str:
+	if isinstance(value, str):
+		if value.strip().lower() == "auto":
+			return "auto"
+		return int(value)
+	return int(value)
+
+
 class ESP32Motor:
 	"""One motor axis. motor1 = RA (U7, J1), motor2 = DEC (U8, J2) on v0.8.
 
-	steps_per_rev follows the driver's microstep setting, which the firmware
-	reports; it's cached on the connection, so creating ESP32Motor objects
-	is free."""
+	Positions and speeds are in logical steps: steps_per_rev per revolution
+	(1600 by default). That unit doesn't change with the driver's microstep
+	setting, which by default the firmware picks per move: fine steps for
+	tracking, coarse for slews (see set_microsteps / set_auto). steps_per_rev
+	is cached on the connection, so creating ESP32Motor objects is free."""
 
 	def __init__(self, conn: ESP32Connection, motor_id: str) -> None:
 		self.conn = conn
@@ -770,7 +780,8 @@ class ESP32Motor:
 		speed_us: Optional[int] = None,
 		engage: bool = False,
 		replace: bool = False,
-		microsteps: Optional[int] = None,
+		microsteps: Optional[int | str] = None,
+		chopper: Optional[str] = None,
 	) -> "ESP32Motor":
 		"""Bind motor_id to the axis with these pins and configure it.
 
@@ -790,10 +801,9 @@ class ESP32Motor:
 			"en": int(en_pin),
 			"engage": bool(engage),
 		}
+		payload["steps_per_rev"] = int(steps_per_rev)
 		if microsteps is not None:
-			payload["microsteps"] = int(microsteps)
-		else:
-			payload["steps_per_rev"] = int(steps_per_rev)
+			payload["microsteps"] = _microsteps_arg(microsteps)
 		if speed_us is not None:
 			payload["speed_us"] = int(speed_us)
 		instance = cls(conn, motor_id)
@@ -802,6 +812,8 @@ class ESP32Motor:
 			instance._steps_per_rev = steps_per_rev
 		if speed_us is not None:
 			instance._current_speed_us = speed_us
+		if chopper is not None:
+			instance.set_chopper(chopper)
 		return instance
 
 	# --- enable and speed -----------------------------------------------------
@@ -907,6 +919,11 @@ class ESP32Motor:
 	def get_position_arcsec(self, gear_ratio: float = 360.0) -> float:
 		return self.get_position_arcmin(gear_ratio) * 60
 
+	def get_position_fine(self) -> int:
+		"""Exact position in 1/256 microsteps (51200 per revolution)."""
+		result = self._remember(self.conn.send({"cmd": "get_position", "motor": self.motor_id}))
+		return int(result.get("position_fine", 0))
+
 	def reset_position(self) -> Dict[str, Any]:
 		return self.conn.send({"cmd": "reset_position", "motor": self.motor_id})
 
@@ -915,18 +932,55 @@ class ESP32Motor:
 
 	# --- TMC2209 driver settings (over its UART) --------------------------------
 
-	def set_microsteps(self, microsteps: int) -> Dict[str, Any]:
-		"""1-256 (power of two). Refused while moving. The firmware rescales
-		the position counter and speed so angles stay the same."""
+	def set_microsteps(self, microsteps: int | str) -> Dict[str, Any]:
+		"""Driver microsteps: "auto" (default; the firmware picks per move,
+		up to 1/256 when tracking, as coarse as 1/4 for fast slews) or a fixed
+		power of two 1-256. Positions and speeds keep their units either way.
+		A fixed value is refused while the motor moves."""
 		return self._remember(self.conn.send(
-			{"cmd": "set_microsteps", "motor": self.motor_id, "microsteps": int(microsteps)}, timeout=2.0))
+			{"cmd": "set_microsteps", "motor": self.motor_id, "microsteps": _microsteps_arg(microsteps)}, timeout=2.0))
 
-	def set_chopper(self, mode: str, hybrid_threshold_sps: Optional[float] = None) -> Dict[str, Any]:
-		""""stealthchop" (silent), "spreadcycle", or "hybrid" (StealthChop
-		below hybrid_threshold_sps, SpreadCycle above)."""
+	def set_auto(self, min_microsteps: Optional[int] = None, max_microsteps: Optional[int] = None,
+			max_pulse_hz: Optional[float] = None) -> Dict[str, Any]:
+		"""Tune automatic microsteps: the finest power of two in
+		[min_microsteps, max_microsteps] whose pulse rate stays within
+		max_pulse_hz (defaults 4, 256, 5000)."""
+		payload: Dict[str, Any] = {"cmd": "set_auto", "motor": self.motor_id}
+		if min_microsteps is not None:
+			payload["min_microsteps"] = int(min_microsteps)
+		if max_microsteps is not None:
+			payload["max_microsteps"] = int(max_microsteps)
+		if max_pulse_hz is not None:
+			payload["max_pulse_hz"] = float(max_pulse_hz)
+		return self._remember(self.conn.send(payload, timeout=2.0))
+
+	def set_accel(self, accel_sps2: float, start_sps: Optional[float] = None) -> Dict[str, Any]:
+		"""Acceleration ramp in this motor's steps/s^2 (0 = start and stop
+		instantly) and the speed a move may start at without ramping
+		(defaults 3200 and 400 at 1600 steps/rev: 2 rev/s^2, 0.25 rev/s).
+		Moves land on their exact step count; stop() ramps down, the
+		emergency stop doesn't."""
+		payload: Dict[str, Any] = {"cmd": "set_accel", "motor": self.motor_id, "accel": float(accel_sps2)}
+		if start_sps is not None:
+			payload["start_sps"] = float(start_sps)
+		return self._remember(self.conn.send(payload, timeout=2.0))
+
+	def set_steps_per_rev(self, steps_per_rev: int) -> Dict[str, Any]:
+		"""Change the logical unit (200 x a power of two). The position keeps
+		its angle and the speed its angular speed."""
+		return self._remember(self.conn.send(
+			{"cmd": "set_steps_per_rev", "motor": self.motor_id, "steps_per_rev": int(steps_per_rev)}, timeout=2.0))
+
+	def set_chopper(self, mode: str, hybrid_threshold_sps: Optional[float] = None,
+			hybrid_threshold_fsps: Optional[float] = None) -> Dict[str, Any]:
+		""""auto" (default: StealthChop below 1 rev/s, SpreadCycle above),
+		"stealthchop" (silent), "spreadcycle", or "hybrid" with a threshold in
+		this motor's steps/s or in full steps/s."""
 		payload: Dict[str, Any] = {"cmd": "set_chopper", "motor": self.motor_id, "mode": mode}
 		if hybrid_threshold_sps is not None:
 			payload["hybrid_threshold_sps"] = float(hybrid_threshold_sps)
+		if hybrid_threshold_fsps is not None:
+			payload["hybrid_threshold_fsps"] = float(hybrid_threshold_fsps)
 		return self._remember(self.conn.send(payload, timeout=2.0))
 
 	def set_current(self, run_ma: int, hold_ma: Optional[int] = None,

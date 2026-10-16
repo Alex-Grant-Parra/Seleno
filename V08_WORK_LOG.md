@@ -353,3 +353,74 @@ Pi (`esp32/`, `utils/`, `core/`), all done and tested on the devkit:
   `client.service` is disabled and stopped (re-enable:
   `sudo systemctl enable --now client.service`). The devkit runs the devkit
   build. Alex should change the temporary sudo password back.
+- 01:55: **Committed `364d00c`** "Add SELENO v0.8 firmware and GPIO-UART/USB
+  Pi interface" on `firmware/v0.8` (includes Alex's deletion of the
+  duplicate report in esp32/).
+
+## Feature: automatic microsteps + chopper mode (Alex, 2026-10-16)
+
+Goal: slew quickly and track accurately without the Pi managing driver
+settings.
+
+Design (supersedes the earlier "set_microsteps rescales the position"):
+- Positions and speeds are in **logical steps** per motor: `steps_per_rev`
+  (default 1600 = 200 x 8, same units the Pi already uses). The firmware
+  counts position in 1/256 microsteps (int64), so any physical microstep
+  setting maps exactly. Logical position = floor(pos256 * logical_m / 256).
+  Reports also include `position_fine` (1/256 units).
+- **Microsteps auto** (default): when a move starts (turn_degrees,
+  move_steps, start_continuous) the firmware picks the finest power of two
+  in [min, max] (default 4..256) whose pulse rate at the commanded speed is
+  <= max_pulse_hz (default 5000). Tracking (~0.8 full steps/s) -> 1/256;
+  slew 2000 sps at 1600/rev (250 full steps/s) -> 1/16. MRES change = one
+  CHOPCONF write (+TPWMTHRS) while the axis is idle; position stays exact.
+  `set_microsteps N` fixes it; `set_microsteps "auto"` restores auto.
+- **Chopper auto** (default): TMC hybrid (TPWMTHRS) with the threshold in
+  full steps/s (default 200 = 1 rev/s): StealthChop below, SpreadCycle above.
+  TPWMTHRS is recomputed whenever MRES changes. Fixed modes still available.
+- Finite moves at coarse microsteps can end up to < 1 physical step short of
+  the logical target; the counter stays exact, so the Pi's refine pass sees
+  the true position. (Slews are coarse; refine/track are fine.)
+- New command `set_auto` (min_microsteps, max_microsteps, max_pulse_hz,
+  spread_threshold_fsps). pins.py: microsteps "auto", chopper "auto".
+- 02:10: **Auto microsteps + auto chopper implemented and tested on devkit**
+  (uncommitted): stepper position now int64 1/256 microsteps + per-axis
+  pulse size; motors.cpp picks microsteps per move; tmc_drivers has
+  ChopperMode::Auto and `driverApplyMicrosteps` (one CHOPCONF write +
+  readback); commands: set_microsteps N|"auto", set_auto, set_steps_per_rev,
+  set_chopper auto/hybrid(_sps|_fsps); status has microstep_mode,
+  position_fine, pulse_rate. Devkit results: sidereal 6.68 sps -> 1/256
+  (214 pulses/s); 150 sps -> 1/256; 2000 sps -> 1/16 (360 deg in 0.81 s);
+  9000 sps -> 1/4 (0.19 s); six moves at mixed microsteps returned exactly
+  to the same 1/256 count. Pi: ESP32Motor.set_microsteps("auto"),
+  set_auto, set_steps_per_rev, get_position_fine, create(chopper=);
+  pins.py microsteps/chopper "auto"; handlers espSetAuto.
+- Next: **acceleration ramps** (needed to slew fast without stalling an
+  open-loop stepper): esp_timer 1 kHz ramp task adjusting the ISR's phase
+  increment; finite moves decelerate to land on the exact pulse count;
+  `stop` ramps down, estop/fault stay instant; speeds below the start speed
+  (tracking, refine) start instantly. Defaults: accel 3200 sps^2 (2 rev/s^2),
+  start 400 sps (0.25 rev/s), in logical units. `set_accel` command;
+  espSetAccel becomes real. tracking._start_ra_tracking should wait for the
+  motors to stop instead of a fixed 0.3 s sleep.
+- 02:40: **Acceleration ramps done and tested on devkit.** `logic/ramp.h`
+  (pure trapezoid step), 1 kHz esp_timer ramp task in stepper.cpp adjusts
+  the ISR phase increment; finite moves brake to land on the exact pulse
+  count; `stop` ramps from above start speed; estop/fault/disengage
+  (new MotionEnd::Disengaged) are immediate. Auto microsteps now choose
+  from the move's reachable peak speed (sqrt(start^2 + accel*distance)), so
+  short nudges get fine steps. Defaults accel 3200 sps^2, start 400 sps.
+  New `set_accel`; ESP32Motor.set_accel; handlers.espSetAccel real.
+  tracking._start_ra_tracking waits for motors to stop (was fixed 0.3 s).
+  bringup.py: `profile` check (tracking -> chip 1/256 + StealthChop; fast
+  run -> coarse + SpreadCycle via DRV_STATUS.stealth); `motor` check
+  restores auto afterwards. PROTOCOL.md motors section rewritten.
+  Devkit results: 0.5/5 deg nudges at 2000 sps -> 1/64; 45 deg -> 1/32;
+  360 deg @2000 -> 1/16 in 1.23 s (exact 51200); 1440 deg @6000 -> 1/8
+  in 2.61 s; refine/track -> 1/256; ramped stop from 4000 sps 1.0 s; estop
+  14 ms. End-to-end via tracking._move_motors + _start_ra_tracking: RA slew
+  1/16, DEC refine 1/256, positions exact, tracking 1/256 @ 214 pulses/s.
+  pty tests 12/12 pass. Both envs build.
+- Hardware-dependent and still unverified: whether the motors (with the
+  mount's load) can actually reach these speeds/accelerations in SpreadCycle
+  at 12 V. Tune with `set_accel` / slew_speed_sps after `bringup profile`.

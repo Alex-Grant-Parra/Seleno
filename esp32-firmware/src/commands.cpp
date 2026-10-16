@@ -72,6 +72,8 @@ void handleInfo() {
     m["driver_present"] = driverPresent(i);
     m["enabled"] = motorEngaged(i);
     m["microsteps"] = motorMicrosteps(i);
+    m["microstep_mode"] = motorMicrostepsAuto(i) ? "auto" : "fixed";
+    m["steps_per_rev"] = motorStepsPerRev(i);
   }
   data["expander_present"] = panelExpanderPresent();
   data["imu_present"] = imuPresent();
