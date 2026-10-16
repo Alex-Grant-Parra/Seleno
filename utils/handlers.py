@@ -11,6 +11,7 @@ from utils.camera_state import camera_state
 from utils.config_state import get_client_config, build_service_urls, load_static_state
 from utils.LEDmanager import get_led_manager
 from utils.esp32_state import esp32_state
+from esp32.interfaceESP32 import ESP32Error
 from core.hardware.tracking import trackCoordinates, stop_tracking
 from utils.telescope_state import get_telescope_coords
 
@@ -248,6 +249,10 @@ def _get_esp32_connection():
 
 
 def _esp32_error_response(exc: Exception) -> Dict[str, Any]:
+    # An error reply ("Motor not engaged", "Emergency stop active") means the
+    # link is fine; only drop the connection for timeouts and I/O failures.
+    if isinstance(exc, ESP32Error):
+        return {"error": exc.error_message}
     esp32_state.mark_disconnected()
     return {"error": str(exc)}
 
@@ -284,54 +289,30 @@ def espSetSpeed(sps: Any, motor_id: str = "motor1") -> Dict[str, Any]:
         return _esp32_error_response(e)
 
 def espStart(sps: Any, forward: Optional[Any] = None, motor_id: str = "motor1") -> Dict[str, Any]:
-    # Start continuous rotation at speed with optional direction.
-    # 
-    # Note: The new interface doesn't support true continuous motion without a target.
-    # This will start indefinite motion by moving a very large number of degrees.
+    # Start continuous rotation at speed with optional direction, until espStop.
     try:
         conn = _get_esp32_connection()
         if not conn:
             return {"error": "ESP32 connection not available"}
-        
-        # Set speed first
         conn.send({"cmd": "set_speed", "motor": motor_id, "sps": float(sps)})
-        
-        # Move a very large distance to simulate continuous motion
-        # Using 10000 degrees with no explicit timeout to keep motors running
         fwd = forward if forward is not None else True
-        return conn.send({
-            "cmd": "turn_degrees",
-            "motor": motor_id,
-            "degrees": 10000.0,
-            "forward": bool(fwd)
-        })
+        return conn.send({"cmd": "start_continuous", "motor": motor_id, "forward": bool(fwd)})
     except Exception as e:
         return _esp32_error_response(e)
 
 def espMoveSteps(steps: Any, sps: Optional[Any] = None, forward: Optional[Any] = None, motor_id: str = "motor1") -> Dict[str, Any]:
-    # Move a finite number of steps with optional speed and direction override.
-    # 
-    # Note: The new interface uses degrees instead of steps, so this converts steps to degrees
-    # assuming STEPS_PER_DEGREE = 8.889 (typical for common stepper configs)
+    # Move a finite number of (micro)steps with optional speed and direction.
+    # A negative step count, or forward=False, moves backwards.
     try:
         conn = _get_esp32_connection()
         if not conn:
             return {"error": "ESP32 connection not available"}
-        
-        # Convert steps to degrees (8.889 steps/degree is a common default)
-        STEPS_PER_DEGREE = 8.889
-        degrees = float(steps) / STEPS_PER_DEGREE
-        
         if sps is not None:
             conn.send({"cmd": "set_speed", "motor": motor_id, "sps": float(sps)})
-        
-        fwd = forward if forward is not None else True
-        return conn.send({
-            "cmd": "turn_degrees",
-            "motor": motor_id,
-            "degrees": degrees,
-            "forward": bool(fwd)
-        })
+        count = int(steps)
+        if forward is not None and not bool(forward):
+            count = -abs(count)
+        return conn.send({"cmd": "move_steps", "motor": motor_id, "steps": count})
     except Exception as e:
         return _esp32_error_response(e)
 
@@ -345,29 +326,65 @@ def espStop(motor_id: str = "motor1") -> Dict[str, Any]:
     except Exception as e:
         return _esp32_error_response(e)
 
+def _esp32_send(payload: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
+    try:
+        conn = _get_esp32_connection()
+        if not conn:
+            return {"error": "ESP32 connection not available"}
+        return conn.send(payload, timeout=timeout)
+    except Exception as e:
+        return _esp32_error_response(e)
+
 def espSetMicrosteps(value: Any, motor_id: str = "motor1") -> Dict[str, Any]:
-    # Set TMC2209 microstepping value (e.g., 16, 32).
-    # 
-    # NOT SUPPORTED in new interface - microstepping must be configured on the ESP32 firmware.
-    return {"error": "Microstepping configuration is not supported in this interface. Configure on ESP32 firmware instead."}
+    # TMC2209 microsteps per full step (1, 2, 4 ... 256), set over the driver
+    # UART. Refused while the motor moves; the firmware rescales the position
+    # counter and speed so angles are unchanged.
+    return _esp32_send({"cmd": "set_microsteps", "motor": motor_id, "microsteps": int(value)}, timeout=2.0)
 
-def espSetCurrent(mA: Any, motor_id: str = "motor1") -> Dict[str, Any]:
-    # Set RMS motor current in milliamps.
-    # 
-    # NOT SUPPORTED in new interface - motor current must be configured on the ESP32 firmware.
-    return {"error": "Motor current configuration is not supported in this interface. Configure on ESP32 firmware instead."}
+def espSetCurrent(mA: Any, motor_id: str = "motor1", hold_mA: Optional[Any] = None) -> Dict[str, Any]:
+    # RMS run current in mA (1-1350 on the v0.8 board) and optional hold current.
+    payload: Dict[str, Any] = {"cmd": "set_current", "motor": motor_id, "run_ma": int(mA)}
+    if hold_mA is not None:
+        payload["hold_ma"] = int(hold_mA)
+    return _esp32_send(payload, timeout=2.0)
 
-def espSetMode(mode: Any, motor_id: str = "motor1") -> Dict[str, Any]:
-    # Set chopper mode: 'stealth' or 'spread'.
-    # 
-    # NOT SUPPORTED in new interface - chopper mode must be configured on the ESP32 firmware.
-    return {"error": "Chopper mode configuration is not supported in this interface. Configure on ESP32 firmware instead."}
+def espSetMode(mode: Any, motor_id: str = "motor1", hybrid_threshold_sps: Optional[Any] = None) -> Dict[str, Any]:
+    # Chopper mode: "stealth"/"stealthchop"/"silent" (quiet), "spread"/
+    # "spreadcycle" (more torque at speed) or "hybrid" (StealthChop below
+    # hybrid_threshold_sps, SpreadCycle above).
+    payload: Dict[str, Any] = {"cmd": "set_chopper", "motor": motor_id, "mode": str(mode)}
+    if hybrid_threshold_sps is not None:
+        payload["hybrid_threshold_sps"] = float(hybrid_threshold_sps)
+    return _esp32_send(payload, timeout=2.0)
 
 def espSetAccel(sps2: Any, motor_id: str = "motor1") -> Dict[str, Any]:
-    # Set acceleration in steps/sec^2 for ramping.
-    # 
-    # NOT SUPPORTED in new interface - acceleration must be configured on the ESP32 firmware.
-    return {"error": "Acceleration configuration is not supported in this interface. Configure on ESP32 firmware instead."}
+    # The firmware steps at a constant rate; there is no acceleration ramp.
+    return {"error": "Acceleration ramps are not implemented in the ESP32 firmware"}
+
+def espDriverStatus(motor_id: str = "motor1") -> Dict[str, Any]:
+    # Live TMC2209 registers: microsteps, currents, chopper, temperature flags.
+    return _esp32_send({"cmd": "driver", "motor": motor_id, "action": "status"}, timeout=2.0)
+
+def espEstop() -> Dict[str, Any]:
+    # Halt every motor and latch the emergency stop (same as the RETURN button).
+    return _esp32_send({"cmd": "estop", "action": "trigger"})
+
+def espClearEstop() -> Dict[str, Any]:
+    return _esp32_send({"cmd": "estop", "action": "clear"})
+
+def espEstopStatus() -> Dict[str, Any]:
+    return _esp32_send({"cmd": "estop", "action": "status"})
+
+def espInfo() -> Dict[str, Any]:
+    return _esp32_send({"cmd": "info"}, timeout=2.0)
+
+def espPanelStatus() -> Dict[str, Any]:
+    # Front-panel buttons and LEDs (MCP23017).
+    return _esp32_send({"cmd": "panel", "action": "status"})
+
+def espImuRead() -> Dict[str, Any]:
+    # Latest BNO085 orientation, gravity and magnetic field.
+    return _esp32_send({"cmd": "imu", "action": "read"})
 
 def espStatus(motor_id: str = "motor1") -> Dict[str, Any]:
     # Query motor status.
@@ -564,13 +581,13 @@ def espCommand(command_data: Dict[str, Any]) -> Dict[str, Any]:
             return espSetDirection(forward, motor_id)
         elif cmd_type == 'set_current':
             mA = command_data.get('mA', command_data.get('current', 500))
-            return espSetCurrent(mA, motor_id)
+            return espSetCurrent(mA, motor_id, command_data.get('hold_mA'))
         elif cmd_type == 'set_microsteps':
             value = command_data.get('value', command_data.get('microsteps', 16))
             return espSetMicrosteps(value, motor_id)
-        elif cmd_type == 'set_mode':
+        elif cmd_type in ('set_mode', 'set_chopper'):
             mode = command_data.get('mode', 'stealth')
-            return espSetMode(mode, motor_id)
+            return espSetMode(mode, motor_id, command_data.get('hybrid_threshold_sps'))
         elif cmd_type == 'set_accel':
             sps2 = command_data.get('sps2', command_data.get('accel', 1000))
             return espSetAccel(sps2, motor_id)
@@ -578,6 +595,16 @@ def espCommand(command_data: Dict[str, Any]) -> Dict[str, Any]:
             return espStatus(motor_id)
         elif cmd_type == 'status_all':
             return espStatusAll()
+        elif cmd_type == 'driver_status':
+            return espDriverStatus(motor_id)
+        elif cmd_type == 'estop':
+            return espEstop()
+        elif cmd_type == 'clear_estop':
+            return espClearEstop()
+        elif cmd_type == 'estop_status':
+            return espEstopStatus()
+        elif cmd_type == 'info':
+            return espInfo()
         else:
             return {"error": f"Unknown command: {cmd_type}"}
     except Exception as e:
@@ -615,6 +642,13 @@ function_map = {
     "espStartMotor": espStartWithMotorId,
     "espMoveStepsMotor": espMoveStepsWithMotorId,
     "espStopMotor": espStopWithMotorId,
+    "espDriverStatus": espDriverStatus,
+    "espEstop": espEstop,
+    "espClearEstop": espClearEstop,
+    "espEstopStatus": espEstopStatus,
+    "espInfo": espInfo,
+    "espPanelStatus": espPanelStatus,
+    "espImuRead": espImuRead,
     # Universal command handler
     "espCommand": espCommand,
 }

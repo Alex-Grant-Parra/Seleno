@@ -5,7 +5,7 @@ import time
 from threading import Lock
 from typing import Optional
 
-from esp32.interfaceESP32 import ESP32Connection, ESP32SerialConfig
+from esp32.interfaceESP32 import DEFAULT_BAUDRATE, ESP32Connection, ESP32SerialConfig
 from utils.config_state import load_static_state, save_static_state
 
 
@@ -82,7 +82,13 @@ class ESP32State:
 			old_conn.close()
 		if conn is not None:
 			self._persist_port(conn)
-			print(f"[esp32_state] Connected to ESP32 on {conn.cfg.port}")
+			try:
+				from utils.esp32_events import attach as attach_event_handlers
+
+				attach_event_handlers(conn)
+			except Exception as exc:
+				print(f"[esp32_state] Warning: could not attach ESP32 event handlers: {exc}")
+			print(f"[esp32_state] Connected to ESP32 on {conn.cfg.port} ({conn.transport})")
 		else:
 			print("[esp32_state] ESP32 connection cleared")
 
@@ -100,9 +106,10 @@ class ESP32State:
 				config = {}
 			candidate = ESP32Connection(
 				ESP32SerialConfig(
-					port=config.get("port", "/dev/ttyUSB0"),
-					baudrate=int(config.get("baudrate", 115200)),
+					port=str(config.get("port", "auto")),
+					baudrate=int(config.get("baudrate", DEFAULT_BAUDRATE)),
 					timeout=float(config.get("timeout", 0.5)),
+					transport=str(config.get("transport", "auto")),
 				)
 			)
 			self.set_connection(candidate)

@@ -52,9 +52,14 @@ def _default_static_state() -> Dict[str, Any]:
             "dec_gear_ratio": 144.0,
         },
         "esp32": {
-            "port": "/dev/ttyUSB0",
-            "baudrate": 115200,
+            # "auto": USB serial devices (dev kit) first, then the Pi's GPIO
+            # UART (SELENO v0.8 board on J7). A found port is saved here and
+            # tried first next time; the search still runs if it's gone.
+            "port": "auto",
+            "baudrate": 921600,
             "timeout": 0.5,
+            # "auto", "usb" or "gpio_uart"
+            "transport": "auto",
         },
     }
 

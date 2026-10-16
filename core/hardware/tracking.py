@@ -91,7 +91,20 @@ def _initialize_motors():
                 continue
 
             if motor_id in motor_ids:
+                # The v0.8 firmware boots with motor1/motor2 registered but
+                # disengaged, so an existing motor may still need its driver on.
                 print(f"[tracking] {motor_id} ({label}) already exists")
+                try:
+                    motor = ESP32Motor(conn, motor_id)
+                    if bool(board.get("engage", True)) and not motor.status().get("enabled", False):
+                        motor.engage()
+                        print(f"[tracking] {motor_id} ({label}) engaged")
+                except Exception as e:
+                    if required:
+                        print(f"[tracking] Error engaging required motor {motor_id} ({label}): {e}")
+                        return False
+                    print(f"[tracking] Warning: could not engage optional motor {motor_id} ({label}): {e}")
+                _last_motor_steps[motor_id] = 0
                 continue
 
             print(f"[tracking] Creating {motor_id} ({label})...")
@@ -104,7 +117,8 @@ def _initialize_motors():
                     en_pin=int(pins.get("en")),
                     steps_per_rev=int(board.get("steps_per_rev", 1600)),
                     engage=bool(board.get("engage", True)),
-                    replace=bool(board.get("replace", True)),
+                    replace=bool(board.get("replace", False)),
+                    microsteps=board.get("microsteps"),
                 )
                 motor_ids.add(motor_id)
                 _last_motor_steps[motor_id] = 0
@@ -448,12 +462,13 @@ def _start_ra_tracking() -> None:
         
         config = get_slew_config()
         ra_gear_ratio = config.get("ra_gear_ratio", 360.0)
-        ra_steps_per_rev = int(get_motor_boards()["ra"].get("steps_per_rev", 1600))
-        # One output revolution per sidereal day: ra_gear_ratio motor revolutions
-        tracking_speed_sps = ra_gear_ratio * ra_steps_per_rev / SIDEREAL_DAY_S
-        
         motor1 = ESP32Motor(conn, "motor1")
         motor2 = ESP32Motor(conn, "motor2")
+        # Steps per revolution follow the driver's microstep setting, which
+        # the firmware reports (it can be changed at runtime over the TMC UART).
+        ra_steps_per_rev = motor1.steps_per_rev
+        # One output revolution per sidereal day: ra_gear_ratio motor revolutions
+        tracking_speed_sps = ra_gear_ratio * ra_steps_per_rev / SIDEREAL_DAY_S
         
         # Stop any existing movement on both motors first
         print(f"[tracking] Stopping all motors before starting continuous tracking")
@@ -627,7 +642,7 @@ def _continuous_tracking_loop() -> None:
     print("[tracking] Continuous tracking thread stopped")
 
 
-def stop_tracking() -> None:
+def stop_tracking(set_leds_idle: bool = True) -> None:
     # Stop continuous tracking and motors.
     global _tracking_active, _tracking_thread, _target_object
     leds = get_led_manager()
@@ -668,7 +683,26 @@ def stop_tracking() -> None:
     else:
         print("[tracking] Warning: ESP32 connection not available to stop motors")
 
-    leds.set_idle()
+    if set_leds_idle:
+        leds.set_idle()
+
+
+def stop_tracking_for_estop() -> None:
+    # The ESP32 has latched its emergency stop and halted the motors itself.
+    # Stop the Pi's tracking loop so it doesn't keep issuing moves; the stop
+    # commands stop_tracking() sends are still accepted while latched.
+    print("[tracking] Emergency stop: stopping tracking")
+    stop_tracking(set_leds_idle=False)
+
+
+def on_esp32_reboot() -> None:
+    # A restarted ESP32 has its motors disengaged and step counters at zero.
+    # Re-create/engage on the next move and restart position deltas from 0.
+    global _motors_initialized
+    _motors_initialized = False
+    _last_motor_steps["motor1"] = 0
+    _last_motor_steps["motor2"] = 0
+    print("[tracking] ESP32 restarted: motors will be re-initialised before the next move")
 
 
 def _set_polaris_alignment(location: dict) -> None:

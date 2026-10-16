@@ -3,52 +3,84 @@ from __future__ import annotations
 from typing import Any, Dict
 
 
-# Single source of truth for ESP32-side hardware assignments used by the Python client.
+# Single source of truth for ESP32-side hardware assignments used by the Python
+# client. SELENO v0.8 board; every pin is from the KiCad netlist (see
+# "SELENO Controller v0.8 Hardware Report.txt", "Board pin header"). The
+# firmware has the same map in esp32-firmware/src/board_pins.h.
 ESP32_HARDWARE: Dict[str, Any] = {
+    "board": "seleno-v0.8",
+    "host_link": {
+        # UART0 on the ESP32. v0.8: J7 -> Pi GPIO14/15. Dev kit: its USB chip.
+        "baudrate": 921600,
+        # Pi GPIOs driving the auto-program pair (Q3 -> EN, Q2 -> IO0).
+        "reset_gpio": {"dtr": 18, "rts": 23},
+    },
     "leds": {
+        # IO2: the dev kit's onboard LED; unconnected on v0.8.
         "board": {"channel": "board", "pin": 2},
-        "yellow": {"channel": "yellow", "pin": 18},
-        "blue": {"channel": "blue", "pin": 5},
-        "white": {"channel": "white", "pin": 17},
-        "green": {"channel": "green", "pin": 16},
-        "red": {"channel": "red", "pin": 4},
+        # Through the MCP23017 (U1) outputs, not ESP32 GPIOs.
+        "yellow": {"channel": "yellow", "expander": "GPA0"},
+        "blue": {"channel": "blue", "expander": "GPA1"},
+        "white": {"channel": "white", "expander": "GPB7"},
+        "green": {"channel": "green", "expander": "GPB6"},
+        "red": {"channel": "red", "expander": "GPB5"},
+    },
+    "buttons": {
+        # MCP23017 inputs. RETURN is also the firmware's emergency stop.
+        "select": "GPA2",
+        "return": "GPB0",
+        "top": "GPB1",
+        "bottom": "GPB2",
+        "left": "GPB3",
+        "right": "GPB4",
     },
     "display": {
         "width": 128,
         "height": 160,
         "pins": {
-            "sck": 13,
-            "sda": 19,
-            "dc": 21,
-            "res": 12,
+            "sck": 14,
+            "mosi": 13,
+            "dc": 15,
+            "res": 4,
             "cs": -1,
-            "bl": 15,
+            "bl": 5,
         },
     },
     "motor_boards": {
         "ra": {
             "motor_id": "motor1",
             "label": "RA motor",
-            "pins": {"step": 27, "dir": 14, "en": 26},
+            "driver": "U7 (TMC2209, UART address 0), connector J1",
+            "pins": {"step": 17, "dir": 16, "en": 21},
+            # 1/8 microstepping = 1600 steps/rev, as before; set over the TMC
+            # UART at runtime (ESP32Motor.set_microsteps).
+            "microsteps": 8,
             "steps_per_rev": 1600,
             "engage": True,
-            "replace": True,
+            "replace": False,
             "required": True,
         },
         "dec": {
             "motor_id": "motor2",
             "label": "DEC motor",
-            "pins": {"step": 33, "dir": 25, "en": 32},
+            "driver": "U8 (TMC2209, UART address 1), connector J2",
+            "pins": {"step": 23, "dir": 22, "en": 27},
+            "microsteps": 8,
             "steps_per_rev": 1600,
             "engage": True,
-            "replace": True,
+            "replace": False,
             "required": False,
         },
+    },
+    "i2c": {
+        "sda": 33,
+        "scl": 32,
+        "devices": {"mcp23017": 0x20, "bno085": 0x4A},
     },
 }
 
 
-def get_led_channels() -> Dict[str, Dict[str, int | str]]:
+def get_led_channels() -> Dict[str, Dict[str, Any]]:
     return ESP32_HARDWARE["leds"]
 
 
@@ -65,3 +97,7 @@ def get_motor_board_by_id(motor_id: str) -> Dict[str, Any] | None:
         if board.get("motor_id") == motor_id:
             return board
     return None
+
+
+def get_host_link_config() -> Dict[str, Any]:
+    return ESP32_HARDWARE["host_link"]

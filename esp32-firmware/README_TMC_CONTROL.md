@@ -1,31 +1,11 @@
-# ESP32 TMC2209 Serial Control
+# ESP32 firmware notes
 
-This firmware exposes a newline-delimited JSON protocol over USB Serial (115200 baud) to control a TMC2209 stepper driver and NEMA17 via STEP/DIR.
+This file used to describe an older single-driver firmware (pins 18/19,
+115200 baud). That firmware is gone. For the current SELENO v0.8 firmware:
 
-Pins:
-- stepPin: 18
-- dirPin: 19
-- ledPin: 2
-- tmcUartTxPin: 17 (TX only)
-
-## Commands
-Send each as a single line JSON, terminated with \n. Responses are JSON objects with `status: ok|error`.
-
-- {"cmd":"enable","value":true}
-- {"cmd":"set_dir","forward":true}
-- {"cmd":"set_speed","sps":800}
-- {"cmd":"move_steps","steps":1600,"sps":1000,"forward":true}
-- {"cmd":"stop"}
-- {"cmd":"set_microsteps","value":16}
-- {"cmd":"set_current","mA":500}
-- {"cmd":"set_mode","mode":"stealth"}  // or "spread"
-- {"cmd":"set_accel","sps2":1500}
-- {"cmd":"status"}
-
-## Build & Flash
-Use PlatformIO:
-- Build: `platformio run`
-- Flash: `platformio run -t upload`
-- Monitor: `platformio device monitor -b 115200`
-
-If you prefer, use the convenience script `flash.sh`.
+- Host protocol, including TMC2209 control (microsteps, StealthChop /
+  SpreadCycle / hybrid, current, driver status): [PROTOCOL.md](PROTOCOL.md)
+- Pin map: [src/board_pins.h](src/board_pins.h)
+- Build envs: `seleno_v08` (the board), `devkit` (bare dev kit over USB):
+  see [platformio.ini](platformio.ini)
+- Hardware: `../SELENO Controller v0.8 Hardware Report.txt`

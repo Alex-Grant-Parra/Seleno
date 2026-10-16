@@ -1,15 +1,35 @@
+"""Pi-side interface to the SELENO ESP32 firmware.
+
+Newline-delimited JSON over a serial port, in either transport:
+
+* USB: a dev kit's USB-serial chip (/dev/ttyUSB*, /dev/serial/by-id/*)
+* GPIO UART: the Pi's GPIO14/15 wired to the SELENO v0.8 board via J7
+  (/dev/ttyAMA0 on a Pi 5, /dev/serial0 on a Zero 2 W)
+
+A background thread reads everything the ESP32 sends. Lines with an "event"
+member (button presses, emergency stop, motion_done, driver faults, boot)
+go to event listeners; everything else is a response. Each request carries
+an "id" that the firmware echoes, so a late reply can't be taken for the
+answer to the next command. Replies without an id (older firmware) are
+still accepted.
+
+Protocol reference: esp32-firmware/PROTOCOL.md.
+"""
 from __future__ import annotations
 
-import glob
+import itertools
 import json
-import re
+import queue
 import threading
 import time
 import zlib
+from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Deque, Dict, List, Optional
 
 import serial  # pyserial
+
+from esp32 import serial_ports
 from esp32.pins import get_display_config, get_led_channels
 
 
@@ -17,231 +37,402 @@ _DISPLAY_CONFIG = get_display_config()
 _DISPLAY_WIDTH = int(_DISPLAY_CONFIG["width"])
 _DISPLAY_HEIGHT = int(_DISPLAY_CONFIG["height"])
 
+DEFAULT_BAUDRATE = 921600
+DEFAULT_STEPS_PER_REV = 1600
+
+# Safe to send twice: a lost reply to one of these is retried once.
+_IDEMPOTENT_COMMANDS = frozenset({
+	"ping", "info", "list_motors", "status", "get_position", "i2c_scan",
+	"panel", "buttons", "imu", "host",
+})
+
+EventCallback = Callable[[Dict[str, Any]], None]
+
+
+class ESP32Error(RuntimeError):
+	"""The ESP32 answered with {"status":"error"}. The link itself is fine."""
+
+	def __init__(self, message: str, response: Dict[str, Any]) -> None:
+		# Keep the old wording: callers match on "ESP32 error".
+		super().__init__(f"ESP32 error: {message} | Full response: {response}")
+		self.error_message = message
+		self.response = response
+
+
+class ESP32TransportError(ConnectionError):
+	"""The serial link failed (unplugged, port closed, reader stopped)."""
+
 
 @dataclass
 class ESP32SerialConfig:
-	port: str = "/dev/ttyUSB0"
-	baudrate: int = 921600
+	# "auto" tries USB serial devices, then the Pi's GPIO UART.
+	port: str = "auto"
+	baudrate: int = DEFAULT_BAUDRATE
 	timeout: float = 0.5
+	# "auto", "usb" or "gpio_uart" (restricts the port search).
+	transport: str = serial_ports.TRANSPORT_AUTO
+
+
+class _Waiter:
+	__slots__ = ("request_id", "event", "response")
+
+	def __init__(self, request_id: int) -> None:
+		self.request_id = request_id
+		self.event = threading.Event()
+		self.response: Optional[Dict[str, Any]] = None
+
+
+def _extract_json_object(text: str) -> Optional[Dict[str, Any]]:
+	"""Parse the first balanced {...} in text, tolerating leading noise."""
+	start = text.find("{")
+	if start < 0:
+		return None
+	try:
+		obj = json.loads(text[start:])
+		return obj if isinstance(obj, dict) else None
+	except json.JSONDecodeError:
+		pass
+	depth = 0
+	in_string = False
+	escaped = False
+	for i in range(start, len(text)):
+		ch = text[i]
+		if in_string:
+			if escaped:
+				escaped = False
+			elif ch == "\\":
+				escaped = True
+			elif ch == '"':
+				in_string = False
+			continue
+		if ch == '"':
+			in_string = True
+		elif ch == "{":
+			depth += 1
+		elif ch == "}":
+			depth -= 1
+			if depth == 0:
+				try:
+					obj = json.loads(text[start:i + 1])
+				except json.JSONDecodeError:
+					return None
+				return obj if isinstance(obj, dict) else None
+	return None
 
 
 class ESP32Connection:
 	def __init__(self, cfg: ESP32SerialConfig | None = None, *, scan_all_ports: bool = True) -> None:
 		self.cfg = cfg or ESP32SerialConfig()
-		self.ser = None
-		
-		candidate_ports = self._candidate_ports(self.cfg.port if scan_all_ports else None)
+		self.ser: Optional[serial.Serial] = None
+		self.transport = serial_ports.TRANSPORT_USB
+		self.firmware: Dict[str, Any] = {}
+		self.supports_ids = False
+		# Per-motor facts the firmware reports (steps_per_rev, microsteps).
+		self.motor_info: Dict[str, Dict[str, Any]] = {}
+
+		self._lock = threading.Lock()          # one request in flight
+		self._waiter_lock = threading.Lock()
+		self._waiter: Optional[_Waiter] = None
+		self._ids = itertools.count(1)
+		self._stop = threading.Event()
+		self._failure: Optional[BaseException] = None
+		self._reader: Optional[threading.Thread] = None
+		self._dispatcher: Optional[threading.Thread] = None
+		self._events: "queue.Queue[Optional[Dict[str, Any]]]" = queue.Queue()
+		self._listeners: Dict[int, tuple[Optional[str], EventCallback]] = {}
+		self._listener_ids = itertools.count(1)
+		self._listeners_lock = threading.Lock()
+		self.recent_events: Deque[Dict[str, Any]] = deque(maxlen=100)
+		self.recent_noise: Deque[str] = deque(maxlen=10)  # non-JSON lines, for diagnosis
+		self.stats = {"corrupt_lines": 0, "stale_responses": 0, "noise_lines": 0, "events": 0}
+
+		preferred = None if self.cfg.port in ("", serial_ports.TRANSPORT_AUTO) else self.cfg.port
+		if scan_all_ports:
+			candidates = serial_ports.candidate_ports(preferred, self.cfg.transport)
+		else:
+			candidates = [preferred] if preferred else serial_ports.candidate_ports(None, self.cfg.transport)
+
 		last_error: Exception | None = None
-		for port in candidate_ports:
+		skipped: List[str] = []
+		for port in candidates:
+			conflict = serial_ports.console_conflict(port)
+			if conflict:
+				skipped.append(conflict)
+				continue
 			try:
-				self.ser = serial.Serial(port, self.cfg.baudrate, timeout=self.cfg.timeout)
+				self.ser = serial.Serial(port, self.cfg.baudrate, timeout=0.1, write_timeout=5.0)
 				self.cfg.port = port
 				if not self._probe_identity():
 					self.close()
 					continue
-				print(f"[ESP32] Connected to {port}")
+				self.transport = serial_ports.transport_for_port(port)
 				break
-			except (serial.SerialException, OSError, RuntimeError) as e:
-				last_error = e
+			except (serial.SerialException, OSError, RuntimeError) as exc:
+				last_error = exc
 				self.close()
-				continue
 
 		if self.ser is None:
-			ports_text = ", ".join(candidate_ports) if candidate_ports else self.cfg.port
-			raise RuntimeError(
-				f"Unable to connect to ESP32 on available USB serial ports: {ports_text}"
-			) from last_error
-		
-		self._lock = threading.Lock()
-		time.sleep(0.2)
-		self._drain()
+			ports_text = ", ".join(candidates) if candidates else "none found"
+			detail = f" (skipped: {'; '.join(skipped)})" if skipped else ""
+			raise RuntimeError(f"Unable to connect to ESP32 on serial ports: {ports_text}{detail}") from last_error
+
+		self._stop.clear()
+		self._reader = threading.Thread(target=self._read_loop, name="esp32-reader", daemon=True)
+		self._dispatcher = threading.Thread(target=self._dispatch_loop, name="esp32-events", daemon=True)
+		self._reader.start()
+		self._dispatcher.start()
+		if self.supports_ids:
+			try:
+				self.firmware = self.send({"cmd": "ping"}, timeout=1.0)
+			except Exception:
+				self.firmware = {}
+		print(f"[ESP32] Connected to {self.cfg.port} ({self.transport}"
+			f"{', firmware ' + str(self.firmware.get('fw')) if self.firmware else ''})")
 		try:
 			ESP32LED.attach(self)
 		except NameError:
 			pass
 
-	@staticmethod
-	def _candidate_ports(preferred_port: Optional[str] = None) -> list[str]:
-		ports: list[str] = []
-		seen: set[str] = set()
-
-		def add_port(port: str) -> None:
-			if port and port not in seen:
-				seen.add(port)
-				ports.append(port)
-
-		add_port(preferred_port or "")
-		for pattern in ("/dev/serial/by-id/*", "/dev/ttyUSB*", "/dev/ttyACM*"):
-			for port in sorted(glob.glob(pattern)):
-				add_port(port)
-		return ports
+	# --- connection -----------------------------------------------------
 
 	def _probe_identity(self) -> bool:
+		"""Ask list_motors (understood by old and new firmware) before the
+		reader thread starts. A reply that echoes our id means new firmware."""
+		assert self.ser is not None
 		try:
-			self._drain()
-			# Send a newline to clear any stuck blit state on the ESP32
+			self.ser.reset_input_buffer()
+			# A bare newline ends any half-received line or stuck transfer.
 			self.ser.write(b"\n")
 			self.ser.flush()
 			time.sleep(0.1)
-			self._drain()
-			
-			line = json.dumps({"cmd": "list_motors"}, separators=(",", ":")) + "\n"
-			self.ser.write(line.encode("utf-8"))
+			self.ser.reset_input_buffer()
+			self.ser.write(b'{"cmd":"list_motors","id":0}\n')
 			self.ser.flush()
-			# Increase timeout for initial probe
-			prev_timeout = self.ser.timeout
-			self.ser.timeout = 2.0
-			try:
-				resp = self.ser.readline().decode("utf-8", errors="ignore").strip()
-			finally:
-				self.ser.timeout = prev_timeout
-			if not resp:
-				return False
-			try:
-				data = json.loads(resp)
-			except json.JSONDecodeError:
-				# Serial noise/partial boot logs are expected during scans.
-				return False
-			return data.get("status") == "ok"
-		except Exception as e:
-			# Keep logging for unexpected probe transport/runtime failures.
-			print(f"[ESP32] Probe error: {e}")
+			deadline = time.monotonic() + 2.0
+			buf = b""
+			while time.monotonic() < deadline:
+				buf += self.ser.read(256)
+				while b"\n" in buf:
+					raw, buf = buf.split(b"\n", 1)
+					obj = _extract_json_object(raw.decode("utf-8", errors="ignore"))
+					if obj is None or "event" in obj or "status" not in obj:
+						continue
+					if obj.get("status") != "ok":
+						return False
+					self.supports_ids = obj.get("id") == 0
+					motors = obj.get("data", {}).get("motors")
+					return isinstance(motors, list)
+			return False
+		except Exception as exc:
+			print(f"[ESP32] Probe error on {self.cfg.port}: {exc}")
 			return False
 
 	def close(self) -> None:
+		self._stop.set()
+		ser, self.ser = self.ser, None
 		try:
-			if self.ser is not None:
-				self.ser.close()
+			if ser is not None:
+				ser.close()
 		except Exception:
 			pass
-		finally:
-			self.ser = None
+		reader = self._reader
+		if reader is not None and reader is not threading.current_thread():
+			reader.join(timeout=1.0)
+		self._reader = None
+		dispatcher = self._dispatcher
+		if dispatcher is not None:
+			self._events.put(None)
+			if dispatcher is not threading.current_thread():
+				dispatcher.join(timeout=1.0)
+		self._dispatcher = None
+		self._release_waiter()
+
+	@property
+	def is_open(self) -> bool:
+		return self.ser is not None and self._failure is None and not self._stop.is_set()
 
 	def _drain(self) -> None:
 		try:
-			self.ser.reset_input_buffer()
+			if self.ser is not None:
+				self.ser.reset_input_buffer()
 		except Exception:
 			pass
 
-	def _read_response_line(self, timeout: float) -> str:
-		deadline = time.monotonic() + max(0.1, float(timeout))
-		parts: list[str] = []
-		while time.monotonic() < deadline:
-			chunk = self.ser.readline().decode("utf-8", errors="ignore")
-			if chunk:
-				parts.append(chunk)
-				joined = "".join(parts).strip()
-				if joined.endswith("}"):
-					return joined
-				continue
-			time.sleep(0.01)
-		return "".join(parts).strip()
+	# --- reader thread ----------------------------------------------------
 
-	def _read_json_response(self, timeout: float) -> str:
-		deadline = time.monotonic() + max(0.1, float(timeout))
-		buffer = ""
-		while time.monotonic() < deadline:
-			chunk = self.ser.readline().decode("utf-8", errors="ignore")
+	def _read_loop(self) -> None:
+		buf = b""
+		while not self._stop.is_set():
+			ser = self.ser
+			if ser is None:
+				break
+			try:
+				chunk = ser.read(ser.in_waiting or 1)
+			except (serial.SerialException, OSError, TypeError, AttributeError) as exc:
+				if not self._stop.is_set():
+					self._failure = exc
+					print(f"[ESP32] Serial link lost on {self.cfg.port}: {exc}")
+					self._release_waiter()
+					self._events.put({"event": "link_lost", "port": self.cfg.port, "error": str(exc)})
+				break
 			if not chunk:
-				time.sleep(0.01)
 				continue
-
-			buffer += chunk
-			candidate = buffer.strip()
-			if not candidate:
+			buf += chunk
+			if len(buf) > 65536 and b"\n" not in buf:
+				buf = b""  # no line ending in 64 KB: garbage
+				self.stats["corrupt_lines"] += 1
 				continue
+			while b"\n" in buf:
+				raw, buf = buf.split(b"\n", 1)
+				self._handle_line(raw)
 
-			# If there is serial noise before JSON, keep only the JSON tail.
-			start = candidate.find("{")
-			if start == -1:
-				# No JSON object start yet; keep waiting for more bytes.
-				continue
-			if start > 0:
-				candidate = candidate[start:]
-				buffer = candidate
+	def _handle_line(self, raw: bytes) -> None:
+		text = raw.decode("utf-8", errors="replace").strip()
+		if not text:
+			return
+		if "{" not in text:
+			# ROM boot banner (115200 baud, unreadable at 921600) and the like.
+			self.stats["noise_lines"] += 1
+			self.recent_noise.append(text[:120])
+			return
+		obj = _extract_json_object(text)
+		if obj is None:
+			self.stats["corrupt_lines"] += 1
+			return
+		if "event" in obj:
+			self.stats["events"] += 1
+			self._events.put(obj)
+			return
+		with self._waiter_lock:
+			waiter = self._waiter
+			if waiter is not None and ("id" not in obj or obj.get("id") == waiter.request_id):
+				waiter.response = obj
+				self._waiter = None
+				waiter.event.set()
+				return
+		self.stats["stale_responses"] += 1
 
-			# Find the first balanced JSON object (handle concatenated JSONs)
-			depth = 0
-			end_idx = -1
-			for i, ch in enumerate(candidate):
-				if ch == '{':
-					depth += 1
-				elif ch == '}':
-					depth -= 1
-					if depth == 0:
-						end_idx = i
-						break
-			if end_idx != -1:
-				return candidate[: end_idx + 1]
+	def _release_waiter(self) -> None:
+		with self._waiter_lock:
+			waiter, self._waiter = self._waiter, None
+		if waiter is not None:
+			waiter.event.set()
 
-		return buffer.strip()
+	# --- events -----------------------------------------------------------
+
+	def _dispatch_loop(self) -> None:
+		while True:
+			event = self._events.get()
+			if event is None:
+				break
+			self.recent_events.append(event)
+			name = event.get("event")
+			with self._listeners_lock:
+				listeners = list(self._listeners.values())
+			for wanted, callback in listeners:
+				if wanted is not None and wanted != name:
+					continue
+				try:
+					callback(event)
+				except Exception as exc:
+					print(f"[ESP32] Event listener error for {name}: {exc}")
+
+	def add_event_listener(self, callback: EventCallback, event: Optional[str] = None) -> int:
+		"""Call callback(event_dict) for every event, or only events named
+		`event` ("button", "estop", "motion_done", "boot", "driver_fault", ...).
+		Callbacks run on one dispatcher thread, never the reader, so they may
+		send commands. Returns a token for remove_event_listener()."""
+		token = next(self._listener_ids)
+		with self._listeners_lock:
+			self._listeners[token] = (event, callback)
+		return token
+
+	def remove_event_listener(self, token: int) -> None:
+		with self._listeners_lock:
+			self._listeners.pop(token, None)
+
+	def wait_for_event(self, event: str, timeout: float = 5.0,
+			predicate: Optional[Callable[[Dict[str, Any]], bool]] = None) -> Optional[Dict[str, Any]]:
+		"""Block until a matching event arrives; None on timeout."""
+		hit: List[Dict[str, Any]] = []
+		done = threading.Event()
+
+		def on_event(ev: Dict[str, Any]) -> None:
+			if not done.is_set() and (predicate is None or predicate(ev)):
+				hit.append(ev)
+				done.set()
+
+		token = self.add_event_listener(on_event, event)
+		try:
+			done.wait(timeout)
+		finally:
+			self.remove_event_listener(token)
+		return hit[0] if hit else None
+
+	# --- requests -----------------------------------------------------------
+
+	def _check_link(self) -> serial.Serial:
+		if self._failure is not None:
+			raise ESP32TransportError(f"ESP32 link lost: {self._failure}")
+		if self.ser is None:
+			raise ESP32TransportError("ESP32 connection is closed")
+		return self.ser
+
+	def _arm(self, request_id: int) -> _Waiter:
+		waiter = _Waiter(request_id)
+		with self._waiter_lock:
+			self._waiter = waiter
+		return waiter
+
+	def _await(self, waiter: _Waiter, timeout: float) -> Optional[Dict[str, Any]]:
+		waiter.event.wait(timeout)
+		with self._waiter_lock:
+			if self._waiter is waiter:
+				self._waiter = None
+		if waiter.response is None:
+			self._check_link()
+		return waiter.response
+
+	def _write(self, data: bytes) -> None:
+		ser = self._check_link()
+		try:
+			ser.write(data)
+			ser.flush()
+		except (serial.SerialException, OSError) as exc:
+			self._failure = exc
+			raise ESP32TransportError(f"ESP32 write failed: {exc}") from exc
+
+	def _line(self, payload: Dict[str, Any], request_id: int) -> bytes:
+		body = dict(payload)
+		body["id"] = request_id
+		return (json.dumps(body, separators=(",", ":")) + "\n").encode("utf-8")
 
 	@staticmethod
-	def _repair_json_response(resp: str) -> str:
-		# Host-side repair disabled now that the firmware emits deterministic
-		# JSON for LED status responses.
-		return resp
+	def _parse_response(resp: Dict[str, Any]) -> Dict[str, Any]:
+		if resp.get("status") != "ok":
+			raise ESP32Error(str(resp.get("message", "ESP32 error")), resp)
+		data = resp.get("data", {})
+		return data if isinstance(data, dict) else {"value": data}
 
-	def _parse_response(self, resp: str) -> Dict[str, Any]:
-		# Try direct JSON parse first
-		try:
-			data = json.loads(resp)
-		except json.JSONDecodeError:
-			# Attempt to extract a balanced JSON object from possibly-garbage input
-			start = resp.find("{")
-			if start != -1:
-				depth = 0
-				end = -1
-				for i in range(start, len(resp)):
-					if resp[i] == '{':
-						depth += 1
-					elif resp[i] == '}':
-						depth -= 1
-						if depth == 0:
-							end = i + 1
-							break
-				if end != -1:
-					candidate = resp[start:end]
-					try:
-						data = json.loads(candidate)
-					except json.JSONDecodeError:
-						data = None
-				else:
-					data = None
-			else:
-				data = None
-			if data is None:
-				raise RuntimeError(f"Failed to parse JSON response from ESP32: {resp!r}")
-		if data.get("status") != "ok":
-			error_msg = data.get("message", "ESP32 error")
-			raise RuntimeError(f"ESP32 error: {error_msg} | Full response: {data}")
-		return data.get("data", {})
-
-	def send(self, payload: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
-		line = json.dumps(payload, separators=(",", ":")) + "\n"
-		last_resp = ""
+	def send(self, payload: Dict[str, Any], timeout: Optional[float] = None, *,
+			retry: Optional[bool] = None) -> Dict[str, Any]:
+		"""Send one command and return its "data". Raises ESP32Error for an
+		error reply, TimeoutError if none arrives, ESP32TransportError if the
+		link is gone. Read-only commands are retried once on a lost reply;
+		motion commands never are."""
+		wait_s = float(timeout if timeout is not None else self.cfg.timeout)
+		if retry is None:
+			retry = payload.get("cmd") in _IDEMPOTENT_COMMANDS
+		attempts = 2 if retry else 1
 		with self._lock:
-			for attempt in range(2):
-				if timeout is not None:
-					prev_timeout = self.ser.timeout
-					self.ser.timeout = timeout
-				try:
-					self.ser.write(line.encode("utf-8"))
-					self.ser.flush()
-					last_resp = self._read_json_response(timeout or self.ser.timeout)
-				finally:
-					if timeout is not None:
-						self.ser.timeout = prev_timeout
-				if last_resp:
-					try:
-						return self._parse_response(last_resp)
-					except (json.JSONDecodeError, RuntimeError):
-						if attempt == 0:
-							self._drain()
-							continue
-						raise
-			self._drain()
-		raise TimeoutError(f"No valid response from ESP32: {last_resp!r}")
+			for _ in range(attempts):
+				request_id = next(self._ids)
+				waiter = self._arm(request_id)
+				self._write(self._line(payload, request_id))
+				resp = self._await(waiter, wait_s)
+				if resp is not None:
+					return self._parse_response(resp)
+		raise TimeoutError(f"No response from ESP32 to {payload.get('cmd')!r} within {wait_s:.1f}s")
 
 	def send_binary(
 		self,
@@ -249,111 +440,142 @@ class ESP32Connection:
 		binary_data: bytes | bytearray | memoryview,
 		timeout: Optional[float] = None,
 	) -> Dict[str, Any]:
+		"""A JSON header whose reply only comes after the raw payload."""
 		data_bytes = memoryview(binary_data).tobytes()
-		line = json.dumps(payload, separators=(",", ":")) + "\n"
-		baudrate = max(1, int(self.ser.baudrate))
-		estimated_transfer_s = (len(data_bytes) * 10.0 / baudrate) + 5.0
-		transfer_timeout = max(self.ser.timeout, estimated_transfer_s)
+		baudrate = max(1, int(self.cfg.baudrate))
+		transfer_timeout = (len(data_bytes) * 10.0 / baudrate) + 5.0
 		if timeout is not None:
 			transfer_timeout = max(float(timeout), transfer_timeout)
+		with self._lock:
+			request_id = next(self._ids)
+			waiter = self._arm(request_id)
+			self._write(self._line(payload, request_id))
+			# Let the firmware parse the header and allocate before the bytes.
+			time.sleep(0.02)
+			self._write(data_bytes)
+			resp = self._await(waiter, transfer_timeout)
+		if resp is None:
+			raise TimeoutError("No response from ESP32 after binary payload")
+		return self._parse_response(resp)
+
+	# --- general commands ---------------------------------------------------
+
+	def ping(self) -> Dict[str, Any]:
+		return self.send({"cmd": "ping"})
+
+	def info(self) -> Dict[str, Any]:
+		return self.send({"cmd": "info"}, timeout=2.0)
+
+	def reboot(self) -> None:
+		"""Software restart; waits for the firmware's boot event."""
+		self.send({"cmd": "reboot"})
+		self.wait_for_event("boot", timeout=5.0)
+
+	def reset_esp32(self, bootloader: bool = False, wait_for_boot: bool = True) -> Optional[Dict[str, Any]]:
+		"""Hardware reset through DTR/RTS (USB) or GPIO18/GPIO23 (J7).
+		With bootloader=True the ESP32 stays in the ROM loader for esptool."""
+		from esp32.esp32_reset import reset_esp32 as _reset
 
 		with self._lock:
-			resp = ""
-			prev_timeout = self.ser.timeout
-			try:
-				for attempt in range(2):
-					self.ser.timeout = transfer_timeout * (1.0 + 0.25 * attempt)
-					# Send JSON header and give the ESP32 a short moment to parse it
-					self.ser.write(line.encode("utf-8"))
-					self.ser.flush()
-					time.sleep(0.02)
-					# Send binary payload
-					self.ser.write(data_bytes)
-					self.ser.flush()
-					resp = self._read_json_response(self.ser.timeout)
-					if resp:
-						break
-					self._drain()
-			finally:
-				self.ser.timeout = prev_timeout
-		if not resp:
-			raise TimeoutError("No response from ESP32")
-		return self._parse_response(resp)
+			_reset(self.transport, self.ser, bootloader=bootloader)
+		if bootloader or not wait_for_boot:
+			return None
+		return self.wait_for_event("boot", timeout=5.0)
 
 	def list_motors(self) -> Dict[str, Any]:
 		return self.send({"cmd": "list_motors"})
 
+	def host_status(self) -> Dict[str, Any]:
+		return self.send({"cmd": "host"})
+
+	def set_tx_pacing(self, chunk_bytes: int, gap_us: int) -> Dict[str, Any]:
+		return self.send({"cmd": "host", "action": "set", "tx_chunk": int(chunk_bytes), "tx_gap_us": int(gap_us)})
+
+	def estop(self) -> Dict[str, Any]:
+		"""Stop all motion and latch the emergency stop."""
+		return self.send({"cmd": "estop", "action": "trigger"})
+
+	def clear_estop(self) -> Dict[str, Any]:
+		return self.send({"cmd": "estop", "action": "clear"})
+
+	def estop_status(self) -> Dict[str, Any]:
+		return self.send({"cmd": "estop", "action": "status"})
+
+	def stop_all(self) -> Dict[str, Any]:
+		return self.send({"cmd": "stop_all"})
+
+	def i2c_scan(self) -> List[int]:
+		return list(self.send({"cmd": "i2c_scan"}, timeout=2.0).get("devices", []))
+
+	def panel_status(self) -> Dict[str, Any]:
+		return self.send({"cmd": "panel", "action": "status"})
+
+	def panel_reinit(self) -> Dict[str, Any]:
+		return self.send({"cmd": "panel", "action": "reinit"}, timeout=2.0)
+
+	def imu_status(self) -> Dict[str, Any]:
+		return self.send({"cmd": "imu", "action": "status"})
+
+	def imu_read(self) -> Dict[str, Any]:
+		return self.send({"cmd": "imu", "action": "read"})
+
+	def imu_enable(self, on: bool = True) -> Dict[str, Any]:
+		return self.send({"cmd": "imu", "action": "enable" if on else "disable"})
+
+	# --- display storage ------------------------------------------------------
+
 	def upload_display_file(self, name: str, data: bytes, timeout: Optional[float] = None) -> Dict[str, Any]:
-		"""Upload a binary file to the ESP32 LittleFS storage for later playback.
+		"""Store raw bytes on the ESP32's LittleFS for later playback.
 
-		The ESP32 will store the exact bytes under `name`. Use `play` to display it.
-		"""
+		store_begin is acknowledged at once; the bytes follow and a second
+		acknowledgement (same id) comes once the file is written."""
+		baudrate = max(1, int(self.cfg.baudrate))
+		transfer_timeout = timeout if timeout is not None else max(
+			self.cfg.timeout, (len(data) * 10.0 / baudrate) + 20.0, 25.0)
 		payload = {"cmd": "display", "action": "store_begin", "name": name, "length": len(data)}
-		transfer_timeout = timeout
-		if transfer_timeout is None:
-			baudrate = max(1, int(self.ser.baudrate))
-			transfer_timeout = max(self.ser.timeout, (len(data) * 10.0 / baudrate) + 20.0, 25.0)
-
-		# First send the JSON control command and wait for the ESP32 to enter
-		# file-upload mode.
-		self.send(payload, timeout=timeout)
-
-		# Then stream the raw bytes. The firmware will emit the final OK after
-		# all bytes are written to LittleFS.
 		with self._lock:
-			prev_timeout = self.ser.timeout
-			try:
-				self.ser.timeout = transfer_timeout
-				data_view = memoryview(data)
-				chunk_size = 512
-				for start in range(0, len(data_view), chunk_size):
-					self.ser.write(data_view[start : start + chunk_size])
-					# Pace upload slightly to avoid overflowing UART RX while the ESP32
-					# services other tasks.
-					time.sleep(0.001)
-				self.ser.flush()
-				resp = self._read_json_response(transfer_timeout)
-			finally:
-				self.ser.timeout = prev_timeout
-
-		if not resp:
-			raise TimeoutError("No response from ESP32")
+			request_id = next(self._ids)
+			waiter = self._arm(request_id)
+			self._write(self._line(payload, request_id))
+			first = self._await(waiter, max(self.cfg.timeout, 2.0))
+			if first is None:
+				raise TimeoutError("No response from ESP32 to store_begin")
+			self._parse_response(first)
+			final_waiter = self._arm(request_id)
+			view = memoryview(data)
+			for start in range(0, len(view), 512):
+				self._write(view[start:start + 512].tobytes())
+				# Pace the upload a little so the ESP32's RX buffer keeps up.
+				time.sleep(0.001)
+			resp = self._await(final_waiter, transfer_timeout)
+		if resp is None:
+			raise TimeoutError("No response from ESP32 after upload")
 		return self._parse_response(resp)
 
 	def play_display_file(self, name: str, x: int = 0, y: int = 0, w: int | None = None, h: int | None = None) -> Dict[str, Any]:
-		"""Play a stored display file previously uploaded with `upload_display_file`.
-
-		Currently supports raw RGB565 frames sized exactly w*h*2 bytes.
-		"""
+		"""Play a stored raw RGB565 frame (w*h*2 bytes)."""
 		if w is None:
 			w = _DISPLAY_WIDTH
 		if h is None:
 			h = _DISPLAY_HEIGHT
 		payload = {"cmd": "display", "action": "play", "name": name, "x": int(x), "y": int(y), "w": int(w), "h": int(h)}
-		return self.send(payload)
+		return self.send(payload, timeout=3.0)
 
 	def play_sequence(self, files: list[str], durations_ms: list[int] | None = None, x: int = 0, y: int = 0, w: int | None = None, h: int | None = None, timeout: float | None = None) -> Dict[str, Any]:
-		"""Play a stored sequence of files on the ESP32 for smooth animation.
-		files: list of filenames stored on the device (LittleFS)
-		durations_ms: optional list of per-frame durations in milliseconds
-		"""
+		"""Play stored frames on the ESP32 for smooth animation."""
 		if w is None:
 			w = _DISPLAY_WIDTH
 		if h is None:
 			h = _DISPLAY_HEIGHT
-		# Use CSV strings for compatibility with firmware JSON parser.
-		# Fallback-style sequence: send a CSV of filenames (existing method).
 		payload: Dict[str, Any] = {"cmd": "display", "action": "play_sequence", "files_csv": ",".join(files), "x": int(x), "y": int(y), "w": int(w), "h": int(h)}
 		if durations_ms:
 			payload["durations_csv"] = ",".join(str(int(d)) for d in durations_ms)
+		if timeout is None:
+			timeout = 5.0 + sum(durations_ms or [100] * len(files)) / 1000.0
 		return self.send(payload, timeout=timeout)
 
 	def play_sequence_prefix(self, prefix: str, count: int, start: int = 0, pad: int = 4, durations_ms: list[int] | None = None, x: int = 0, y: int = 0, w: int | None = None, h: int | None = None, timeout: float | None = None) -> Dict[str, Any]:
-		"""Request device-side playback by filename prefix and count.
-		prefix: filename prefix including any trailing underscore, e.g. 'test_abcd1234_'
-		count: number of frames to play
-		pad: zero padding width for frame indices (default 4)
-		"""
+		"""Device-side playback of <prefix><zero-padded index>.rgb frames."""
 		if w is None:
 			w = _DISPLAY_WIDTH
 		if h is None:
@@ -361,10 +583,15 @@ class ESP32Connection:
 		payload: Dict[str, Any] = {"cmd": "display", "action": "play_sequence_prefix", "prefix": prefix, "count": int(count), "start": int(start), "pad": int(pad), "x": int(x), "y": int(y), "w": int(w), "h": int(h)}
 		if durations_ms:
 			payload["durations_csv"] = ",".join(str(int(d)) for d in durations_ms)
+		if timeout is None:
+			timeout = 5.0 + sum(durations_ms or [100] * int(count)) / 1000.0
 		return self.send(payload, timeout=timeout)
 
 	def delete_motor(self, motor_id: str) -> Dict[str, Any]:
+		self.motor_info.pop(motor_id, None)
 		return self.send({"cmd": "delete_motor", "motor": motor_id})
+
+	# --- the "board" LED (dev kit onboard LED; unconnected on v0.8) ----------
 
 	def led_on(self) -> Dict[str, Any]:
 		return self.send({"cmd": "led", "led": "board", "mode": "on"})
@@ -386,10 +613,10 @@ class ESP32Connection:
 
 class ESP32LED:
 	class Channel:
-		def __init__(self, conn: ESP32Connection, name: str, pin: int) -> None:
+		def __init__(self, conn: ESP32Connection, name: str, pin: Optional[int] = None) -> None:
 			self.conn = conn
 			self.name = name
-			self.pin = pin
+			self.pin = pin  # GPIO for "board"; None for the MCP23017 LEDs
 
 		def action(
 			self,
@@ -417,6 +644,9 @@ class ESP32LED:
 		def off(self) -> Dict[str, Any]:
 			return self.action(mode="off")
 
+		def toggle(self) -> Dict[str, Any]:
+			return self.action(mode="toggle")
+
 		def blink(self, interval_ms: int = 500, auto_off_ms: Optional[int] = None) -> Dict[str, Any]:
 			return self.action(mode="blink", interval_ms=interval_ms, auto_off_ms=auto_off_ms)
 
@@ -425,7 +655,8 @@ class ESP32LED:
 		leds = get_led_channels()
 		for led_name, led_cfg in leds.items():
 			channel_name = str(led_cfg.get("channel", led_name))
-			setattr(self, led_name, self.Channel(conn, channel_name, int(led_cfg["pin"])))
+			pin = led_cfg.get("pin")
+			setattr(self, led_name, self.Channel(conn, channel_name, int(pin) if pin is not None else None))
 
 		self.board = getattr(self, "board")
 		self.boardLED = self.board
@@ -440,12 +671,92 @@ class ESP32LED:
 		return instance
 
 
+class ESP32Buttons:
+	"""Front-panel button events from the MCP23017 (SELENO v0.8).
+
+	Buttons: select, return, top, bottom, left, right. Actions: "press",
+	"release" (with held_ms) and "hold" (once, after 1 s). RETURN also
+	triggers the firmware's emergency stop on its own; this class only
+	reports it.
+
+		buttons = ESP32Buttons(conn)
+		buttons.on("select", "press", lambda ev: print("select!"))
+	"""
+
+	NAMES = ("select", "return", "top", "bottom", "left", "right")
+
+	def __init__(self, conn: ESP32Connection) -> None:
+		self.conn = conn
+		self._handlers: List[tuple[Optional[str], Optional[str], EventCallback]] = []
+		self._lock = threading.Lock()
+		self._token = conn.add_event_listener(self._on_event, "button")
+
+	def on(self, button: Optional[str], action: Optional[str], callback: EventCallback) -> None:
+		"""callback(event) for button (None = any) and action (None = any)."""
+		if button is not None and button not in self.NAMES:
+			raise ValueError(f"Unknown button {button!r}; expected one of {self.NAMES}")
+		with self._lock:
+			self._handlers.append((button, action, callback))
+
+	def close(self) -> None:
+		self.conn.remove_event_listener(self._token)
+
+	def state(self) -> Dict[str, bool]:
+		return dict(self.conn.panel_status().get("buttons", {}))
+
+	def _on_event(self, event: Dict[str, Any]) -> None:
+		with self._lock:
+			handlers = list(self._handlers)
+		for button, action, callback in handlers:
+			if button is not None and event.get("button") != button:
+				continue
+			if action is not None and event.get("action") != action:
+				continue
+			callback(event)
+
+
 class ESP32Motor:
+	"""One motor axis. motor1 = RA (U7, J1), motor2 = DEC (U8, J2) on v0.8.
+
+	steps_per_rev follows the driver's microstep setting, which the firmware
+	reports; it's cached on the connection, so creating ESP32Motor objects
+	is free."""
+
 	def __init__(self, conn: ESP32Connection, motor_id: str) -> None:
 		self.conn = conn
 		self.motor_id = motor_id
-		self._steps_per_rev = 1600
 		self._current_speed_us = 1250
+
+	# --- cached facts ---------------------------------------------------------
+
+	def _remember(self, data: Dict[str, Any]) -> Dict[str, Any]:
+		if isinstance(data, dict) and "steps_per_rev" in data:
+			info = self.conn.motor_info.setdefault(self.motor_id, {})
+			info["steps_per_rev"] = int(data["steps_per_rev"])
+			if "microsteps" in data:
+				info["microsteps"] = int(data["microsteps"])
+			if "speed_us" in data and data["speed_us"]:
+				self._current_speed_us = int(data["speed_us"])
+		return data
+
+	@property
+	def _steps_per_rev(self) -> int:
+		info = self.conn.motor_info.get(self.motor_id)
+		if info is None or "steps_per_rev" not in info:
+			try:
+				self.status()
+			except Exception:
+				return DEFAULT_STEPS_PER_REV
+			info = self.conn.motor_info.get(self.motor_id, {})
+		return int(info.get("steps_per_rev", DEFAULT_STEPS_PER_REV))
+
+	@_steps_per_rev.setter
+	def _steps_per_rev(self, value: int) -> None:
+		self.conn.motor_info.setdefault(self.motor_id, {})["steps_per_rev"] = int(value)
+
+	@property
+	def steps_per_rev(self) -> int:
+		return self._steps_per_rev
 
 	@classmethod
 	def create(
@@ -455,37 +766,45 @@ class ESP32Motor:
 		step_pin: int,
 		dir_pin: int,
 		en_pin: int,
-		steps_per_rev: int = 1600,
+		steps_per_rev: int = DEFAULT_STEPS_PER_REV,
 		speed_us: Optional[int] = None,
 		engage: bool = False,
 		replace: bool = False,
+		microsteps: Optional[int] = None,
 	) -> "ESP32Motor":
-		# Create a new motor instance on the ESP32.
-		# 
-		# Args:
-		#	replace: If True, delete existing motor with same ID before creating
+		"""Bind motor_id to the axis with these pins and configure it.
+
+		The v0.8 board's axes are fixed (pins in esp32/pins.py) and boot
+		registered as motor1/motor2, so this is a reconfigure. replace=True
+		first releases the id (old behaviour)."""
 		if replace:
 			try:
 				conn.delete_motor(motor_id)
-			except RuntimeError:
-				pass  # Motor didn't exist, that's fine
-		
+			except ESP32Error:
+				pass  # it didn't exist
 		payload: Dict[str, Any] = {
 			"cmd": "create_motor",
 			"motor": motor_id,
 			"step": int(step_pin),
 			"dir": int(dir_pin),
 			"en": int(en_pin),
-			"steps_per_rev": int(steps_per_rev),
 			"engage": bool(engage),
 		}
+		if microsteps is not None:
+			payload["microsteps"] = int(microsteps)
+		else:
+			payload["steps_per_rev"] = int(steps_per_rev)
 		if speed_us is not None:
 			payload["speed_us"] = int(speed_us)
-		conn.send(payload)
 		instance = cls(conn, motor_id)
-		instance._steps_per_rev = steps_per_rev
-		instance._current_speed_us = speed_us if speed_us is not None else 1250
+		data = conn.send(payload, timeout=2.0)
+		if not instance._remember(data):
+			instance._steps_per_rev = steps_per_rev
+		if speed_us is not None:
+			instance._current_speed_us = speed_us
 		return instance
+
+	# --- enable and speed -----------------------------------------------------
 
 	def engage(self) -> Dict[str, Any]:
 		return self.conn.send({"cmd": "engage", "motor": self.motor_id})
@@ -497,63 +816,65 @@ class ESP32Motor:
 		return self.conn.send({"cmd": "enable", "motor": self.motor_id, "value": bool(on)})
 
 	def set_speed_us(self, delay_us: int) -> Dict[str, Any]:
-		self._current_speed_us = delay_us
+		self._current_speed_us = int(delay_us)
 		return self.conn.send({"cmd": "set_speed", "motor": self.motor_id, "speed_us": int(delay_us)})
 
 	def set_speed_sps(self, steps_per_sec: float) -> Dict[str, Any]:
 		self._current_speed_us = int(1_000_000 / steps_per_sec)
 		return self.conn.send({"cmd": "set_speed", "motor": self.motor_id, "sps": float(steps_per_sec)})
 
+	# --- motion ---------------------------------------------------------------
+
 	def turn_degrees(self, degrees: float, forward: bool = True, timeout: Optional[float] = None, waitUntilFinished: bool = False) -> Dict[str, Any]:
-		# Handle negative degrees (flip direction)
 		if degrees < 0:
 			degrees = abs(degrees)
 			forward = not forward
-		
-		# Calculate expected duration
+
 		steps = int((degrees / 360.0) * self._steps_per_rev)
 		duration_s = (steps * self._current_speed_us) / 1_000_000
-		
-		if timeout is None:
-			timeout = duration_s + 2.0
-		
-		# Get initial position if we need to wait and verify
+
 		if waitUntilFinished:
 			initial_position = self.get_position_degrees()
 			target_position = initial_position + degrees if forward else initial_position - degrees
-		
-		# Send the turn command
-		result = self.conn.send(
-			{
-				"cmd": "turn_degrees",
-				"motor": self.motor_id,
-				"degrees": float(degrees),
-				"forward": bool(forward),
-			},
-			timeout=timeout,
-		)
-		
-		# Poll until motor reaches target position
-		if waitUntilFinished:
-			tolerance = 0.5  # degrees
-			poll_interval = 0.1  # seconds
-			
-			while True:
+			done_token = threading.Event()
+			token = self.conn.add_event_listener(
+				lambda ev: done_token.set() if ev.get("motor") == self.motor_id else None,
+				"motion_done",
+			)
+
+		try:
+			result = self.conn.send(
+				{
+					"cmd": "turn_degrees",
+					"motor": self.motor_id,
+					"degrees": float(degrees),
+					"forward": bool(forward),
+				},
+				timeout=timeout if timeout is not None else max(self.conn.cfg.timeout, 2.0),
+			)
+
+			if waitUntilFinished:
+				# The firmware reports the end of the move; poll as a fallback.
+				deadline = time.monotonic() + duration_s + 5.0
+				while time.monotonic() < deadline and not done_token.wait(0.1):
+					if not self.status().get("moving", False):
+						break
 				current_position = self.get_position_degrees()
-				if abs(current_position - target_position) <= tolerance:
-					break
-				
-				time.sleep(poll_interval)
-			
-			result["final_position"] = current_position
-			result["target_position"] = target_position
-			result["position_error"] = abs(current_position - target_position)
-		
+				result["final_position"] = current_position
+				result["target_position"] = target_position
+				result["position_error"] = abs(current_position - target_position)
+		finally:
+			if waitUntilFinished:
+				self.conn.remove_event_listener(token)
+
 		return result
 
+	def move_steps(self, steps: int) -> Dict[str, Any]:
+		"""Signed relative move in (micro)steps."""
+		return self.conn.send({"cmd": "move_steps", "motor": self.motor_id, "steps": int(steps)})
+
 	def start_continuous(self, forward: bool = True) -> Dict[str, Any]:
-		#Start the motor spinning continuously until stopped.
-		
+		"""Run at the set speed until stopped (sidereal tracking path)."""
 		return self.conn.send(
 			{
 				"cmd": "start_continuous",
@@ -566,37 +887,74 @@ class ESP32Motor:
 		return self.conn.send({"cmd": "stop", "motor": self.motor_id})
 
 	def status(self) -> Dict[str, Any]:
-		return self.conn.send({"cmd": "status", "motor": self.motor_id})
+		return self._remember(self.conn.send({"cmd": "status", "motor": self.motor_id}))
+
+	# --- position ---------------------------------------------------------------
 
 	def get_position(self) -> int:
-		# Get the current position of the motor in steps (signed integer).
-		result = self.conn.send({"cmd": "get_position", "motor": self.motor_id})
-		return result.get("position", 0)
+		"""Signed position in steps at the current microstep setting."""
+		result = self._remember(self.conn.send({"cmd": "get_position", "motor": self.motor_id}))
+		return int(result.get("position", 0))
 
 	def get_position_degrees(self, gear_ratio: float = 360.0) -> float:
-		# Get the current position in degrees (polar alignment deviation).
-		# 
-		# Args:
-		#	gear_ratio: Sky degrees per motor revolution (default: 360 for RA, 144 for DEC)
-		# 
-		# Returns:
-		#	Angular deviation in degrees
+		# gear_ratio: sky degrees per motor revolution (360 for RA, 144 for DEC)
 		steps = self.get_position()
 		return (steps * gear_ratio) / self._steps_per_rev
 
 	def get_position_arcmin(self, gear_ratio: float = 360.0) -> float:
-		# Get the current position in arcminutes (fine alignment precision).
-		degrees = self.get_position_degrees(gear_ratio)
-		return degrees * 60
+		return self.get_position_degrees(gear_ratio) * 60
 
 	def get_position_arcsec(self, gear_ratio: float = 360.0) -> float:
-		# Get the current position in arcseconds (highest precision).
-		arcmin = self.get_position_arcmin(gear_ratio)
-		return arcmin * 60
+		return self.get_position_arcmin(gear_ratio) * 60
 
 	def reset_position(self) -> Dict[str, Any]:
-		# Reset the motor position counter to zero.
 		return self.conn.send({"cmd": "reset_position", "motor": self.motor_id})
+
+	def set_position(self, steps: int) -> Dict[str, Any]:
+		return self.conn.send({"cmd": "set_position", "motor": self.motor_id, "position": int(steps)})
+
+	# --- TMC2209 driver settings (over its UART) --------------------------------
+
+	def set_microsteps(self, microsteps: int) -> Dict[str, Any]:
+		"""1-256 (power of two). Refused while moving. The firmware rescales
+		the position counter and speed so angles stay the same."""
+		return self._remember(self.conn.send(
+			{"cmd": "set_microsteps", "motor": self.motor_id, "microsteps": int(microsteps)}, timeout=2.0))
+
+	def set_chopper(self, mode: str, hybrid_threshold_sps: Optional[float] = None) -> Dict[str, Any]:
+		""""stealthchop" (silent), "spreadcycle", or "hybrid" (StealthChop
+		below hybrid_threshold_sps, SpreadCycle above)."""
+		payload: Dict[str, Any] = {"cmd": "set_chopper", "motor": self.motor_id, "mode": mode}
+		if hybrid_threshold_sps is not None:
+			payload["hybrid_threshold_sps"] = float(hybrid_threshold_sps)
+		return self._remember(self.conn.send(payload, timeout=2.0))
+
+	def set_current(self, run_ma: int, hold_ma: Optional[int] = None,
+			hold_multiplier: Optional[float] = None) -> Dict[str, Any]:
+		"""RMS run current (max 1350 mA on v0.8) and optional hold current."""
+		payload: Dict[str, Any] = {"cmd": "set_current", "motor": self.motor_id, "run_ma": int(run_ma)}
+		if hold_multiplier is not None:
+			payload["hold_multiplier"] = float(hold_multiplier)
+		elif hold_ma is not None:
+			payload["hold_ma"] = int(hold_ma)
+		return self.conn.send(payload, timeout=2.0)
+
+	def driver_status(self) -> Dict[str, Any]:
+		"""Live TMC2209 registers: DRV_STATUS flags, temperature, microsteps..."""
+		return self.conn.send({"cmd": "driver", "motor": self.motor_id, "action": "status"}, timeout=2.0)
+
+	def driver_reinit(self) -> Dict[str, Any]:
+		return self.conn.send({"cmd": "driver", "motor": self.motor_id, "action": "reinit"}, timeout=2.0)
+
+	def driver_set(self, **settings: Any) -> Dict[str, Any]:
+		"""interpolate=bool, stall_threshold=0-255, invert_direction=bool."""
+		payload: Dict[str, Any] = {"cmd": "driver", "motor": self.motor_id, "action": "set"}
+		payload.update(settings)
+		return self.conn.send(payload, timeout=2.0)
+
+	def read_register(self, reg: int) -> int:
+		data = self.conn.send({"cmd": "driver", "motor": self.motor_id, "action": "read_reg", "reg": int(reg)})
+		return int(data.get("value", 0))
 
 
 class ESP32Display:
@@ -869,6 +1227,37 @@ class ESP32Display:
 		color = self._normalize_color(color)
 		self._bg_color = color
 		return self.conn.send({"cmd": "display", "action": "set_bg_color", "color": color})
+
+	def set_text_size(self, size: int) -> Dict[str, Any]:
+		return self.conn.send({"cmd": "display", "action": "set_text_size", "size": int(size)})
+
+	def text(
+		self,
+		text: str,
+		x: Optional[int] = None,
+		y: Optional[int] = None,
+		color: Optional[str] = None,
+		background: Optional[str] = None,
+		size: Optional[int] = None,
+		newline: bool = False,
+	) -> Dict[str, Any]:
+		# Draw text with the firmware's built-in font (LovyanGFX), optionally
+		# moving the cursor and setting size/colours first.
+		payload: Dict[str, Any] = {"cmd": "display", "action": "text", "text": str(text), "newline": bool(newline)}
+		if x is not None or y is not None:
+			payload["x"] = int(x or 0)
+			payload["y"] = int(y or 0)
+		if color is not None:
+			payload["color"] = self._normalize_color(color)
+		if background is not None:
+			payload["bg"] = self._normalize_color(background)
+		if size is not None:
+			payload["size"] = int(size)
+		return self.conn.send(payload, timeout=2.0)
+
+	def set_rotation(self, rotation: int) -> Dict[str, Any]:
+		# 0-3, quarter turns. Width and height swap for 1 and 3.
+		return self.conn.send({"cmd": "display", "action": "rotation", "rotation": int(rotation) & 3})
 
 	# Utility methods
 	@staticmethod
