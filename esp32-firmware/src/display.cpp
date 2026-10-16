@@ -1,8 +1,8 @@
 #include "display.h"
 
-#define LGFX_USE_V1
-#include <LovyanGFX.hpp>
 #include <LittleFS.h>
+
+#include "display_device.h"
 
 #include "board_pins.h"
 #include "config.h"
@@ -83,7 +83,8 @@ struct DisplayState {
   uint16_t textColor = 0xFFFF;
   uint16_t backgroundColor = 0x0000;
   uint8_t textSize = 1;
-  uint8_t rotation = 0;
+  uint8_t rotation = 0;         // the host's
+  uint8_t appliedRotation = 0;  // what the panel is set to now
   bool streaming = false;
   bool havePendingByte = false;
   uint8_t pendingByte = 0;
@@ -106,6 +107,7 @@ bool displayInit() {
     return false;
   }
   g_lcd.setRotation(g_state.rotation);
+  g_state.appliedRotation = g_state.rotation;
   g_lcd.setColorDepth(16);
   g_lcd.fillScreen(0x0000);
   g_lcd.setTextColor(g_state.textColor, g_state.backgroundColor);
@@ -140,9 +142,27 @@ void displayBacklight(uint8_t brightness) {
 
 void displaySetRotation(uint8_t rotation) {
   g_state.rotation = rotation & 3;
-  if (g_state.initialized) {
-    g_lcd.setRotation(g_state.rotation);
+  displayUseRotation(g_state.rotation);
+}
+
+uint8_t displayHostRotation() {
+  return g_state.rotation;
+}
+
+void displayUseRotation(uint8_t rotation) {
+  rotation &= 3;
+  if (g_state.initialized && rotation != g_state.appliedRotation) {
+    g_lcd.setRotation(rotation);
   }
+  g_state.appliedRotation = rotation;
+}
+
+uint8_t displayBacklightLevel() {
+  return g_state.brightness;
+}
+
+lgfx::LGFX_Device& displayDevice() {
+  return g_lcd;
 }
 
 uint16_t displayWidth() {

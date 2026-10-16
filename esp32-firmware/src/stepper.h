@@ -19,6 +19,7 @@ enum class MotionEnd : uint8_t {
   EmergencyStop,
   DriverFault,
   Disengaged,  // driver switched off mid-move (immediate stop)
+  PanelStop,   // RETURN pressed twice on the front panel (ramps like Stopped)
 };
 
 const char* motionEndName(MotionEnd reason);
@@ -41,6 +42,9 @@ void stepperSetRate(int axis, double pulsesPerSecond);
 // The cruise (target) rate, and the instantaneous rate (0 when idle).
 double stepperRate(int axis);
 double stepperCurrentRate(int axis);
+// The larger of the cruise and instantaneous rates while moving, else 0.
+// Safe from any task.
+double stepperPeakRate(int axis);
 // Acceleration in pulses/s^2 (0 = none) and the rate a move may start at
 // without ramping. Moves accelerate from startRate to the cruise rate and
 // decelerate so they reach startRate by their last pulse.

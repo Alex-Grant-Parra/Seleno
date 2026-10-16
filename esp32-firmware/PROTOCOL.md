@@ -48,8 +48,11 @@ The Pi side is `esp32/interfaceESP32.py`. Hardware facts come from
 
 ## Emergency stop
 
-The firmware triggers the stop on its own when RETURN is pressed, acting on
-the first low reading before debounce. The host can also trigger it.
+The host can trigger it with `{"cmd":"estop","action":"trigger"}`. The
+RETURN button triggers it on its own, acting on the first low reading before
+debounce, but only while a host move is slewing (faster than 50 full
+steps/s, `kReturnEstopAboveFsps`). Otherwise RETURN is the menu's back key,
+and pressing it twice while tracking is a panel stop (below).
 
 Triggering does three things:
 - stops step generation on both axes immediately;
@@ -58,8 +61,21 @@ Triggering does three things:
 
 The drivers stay enabled, so the mount holds position instead of swinging.
 While latched, `turn_degrees`, `move_steps` and `start_continuous` reply
-`Emergency stop active`. Only `{"cmd":"estop","action":"clear"}` releases
-it, and that sends `{"event":"estop","active":false}`.
+`Emergency stop active`. Only `{"cmd":"estop","action":"clear"}` (or
+"Release E-stop" in the panel's Motors tab) releases it, and that sends
+`{"event":"estop","active":false}`.
+
+### Panel stop (RETURN twice while tracking)
+
+Two RETURN presses within 500 ms, while a host move runs and the panel is
+not in a menu (tracking/sky screen, loading screen, host drawing), stop every
+motor (`motion_done` reason `panel_stop`), show the menu and send
+`{"event":"ui","type":"stop","reason":"return_double"}`. It needs no host.
+New host moves are then refused (`Stopped from the front panel`) until the
+host has stopped its own tracking and sends `{"cmd":"ui","action":"ack_stop"}`.
+`ui hello` and `ui status` replies carry `panel_stop_pending`, so a host
+that was away when it happened still finds out. Moves the panel starts
+itself (jog, test turns) are not held.
 
 ## Motors
 
@@ -150,7 +166,10 @@ exactly 51200 fine units.
 ## Display (`"cmd":"display"`, field `action`)
 
 LovyanGFX `Panel_ST7735S`, 128 × 160, RGB565. Colours are `"RRGGBB"` hex.
-Call `init` first; until then drawing is ignored.
+The firmware initialises the panel at boot for its own UI; `init` is still
+accepted (and harmless). Any drawing action hands the screen to the host:
+the UI stops drawing (and the host's rotation applies) until RETURN is
+pressed or a `ui` command shows something.
 
 | Action | Fields |
 |---|---|
@@ -174,10 +193,11 @@ Call `init` first; until then drawing is ignored.
 
 | Event | Members | When |
 |---|---|---|
-| `boot` | `fw`, `board`, `devkit`, `reset_reason`, `drivers[]`, `expander` | After every start |
+| `boot` | `fw`, `board`, `devkit`, `reset_reason`, `drivers[]`, `expander`, `ui` | After every start |
 | `estop` | `active`, `source`, `already_latched` | Trigger and clear |
 | `button` | `button` (`select`, `return`, `top`, `bottom`, `left`, `right`), `action` (`press`, `release` with `held_ms`, `hold` after 1 s), `t` | Debounced 15 ms |
-| `motion_done` | `motor`, `axis`, `reason` (`complete`, `stopped`, `estop`, `driver_fault`, `disengaged`), `position`, `position_fine` | A move ends |
+| `motion_done` | `motor`, `axis`, `reason` (`complete`, `stopped`, `estop`, `driver_fault`, `disengaged`, `panel_stop`), `source` (`host`/`panel`), `position`, `position_fine` | A move ends |
+| `ui` | `type`: `change` (`panel`, `item`, `value`, `option` for choices), `action` (`panel`, `item`), `prompt` (`prompt`, `kind`, then `value`, `option`, `cancelled` or `dismissed`), `stop` (`reason`, `already_pending`), `sky` (`zoom` +1 in / -1 out) | The front-panel UI (below) |
 | `driver_fault` / `driver_fault_cleared` | `motor`, `axis`, `drv_status{}` | DIAG pin rises or falls; the axis stops on a fault |
 | `driver_temperature` | `motor`, `drv_status{}` | `otpw` or `ot` changes |
 | `driver_reset` | `motor` | Driver brown-out; it has been reconfigured and the axis stopped |
@@ -187,3 +207,66 @@ Call `init` first; until then drawing is ignored.
 
 The Pi interface also generates `link_lost` itself, when the serial port
 fails.
+
+## Front-panel UI (`"cmd":"ui"`, field `action`)
+
+The ESP32 draws its own UI on the LCD (src/ui.h): a loading screen from
+power-on until `hello`, then a menu of tabs, an on-screen keyboard, board
+tests and a tracking/sky screen. Firmware tabs: Motors (order 30), Test (40),
+Display (60), About (90). The Pi adds its own (utils/panel_menu.py). The
+panel counts the Pi as gone after 6 s without a byte from it.
+
+| Action | Fields | Reply data |
+|---|---|---|
+| `hello` | `device`, optional `status{}`, optional `panels[]` (as `menu`) | `ui`, `fw`, `width`, `height`, `sky_w`, `sky_h`, `panel_stop_pending`, `estop`, `screen` |
+| `status` | any string fields to show (`ip`, `server`, ...), `clock_s` (local seconds since midnight), `device` | `panel_stop_pending`, `estop`, `screen`, `sky_w`, `sky_h`, `sky_shown`, `sky_radar` |
+| `menu` | `panels[]`: `{id, title, order, items[]}`; replaces the host's tabs | ok |
+| `set` | `values{"panel.item": value}`, or `panel`, `item`, `fields{}` (any item field) | `changed` |
+| `prompt` | `prompt` (an id for the answer), `kind` (`text`, `confirm`, `message`, `busy`, `choice`), `title`, `text`; text: `value`, `max_length` (≤ 160), `subtitle`; confirm: `yes`, `no`, `default` (`yes`/`no`); choice: `options[]`, `selected`; message/busy: `timeout_ms` | `queued` (true while the user has that dialog open for something else) |
+| `close_prompt` | `prompt` (omit for any) | ok |
+| `toast` | `text`, `ms` | ok |
+| `mode` | `mode`: `menu`, `tracking`/`sky`, `loading` | ok |
+| `tracking` | `state` (`slewing`, `centering`, `tracking`, `idle`, `stopped`), `target`, `ra`, `dec` (target, deg), `ra_now`, `dec_now`, `mag`, `progress` (0–1); fields merge | ok. Active states show the sky screen; others leave it |
+| `loading` | `text`: the loading screen's status line | ok |
+| `show` | `panel`, optional `item` | ok |
+| `sky` | `length`, then that many bytes of a SKY1 scene | ok once parsed |
+| `key` | `key` (`select`, `return`, `up`, `down`, `left`, `right`), `press` (`click`, `down`, `up`, `long`) | ok. RETURN presses go through the same stop policy as real ones |
+| `ack_stop` | | `panel_stop_pending` |
+| `settings` | optional `brightness` (5–100), `rotation` (0–3), `theme` (`dark`/`night`), `dim_after_s`, `leds_muted` | the settings |
+| `screenshot` | | `width`, `height`, `format` (`rgb565be`), `host_mode`, `base64` (the UI frame) |
+| `state` | | screen stack, menu position, the top screen's state, link, prompt, tracking |
+
+Menu items (`items[]`): `id`, `type` (`action`, `toggle`, `choice`,
+`number`, `text`, `info`), `label`, `value`, and by type: `options[]`;
+`min`, `max`, `step`, `unit`, `decimals`; `max_length`, `secret`; `confirm`
+(ask before an action or toggle); `hint`; `enabled`; `visible`. The panel
+changes the value at once and sends a `change` event; the host may `set` it
+back.
+
+### Sky scene (SKY1)
+
+Little-endian. Coordinates are pixels in the `sky_w` × `sky_h` view (the
+screen minus the 12 px strip and the footer), centred on the telescope.
+
+```
+"SKY1"
+u16 width, u16 height
+u8  flags            bit0: a target is given
+u8  reserved
+i16 target_x, target_y          (may be off screen: the panel draws an edge arrow)
+i16 scope_alt x10,  u16 scope_az x10
+i16 target_alt x10, u16 target_az x10
+u16 distance x100 (deg, 0xFFFF unknown), u16 field width x10 (deg)
+u16 n; n x {i16 x, i16 y, u8 radius x4, u8 brightness}          stars
+u8  n; n x {u8 style, u16 points, points x {i16 x, i16 y}}      polylines; (-32768,-32768) lifts the pen
+u8  column step (0 = none), u16 n; n x i16                       first row below the horizon per column
+u8  n; n x {i16 x, i16 y, u8 style, u8 len, len bytes}          labels (ASCII)
+u8  n; n x {i16 x, i16 y, u8 kind, u8 radius, u8 lit %, u8 sun angle, u8 len, name}   Sun, Moon, planets
+```
+
+Polyline styles: 0 constellation, 1 equatorial grid, 2 equator, 3 horizon
+grid, 4 horizon, 5 ecliptic. Label styles: 0 star, 1 constellation, 2
+cardinal, 3 equatorial, 4 horizon, 5 planet. Planet kinds: 0 Sun, 1 Moon,
+2 Mercury ... 9 Pluto. The Moon's sun angle (0–255 for 0–360°, 0 = right,
+counter-clockwise) and lit % set its phase.
+

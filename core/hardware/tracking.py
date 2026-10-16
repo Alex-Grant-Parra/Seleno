@@ -29,6 +29,25 @@ _hour_angle_updater_active = False
 # Motor initialization flag
 _motors_initialized = False
 
+# What the front panel shows: idle, slewing, centering or tracking.
+_panel_state = "idle"
+
+
+def _publish_state(state: str, **fields) -> None:
+    # Tell the front panel (utils/panel_ui.py); never let it break tracking.
+    global _panel_state
+    _panel_state = state
+    try:
+        from utils.panel_ui import tracking_update
+
+        tracking_update(state=state, **fields)
+    except Exception as exc:
+        print(f"[tracking] Front panel update failed: {exc}")
+
+
+def is_sidereal_tracking() -> bool:
+    return _tracking_active and _panel_state == "tracking"
+
 # (ra, ha) written by the last motor-position update. The mount holds a fixed
 # HA while its motor is stopped, so the next update must start from this HA
 # rather than re-deriving it from RA at the current time.
@@ -531,6 +550,10 @@ def _continuous_tracking_loop() -> None:
             
             # Update current position from actual motor movements
             _update_current_coords_from_motors()
+            now_coords = get_telescope_coords() or {}
+            if now_coords:
+                _publish_state(_panel_state, ra_now=now_coords.get('right_ascension'),
+                               dec_now=now_coords.get('declination'))
             
             # Log current coordinates periodically for debugging
             coord_update_interval += 1
@@ -630,6 +653,7 @@ def _continuous_tracking_loop() -> None:
                                     leds.set_command_busy(False)
                                     _start_ra_tracking()
                                     sidereal_tracking_active = True
+                                    _publish_state("tracking", ra_now=current_ra, dec_now=current_dec)
                                 # If we're off target but motors stopped, issue correction slew
                                 else:
                                     print(f"[tracking] ⚠ Off target - issuing fine correction slew")
@@ -637,6 +661,7 @@ def _continuous_tracking_loop() -> None:
                                     print(f"[tracking]   Dec correction: {delta_dec:.6f}° ({'NORTH/forward' if delta_dec > 0 else 'SOUTH/backward'})")
                                     # Reset motor positions to establish new baseline
                                     _reset_motor_positions(motor1, motor2)
+                                    _publish_state("centering")
                                     # Move by the current error
                                     _move_motors(delta_ha, delta_dec)
                                     waiting_logged = False  # Reset for next wait cycle
@@ -661,6 +686,7 @@ def stop_tracking(set_leds_idle: bool = True) -> None:
     if _tracking_active:
         print("[tracking] Stopping continuous tracking")
         _tracking_active = False
+        _publish_state("idle")
         
         # Wait for thread to finish
         if _tracking_thread and _tracking_thread.is_alive():
@@ -818,6 +844,12 @@ def trackCoordinates(name, ra, dec, mag):
         print(f"[tracking] Telescope not aligned. Checking again in 1 second...")
         time.sleep(1)
     print(f"[tracking] Telescope is aligned. Proceeding with tracking.")
+
+    try:
+        mag_value = float(mag)
+    except (TypeError, ValueError):
+        mag_value = None
+    _publish_state("slewing", target=str(name), ra=ra, dec=dec, mag=mag_value)
 
     # Slew, refine, and center on target
     if abs(DeltaHA) > 0.001 or abs(DeltaDec) > 0.001:

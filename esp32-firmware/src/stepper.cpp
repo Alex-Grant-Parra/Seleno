@@ -127,6 +127,7 @@ const char* motionEndName(MotionEnd reason) {
     case MotionEnd::EmergencyStop: return "estop";
     case MotionEnd::DriverFault: return "driver_fault";
     case MotionEnd::Disengaged: return "disengaged";
+    case MotionEnd::PanelStop: return "panel_stop";
     default: return "none";
   }
 }
@@ -246,6 +247,20 @@ double stepperCurrentRate(int axis) {
   return r;
 }
 
+double stepperPeakRate(int axis) {
+  if (!validAxis(axis)) {
+    return 0.0;
+  }
+  portENTER_CRITICAL_SAFE(&g_mux);
+  const Axis& a = g_axes[axis];
+  double r = 0.0;
+  if (a.running) {
+    r = a.targetRate > a.currentRate ? a.targetRate : a.currentRate;
+  }
+  portEXIT_CRITICAL_SAFE(&g_mux);
+  return r;
+}
+
 void stepperSetRamp(int axis, double accel, double startRate) {
   if (!validAxis(axis)) {
     return;
@@ -265,7 +280,8 @@ void stepperRequestStop(int axis, MotionEnd reason) {
   if (a.running) {
     // A plain stop above the pull-in rate ramps down so the motor doesn't
     // overshoot and lose steps; an emergency stop or fault is immediate.
-    if (reason == MotionEnd::Stopped && a.accel > 0.0 && a.currentRate > a.startRate) {
+    bool plainStop = reason == MotionEnd::Stopped || reason == MotionEnd::PanelStop;
+    if (plainStop && a.accel > 0.0 && a.currentRate > a.startRate) {
       a.stopping = true;
     } else {
       a.stopRequest = reason;

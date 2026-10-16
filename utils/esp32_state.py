@@ -88,6 +88,12 @@ class ESP32State:
 				attach_event_handlers(conn)
 			except Exception as exc:
 				print(f"[esp32_state] Warning: could not attach ESP32 event handlers: {exc}")
+			try:
+				from utils.panel_ui import get_panel_ui
+
+				get_panel_ui().attach(conn)
+			except Exception as exc:
+				print(f"[esp32_state] Warning: could not attach the front panel: {exc}")
 			print(f"[esp32_state] Connected to ESP32 on {conn.cfg.port} ({conn.transport})")
 		else:
 			print("[esp32_state] ESP32 connection cleared")

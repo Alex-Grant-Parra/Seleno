@@ -17,6 +17,9 @@ thread; attach() installs the app's policy for each:
 * button      Passed to handlers registered with on_button(). Nothing is
               bound by default except logging (RETURN's stop is handled on
               the ESP32 itself).
+* expander_*  The MCP23017 with the buttons dropped off the bus or came
+              back: logged loudly, since RETURN can't stop anything then.
+* ui          Front-panel menu events: handled by utils/panel_ui.py.
 
 Handlers run on the connection's event thread, so they may send commands.
 Anything slow goes to one worker thread that runs jobs in arrival order.
@@ -146,6 +149,16 @@ def _on_button(event: Dict[str, Any]) -> None:
 			print(f"[esp32_events] button handler error: {exc}")
 
 
+def _on_expander(event: Dict[str, Any]) -> None:
+	name = event.get("event")
+	if name == "expander_lost":
+		# The front-panel buttons are gone, RETURN's stop included; the Pi's
+		# own estop command still works.
+		print("[esp32_events] WARNING: front-panel I/O expander lost: buttons (and RETURN's stop) don't work")
+	else:
+		print(f"[esp32_events] Front-panel I/O expander: {name}")
+
+
 def _on_link_lost(event: Dict[str, Any]) -> None:
 	print(f"[esp32_events] Serial link to the ESP32 lost: {event.get('error')}")
 
@@ -163,6 +176,8 @@ def attach(conn) -> None:
 	conn.add_event_listener(_on_boot, "boot")
 	conn.add_event_listener(_on_button, "button")
 	conn.add_event_listener(_on_link_lost, "link_lost")
+	for name in ("expander_lost", "expander_found", "expander_reset"):
+		conn.add_event_listener(_on_expander, name)
 	conn.add_event_listener(_on_driver_event)
 	# Pick up a stop that was latched before this connection existed.
 	global _estop_active

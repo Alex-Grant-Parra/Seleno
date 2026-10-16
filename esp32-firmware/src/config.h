@@ -83,6 +83,12 @@ constexpr uint16_t kI2cTimeoutMs = 50;
 constexpr uint32_t kExpanderPowerUpMs = 250;
 
 // Buttons
+// RETURN: a single press stops host moves faster than this at once (latched
+// emergency stop; 50 full steps/s = 400 sps at 1/8, the default start
+// speed, so slews qualify and tracking/refine don't). Two presses within
+// kReturnDoublePressMs while tracking: panel stop + menu (see estop.h).
+constexpr float kReturnEstopAboveFsps = 50.0f;
+constexpr uint32_t kReturnDoublePressMs = 500;
 constexpr uint32_t kButtonDebounceMs = 15;
 constexpr uint32_t kButtonBackupPollMs = 20;
 constexpr uint32_t kIoTaskTickMs = 5;

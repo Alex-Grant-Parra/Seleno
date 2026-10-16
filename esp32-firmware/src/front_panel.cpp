@@ -89,6 +89,8 @@ uint32_t g_pressStartMs[static_cast<int>(Button::Count)] = {0};
 bool g_holdSent[static_cast<int>(Button::Count)] = {false};
 bool g_returnStopFired = false;
 uint32_t g_returnLastLowMs = 0;
+volatile ButtonListener g_listener = nullptr;
+volatile bool g_ledsMuted = false;
 int16_t g_writtenOlatA = -1;
 int16_t g_writtenOlatB = -1;
 bool g_boardLedLevel = false;
@@ -196,14 +198,15 @@ void handleButtons(uint32_t now) {
   g_rawSample = raw;
   uint16_t pressedSample = pressedFromRaw(raw);
 
-  // Emergency stop acts on the first low reading, before debouncing: a
-  // bouncing contact is still a press. The INT glitch erratum can't fake
-  // this, because the level comes from the expander's GPIO register.
+  // The RETURN stop policy acts on the first low reading, before
+  // debouncing: a bouncing contact is still a press. The INT glitch erratum
+  // can't fake this, because the level comes from the expander's GPIO
+  // register.
   if (pressedSample & kReturnBit) {
     g_returnLastLowMs = now;
     if (!g_returnStopFired) {
       g_returnStopFired = true;
-      estopTrigger("button");
+      returnButtonPressed(now);
     }
   } else if (g_returnStopFired && now - g_returnLastLowMs >= 2 * kButtonDebounceMs) {
     // Re-arm only once the contact has stayed open, so bounce on one press
@@ -219,7 +222,12 @@ void handleButtons(uint32_t now) {
     int idx = static_cast<int>(def.button);
     uint16_t bit = 1u << def.bit;
     if (changed & bit) {
-      if (stable & bit) {
+      bool pressed = (stable & bit) != 0;
+      ButtonListener listener = g_listener;
+      if (listener != nullptr) {
+        listener(def.button, pressed, now);
+      }
+      if (pressed) {
         g_pressStartMs[idx] = now;
         g_holdSent[idx] = false;
         emitButtonEvent(def.button, "press", 0, false);
@@ -247,6 +255,11 @@ void applyLeds(uint32_t now, bool force) {
     }
   }
   portEXIT_CRITICAL(&g_ledMux);
+  if (g_ledsMuted) {
+    olatA = 0;
+    olatB = 0;
+    board = false;
+  }
 
   if (board != g_boardLedLevel || force) {
     digitalWrite(PIN_BOARD_LED, board ? HIGH : LOW);
@@ -377,6 +390,10 @@ uint16_t panelPressedButtons() {
   return g_pressed;
 }
 
+void panelSetButtonListener(ButtonListener listener) {
+  g_listener = listener;
+}
+
 void panelStatusJson(JsonObject out) {
   out["expander_present"] = g_present;
   out["address"] = MCP23017_ADDR;
@@ -389,6 +406,7 @@ void panelStatusJson(JsonObject out) {
   for (int i = 0; i < static_cast<int>(Button::Count); i++) {
     buttons[buttonName(static_cast<Button>(i))] = (pressed & (1u << i)) != 0;
   }
+  out["leds_muted"] = static_cast<bool>(g_ledsMuted);
   JsonObject leds = out["leds"].to<JsonObject>();
   for (int i = 0; i < kLedCount; i++) {
     leds[kLeds[i].name] = ledState(i);
@@ -439,4 +457,12 @@ bool ledState(int led) {
   bool s = g_ledLogic[led].state;
   portEXIT_CRITICAL(&g_ledMux);
   return s;
+}
+
+void ledsSetMuted(bool muted) {
+  g_ledsMuted = muted;
+}
+
+bool ledsMuted() {
+  return g_ledsMuted;
 }

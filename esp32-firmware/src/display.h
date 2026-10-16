@@ -17,7 +17,13 @@ bool displayInit();
 bool displayInitialized();
 void displayPower(bool on);
 void displayBacklight(uint8_t brightness);
+// The host's rotation (display commands, 128x160 assets assume 0).
 void displaySetRotation(uint8_t rotation);
+uint8_t displayHostRotation();
+// Rotate the panel without changing the host's setting (the UI's own
+// orientation). The host's comes back with displayUseRotation(displayHostRotation()).
+void displayUseRotation(uint8_t rotation);
+uint8_t displayBacklightLevel();
 uint16_t displayWidth();
 uint16_t displayHeight();
 

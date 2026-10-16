@@ -8,7 +8,8 @@
 
 namespace {
 
-constexpr size_t kEventLineBytes = 256;
+// Room for UI events that carry a text value (an API key, a URL).
+constexpr size_t kEventLineBytes = 384;
 constexpr size_t kEventQueueDepth = 32;
 
 struct EventLine {
@@ -74,6 +75,7 @@ struct HostPort {
 
 HostPort g_ports[kMaxHostPorts];
 int g_portCount = 0;
+uint32_t g_lastRxMs = 0;
 
 QueueHandle_t g_eventQueue = nullptr;
 volatile uint32_t g_droppedEvents = 0;
@@ -105,18 +107,8 @@ void resetTransfer() {
 
 // Pull the "id" member out of a command line without a full parse, so even
 // a command that fails to parse can echo it. Accepts numbers and strings.
-void extractRequestId(const char* line, RequestId& out) {
-  out.json[0] = '\0';
-  const char* p = strstr(line, "\"id\"");
-  if (p == nullptr) {
-    return;
-  }
-  p += 4;
-  while (*p == ' ' || *p == '\t') p++;
-  if (*p != ':') {
-    return;
-  }
-  p++;
+// The id value starting at p (just after the ':').
+void parseIdValue(const char* p, RequestId& out) {
   while (*p == ' ' || *p == '\t') p++;
   size_t n = 0;
   if (*p == '"') {
@@ -139,6 +131,42 @@ void extractRequestId(const char* line, RequestId& out) {
     }
   }
   out.json[n] = '\0';
+}
+
+// The request's own "id": the top-level member only, since nested objects
+// (UI menu items, for one) have ids of their own.
+void extractRequestId(const char* line, RequestId& out) {
+  out.json[0] = '\0';
+  int depth = 0;
+  const char* p = line;
+  while (*p != '\0') {
+    char c = *p;
+    if (c == '"') {
+      const char* start = ++p;
+      while (*p != '\0' && *p != '"') {
+        if (*p == '\\' && p[1] != '\0') p++;
+        p++;
+      }
+      if (*p == '\0') return;
+      bool isIdKey = depth == 1 && p - start == 2 && start[0] == 'i' && start[1] == 'd';
+      p++;
+      if (isIdKey) {
+        const char* q = p;
+        while (*q == ' ' || *q == '\t') q++;
+        if (*q == ':') {
+          parseIdValue(q + 1, out);
+          return;
+        }
+      }
+      continue;
+    }
+    if (c == '{' || c == '[') {
+      depth++;
+    } else if (c == '}' || c == ']') {
+      depth--;
+    }
+    p++;
+  }
 }
 
 void pollTransferTimeout() {
@@ -195,6 +223,10 @@ bool pumpTransfer(HardwareSerial& in) {
 void pollPort(int index) {
   HostPort& port = g_ports[index];
   HardwareSerial& in = *port.serial;
+  if (in.available() > 0) {
+    uint32_t now = millis();
+    g_lastRxMs = now == 0 ? 1 : now;
+  }
 
   while (in.available() > 0) {
     if (g_transfer.kind != BinaryKind::None && g_transfer.id.port == index) {
@@ -293,6 +325,10 @@ const char* hostPortName(int port) {
 
 int hostPortCount() {
   return g_portCount;
+}
+
+uint32_t hostLastRxMs() {
+  return g_lastRxMs;
 }
 
 void hostFlushEvents() {

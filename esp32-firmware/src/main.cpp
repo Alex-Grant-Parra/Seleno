@@ -13,6 +13,7 @@
 #include "motors.h"
 #include "storage.h"
 #include "tmc_drivers.h"
+#include "ui.h"
 
 // ArduinoJson documents, the display path and LittleFS share the loop
 // task's stack; 8 KB is the default.
@@ -36,6 +37,8 @@ void setup() {
 
   panelBegin();
   imuBegin();
+  // Loading screen until the Pi says hello (see ui.h).
+  uiBegin();
 
   JsonDocument ev;
   ev["event"] = "boot";
@@ -48,6 +51,7 @@ void setup() {
     drivers.add(driverPresent(i));
   }
   ev["expander"] = panelExpanderPresent();
+  ev["ui"] = true;
   hostEmitEvent(ev);
   hostFlushEvents();
 }
@@ -56,6 +60,7 @@ void loop() {
   hostPoll();
   driversPoll();
   motorsPoll();
+  uiPoll();
   hostFlushEvents();
   // Let the idle task run (task watchdog) without adding real latency.
   delay(1);

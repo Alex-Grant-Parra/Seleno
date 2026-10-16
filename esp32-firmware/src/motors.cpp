@@ -31,6 +31,10 @@ const char* const kDefaultIds[kAxisCount] = {"motor1", "motor2"};
 
 MotorSlot g_slots[kAxisCount];
 
+MotionSource g_currentSource = MotionSource::Host;     // main loop only
+volatile MotionSource g_axisSource[kAxisCount] = {MotionSource::Host, MotionSource::Host};
+volatile bool g_hostHold = false;
+
 bool validAxis(int axis) {
   return axis >= 0 && axis < kAxisCount;
 }
@@ -51,6 +55,10 @@ bool checkCanMove(int axis, const char** error) {
   }
   if (estopLatched()) {
     if (error) *error = "Emergency stop active";
+    return false;
+  }
+  if (g_hostHold && g_currentSource == MotionSource::Host) {
+    if (error) *error = "Stopped from the front panel (waiting for ui ack_stop)";
     return false;
   }
   if (!driverEnabled(axis)) {
@@ -139,6 +147,8 @@ bool startMove(int axis, double delta256, const char** error) {
   if (pulses == 0) {
     return true;  // less than one pulse: nothing to do
   }
+  // Tag before starting, so the panel task never sees the move untagged.
+  g_axisSource[axis] = g_currentSource;
   if (!stepperStart(axis, pulses, delta256 > 0, 0.0)) {
     if (error) *error = "Motor is already moving";
     return false;
@@ -313,6 +323,7 @@ bool motorStartContinuous(int axis, bool forward, const char** error) {
   if (!checkCanMove(axis, error) || !prepareMove(axis, -1.0, error)) {
     return false;
   }
+  g_axisSource[axis] = g_currentSource;
   if (!stepperStart(axis, -1, forward, 0.0)) {
     if (error) *error = "Motor is already moving";
     return false;
@@ -477,6 +488,54 @@ void motorStatusJson(int axis, JsonObject out) {
   out["chopper"] = chopperModeName(drv.chopper);
   out["chopper_threshold_fsps"] = drv.chopperThresholdFsps;
   out["driver_present"] = driverPresent(axis);
+  out["source"] = motionSourceName(g_axisSource[axis]);
+}
+
+const char* motionSourceName(MotionSource source) {
+  return source == MotionSource::Panel ? "panel" : "host";
+}
+
+MotionSource motorMotionSource(int axis) {
+  return validAxis(axis) ? g_axisSource[axis] : MotionSource::Host;
+}
+
+PanelMotionScope::PanelMotionScope() : previous_(g_currentSource) {
+  g_currentSource = MotionSource::Panel;
+}
+
+PanelMotionScope::~PanelMotionScope() {
+  g_currentSource = previous_;
+}
+
+double motorsHostMotionFsps(bool* anyMoving) {
+  double fastest = 0.0;
+  bool moving = false;
+  for (int i = 0; i < kAxisCount; i++) {
+    if (g_axisSource[i] != MotionSource::Host) {
+      continue;
+    }
+    double pulsesPerSecond = stepperPeakRate(i);
+    if (pulsesPerSecond <= 0.0) {
+      continue;
+    }
+    moving = true;
+    double fsps = pulsesPerSecond * stepperPulseSize(i) / 256.0;
+    if (fsps > fastest) {
+      fastest = fsps;
+    }
+  }
+  if (anyMoving != nullptr) {
+    *anyMoving = moving;
+  }
+  return fastest;
+}
+
+void motorsSetHostHold(bool held) {
+  g_hostHold = held;
+}
+
+bool motorsHostHold() {
+  return g_hostHold;
 }
 
 void motorsPoll() {
@@ -490,6 +549,7 @@ void motorsPoll() {
     ev["motor"] = motorIdForAxis(i) != nullptr ? motorIdForAxis(i) : "";
     ev["axis"] = i;
     ev["reason"] = motionEndName(end);
+    ev["source"] = motionSourceName(g_axisSource[i]);
     ev["position"] = motorPosition(i);
     ev["position_fine"] = motorPosition256(i);
     hostEmitEvent(ev);

@@ -522,6 +522,45 @@ class ESP32Connection:
 	def imu_enable(self, on: bool = True) -> Dict[str, Any]:
 		return self.send({"cmd": "imu", "action": "enable" if on else "disable"})
 
+	# --- front-panel UI (PROTOCOL.md, "Front-panel UI") -----------------------
+
+	def ui(self, action: str, timeout: Optional[float] = None, **fields: Any) -> Dict[str, Any]:
+		"""{"cmd":"ui","action":action, **fields}; returns the reply's data."""
+		payload: Dict[str, Any] = {"cmd": "ui", "action": action}
+		payload.update(fields)
+		return self.send(payload, timeout=timeout)
+
+	def ui_key(self, key: str, press: str = "click") -> Dict[str, Any]:
+		"""Press a front-panel key as if by hand: press is click, down, up or long."""
+		return self.ui("key", key=key, press=press)
+
+	def ui_state(self) -> Dict[str, Any]:
+		return self.ui("state")
+
+	def ui_sky(self, scene: bytes) -> Dict[str, Any]:
+		"""Send a SKY1 sky scene (utils/sky_view.py) for the tracking screen."""
+		return self.send_binary({"cmd": "ui", "action": "sky", "length": len(scene)}, scene, timeout=3.0)
+
+	def ui_screenshot(self):
+		"""The UI's frame as a PIL RGB image (what the LCD shows unless the
+		host is drawing on it directly)."""
+		import base64
+
+		from PIL import Image
+
+		data = self.ui("screenshot", timeout=15.0)
+		width, height = int(data["width"]), int(data["height"])
+		raw = base64.b64decode(data["base64"])
+		if len(raw) != width * height * 2:
+			raise ESP32Error(f"screenshot has {len(raw)} bytes, expected {width * height * 2}", data)
+		rgb = bytearray(width * height * 3)
+		for i in range(width * height):
+			v = (raw[2 * i] << 8) | raw[2 * i + 1]  # RGB565, high byte first
+			rgb[3 * i] = ((v >> 11) & 0x1F) * 255 // 31
+			rgb[3 * i + 1] = ((v >> 5) & 0x3F) * 255 // 63
+			rgb[3 * i + 2] = (v & 0x1F) * 255 // 31
+		return Image.frombytes("RGB", (width, height), bytes(rgb))
+
 	# --- display storage ------------------------------------------------------
 
 	def upload_display_file(self, name: str, data: bytes, timeout: Optional[float] = None) -> Dict[str, Any]:

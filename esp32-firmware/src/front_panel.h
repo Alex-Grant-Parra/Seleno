@@ -18,6 +18,10 @@ bool panelExpanderPresent();
 bool panelReinit();
 // Bit n set = Button(n) held, after debouncing.
 uint16_t panelPressedButtons();
+// Called from the panel task on every debounced press and release (the UI
+// queues these). Keep it short and non-blocking.
+using ButtonListener = void (*)(Button button, bool pressed, uint32_t atMs);
+void panelSetButtonListener(ButtonListener listener);
 void panelStatusJson(JsonObject out);
 
 // LEDs: "board", "yellow", "blue", "white", "green", "red".
@@ -28,3 +32,6 @@ void ledSet(int led, bool on);
 void ledToggle(int led);
 void ledBlink(int led, uint32_t intervalMs, uint32_t autoOffMs);
 bool ledState(int led);
+// Muted LEDs keep their state but stay dark (night use).
+void ledsSetMuted(bool muted);
+bool ledsMuted();

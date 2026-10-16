@@ -75,5 +75,33 @@ double motorStartSpeed(int axis);
 
 void motorStatusJson(int axis, JsonObject out);
 
+// Who started a move. The front-panel UI's moves are Panel moves; host
+// commands start Host moves. Only the main loop task starts moves.
+enum class MotionSource : uint8_t { Host, Panel };
+const char* motionSourceName(MotionSource source);
+MotionSource motorMotionSource(int axis);
+
+// Moves started while one of these is alive count as Panel moves.
+class PanelMotionScope {
+ public:
+  PanelMotionScope();
+  ~PanelMotionScope();
+  PanelMotionScope(const PanelMotionScope&) = delete;
+  PanelMotionScope& operator=(const PanelMotionScope&) = delete;
+
+ private:
+  MotionSource previous_;
+};
+
+// The fastest Host move running now, in full steps per second (cruise or
+// instantaneous, whichever is higher); 0 when no Host move is running.
+// *anyMoving says whether any Host move runs at all. Safe from any task.
+double motorsHostMotionFsps(bool* anyMoving);
+
+// While held, new Host moves are refused (Panel moves still run). Set by
+// the front panel's double-RETURN stop until the host acknowledges it.
+void motorsSetHostHold(bool held);
+bool motorsHostHold();
+
 // Emits motion_done events. Call from loop().
 void motorsPoll();

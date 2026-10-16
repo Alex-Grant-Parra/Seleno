@@ -33,6 +33,43 @@ SERVER_URI = None
 LIVEVIEW_URI = None
 SERVER_HTTP_URL = None
 
+# Server link state for the front panel: "starting", "connecting",
+# "connected", "unreachable", "auth failed" or "disconnected".
+server_state = {"state": "starting", "detail": ""}
+_loop = None
+_open_sockets: set = set()
+
+
+def _set_server_state(state: str, detail: str = "") -> None:
+    server_state["state"] = state
+    server_state["detail"] = detail
+
+
+def apply_client_config(cfg: dict) -> None:
+    # Use new settings (from the front panel) without restarting: update the
+    # globals the connect loops read, then drop the open connections so they
+    # reconnect with them.
+    global CLIENT_ID, SERVER_URI, LIVEVIEW_URI, SERVER_HTTP_URL, API_TOKEN
+    CLIENT_ID = cfg.get("client_id") or CLIENT_ID
+    API_TOKEN = cfg.get("api_token") or API_TOKEN
+    if cfg.get("base_url"):
+        urls = build_service_urls(cfg["base_url"])
+        SERVER_HTTP_URL = urls["http_url"]
+        SERVER_URI = urls["server_uri"]
+        LIVEVIEW_URI = urls["liveview_uri"]
+    request_reconnect()
+
+
+def request_reconnect() -> None:
+    loop = _loop
+    if loop is None:
+        return
+    for ws in list(_open_sockets):
+        try:
+            asyncio.run_coroutine_threadsafe(ws.close(), loop)
+        except Exception:
+            pass
+
 def load_config(allow_missing: bool = False):
     # Load client configuration from static state.
     try:
@@ -142,9 +179,13 @@ async def run_client():
         ws = None
         try:
             print(f"[run_client] Connecting to {SERVER_URI} at {datetime.now()}...")
+            _set_server_state("connecting", SERVER_URI or "")
             ws = await websockets.connect(SERVER_URI, ping_interval=20, ping_timeout=10)
+            _open_sockets.add(ws)
             print(f"[{CLIENT_ID}] Connected to {SERVER_URI} at {datetime.now()}")
+            _set_server_state("connected", SERVER_URI or "")
             await handle_server(ws)
+            _set_server_state("disconnected", "closed by the server")
                 
         except Exception as e:
             error_type = type(e).__name__
@@ -152,6 +193,12 @@ async def run_client():
             connection_duration = time.time() - connection_start_time
             
             # Provide more specific error information but suppress verbose details
+            if 'authentication' in error_msg.lower() or 'unauthorized' in error_msg.lower() or '401' in error_msg or '403' in error_msg:
+                _set_server_state("auth failed", error_msg[:60])
+            elif 'ConnectionClosed' in error_type:
+                _set_server_state("disconnected", error_msg[:60])
+            else:
+                _set_server_state("unreachable", f"{error_type}: {error_msg}"[:60])
             if 'ConnectionClosed' in error_type or 'ConnectionClosedError' in error_type:
                 print(f"[run_client] WebSocket connection closed at {datetime.now()}")
             elif 'ConnectionRefused' in error_type:
@@ -172,6 +219,7 @@ async def run_client():
             
         finally:
             # Ensure proper cleanup
+            _open_sockets.discard(ws)
             if ws and ws.close_code is None:
                 try:
                     await asyncio.wait_for(ws.close(), timeout=2.0)
@@ -313,6 +361,7 @@ async def send_frames():
         try:
             print(f"[send_frames] Connecting to {LIVEVIEW_URI} at {datetime.now()}...")
             ws = await websockets.connect(LIVEVIEW_URI, max_size=2*1024*1024, ping_interval=20, ping_timeout=10)
+            _open_sockets.add(ws)
             print(f"[send_frames] Connected successfully at {datetime.now()}")
             # Send authentication as first message
             await authenticate_liveview(ws)
@@ -560,6 +609,7 @@ async def send_frames():
                         pass
                 proc = None
             
+            _open_sockets.discard(ws)
             if ws and ws.close_code is None:
                 try:
                     await asyncio.wait_for(ws.close(), timeout=2.0)
@@ -634,7 +684,8 @@ async def websocketClient(cfg: dict = None):
         raise KeyError(f"Missing required values in config/client_profile.json: {', '.join(missing)}. Run 'python Client.py setup' to create or fix the config.")
 
     # Export values to module-level globals used by other functions
-    global CLIENT_ID, SERVER_URI, LIVEVIEW_URI, SERVER_HTTP_URL, API_TOKEN
+    global CLIENT_ID, SERVER_URI, LIVEVIEW_URI, SERVER_HTTP_URL, API_TOKEN, _loop
+    _loop = asyncio.get_running_loop()
 
     CLIENT_ID = cfg["client_id"]
     API_TOKEN = cfg["api_token"]

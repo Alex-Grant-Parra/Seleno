@@ -150,23 +150,27 @@ class Checks:
 			self.conn.clear_estop()
 
 	def estop(self) -> None:
-		print("\n== Emergency stop on RETURN ==")
+		# RETURN's two jobs (see esp32-firmware/src/estop.h): one press during a
+		# slew is the latched emergency stop; two quick presses while tracking
+		# stop the motors and hold the Pi's moves until it acknowledges.
+		print("\n== Emergency stop on RETURN (slewing) ==")
 		m = ESP32Motor(self.conn, "motor1")
 		started = False
 		try:
 			m.engage()
-			m.set_speed_sps(200)
+			m.set_speed_sps(1200)  # over the 50 full steps/s slew threshold
 			m.start_continuous()
 			started = True
 		except ESP32Error as exc:
-			print(f"  (motor1 can't run: {exc.error_message}; testing the latch alone)")
-		print("  Press RETURN now.")
-		ev = self.conn.wait_for_event("estop", timeout=30.0, predicate=lambda e: e.get("active"))
-		self.record("estop event from the button", ev is not None and ev.get("source") == "button", str(ev))
+			print(f"  (motor1 can't run: {exc.error_message}; testing the latch from the host instead)")
 		if started:
-			done = self.conn.wait_for_event("motion_done", timeout=1.0)
-			moving = m.status().get("moving")
-			self.record("motor stopped by the estop", not moving, str(done))
+			print("  Press RETURN once now.")
+			ev = self.conn.wait_for_event("estop", timeout=30.0, predicate=lambda e: e.get("active"))
+			self.record("estop event from the button", ev is not None and ev.get("source") == "button", str(ev))
+			self.conn.wait_for_event("motion_done", timeout=1.0)
+			self.record("motor stopped by the estop", not m.status().get("moving"))
+		else:
+			self.conn.estop()
 		try:
 			m.move_steps(10)
 			self.record("motion refused while latched", False)
@@ -174,6 +178,28 @@ class Checks:
 			self.record("motion refused while latched", "Emergency stop" in exc.error_message)
 		self.conn.clear_estop()
 		self.record("estop clears", not self.conn.estop_status().get("active"))
+
+		print("\n== RETURN twice while tracking ==")
+		try:
+			m.set_speed_sps(7)  # about sidereal at 360:1
+			m.start_continuous()
+		except ESP32Error as exc:
+			self.record("tracking-speed move starts", False, exc.error_message)
+			return
+		self.conn.ui("tracking", state="tracking", target="Bring-up")
+		print("  The panel shows the tracking screen. Press RETURN twice, quickly.")
+		ev = self.conn.wait_for_event("ui", timeout=30.0, predicate=lambda e: e.get("type") == "stop")
+		self.record("panel stop event", ev is not None, str(ev))
+		time.sleep(0.3)
+		self.record("motor stopped", not m.status().get("moving"))
+		self.record("panel back at the menu", self.conn.ui_state().get("screen") == "menu")
+		try:
+			m.move_steps(10)
+			self.record("host moves held until acknowledged", False)
+		except ESP32Error as exc:
+			self.record("host moves held until acknowledged", "front panel" in exc.error_message)
+		self.conn.ui("ack_stop")
+		self.conn.ui("tracking", state="idle")
 		try:
 			m.disengage()
 		except ESP32Error:
@@ -194,6 +220,9 @@ class Checks:
 			display.set_backlight(level)
 			time.sleep(0.4)
 		self.record("backlight PWM", self.ask("Did the backlight dim and come back?"))
+		# Drawing took the screen from the front-panel UI; hand it back.
+		self.conn.ui("mode", mode="menu")
+		self.record("menu UI back", self.ask("Is the SELENO menu on the screen again?"))
 
 	def imu(self, seconds: float = 5.0) -> None:
 		print("\n== IMU (BNO085 on J3) ==")

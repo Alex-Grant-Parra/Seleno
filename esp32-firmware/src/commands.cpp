@@ -14,6 +14,7 @@
 #include "motors.h"
 #include "storage.h"
 #include "tmc_drivers.h"
+#include "ui.h"
 
 namespace {
 
@@ -194,6 +195,10 @@ void handleHost(JsonDocument& req) {
 }
 
 void handleLed(JsonDocument& req) {
+  if (uiLedTestActive()) {
+    hostSendError("LED test running on the front panel");
+    return;
+  }
   const char* name = req["led"] | "board";
   int led = ledFind(name);
   if (led < 0) {
@@ -250,6 +255,7 @@ void handleCommandLine(char* line, size_t len) {
   if (strcmp(cmd, "imu") == 0) return handleImu(req);
   if (strcmp(cmd, "led") == 0) return handleLed(req);
   if (strcmp(cmd, "host") == 0) return handleHost(req);
+  if (strcmp(cmd, "ui") == 0) return uiHandleCommand(req);
 
   if (handleDisplayCommand(cmd, req)) return;
   if (handleMotorCommand(cmd, req)) return;

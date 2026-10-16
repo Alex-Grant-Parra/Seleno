@@ -424,3 +424,291 @@ Design (supersedes the earlier "set_microsteps rescales the position"):
 - Hardware-dependent and still unverified: whether the motors (with the
   mount's load) can actually reach these speeds/accelerations in SpreadCycle
   at 12 V. Tune with `set_accel` / slew_speed_sps after `bringup profile`.
+- 03:00: Committed `9750334` "Add automatic microsteps, chopper mode and
+  acceleration ramps". Answered Alex's BNO085-on-I2C questions (it should
+  work; 100 kHz + SDA-only pull-up are the mitigations; nothing changed yet).
+
+## Feature: front-panel menu UI (Alex, 2026-10-16)
+
+Alex's request, verbatim points:
+- First power on: while the Pi boots and until there is a stable Pi<->ESP32
+  connection, show a loading screen ("SELENO" is enough for now).
+- Once connected: a menu. On first run it must let you set the **domain,
+  API key and device name**; on later runs they can be changed in a config
+  panel. Pi-side these are `client_config.base_url`, `api_token`,
+  `client_id` in `config/client_profile.json` (Client.py used to exit 78
+  when missing).
+- Small **on-screen keyboard** driven by the pad: 4 directions, enter
+  (SELECT), return.
+- Must be able to **test all functions of the board** from the menu.
+- **Easy to add panels/options.** Panels are horizontal tabs at the top;
+  selecting one shows its options.
+- **RETURN pressed twice quickly while tracking: back to the menu and stop
+  tracking, without needing the Pi.**
+- Add other useful features.
+
+Design:
+- The UI runs **on the ESP32** in the main loop (`uiPoll()` from loop()), so
+  the display, TMC UART and motor calls stay single-threaded. It renders into
+  a full-frame 16-bit LovyanGFX sprite (40 KB; heap free was 275 KB) and
+  pushes it. Files: `src/ui*.cpp/h` (flat, like commands_*.cpp).
+- Two sources of panels, both shown as tabs sorted by `order`:
+  1. **Local (C++)** panels built in `ui_panels.cpp` with a small builder
+     (action/toggle/choice/number/text/info/screen items): Motors, Test,
+     Display, About.
+  2. **Pi panels** sent as JSON with `{"cmd":"ui","action":"menu",...}` and
+     defined declaratively in Python (`utils/panel_menu.py`): Scope, Setup,
+     Pi/System. Changes/actions come back as `{"event":"ui",...}`.
+- Link: the Pi sends `ui hello` when it opens the port (and after an ESP32
+  `boot` event), then `ui status` every 2 s. Loading screen until hello.
+  No host bytes for 6 s => "Pi offline" (status bar), Pi panels greyed.
+  Hold SELECT on the loading screen => offline menu (board tests without Pi).
+- First run: Pi-driven wizard using `ui prompt` (text/confirm/message);
+  Client.py waits for a complete config instead of exiting 78.
+- **RETURN semantics** (panel task, independent of the main loop):
+  * Host motion faster than 50 full steps/s (a slew): single RETURN press =
+    latched E-stop, as before.
+  * Host motion slower (tracking/refine) and the UI is not in a navigation
+    screen: RETURN twice within 500 ms = "panel stop": stop all motors,
+    set a **motion hold** that refuses *host* motion commands until the Pi
+    acks (`ui ack_stop`), emit `{"event":"ui","type":"stop"}`, UI -> menu.
+    Works with the Pi offline; the hello reply reports a pending stop.
+  * Otherwise RETURN is the menu's back key.
+  Motion is tagged with its source (Host vs Panel); UI tests are Panel.
+- Host display commands that draw put the UI in "host display" mode (UI
+  stops drawing) until RETURN or `ui mode`. UI rotation is separate from
+  the host's (assets are 128x160 portrait).
+- Extras: night (red) theme, brightness, auto-dim, LED mute, screenshots
+  over serial (`ui screenshot`, used to check the UI on the screenless
+  devkit), key injection (`ui key`), tracking screen, self-test, Pi
+  reboot/shutdown/restart-client actions, IP/Wi-Fi/server status.
+
+### Handoff: menu UI status (2026-10-16, session ended at Alex's request)
+
+**State:** firmware side written; **builds clean** for `devkit` and `seleno_v08`
+(no warnings; RAM 12 %, flash 50 %). **Not flashed and not run yet.** Alex
+rejected the flash at the end of the session because his usage limit was
+nearly used up, not because of a problem. Flashing the devkit is still
+allowed. **Nothing is committed** (branch `firmware/v0.8`, last commit
+`9750334`). The Pi side has **not been started**.
+
+New firmware files (`esp32-firmware/src/`):
+- `ui.h`: outside API (`uiBegin`, `uiPoll`, `uiHandleCommand`,
+  `uiHostDrawing`, `uiLedTestActive`).
+- `ui_internal.h`: Screen base class (key/tick/draw/refreshMs/
+  returnNavigates/footerHint/stateJson), Key/KeyEvent, Theme, fonts,
+  Settings (NVS "ui"), link state, drawing helpers.
+- `ui_core.cpp`: screen stack, key queue from the panel task plus injected
+  keys, repeat/long press, double RETURN flag, auto-dim, Pi link state
+  (hello / 6 s timeout), status values and clock, host-display mode, render
+  loop into a 16-bit 128x160 sprite, panel-stop notice -> menu.
+- `ui_menu.h/.cpp`: MenuItem/MenuPanel model, `PanelBuilder` (`addPanel`),
+  Pi panels from JSON (`setRemotePanels`, `setRemoteValues`,
+  `updateRemoteItem`), and MenuScreen. Tabs focus first; DOWN/SELECT enter
+  the list; UP from the top item or RETURN goes back to the tabs. LEFT/RIGHT
+  adjust toggle/choice/number items. SELECT: run / flip / choice list /
+  number edit mode / keyboard / open screen; on an info item it shows the
+  full text. RETURN on the tabs pops back to tracking if the menu was opened
+  over it.
+- `ui_keyboard.cpp`: QWERTY plus symbols layers, a special row (shift with
+  caps lock, #+, cursor left/right, space, delete, OK); hold SELECT = OK;
+  RETURN = cancel, asking to discard if the text changed.
+- `ui_screens.h/.cpp`: loading screen (moon + "SELENO", hold SELECT = offline
+  menu), tracking screen (double RETURN = `panelStopTrigger` + menu; hold
+  SELECT = menu over tracking), confirm / message (busy spinner, timeout) /
+  choice dialogs, `showMenu` / `showTracking` (deferred while a sub-screen
+  is open).
+- `ui_host.cpp`: `{"cmd":"ui","action":...}`. Actions: hello, status, menu,
+  set, prompt (field `prompt` = its id; kinds text, confirm, message, busy,
+  choice; queued if the dialog is busy locally), close_prompt, toast, mode,
+  tracking, loading, show, key (`key` + `press`: click/down/up/long),
+  ack_stop, settings, screenshot (base64 rgb565be; byte order not yet
+  verified), state.
+- `ui_tests.h/.cpp`: Jog (hold LEFT/RIGHT), driver status, self test,
+  buttons, LEDs (host LED commands refused while it runs), display patterns
+  (bars / edges for the panel offsets / gradients / solid colours / fonts),
+  IMU, I2C scan, Pi link. `panelMove()` offers to release the E-stop and
+  auto-engages the driver.
+- `ui_panels.cpp`: firmware tabs Motors(30), Test(40), Display(60),
+  About(90). The Pi will send Scope(10), Setup(20), Pi(70).
+- `ui_draw.cpp`: helpers. LovyanGFX `drawString` skips characters < 0x20, so
+  footer key icons (\x07 SELECT, \x1b RETURN, \x10/\x11/\x1e/\x1f arrows)
+  go through `drawIconText`.
+- `ui_dialogs.h`, `display_device.h`.
+
+Changed firmware:
+- `motors`: `MotionSource` Host/Panel, `PanelMotionScope`,
+  `motorsHostMotionFsps`, host hold (refuses Host moves);
+  status/motion_done carry `source`.
+- `stepper`: `MotionEnd::PanelStop` ("panel_stop", ramps like Stopped),
+  `stepperPeakRate`.
+- `estop`: `panelStopTrigger` / `panelStopPending` / `panelStopAcknowledge` /
+  `panelStopCount`, `returnButtonPressed` (single press when host motion is
+  > `kReturnEstopAboveFsps` 50 = E-stop; double press within 500 ms with
+  slow host motion and the UI not navigating = panel stop),
+  `returnButtonSetNavigates`.
+- `front_panel`: RETURN calls `returnButtonPressed` instead of
+  `estopTrigger`; button listener for the UI; `ledsSetMuted`.
+- `host_link`: `hostLastRxMs`; event lines 384 bytes.
+- `display`: `displayUseRotation` / `displayHostRotation` /
+  `displayBacklightLevel` / `displayDevice`.
+- `commands`: `ui` dispatch; LED commands refused during the LED test.
+- `commands_display`: drawing actions call `uiHostDrawing()`.
+- `main`: `uiBegin()` after imuBegin, `uiPoll()` in loop, boot event
+  `"ui":true`.
+- `config.h`: `kReturnEstopAboveFsps`, `kReturnDoublePressMs`.
+- **Behaviour change:** a single RETURN no longer E-stops unless a host
+  move is slewing. Update `esp32/bringup.py`'s estop check accordingly.
+
+**Next steps, in order:**
+1. Flash the devkit (`pio run -e devkit -t upload --upload-port
+   /dev/ttyUSB0`; check `fuser /dev/ttyUSB0` first). Check that it boots and
+   the `boot` event has `"ui":true`.
+2. Add Python helpers: ESP32Connection `ui(...)`, plus a small CLI
+   (`esp32/panel_cli.py`: screenshot to PNG via Pillow, key, state). Take
+   screenshots and inspect them with the Read tool: loading screen, then
+   `ui hello`, menu tabs, each test screen, keyboard, dialogs, tracking
+   (`ui tracking state=tracking`). Fix the layout at 128x160 and check the
+   screenshot byte order.
+3. Test the logic with injected keys and `ui state`:
+   - menu navigation and the keyboard;
+   - Pi prompts and their result events;
+   - double RETURN on the tracking screen with a host `start_continuous`
+     running: the motor stops, `ui stop` event, host moves refused until
+     `ack_stop`;
+   - a single injected RETURN during a fast host move must E-stop.
+4. Pi side (not started):
+   - `utils/panel_menu.py`: declarative Pi panels. Setup: client_id "Device
+     name", base_url "Server", api_token "API key" (secret). Scope: status,
+     stop tracking, live view. Pi: IP, Wi-Fi, server state, restart client
+     (os.execv; client.service runs Client.py inside `screen`,
+     Restart=on-failure), reboot/shutdown (`sudo -n`, show an error if not
+     allowed).
+   - `utils/panel_ui.py`:
+     - hello and the menu on connect and on the `boot` event;
+     - `ui status` every 2 s with `clock_s` (local seconds since midnight),
+       ip, server, and changed values via `set`;
+     - handle `ui` change/action/prompt/stop events: on stop, run
+       stop_tracking() then `ack_stop`, also when hello reports
+       `panel_stop_pending`;
+     - first-run wizard with prompts.
+   - Hook it in `utils/esp32_state.set_connection`.
+   - `Client.py`: wait for a complete config instead of exiting 78.
+   - `websocket.py`: reconnect with the new globals after a config change.
+   - `tracking.py`: send `ui tracking` (slewing, tracking with target/ra/dec,
+     stopped).
+   - `esp32_events`: note `expander_lost`.
+   - Add pty tests.
+5. Document `ui` in `PROTOCOL.md`. Update this log. Commit only when Alex
+   asks.
+
+Ideas not done: a phone/web setup page for the API key (typing it on the pad
+is slow); I2C 100 kHz for the BNO085 (still only proposed).
+
+### Menu UI: continued (2026-10-16, after the handoff above)
+
+**Done and tested on the devkit** (flashed; seleno_v08 also builds, no
+warnings; RAM 12 %, flash 51.5 %; heap free about 211 KB with the sky view
+running):
+- Fixed: `extractRequestId` (host_link.cpp) took the first `"id"` in the
+  line, so `ui menu` replies echoed a menu item's id and never matched. Now
+  it takes only the top-level key.
+- Screenshots verified for: loading screen, menu tabs/list, keyboard, the
+  confirm/busy/message dialogs, Pi tabs, the wizard and the sky view (byte
+  order is rgb565be). Tools:
+  - `python -m esp32.panel_cli state|shot out.png|key ...|send '{...}'`;
+  - `ESP32Connection.ui()`, `ui_key()`, `ui_state()`, `ui_screenshot()`,
+    `ui_sky()`.
+- RETURN policy, tested with real host moves:
+  - double RETURN on the tracking screen stops the motor, shows the menu,
+    sends `ui stop`, and refuses host moves until `ack_stop`;
+  - double RETURN in the menu only navigates;
+  - a single RETURN during a 2000 sps slew latches the E-stop (source
+    button);
+  - panel jogs (source panel) are not held.
+
+**Tracking view = sky view.** Alex asked for it to look like the server's
+star map (Seleno repo, branch `Server/canary`, `static/js/star_map`), plus
+these ideas:
+- polar radar (his top pick);
+- lock-on reticle;
+- star field;
+- axis arcs;
+- Moon motif;
+- text strip.
+
+All API calls are made on the Pi. The domain is `client_config.base_url`;
+never hard-code seleno.org. Endpoints:
+- `api/stars?maxMag=5&include_planets=true` (1544 stars + 10 Sun/Moon/planets);
+- `api/star_names` (HD id -> name, 572);
+- `api/constellations` (24 figures: id, name, anchor, line segments);
+- `api/planets` (now; about 2 KB).
+
+Design:
+- `utils/sky_data.py` fetches and caches to `config/sky_cache.json`
+  (catalogue weekly, planets every 10 min; works offline from the cache).
+- `utils/sky_view.py` is a port of the star map's maths: GMST/LST,
+  eq->horizon matrix, horizon-level camera with rotX = alt and rotY = az,
+  centred on the scope, stereographic projection with k2 = (w/2)/tan(fov/4).
+  The star map's sizes, magnitude/zoom link and colours are scaled to the
+  LCD; labels use an occupancy grid, keep clear of the reticle, radar and
+  field-width label, and non-ASCII names are transliterated.
+- It encodes a binary SKY1 scene (format in PROTOCOL.md), sent with
+  `ui sky` + bytes; it's 5-7 KB, takes about 100 ms to send and 15-110 ms
+  to build.
+- `ui_sky.cpp` draws:
+  - the scene: tint, grids, figures (AA lines), stars and planets, with the
+    Moon phased from the Pi's illumination and its bright limb toward the
+    Sun;
+  - plus overlays: top strip (target, distance, ETA from the motors' remaining
+    pulses; LOCK + elapsed when tracking), green reticle, amber lock rings that
+    shrink with the error (green and one pulse at lock), an edge arrow for an
+    off-screen target, RA/Dec progress arcs, a radar inset (N up, E left,
+    fading trail), and the field width;
+  - SELECT toggles a details page, LEFT/RIGHT zoom (an event to the Pi),
+    UP/DOWN toggle the radar, hold SELECT opens the menu over tracking, and
+    double RETURN stops.
+  The night theme turns everything red.
+- Pi tabs (`utils/panel_menu.py`, declarative: Info/Action/Toggle/Choice/
+  Number/Text):
+  - Scope: status, Sky view, Stop tracking, Live view, camera, site.
+  - Sky: field, horizon/equatorial grids, ecliptic, constellations and
+    names, star names, planets, below-horizon; saved under `sky_view` in
+    config/client_config.json.
+  - Setup: device name, server, API key, status, Run setup again.
+  - Pi: IP, Wi-Fi, hostname, server, uptime, restart client (os.execv),
+    reboot/shutdown (`sudo -n systemctl`, which needs passwordless sudo).
+- `utils/panel_ui.py`:
+  - hello on connect and on `boot`, a 2 s status heartbeat, and value
+    diffs;
+  - events: change/action/prompt/stop (deduped, then stop_tracking +
+    ack_stop)/sky zoom;
+  - prompts and the first-run wizard (welcome, name, server, key, confirm
+    defaulting to Save, connecting, result; cancel asks "Leave setup?");
+  - the sky loop: 1 s while slewing, 5 s otherwise, only while the panel
+    shows it.
+  It's attached from `esp32_state.set_connection`.
+- Hooks:
+  - `tracking.py` publishes slewing/centering/tracking/idle and the live
+    pointing (`_publish_state`, `is_sidereal_tracking`);
+  - `websocket.py` has `server_state`, `apply_client_config()` and
+    `request_reconnect()`, so new settings apply without a restart;
+  - `Client.py` waits for a complete config (panel, file or `Client.py
+    setup`) instead of exiting 78;
+  - `esp32_events` logs `expander_lost`, and the panel toasts it;
+  - `bringup.py`'s estop check covers both RETURN behaviours, and its lcd
+    check hands the screen back to the menu.
+- Tests:
+  - new `esp32/tests/test_panel_ui.py` (15 tests: sky maths/encoding
+    round-trip with a SKY1 decoder that mirrors ui_sky.cpp, and PanelUI
+    against a fake connection with temporary config files) passes;
+  - the old pty tests pass (12/12).
+- PROTOCOL.md: the RETURN policy, the panel stop, the UI commands and the
+  SKY1 format.
+
+**Not done or not verified:**
+- Client.py hasn't been run end to end against the real server; panel_ui
+  was tested with the devkit plus a harness.
+- Real buttons, LCD colours and orientation, and the backlight need the
+  board.
+- Nothing is committed yet (branch `firmware/v0.8`).

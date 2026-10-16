@@ -9,6 +9,8 @@
 #include "host_link.h"
 #include "logic/color.h"
 #include "storage.h"
+#include "ui.h"
+#include "ui_sky.h"
 
 namespace {
 
@@ -313,6 +315,19 @@ bool handleDisplayCommand(const char* cmd, JsonDocument& req) {
     return true;
   }
 
+  // Anything that draws takes the screen from the front-panel UI until
+  // RETURN or a ui command hands it back.
+  static const char* const kNonDrawing[] = {"status",     "format_storage", "storage_info", "list_files",
+                                            "delete_file", "store_begin",   "store",        "init",
+                                            "power",       "backlight"};
+  bool draws = true;
+  for (const char* a : kNonDrawing) {
+    if (strcmp(action, a) == 0) draws = false;
+  }
+  if (draws) {
+    uiHostDrawing();
+  }
+
   // Storage actions work without the panel.
   if (strcmp(action, "status") == 0) {
     sendStatus();
@@ -447,6 +462,9 @@ void onBinaryComplete(BinaryTransfer& t) {
       hostSendOkFor(t.id);
       break;
     }
+    case BinaryKind::SkyScene:
+      uiSkySceneComplete(t);
+      break;
     case BinaryKind::FileUpload:
       if (storageWriteFile(t.name, t.buffer, t.total)) {
         hostSendOkFor(t.id);

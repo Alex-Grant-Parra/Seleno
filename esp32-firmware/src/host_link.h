@@ -45,6 +45,8 @@ const char* hostPortName(int port);
 void hostSetTxPacing(uint16_t chunkBytes, uint16_t gapUs);
 void hostTxPacing(uint16_t& chunkBytes, uint16_t& gapUs);
 int hostPortCount();
+// millis() of the last byte received on any host port (0 = never).
+uint32_t hostLastRxMs();
 
 // Responses to the current command.
 void hostSendOk();
@@ -75,6 +77,7 @@ enum class BinaryKind : uint8_t {
   BlitStream,    // RGB565 straight to the panel in chunks (low-memory fallback)
   BlitZlib,      // zlib-compressed RGB565: buffer, inflate, then one write
   FileUpload,    // bytes into RAM, then written to LittleFS
+  SkyScene,      // a projected sky scene for the UI (ui_sky.h)
 };
 
 struct BinaryTransfer {
