@@ -80,6 +80,9 @@ class PanelUI:
 		threading.Thread(target=self._heartbeat_loop, name="panel-heartbeat", daemon=True).start()
 		threading.Thread(target=self._sky_loop, name="panel-sky", daemon=True).start()
 
+	def has_panel(self) -> bool:
+		return self._conn is not None and self.attached.is_set()
+
 	def _send(self, action: str, **fields: Any) -> Optional[Dict[str, Any]]:
 		conn = self._conn
 		if conn is None:

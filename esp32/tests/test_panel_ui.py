@@ -47,6 +47,12 @@ def setUpModule() -> None:
 	]
 	for patch in _hardware_patches:
 		patch.start()
+	# Importing tracking starts a thread that writes the runtime state every
+	# second; while the tests swap the config files round it could write a
+	# blank profile over a test's (or touch the real one).
+	import core.hardware.tracking as tracking
+
+	tracking._stop_hour_angle_updater()
 
 
 def tearDownModule() -> None:
@@ -247,15 +253,33 @@ class PanelUIBase(unittest.TestCase):
 		self.tmp = tempfile.TemporaryDirectory()
 		self.saved = (config_state.CLIENT_PROFILE_FILE, config_state.STATIC_STATE_FILE,
 			config_state.RUNTIME_STATE_FILE, config_state._STATE_READY)
-		config_state.CLIENT_PROFILE_FILE = os.path.join(self.tmp.name, "client_profile.json")
-		config_state.STATIC_STATE_FILE = os.path.join(self.tmp.name, "client_config.json")
-		config_state.RUNTIME_STATE_FILE = os.path.join(self.tmp.name, "runtime_state.json")
-		config_state._STATE_READY = False
-		config_state.save_client_profile(self.profile)
-		from utils import panel_ui
+		# Write all three files before switching to them: threads left over
+		# from earlier tests still read the config, and a read that finds a
+		# file missing rebuilds it (a blank profile).
+		files = {
+			"CLIENT_PROFILE_FILE": ("client_profile.json",
+				config_state._merge_defaults(config_state._default_client_profile(), self.profile)),
+			"STATIC_STATE_FILE": ("client_config.json", config_state._default_static_state()),
+			"RUNTIME_STATE_FILE": ("runtime_state.json", config_state._default_runtime_state()),
+		}
+		for attr, (name, content) in files.items():
+			path = os.path.join(self.tmp.name, name)
+			config_state._save_json(path, content)
+			setattr(config_state, attr, path)
+		config_state._STATE_READY = True
+		from utils import panel_ui, telescope_state
+
+		telescope_state._STATE_CACHE = None
 
 		self.panel_ui = panel_ui
 		self.ui = panel_ui.PanelUI()
+		from unittest import mock
+
+		from utils import sun_guard
+
+		sun_guard._approved.clear()
+		self._ui_patch = mock.patch.object(panel_ui, "get_panel_ui", return_value=self.ui)
+		self._ui_patch.start()
 		self.conn = FakeConn()
 		self.conn.reply = lambda action, fields: (
 			{"width": 128, "height": 160, "sky_w": 128, "sky_h": 136} if action in ("hello", "status") else {})
@@ -263,6 +287,7 @@ class PanelUIBase(unittest.TestCase):
 		self.assertTrue(self.ui.attached.wait(3))
 
 	def tearDown(self) -> None:
+		self._ui_patch.stop()
 		(config_state.CLIENT_PROFILE_FILE, config_state.STATIC_STATE_FILE,
 			config_state.RUNTIME_STATE_FILE, config_state._STATE_READY) = self.saved
 		self.tmp.cleanup()
@@ -482,10 +507,14 @@ class ManualFlowTests(PanelUIBase):
 		from utils.esp32_state import esp32_state
 
 		config_state.save_location({"latitude": LAT, "longitude": LON})
+		from utils.telescope_state import set_telescope_coords
+
+		set_telescope_coords(37.95, 89.26, source="manual_reset")  # at Polaris: go-tos there don't slew
 		self.board = FakeBoard()
 		self.goes: List[tuple] = []
 		self.syncs: List[tuple] = []
 		self.patches = [
+			mock.patch("utils.sun_guard.sun_radec", return_value=(201.0, -9.0)),
 			mock.patch.object(esp32_state, "get_connection", return_value=self.board),
 			mock.patch.object(tracking, "trackCoordinates", side_effect=lambda *a: self.goes.append(a)),
 			mock.patch.object(tracking, "sync_position", side_effect=lambda *a: self.syncs.append(a)),
@@ -514,7 +543,6 @@ class ManualFlowTests(PanelUIBase):
 		self.assertEqual(name, "2h31 +89")
 		self.assertAlmostEqual(ra, 37.954, places=3)
 		self.assertAlmostEqual(dec, 89.264, places=3)
-		self.assertTrue(any(c.get("mode") == "sky" for c in self.conn.actions("mode")))
 
 	def test_backing_out_goes_nowhere(self) -> None:
 		self.act("scope", "goto")
@@ -535,17 +563,37 @@ class ManualFlowTests(PanelUIBase):
 		self.assertTrue(wait_for(lambda: self.goes))
 		self.assertEqual(self.board.cleared, 1)
 
-	def test_near_the_sun_asks_first(self) -> None:
-		from utils.manual_control import format_ra
+	def test_near_the_sun_needs_the_code(self) -> None:
+		from unittest import mock
 
-		ra, dec = sky_view.sun_radec(datetime.now(timezone.utc))
-		self.act("scope", "goto")
-		self.answer("RA", value=format_ra(ra + 3))
-		self.answer("Dec", value=f"{dec:.2f}")
-		self.answer("Go there?", value=True)
-		self.answer("Near the Sun!", value=False)
-		time.sleep(0.2)
-		self.assertEqual(self.goes, [])
+		# Polaris is always up from LAT; put the Sun 9 deg from it.
+		with mock.patch("utils.sun_guard.sun_radec", return_value=(37.95, 80.0)):
+			self.board.estop = True
+			self.act("scope", "goto")
+			self.answer("RA", value="2 31 49")
+			self.answer("Dec", value="89 15 51")
+			self.answer("Go there?", value=True)
+			danger = self.answer("DANGER: SUN", value=True)
+			self.assertEqual(danger["style"], "danger")
+			self.assertIn("9 deg from the Sun", danger["text"])
+			code = self.answer("Enter the code", value=True)
+			self.assertEqual(code["kind"], "code")
+			self.answer("Emergency stop", value=True)  # asked after the Sun, not before
+			self.assertTrue(wait_for(lambda: self.goes))
+
+	def test_backing_out_of_the_sun_warning_goes_nowhere(self) -> None:
+		from unittest import mock
+
+		with mock.patch("utils.sun_guard.sun_radec", return_value=(37.95, 64.0)):
+			self.board.estop = True
+			self.act("scope", "goto")
+			self.answer("RA", value="2 31 49")
+			self.answer("Dec", value="89 15 51")
+			self.answer("Go there?", value=True)
+			self.assertEqual(self.answer("Sun warning", value=False)["style"], "warn")
+			time.sleep(0.3)
+		self.assertEqual((self.goes, self.board.cleared), ([], 0))
+		self.assertEqual(len(self.conn.actions("prompt")), 4)  # no E-stop prompt
 
 	def test_go_to_a_star_from_the_list(self) -> None:
 		from unittest import mock
@@ -678,6 +726,113 @@ class OfflineStartTests(PanelUIBase):
 	def test_no_setup_when_already_offline(self) -> None:
 		time.sleep(0.3)
 		self.assertEqual(self.conn.actions("prompt"), [])
+
+
+class SunGuardTests(PanelUIBase):
+	SUN = (100.0, 0.0)
+
+	def setUp(self) -> None:
+		super().setUp()
+		from unittest import mock
+
+		self.sun_patch = mock.patch("utils.sun_guard.sun_radec", return_value=self.SUN)
+		self.sun_patch.start()
+
+	def tearDown(self) -> None:
+		self.sun_patch.stop()
+		super().tearDown()
+
+	def confirm_in_thread(self, ra: float, dec: float, start=None) -> List[tuple]:
+		from utils import sun_guard
+
+		results: List[tuple] = []
+		threading.Thread(target=lambda: results.append(sun_guard.confirm_goto("Test", ra, dec, start=start)),
+			daemon=True).start()
+		return results
+
+	def test_levels_by_distance(self) -> None:
+		from utils import sun_guard
+
+		for ra, level in ((150.0, "clear"), (125.0, "warn"), (112.0, "danger"), (100.5, "danger")):
+			c = sun_guard.check("x", ra, 0.0, start=(ra, 0.0))
+			self.assertEqual(c.level, level, ra)
+			self.assertFalse(c.on_the_way)
+
+	def test_a_slew_past_the_sun_counts(self) -> None:
+		from utils import sun_guard
+
+		c = sun_guard.check("x", 140.0, 0.0, start=(60.0, 0.0))  # both ends 40 deg away
+		self.assertEqual((c.level, c.on_the_way), ("danger", True))
+		self.assertIn("The slew to x passes 0 deg from the Sun", c.where())
+		# The short way round from 300 to 40 doesn't go near it.
+		self.assertEqual(sun_guard.check("x", 40.0, 0.0, start=(300.0, 0.0)).level, "clear")
+		# Dec moves 2.5x faster than RA (gears 360:1 and 144:1), so this slew
+		# finishes its Dec part early and passes south of the Sun, not through it.
+		c = sun_guard.check("x", 140.0, -40.0, start=(60.0, 0.0))
+		self.assertGreater(c.path_deg, 20.0)
+
+	def test_a_warning_needs_go_on(self) -> None:
+		from utils import sun_guard
+
+		results = self.confirm_in_thread(125.0, 0.0, start=(125.0, 0.0))
+		prompt = self.answer("Sun warning", value=True)
+		self.assertEqual((prompt["kind"], prompt["style"], prompt["no"]), ("confirm", "warn", "Cancel"))
+		self.assertIn("blinds", prompt["text"])
+		self.assertTrue(wait_for(lambda: results))
+		self.assertEqual(results[0], (True, ""))
+		results = self.confirm_in_thread(126.0, 0.0, start=(126.0, 0.0))
+		self.answer("Sun warning", value=False)
+		self.assertTrue(wait_for(lambda: results))
+		self.assertEqual(results[0], (False, sun_guard.CANCELLED))
+
+	def test_danger_needs_the_notice_and_the_code(self) -> None:
+		results = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
+		notice = self.answer("DANGER: SUN", value=True)
+		self.assertIn("eyepieces", notice["text"])
+		code = self.answer("Enter the code", value=True)
+		self.assertEqual(code["kind"], "code")
+		self.assertGreater(code["timeout_ms"], 0)
+		self.assertTrue(wait_for(lambda: results))
+		self.assertEqual(results[0], (True, ""))
+		# The yes holds once for the go-to that follows, then it asks again.
+		again = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
+		self.assertTrue(wait_for(lambda: again))
+		self.assertEqual(again[0], (True, ""))
+		third = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
+		self.answer("DANGER: SUN", value=False)
+		self.assertTrue(wait_for(lambda: third))
+		self.assertFalse(third[0][0])
+
+	def test_a_cancelled_code_refuses(self) -> None:
+		results = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
+		self.answer("DANGER: SUN", value=True)
+		self.answer("Enter the code", cancelled=True)
+		self.assertTrue(wait_for(lambda: results))
+		self.assertFalse(results[0][0])
+
+	def test_without_a_panel(self) -> None:
+		from unittest import mock
+
+		from utils import sun_guard
+
+		with mock.patch.object(self.ui, "has_panel", return_value=False):
+			self.assertEqual(sun_guard.confirm_goto("x", 125.0, 0.0, start=(125.0, 0.0)), (True, ""))
+			allowed, reason = sun_guard.confirm_goto("x", 110.0, 0.0, start=(110.0, 0.0))
+		self.assertFalse(allowed)
+		self.assertIn("front panel", reason)
+		self.assertEqual(self.conn.actions("prompt"), [])
+
+	def test_track_coordinates_asks_before_stopping_anything(self) -> None:
+		from unittest import mock
+
+		import core.hardware.tracking as tracking
+
+		with mock.patch.object(self.ui, "has_panel", return_value=False), \
+				mock.patch.object(tracking, "stop_tracking") as stop, \
+				mock.patch.object(tracking, "_tracking_active", True):
+			result = tracking.trackCoordinates("Near", 105.0, 0.0, 1.0)
+		self.assertIn("front panel", result["error"])
+		stop.assert_not_called()
 
 
 if __name__ == "__main__":

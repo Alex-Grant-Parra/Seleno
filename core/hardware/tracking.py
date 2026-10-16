@@ -788,12 +788,6 @@ def trackCoordinates(name, ra, dec, mag):
     global _tracking_active, _tracking_thread, _target_object
     leds = get_led_manager()
     
-    # If already tracking, stop the previous tracking session first
-    if _tracking_active:
-        print(f"[tracking] ⚠ Already tracking - stopping previous session before acquiring new target")
-        stop_tracking()
-        time.sleep(0.5)  # Brief pause to ensure tracking fully stops
-    
     # Convert string inputs to floats if needed
     try:
         ra = float(ra)
@@ -802,6 +796,21 @@ def trackCoordinates(name, ra, dec, mag):
         print(f"[tracking] Error: Invalid RA or Dec format: {e}")
         leds.set_error(True, critical=False)
         return
+    
+    # Near the Sun (on the way or at the target), someone at the front panel
+    # has to confirm it first (utils/sun_guard.py). Nothing has moved or
+    # stopped yet if they don't.
+    from utils import sun_guard
+    allowed, reason = sun_guard.confirm_goto(str(name), ra, dec, remember=False)
+    if not allowed:
+        print(f"[tracking] Not going to {name}: {reason}")
+        return {"error": reason}
+    
+    # If already tracking, stop the previous tracking session first
+    if _tracking_active:
+        print(f"[tracking] ⚠ Already tracking - stopping previous session before acquiring new target")
+        stop_tracking()
+        time.sleep(0.5)  # Brief pause to ensure tracking fully stops
     
     print(f"[tracking] Acquiring target: {name}, RA: {ra}, Dec: {dec}, Mag: {mag}")
     

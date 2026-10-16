@@ -19,7 +19,7 @@ namespace {
 // A Pi prompt: shown at once, or as soon as the dialog it needs is free.
 struct Prompt {
   String id;
-  String kind;  // text, confirm, message, busy, choice
+  String kind;  // text, confirm, message, busy, choice, code
   String title;
   String text;
   String value;
@@ -31,6 +31,7 @@ struct Prompt {
   String no = "No";
   bool defaultYes = false;
   uint32_t timeoutMs = 0;
+  Alert alert = Alert::None;  // confirm: "style" warn or danger
 };
 
 Prompt g_pending;
@@ -45,6 +46,7 @@ Screen* dialogFor(const String& kind) {
   if (kind == "text") return keyboardScreen();
   if (kind == "confirm") return confirmScreen();
   if (kind == "choice") return choiceScreen();
+  if (kind == "code") return codeScreen();
   return messageScreen();
 }
 
@@ -66,6 +68,7 @@ void dismissShown() {
   if (s == keyboardScreen()) dismissKeyboard();
   else if (s == confirmScreen()) dismissConfirm();
   else if (s == choiceScreen()) dismissChoice();
+  else if (s == codeScreen()) dismissCode();
   else dismissMessage();
   g_shownId = "";
   g_shownKind = "";
@@ -90,7 +93,17 @@ void showPrompt(const Prompt& p) {
     openConfirm(
         p.title, p.text,
         [id, kind](bool yes) { emitPromptResult(id, kind, [yes](JsonDocument& d) { d["value"] = yes; }); },
-        p.yes.c_str(), p.no.c_str(), p.defaultYes);
+        p.yes.c_str(), p.no.c_str(), p.defaultYes, p.alert);
+  } else if (kind == "code") {
+    openCode(p.title, p.text, p.timeoutMs, [id, kind](bool ok) {
+      emitPromptResult(id, kind, [ok](JsonDocument& d) {
+        if (ok) {
+          d["value"] = true;
+        } else {
+          d["cancelled"] = true;
+        }
+      });
+    });
   } else if (kind == "choice") {
     std::vector<String> options = p.options;
     openChoiceList(
@@ -369,8 +382,9 @@ void uiHandleCommand(JsonDocument& req) {
       return;
     }
     p.kind = req["kind"] | "message";
-    if (p.kind != "text" && p.kind != "confirm" && p.kind != "message" && p.kind != "busy" && p.kind != "choice") {
-      hostSendError("kind must be text, confirm, message, busy or choice");
+    if (p.kind != "text" && p.kind != "confirm" && p.kind != "message" && p.kind != "busy" && p.kind != "choice" &&
+        p.kind != "code") {
+      hostSendError("kind must be text, confirm, message, busy, choice or code");
       return;
     }
     p.title = req["title"] | "";
@@ -384,6 +398,8 @@ void uiHandleCommand(JsonDocument& req) {
     p.no = req["no"] | "No";
     p.defaultYes = strcmp(req["default"] | "no", "yes") == 0;
     p.timeoutMs = req["timeout_ms"] | 0u;
+    const char* style = req["style"] | "";
+    p.alert = strcmp(style, "danger") == 0 ? Alert::Danger : (strcmp(style, "warn") == 0 ? Alert::Warn : Alert::None);
     for (JsonVariantConst o : req["options"].as<JsonArrayConst>()) p.options.push_back(o.as<String>());
     if (p.kind == "choice" && p.options.empty()) {
       hostSendError("choice needs options");

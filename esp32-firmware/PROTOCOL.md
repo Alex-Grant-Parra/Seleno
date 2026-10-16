@@ -222,7 +222,7 @@ panel counts the Pi as gone after 6 s without a byte from it.
 | `status` | any string fields to show (`ip`, `server`, ...), `clock_s` (local seconds since midnight), `device` | `panel_stop_pending`, `estop`, `screen`, `sky_w`, `sky_h`, `sky_shown`, `sky_radar` |
 | `menu` | `panels[]`: `{id, title, order, items[]}`; replaces the host's tabs | ok |
 | `set` | `values{"panel.item": value}`, or `panel`, `item`, `fields{}` (any item field) | `changed` |
-| `prompt` | `prompt` (an id for the answer), `kind` (`text`, `confirm`, `message`, `busy`, `choice`), `title`, `text`; text: `value`, `max_length` (≤ 160), `subtitle`; confirm: `yes`, `no`, `default` (`yes`/`no`); choice: `options[]`, `selected`; message/busy: `timeout_ms` | `queued` (true while the user has that dialog open for something else) |
+| `prompt` | `prompt` (an id for the answer), `kind` (`text`, `confirm`, `message`, `busy`, `choice`, `code`), `title`, `text`; text: `value`, `max_length` (≤ 160), `subtitle`; confirm: `yes`, `no`, `default` (`yes`/`no`), `style` (`warn`: amber title bar, `danger`: red, both with a Sun symbol); choice: `options[]`, `selected`; message/busy/code: `timeout_ms` | `queued` (true while the user has that dialog open for something else) |
 | `close_prompt` | `prompt` (omit for any) | ok |
 | `toast` | `text`, `ms` | ok |
 | `mode` | `mode`: `menu`, `tracking`/`sky`, `loading` | ok |
@@ -235,6 +235,13 @@ panel counts the Pi as gone after 6 s without a byte from it.
 | `settings` | optional `brightness` (5–100), `rotation` (0–3), `theme` (`dark`/`night`), `dim_after_s`, `leds_muted` | the settings |
 | `screenshot` | | `width`, `height`, `format` (`rgb565be`), `host_mode`, `base64` (the UI frame) |
 | `state` | | screen stack, menu position, the top screen's state, link, prompt, tracking |
+
+A `code` prompt unlocks something dangerous (a go-to near the Sun): the
+ESP32 picks four random arrows (never all the same) and shows them; they
+have to be pressed in order. A wrong arrow draws a new code; held-down
+repeats and SELECT don't count. The answer is `value: true` once entered,
+or `cancelled: true` on RETURN or after `timeout_ms`. `state` shows the
+code (`u`/`d`/`l`/`r`) and how many are entered, for testing.
 
 Menu items (`items[]`): `id`, `type` (`action`, `toggle`, `choice`,
 `number`, `text`, `info`), `label`, `value`, and by type: `options[]`;

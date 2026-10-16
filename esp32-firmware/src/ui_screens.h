@@ -30,10 +30,12 @@ void openBusyMessage(const String& title, const String& text, std::function<void
 
 Screen* keyboardScreen();
 Screen* confirmScreen();
+Screen* codeScreen();
 Screen* messageScreen();
 Screen* choiceScreen();
 void dismissKeyboard();
 void dismissConfirm();
+void dismissCode();
 void dismissMessage();
 void dismissChoice();
 

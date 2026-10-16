@@ -802,3 +802,73 @@ Alex asked for:
   - nudging the scope with the arrows while tracking (the firmware's jog
     stops sidereal tracking);
   - exposure settings from the panel.
+
+## Feature: Sun protection (Alex, 2026-10-16)
+
+Committed before this: `06e8448` (offline mode, manual go-to, local
+photos).
+
+Alex asked for:
+- an on-screen warning within 30 deg of the Sun;
+- within 20 deg, a random 4-press code of up/down/left/right, shown on
+  screen, to be entered first;
+- a message about the dangers to eyes and equipment.
+
+**Done (uncommitted):**
+- `utils/sun_guard.py`, called at the top of
+  `tracking.trackCoordinates`, so it covers go-tos from the panel and the
+  server. It runs before the previous tracking is stopped and before
+  anything moves; a refusal returns `{"error": ...}` to the caller.
+  - The Sun is computed locally (`sky_view.sun_radec`), so it works
+    offline. It applies whether or not the Sun is up.
+  - Distance is the closest approach: at the target or on the slew. The
+    slew model matches `_move_motors`: RA and Dec move together at the
+    same step rate (so Dec goes 2.5x faster in sky degrees at 360:1 and
+    144:1), and RA takes the short way. It starts from the dead-reckoned
+    position.
+  - Within 30 deg: a confirm with `style: warn` (amber bar with a Sun
+    symbol) about eyes, the finder and cameras. Cancel is selected first.
+  - Within 20 deg: a `style: danger` notice (red bar) about blinding and
+    burnt cameras and eyepieces, then a `code` prompt. The code screen
+    says "only with solar filters on the telescope and finder". The ESP32
+    picks the code and the screen times out after 90 s.
+  - No panel attached: a warning is logged and the go-to goes ahead;
+    within 20 deg is refused ("confirm on the telescope's front panel").
+  - A yes is remembered for that target for 2 minutes, used once. The
+    panel flows (`manual_control._sun_ok`) ask first, before the horizon
+    and E-stop prompts, and trackCoordinates then finds the answer.
+    trackCoordinates' own asks aren't remembered. Align on star checks
+    with no slew.
+  - The old 15 deg check in manual_control is gone. Panel go-tos no longer
+    call `show_sky`: the firmware opens the sky view itself when the slew
+    starts.
+- Firmware:
+  - `Alert` (None/Warn/Danger), `drawAlertBar` and `drawSun` (ui_draw.cpp).
+  - The confirm takes an alert (`style` in `ui prompt`).
+  - New `CodeScreen` (ui_screens.cpp, `openCode`): four arrow boxes (green
+    when done, the next one outlined), "Wrong key: new code" with a fresh
+    code, and a seconds countdown.
+  - The kinds are documented in PROTOCOL.md.
+- Tests: 43 in test_panel_ui.py (levels, the slew path, warn, danger and
+  code, cancel, no panel, trackCoordinates refusing before it stops
+  anything, panel flows with the Sun pinned).
+  - The test setup now writes all three config files before switching to
+    them. Leftover threads from earlier tests used to rebuild a blank
+    profile and start the wizard, which made the tests flaky.
+  - It also stops tracking's hour-angle thread, which had been writing to
+    the real runtime_state.json during tests.
+- Devkit:
+  - the warning (Go on);
+  - the danger notice for a slew passing the Sun, with a long name;
+  - the code: a wrong key draws a new one, the right code goes ahead;
+  - the night theme, and RETURN cancels.
+  All the text fits without scrolling. Both firmware envs build clean.
+
+**Not covered (by design or not yet):**
+- Raw motor commands from the server (`espMoveSteps`, `espStart`,
+  `espTurnDegrees`, ...) and the panel's Jog test move the motors with no
+  sky position, so the guard can't see them.
+- The tracking loop's small centring corrections aren't checked; they head
+  for a target that was already approved.
+- The path check trusts the dead-reckoned position; if that's wrong, so is
+  the path.

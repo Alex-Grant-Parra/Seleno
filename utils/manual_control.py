@@ -21,12 +21,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple
 
-from utils.sky_view import angular_distance, lst_degrees, radec_to_altaz, sun_radec
+from utils.sky_view import lst_degrees, radec_to_altaz
 
 if TYPE_CHECKING:
 	from utils.panel_ui import PanelUI
 
-SUN_WARNING_DEG = 15.0
 STAR_MIN_ALT_DEG = 10.0
 STAR_CHOICES = 30
 
@@ -263,15 +262,21 @@ def _release_estop(ui: "PanelUI") -> bool:
 	return True
 
 
+def _sun_ok(ui: "PanelUI", name: str, ra: float, dec: float, start: Optional[Tuple[float, float]] = None) -> bool:
+	# Asked first, before anything else is changed (utils/sun_guard.py);
+	# trackCoordinates then finds the answer and doesn't ask again.
+	from utils import sun_guard
+
+	allowed, reason = sun_guard.confirm_goto(name, ra, dec, start=start)
+	if not allowed and reason != sun_guard.CANCELLED:
+		ui.prompt("message", "Not going", reason)
+	return allowed
+
+
 def _safe_to_go(ui: "PanelUI", name: str, ra: float, dec: float, here: Tuple[float, float]) -> bool:
+	if not _sun_ok(ui, name, ra, dec):
+		return False
 	now = datetime.now(timezone.utc)
-	sun_ra, sun_dec = sun_radec(now)
-	from_sun = angular_distance(ra, dec, sun_ra, sun_dec)
-	if from_sun < SUN_WARNING_DEG:
-		if not ui.prompt("confirm", "Near the Sun!",
-				f"That's {from_sun:.0f} deg from the Sun. Never look at the Sun without a proper solar filter. Go anyway?",
-				yes="Go", no="Cancel").get("value"):
-			return False
 	alt, _az = radec_to_altaz(ra, dec, lst_degrees(now, here[1]), here[0])
 	if alt < 0:
 		if not ui.prompt("confirm", "Below the horizon",
@@ -281,10 +286,12 @@ def _safe_to_go(ui: "PanelUI", name: str, ra: float, dec: float, here: Tuple[flo
 
 
 def _start(ui: "PanelUI", name: str, ra: float, dec: float, mag: Optional[float]) -> None:
+	# The panel switches to the sky view itself once the slew starts.
 	from core.hardware.tracking import trackCoordinates
 
-	ui.show_sky()
-	trackCoordinates(name, ra, dec, mag)
+	result = trackCoordinates(name, ra, dec, mag)
+	if isinstance(result, dict) and result.get("error"):
+		ui.toast(str(result["error"])[:60])
 
 
 def goto_coordinates(ui: "PanelUI") -> None:
@@ -323,6 +330,10 @@ def align_on_star(ui: "PanelUI") -> None:
 	if not ui.prompt("confirm", "Align",
 			f"Is {star.name} in the middle of the view now? SELENO will take that as its position and track it.",
 			yes="Yes", no="Cancel", default="yes").get("value"):
+		return
+	# Nothing slews (it's already there), but tracking it near the Sun
+	# still needs confirming.
+	if not _sun_ok(ui, star.name, star.ra, star.dec, start=(star.ra, star.dec)):
 		return
 	if not _release_estop(ui):
 		return
