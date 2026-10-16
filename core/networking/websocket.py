@@ -20,7 +20,7 @@ async def peripheral_refresh_task(led_manager, refresh_interval: float = 1.0):
     print(f"[peripheral_refresh] Started peripheral refresh task (no polling, interval {refresh_interval}s)")
     while True:
         await asyncio.sleep(refresh_interval)
-from utils.config_state import get_client_config, save_client_config, build_service_urls
+from utils.config_state import get_client_config, save_client_config, build_service_urls, is_offline_mode
 from utils.LEDmanager import get_led_manager
 
 
@@ -34,7 +34,8 @@ LIVEVIEW_URI = None
 SERVER_HTTP_URL = None
 
 # Server link state for the front panel: "starting", "connecting",
-# "connected", "unreachable", "auth failed" or "disconnected".
+# "connected", "unreachable", "auth failed", "disconnected", "offline"
+# (offline mode) or "not set up".
 server_state = {"state": "starting", "detail": ""}
 _loop = None
 _open_sockets: set = set()
@@ -58,6 +59,20 @@ def apply_client_config(cfg: dict) -> None:
         SERVER_URI = urls["server_uri"]
         LIVEVIEW_URI = urls["liveview_uri"]
     request_reconnect()
+
+
+def server_enabled() -> bool:
+    # False in offline mode or before the server settings are known; the
+    # connect loops wait instead of connecting.
+    if is_offline_mode():
+        return False
+    return bool(SERVER_URI and LIVEVIEW_URI and API_TOKEN and CLIENT_ID)
+
+
+async def _wait_for_server_enabled() -> None:
+    while not server_enabled():
+        _set_server_state("offline" if is_offline_mode() else "not set up")
+        await asyncio.sleep(1.0)
 
 
 def request_reconnect() -> None:
@@ -175,6 +190,7 @@ async def run_client():
     # Run the main WebSocket client with automatic reconnection
     
     while True:  # Outer reconnection loop
+        await _wait_for_server_enabled()
         connection_start_time = time.time()
         ws = None
         try:
@@ -215,7 +231,8 @@ async def run_client():
                 print(f"[run_client] Connection lost at {datetime.now()}: {error_type}")
             
             print(f"[run_client] Connection lasted {connection_duration:.1f} seconds")
-            print(f"[run_client] Reconnecting in 5 seconds...")
+            if server_enabled():
+                print(f"[run_client] Reconnecting in 5 seconds...")
             
         finally:
             # Ensure proper cleanup
@@ -226,8 +243,9 @@ async def run_client():
                 except:
                     pass
         
-        # Wait before reconnecting
-        await asyncio.sleep(5)
+        # Wait before reconnecting (not when offline mode closed it)
+        if server_enabled():
+            await asyncio.sleep(5)
 
 async def authenticate_liveview(ws):
     # Send authentication message to liveview server
@@ -356,6 +374,7 @@ async def send_frames():
                 pass
 
     while True:  # Outer reconnection loop
+        await _wait_for_server_enabled()
         connection_start_time = time.time()
         ws = None
         try:
@@ -594,7 +613,8 @@ async def send_frames():
                 print(f"[send_frames] Connection lost at {datetime.now()}: {error_type}")
             
             print(f"[send_frames] Connection lasted {connection_duration:.1f} seconds")
-            print(f"[send_frames] Reconnecting in 5 seconds...")
+            if server_enabled():
+                print(f"[send_frames] Reconnecting in 5 seconds...")
             
         finally:
             # Ensure proper cleanup
@@ -616,8 +636,9 @@ async def send_frames():
                 except:
                     pass
         
-        # Wait before reconnecting
-        await asyncio.sleep(5)
+        # Wait before reconnecting (not when offline mode closed it)
+        if server_enabled():
+            await asyncio.sleep(5)
 
 def cleanup_camera():
     # Clean up camera processes
@@ -677,22 +698,26 @@ async def websocketClient(cfg: dict = None):
     if cfg is None:
         cfg = load_config()
 
-    # Ensure required keys are present in the config
+    # Ensure required keys are present in the config (offline mode runs
+    # without them; the connect loops wait until they are set)
     required_keys = ["client_id", "base_url", "api_token"]
     missing = [k for k in required_keys if not isinstance(cfg.get(k), str) or not cfg.get(k).strip()]
-    if missing:
+    if missing and not is_offline_mode():
         raise KeyError(f"Missing required values in config/client_profile.json: {', '.join(missing)}. Run 'python Client.py setup' to create or fix the config.")
 
     # Export values to module-level globals used by other functions
     global CLIENT_ID, SERVER_URI, LIVEVIEW_URI, SERVER_HTTP_URL, API_TOKEN, _loop
     _loop = asyncio.get_running_loop()
 
-    CLIENT_ID = cfg["client_id"]
-    API_TOKEN = cfg["api_token"]
-    urls = build_service_urls(cfg["base_url"])
-    SERVER_HTTP_URL = urls["http_url"]
-    SERVER_URI = urls["server_uri"]
-    LIVEVIEW_URI = urls["liveview_uri"]
+    CLIENT_ID = cfg.get("client_id") or None
+    API_TOKEN = cfg.get("api_token") or None
+    if cfg.get("base_url"):
+        urls = build_service_urls(cfg["base_url"])
+        SERVER_HTTP_URL = urls["http_url"]
+        SERVER_URI = urls["server_uri"]
+        LIVEVIEW_URI = urls["liveview_uri"]
+    if is_offline_mode():
+        print("[main] Offline mode: not connecting to the server (turn it off in the front panel's Setup tab)")
     leds = get_led_manager()
     leds.set_ui_connected(True)
     

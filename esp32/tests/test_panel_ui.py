@@ -31,6 +31,29 @@ from utils.sky_view import (  # noqa: E402
 	radec_to_altaz,
 )
 
+_hardware_patches: List[Any] = []
+
+
+def setUpModule() -> None:
+	# No serial ports: the LED manager and tracking would otherwise go looking
+	# for a real ESP32 (and find the dev kit).
+	from unittest import mock
+
+	from utils.esp32_state import esp32_state
+
+	_hardware_patches[:] = [
+		mock.patch.object(esp32_state, "ensure_connection", return_value=None),
+		mock.patch("utils.LEDmanager.get_led_manager", return_value=mock.MagicMock()),
+	]
+	for patch in _hardware_patches:
+		patch.start()
+
+
+def tearDownModule() -> None:
+	for patch in _hardware_patches:
+		patch.stop()
+
+
 LAT, LON = 51.4623, -2.5502
 WHEN = datetime(2026, 10, 16, 22, 0, tzinfo=timezone.utc)
 
@@ -150,6 +173,28 @@ class SkyViewTests(unittest.TestCase):
 			self.assertTrue(grid.clear_of_reticle(left, text, y), (x, y, text))
 		self.assertNotIn("Vega", [lab[3] for lab in scene.labels])
 
+	def test_labels_never_overlap(self) -> None:
+		from utils.sky_data import SkyData
+
+		data = SkyData()
+		data._load_cache()  # the cached catalogue only: no network in tests
+		if not data.ready():
+			self.skipTest("no cached sky data")
+		stars, names, figures, _planets = data.snapshot()
+		for alt, az in ((60, 200), (30, 90), (75, 0), (20, 300)):
+			for fov in (20.0, 40.0, 70.0):
+				ra, dec = radec_at(alt, az)
+				scene = build_scene(128, 136, stars, names, figures, [], (ra, dec), None, LAT, LON, WHEN,
+					SkyOptions(fov_deg=fov, max_star_labels=12))
+				boxes = []
+				for x, y, style, text in scene.labels:
+					left = x - 3 * len(text) if style in (sky_view.LABEL_CONSTELLATION, sky_view.LABEL_CARDINAL) else x
+					boxes.append((left, y - 4, left + 6 * len(text), y + 4, text))
+				for i, a in enumerate(boxes):
+					for b in boxes[i + 1:]:
+						self.assertFalse(a[0] < b[2] and a[2] > b[0] and a[1] < b[3] and a[3] > b[1],
+							f"{a[4]} overlaps {b[4]} at alt {alt} az {az} fov {fov}")
+
 	def test_ascii_names(self) -> None:
 		self.assertEqual(ascii_text("Boötes", 40), b"Bootes")
 
@@ -193,7 +238,10 @@ def wait_for(predicate: Callable[[], bool], timeout: float = 3.0) -> bool:
 	return False
 
 
-class PanelUITests(unittest.TestCase):
+class PanelUIBase(unittest.TestCase):
+	profile: Dict[str, Any] = {"client_config": {"client_id": "scope", "base_url": "seleno.org",
+		"api_token": "0123456789abcdef"}}
+
 	def setUp(self) -> None:
 		# Never touch the real config files.
 		self.tmp = tempfile.TemporaryDirectory()
@@ -203,8 +251,7 @@ class PanelUITests(unittest.TestCase):
 		config_state.STATIC_STATE_FILE = os.path.join(self.tmp.name, "client_config.json")
 		config_state.RUNTIME_STATE_FILE = os.path.join(self.tmp.name, "runtime_state.json")
 		config_state._STATE_READY = False
-		config_state.save_client_profile({"client_config": {"client_id": "scope", "base_url": "seleno.org",
-			"api_token": "0123456789abcdef"}})
+		config_state.save_client_profile(self.profile)
 		from utils import panel_ui
 
 		self.panel_ui = panel_ui
@@ -220,11 +267,25 @@ class PanelUITests(unittest.TestCase):
 			config_state.RUNTIME_STATE_FILE, config_state._STATE_READY) = self.saved
 		self.tmp.cleanup()
 
+	def answer(self, title: str, **reply: Any) -> Dict[str, Any]:
+		"""Wait for the next unanswered prompt, check its title and answer it."""
+		answered = getattr(self, "_answered", 0)
+		self.assertTrue(wait_for(lambda: len(self.conn.actions("prompt")) > answered),
+			f"no prompt after {[p['title'] for p in self.conn.actions('prompt')]}")
+		prompt = self.conn.actions("prompt")[answered]
+		self._answered = answered + 1
+		self.assertEqual(prompt["title"], title)
+		if prompt["kind"] != "busy":
+			self.conn.emit({"event": "ui", "type": "prompt", "prompt": prompt["prompt"], **reply})
+		return prompt
+
+
+class PanelUITests(PanelUIBase):
 	def test_hello_sends_the_pi_tabs_with_values(self) -> None:
 		hello = self.conn.actions("hello")[0]
 		self.assertEqual(hello["device"], "scope")
 		panels = {p["id"]: p for p in hello["panels"]}
-		self.assertEqual({"scope", "sky", "setup", "pi"}, set(panels))
+		self.assertEqual({"scope", "camera", "sky", "setup", "pi"}, set(panels))
 		setup = {i["id"]: i for i in panels["setup"]["items"]}
 		self.assertEqual(setup["base_url"]["value"], "seleno.org")
 		self.assertTrue(setup["api_token"]["secret"])
@@ -294,6 +355,329 @@ class PanelUITests(unittest.TestCase):
 		self.assertTrue(wait_for(lambda: any(c.get("target") == "M31" for c in self.conn.actions("tracking"))))
 		self.ui.tracking_update(state="idle")
 		self.assertTrue(wait_for(lambda: self.conn.actions("tracking")[-1] == {"action": "tracking", "state": "idle"}))
+
+
+class ManualControlTests(unittest.TestCase):
+	def test_ra_and_dec_in_the_usual_forms(self) -> None:
+		from utils.manual_control import format_dec, format_ra, parse_dec, parse_ra
+
+		for text in ("5 35 17", "5:35:17", "5h35m17s", "5.58806", "83.8208d"):
+			self.assertAlmostEqual(parse_ra(text), 83.8208, places=3, msg=text)
+		for text in ("-5 23 28", "-5:23:28", "-5d23m28s", "-5.39111"):
+			self.assertAlmostEqual(parse_dec(text), -5.39111, places=4, msg=text)
+		self.assertAlmostEqual(parse_dec("-0 30"), -0.5)
+		self.assertEqual(format_ra(parse_ra("5 35 17")), "5h35m17s")
+		self.assertEqual(format_dec(parse_dec("-5 23 28")), "-5d23m28s")
+		self.assertEqual(format_ra(359.9999), "0h00m00s")
+		for bad in ("24", "5 61", "", "abc", "-1", "400d"):
+			with self.assertRaises(ValueError, msg=bad):
+				parse_ra(bad)
+		for bad in ("91", "5 -3", "", "x"):
+			with self.assertRaises(ValueError, msg=bad):
+				parse_dec(bad)
+
+	def test_site(self) -> None:
+		from utils.manual_control import parse_site
+
+		self.assertEqual(parse_site("51.48, -2.55"), (51.48, -2.55))
+		self.assertEqual(parse_site("33.9S 18.4E"), (-33.9, 18.4))
+		for bad in ("51", "2.5W 51N", "95, 0", "0, 200"):
+			with self.assertRaises(ValueError, msg=bad):
+				parse_site(bad)
+
+	def test_stars_up_are_named_bright_and_above_the_horizon(self) -> None:
+		from utils.manual_control import stars_up
+
+		ra_up, dec_up = radec_at(60, 180)
+		ra_low, dec_low = radec_at(5, 90)
+		ra_down, dec_down = radec_at(-30, 0)
+		stars = [(ra_down, dec_down, 0.0, "A"), (ra_up, dec_up, 1.0, "B"), (ra_low, dec_low, 1.5, "C"),
+			(ra_up, dec_up, 2.0, "D"), (ra_up + 1, dec_up, 2.5, "E")]
+		names = {"A": "Below", "B": "High", "C": "Low", "E": "Bo\u00f6tes star"}
+		found = stars_up(stars, names, LAT, LON, WHEN)
+		self.assertEqual([t.name for t in found], ["High", "Bootes star"])
+		self.assertAlmostEqual(found[0].alt, 60, places=3)
+
+	def test_the_sun(self) -> None:
+		# March equinox 2026: 14:46 UTC on the 20th; June solstice: 08:24 on the 21st.
+		ra, dec = sky_view.sun_radec(datetime(2026, 3, 20, 14, 46, tzinfo=timezone.utc))
+		self.assertLess(min(ra, 360 - ra), 0.1)
+		self.assertLess(abs(dec), 0.05)
+		_ra, dec = sky_view.sun_radec(datetime(2026, 6, 21, 8, 24, tzinfo=timezone.utc))
+		self.assertAlmostEqual(dec, 23.44, delta=0.02)
+
+	def test_a_night_of_photos_shares_a_folder(self) -> None:
+		from utils import photos
+
+		evening = photos.night_folder(datetime(2026, 10, 16, 21, 0))
+		after_midnight = photos.night_folder(datetime(2026, 10, 17, 3, 30))
+		self.assertEqual(evening, after_midnight)
+		self.assertTrue(evening.endswith("2026-10-16"))
+
+	def test_a_photo_run_takes_each_shot_and_can_stop(self) -> None:
+		from utils.photos import PhotoRun
+
+		taken: List[int] = []
+		messages: List[str] = []
+
+		def capture() -> List[str]:
+			taken.append(1)
+			time.sleep(0.05)
+			return [f"/tmp/IMG_{len(taken)}.JPG"]
+
+		run = PhotoRun(capture)
+		run.start(3, messages.append)
+		self.assertTrue(wait_for(lambda: not run.running))
+		self.assertEqual((len(taken), messages), (3, ["Saved 3 of 3 photos"]))
+		taken.clear()
+		messages.clear()
+		run.start(50, messages.append)
+		self.assertTrue(wait_for(lambda: len(taken) >= 1))
+		run.stop()
+		self.assertTrue(wait_for(lambda: not run.running))
+		self.assertLess(len(taken), 50)
+		taken.clear()
+		run.start(1, messages.append)
+		self.assertTrue(wait_for(lambda: not run.running))
+		self.assertEqual(messages[-1], "Saved IMG_1.JPG")
+
+
+class FakeSkyData:
+	def __init__(self, stars, names) -> None:
+		self.stars, self.names = stars, names
+
+	def refresh(self, force: bool = False) -> bool:
+		return True
+
+	def ready(self) -> bool:
+		return bool(self.stars)
+
+	def snapshot(self):
+		return self.stars, self.names, [], []
+
+
+class FakeBoard:
+	def __init__(self, estop: bool = False) -> None:
+		self.estop = estop
+		self.cleared = 0
+
+	def estop_status(self) -> Dict[str, Any]:
+		return {"active": self.estop}
+
+	def clear_estop(self) -> Dict[str, Any]:
+		self.cleared += 1
+		self.estop = False
+		return {}
+
+	def send(self, payload: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
+		return {}  # LED commands
+
+
+class ManualFlowTests(PanelUIBase):
+	def setUp(self) -> None:
+		super().setUp()
+		from unittest import mock
+
+		import core.hardware.tracking as tracking
+		from utils.esp32_state import esp32_state
+
+		config_state.save_location({"latitude": LAT, "longitude": LON})
+		self.board = FakeBoard()
+		self.goes: List[tuple] = []
+		self.syncs: List[tuple] = []
+		self.patches = [
+			mock.patch.object(esp32_state, "get_connection", return_value=self.board),
+			mock.patch.object(tracking, "trackCoordinates", side_effect=lambda *a: self.goes.append(a)),
+			mock.patch.object(tracking, "sync_position", side_effect=lambda *a: self.syncs.append(a)),
+		]
+		for p in self.patches:
+			p.start()
+
+	def tearDown(self) -> None:
+		for p in self.patches:
+			p.stop()
+		super().tearDown()
+
+	def act(self, panel: str, item: str) -> None:
+		self.conn.emit({"event": "ui", "type": "action", "panel": panel, "item": item})
+
+	def test_go_to_typed_coordinates(self) -> None:
+		self.act("scope", "goto")
+		self.answer("RA", value="25")
+		self.answer("RA", dismissed=True)  # "Hours go 0 to 24"
+		self.answer("RA", value="2 31 49")
+		self.answer("Dec", value="89 15 51")
+		go = self.answer("Go there?", value=True)
+		self.assertIn("RA 2h31m49s", go["text"])
+		self.assertTrue(wait_for(lambda: self.goes))
+		name, ra, dec, mag = self.goes[0]
+		self.assertEqual(name, "2h31 +89")
+		self.assertAlmostEqual(ra, 37.954, places=3)
+		self.assertAlmostEqual(dec, 89.264, places=3)
+		self.assertTrue(any(c.get("mode") == "sky" for c in self.conn.actions("mode")))
+
+	def test_backing_out_goes_nowhere(self) -> None:
+		self.act("scope", "goto")
+		self.answer("RA", cancelled=True)
+		time.sleep(0.2)
+		self.act("scope", "goto")  # the first flow has ended, so this one runs
+		self.answer("RA", cancelled=True)
+		time.sleep(0.2)
+		self.assertEqual(self.goes, [])
+
+	def test_the_emergency_stop_is_offered_for_release(self) -> None:
+		self.board.estop = True
+		self.act("scope", "goto")
+		self.answer("RA", value="2 31 49")
+		self.answer("Dec", value="89 15")
+		self.answer("Go there?", value=True)
+		self.answer("Emergency stop", value=True)
+		self.assertTrue(wait_for(lambda: self.goes))
+		self.assertEqual(self.board.cleared, 1)
+
+	def test_near_the_sun_asks_first(self) -> None:
+		from utils.manual_control import format_ra
+
+		ra, dec = sky_view.sun_radec(datetime.now(timezone.utc))
+		self.act("scope", "goto")
+		self.answer("RA", value=format_ra(ra + 3))
+		self.answer("Dec", value=f"{dec:.2f}")
+		self.answer("Go there?", value=True)
+		self.answer("Near the Sun!", value=False)
+		time.sleep(0.2)
+		self.assertEqual(self.goes, [])
+
+	def test_go_to_a_star_from_the_list(self) -> None:
+		from unittest import mock
+
+		# Polaris: always up from LAT, whenever the test runs
+		polaris = (37.95, 89.26, 1.97, "HD8890")
+		data = FakeSkyData([polaris], {"HD8890": "Polaris"})
+		with mock.patch("utils.sky_data.get_sky_data", return_value=data):
+			self.act("scope", "star")
+			choice = self.answer("Go to star", value=0)
+			self.assertEqual(choice["options"], ["Polaris"])
+			self.assertTrue(wait_for(lambda: self.goes))
+		self.assertEqual(self.goes[0], ("Polaris", 37.95, 89.26, 1.97))
+
+	def test_align_on_a_star_sets_the_position_then_tracks(self) -> None:
+		from unittest import mock
+
+		data = FakeSkyData([(37.95, 89.26, 1.97, "HD8890")], {"HD8890": "Polaris"})
+		with mock.patch("utils.sky_data.get_sky_data", return_value=data):
+			self.act("scope", "align")
+			self.answer("Pointing at?", value=0)
+			self.answer("Align", value=True)
+			self.assertTrue(wait_for(lambda: self.goes))
+		self.assertEqual(self.syncs, [(37.95, 89.26)])
+		self.assertEqual(self.goes[0][0], "Polaris")
+
+	def test_no_site_no_go(self) -> None:
+		config_state.save_location({})
+		self.act("scope", "goto")
+		self.answer("Site needed", dismissed=True)
+		time.sleep(0.2)
+		self.assertEqual(self.goes, [])
+
+	def test_typing_the_site(self) -> None:
+		from utils.location import get_current_location
+
+		self.conn.emit({"event": "ui", "type": "change", "panel": "scope", "item": "location", "value": "33.9S 18.4E"})
+		self.assertTrue(wait_for(lambda: (get_current_location() or {}).get("latitude") == -33.9))
+		self.assertEqual(get_current_location()["source"], "manual")
+		self.assertTrue(wait_for(lambda: any(
+			c.get("values") == {"scope.location": "-33.90, 18.40"} for c in self.conn.actions("set"))))
+
+	def test_take_photos_starts_then_stops_a_run(self) -> None:
+		taken: List[int] = []
+		release = threading.Event()
+
+		def capture() -> List[str]:
+			taken.append(1)
+			release.wait(2)
+			return ["/tmp/IMG_1.JPG"]
+
+		self.ui.photo_run._capture = capture
+		self.conn.emit({"event": "ui", "type": "change", "panel": "camera", "item": "shots", "value": 3})
+		self.assertTrue(wait_for(lambda: config_state.load_static_state().get("photos", {}).get("shots") == 3))
+		self.act("camera", "shoot")
+		self.assertTrue(wait_for(lambda: any(c.get("text") == "Taking 3 photos" for c in self.conn.actions("toast"))))
+		self.act("camera", "shoot")
+		self.assertTrue(wait_for(lambda: any(
+			c.get("text") == "Stopping after this photo" for c in self.conn.actions("toast"))))
+		release.set()
+		self.assertTrue(wait_for(lambda: not self.ui.photo_run.running))
+		self.assertEqual(len(taken), 1)
+
+
+class OfflineModeTests(PanelUIBase):
+	def setUp(self) -> None:
+		super().setUp()
+		from unittest import mock
+
+		from core.networking import websocket
+
+		self.reconnects: List[int] = []
+		self.applied: List[dict] = []
+		self.patches = [
+			mock.patch.object(websocket, "request_reconnect", side_effect=lambda: self.reconnects.append(1)),
+			mock.patch.object(websocket, "apply_client_config", side_effect=self.applied.append),
+		]
+		for p in self.patches:
+			p.start()
+
+	def tearDown(self) -> None:
+		for p in self.patches:
+			p.stop()
+		super().tearDown()
+
+	def test_the_toggle_goes_offline_and_back(self) -> None:
+		from core.networking import websocket
+
+		hello = self.conn.actions("hello")[0]
+		camera = {i["id"]: i for p in hello["panels"] if p["id"] == "camera" for i in p["items"]}
+		self.assertTrue(camera["liveview"]["visible"])
+
+		self.conn.emit({"event": "ui", "type": "change", "panel": "setup", "item": "offline", "value": True})
+		self.assertTrue(wait_for(config_state.is_offline_mode))
+		self.assertTrue(wait_for(lambda: self.reconnects))
+		self.assertFalse(websocket.server_enabled())
+		self.assertTrue(wait_for(lambda: any(c.get("item") == "liveview" and c.get("fields") == {"visible": False}
+			for c in self.conn.actions("set"))))
+
+		self.conn.emit({"event": "ui", "type": "change", "panel": "setup", "item": "offline", "value": False})
+		self.assertTrue(wait_for(lambda: not config_state.is_offline_mode()))
+		self.assertTrue(wait_for(lambda: self.applied))
+		self.assertEqual(self.applied[0]["base_url"], "https://seleno.org/")
+		self.assertTrue(wait_for(lambda: any(c.get("item") == "liveview" and c.get("fields") == {"visible": True}
+			for c in self.conn.actions("set"))))
+
+
+class FirstRunTests(PanelUIBase):
+	profile = {"client_config": {"client_id": "", "base_url": "", "api_token": ""}}
+
+	def test_choosing_offline_at_the_welcome(self) -> None:
+		welcome = self.answer("Welcome to SELENO", value=False)
+		self.assertEqual((welcome["yes"], welcome["no"]), ("Connect", "Offline"))
+		self.answer("Offline mode", dismissed=True)
+		self.assertTrue(config_state.is_offline_mode())
+
+	def test_backing_out_offers_offline(self) -> None:
+		self.answer("Welcome to SELENO", cancelled=True)
+		self.answer("Use offline?", value=False)  # back
+		self.answer("Welcome to SELENO", value=True)
+		self.answer("Device name", cancelled=True)
+		self.answer("Use offline?", value=True)
+		self.answer("Offline mode", dismissed=True)
+		self.assertTrue(config_state.is_offline_mode())
+
+
+class OfflineStartTests(PanelUIBase):
+	profile = {"client_config": {"client_id": "", "base_url": "", "api_token": "", "offline": True}}
+
+	def test_no_setup_when_already_offline(self) -> None:
+		time.sleep(0.3)
+		self.assertEqual(self.conn.actions("prompt"), [])
 
 
 if __name__ == "__main__":

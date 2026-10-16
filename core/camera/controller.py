@@ -101,8 +101,12 @@ class Camera:
         return folder
 
     @staticmethod
-    def capturePhoto(base_folder="photos", max_retries=3, currentid=None):
-        save_folder = Camera.getPhotoFolder(base_folder)
+    def capturePhoto(base_folder="photos", max_retries=3, currentid=None, save_folder=None):
+        # save_folder overrides base_folder/default (front-panel photos, utils/photos.py)
+        if save_folder:
+            makedirs(save_folder, exist_ok=True)
+        else:
+            save_folder = Camera.getPhotoFolder(base_folder)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         for attempt in range(1, max_retries + 1):
             capture = run(

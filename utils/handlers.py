@@ -55,6 +55,17 @@ except Exception:
     # If the config can't be read, continue with default
     pass
 
+
+def _server_url() -> str:
+    # Read at upload time: the server can be changed on the front panel.
+    try:
+        base = get_client_config().get("base_url")
+        if base:
+            return build_service_urls(base)["http_url"].rstrip("/")
+    except Exception:
+        pass
+    return SERVER_URL
+
 # Load the live view state from file, or default to True
 liveview_enabled = load_liveview_state()
 
@@ -138,7 +149,8 @@ def capturePhoto(currentid):
             leds.set_error(True, critical=False)
             return
         
-        server_url = f"{SERVER_URL}/upload"
+        base_url = _server_url()
+        server_url = f"{base_url}/upload"
 
         # Prepare file tuples with filenames and basic content-types
         def _guess_mime(path: str) -> str:
@@ -166,7 +178,7 @@ def capturePhoto(currentid):
         # Prepare headers, attach CSRF if available
         headers = {}
         data = None
-        token = get_csrf_token(SERVER_URL)
+        token = get_csrf_token(base_url)
         if token:
             # Send both common header variations to be safe
             headers["X-CSRF-Token"] = token

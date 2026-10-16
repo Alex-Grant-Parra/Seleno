@@ -12,12 +12,14 @@ Adding an option is one line in build_panels(). Item kinds:
 	Toggle(id, label, get, set)                  on/off
 	Choice(id, label, options, get, set)         get/set use the option index
 	Number(id, label, get, set, min, max, step, unit)
-	Text(id, label, get, set, max_length, secret)
+	Text(id, label, get, set, max_length, secret, hint)
 
 get() is polled every couple of seconds and only changes are sent, so keep
 it cheap. set() may return an error string, which is shown on the panel
-(the item then snaps back to get()'s value). Tabs are sorted by `order`;
-the firmware's own are Motors 30, Test 40, Display 60, About 90.
+(the item then snaps back to get()'s value). only_when(item, condition)
+hides an item while condition() is false (checked with the values). Tabs
+are sorted by `order`; the firmware's own are Motors 30, Test 40,
+Display 60, About 90.
 """
 from __future__ import annotations
 
@@ -25,7 +27,8 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence
 
-from utils import pi_system
+from utils import manual_control, photos, pi_system
+from utils.config_state import is_offline_mode
 from utils.sky_view import FOV_STEPS
 
 if TYPE_CHECKING:
@@ -41,12 +44,15 @@ class Item:
 	set: Optional[Callable[[Any], Optional[str]]] = None
 	run: Optional[Callable[[], Optional[str]]] = None
 	extra: Dict[str, Any] = field(default_factory=dict)
+	visible: Optional[Callable[[], bool]] = None
 
 	def to_json(self) -> Dict[str, Any]:
 		out: Dict[str, Any] = {"id": self.id, "type": self.type, "label": self.label}
 		out.update(self.extra)
 		if self.get is not None:
 			out["value"] = self.get()
+		if self.visible is not None:
+			out["visible"] = bool(self.visible())
 		return out
 
 
@@ -75,9 +81,17 @@ def Number(id: str, label: str, get: Callable[[], float], set: Callable[[float],
 
 
 def Text(id: str, label: str, get: Callable[[], str], set: Callable[[str], Optional[str]],
-		max_length: int = 64, secret: bool = False) -> Item:
-	return Item(id, label, "text", get=get, set=lambda v: set(str(v)),
-		extra={"max_length": max_length, "secret": secret})
+		max_length: int = 64, secret: bool = False, hint: str = "") -> Item:
+	# hint: shown under the keyboard's title (and in the footer if short)
+	extra: Dict[str, Any] = {"max_length": max_length, "secret": secret}
+	if hint:
+		extra["hint"] = hint
+	return Item(id, label, "text", get=get, set=lambda v: set(str(v)), extra=extra)
+
+
+def only_when(item: Item, condition: Callable[[], bool]) -> Item:
+	item.visible = condition
+	return item
 
 
 @dataclass
@@ -130,6 +144,8 @@ def validate_api_key(value: str) -> Optional[str]:
 
 
 def _server_state() -> str:
+	if is_offline_mode():
+		return "offline"
 	try:
 		from core.networking.websocket import server_state
 	except Exception:
@@ -176,14 +192,8 @@ def _camera() -> str:
 		return "?"
 
 
-def _location() -> str:
-	from utils.location import get_current_location
-
-	loc = get_current_location() or {}
-	lat, lon = loc.get("latitude"), loc.get("longitude")
-	if lat is None or lon is None:
-		return "unknown"
-	return f"{float(lat):.2f}, {float(lon):.2f}"
+def _online() -> bool:
+	return not is_offline_mode()
 
 
 def _stop_tracking() -> Optional[str]:
@@ -215,10 +225,20 @@ def build_panels(ui: "PanelUI") -> List[Panel]:
 		Panel("scope", "Scope", 10, [
 			Info("status", "Status", _tracking_status),
 			Action("sky", "Sky view", ui.show_sky),
+			Action("goto", "Go to RA/Dec", lambda: ui.run_flow("goto", manual_control.goto_coordinates)),
+			Action("star", "Go to star", lambda: ui.run_flow("goto", manual_control.goto_star)),
 			Action("stop", "Stop tracking", _stop_tracking, confirm="Stop tracking and halt the motors?"),
-			Toggle("liveview", "Live view", _liveview_on, _liveview),
-			Info("camera", "Camera", _camera),
-			Info("location", "Site", _location),
+			Action("align", "Align on star", lambda: ui.run_flow("align", manual_control.align_on_star)),
+			Text("location", "Site", manual_control.site_text,
+				lambda v: manual_control.set_site(v, ui.toast), max_length=40, hint="lat, lon"),
+		]),
+		Panel("camera", "Camera", 12, [
+			Info("camera", "Camera", lambda: ui.photo_run.progress or _camera()),
+			Action("shoot", "Take photos", ui.take_photos),
+			Number("shots", "Shots", photos.shots, photos.set_shots, 1, photos.MAX_SHOTS),
+			Info("saved", "On the Pi", lambda: f"{photos.saved_count()} files"),
+			Info("folder", "Path", photos.local_dir),
+			only_when(Toggle("liveview", "Live view", _liveview_on, _liveview), _online),
 		]),
 		Panel("sky", "Sky", 15, [
 			Choice("fov", "Field", fov_labels,
@@ -236,6 +256,7 @@ def build_panels(ui: "PanelUI") -> List[Panel]:
 			Action("refresh", "Update sky data", ui.refresh_sky_data),
 		]),
 		Panel("setup", "Setup", 20, [
+			Toggle("offline", "Offline mode", is_offline_mode, ui.set_offline),
 			Text("client_id", "Device name", lambda: _client_config().get("client_id", ""),
 				lambda v: ui.save_setting("client_id", v), max_length=32),
 			Text("base_url", "Server", lambda: _bare_server(_client_config().get("base_url", "")),

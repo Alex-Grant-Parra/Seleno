@@ -12,6 +12,7 @@ from utils.config_state import (
     get_client_config,
     ensure_state_files,
     get_missing_required_client_fields,
+    is_offline_mode,
 )
 from utils.LEDmanager import get_led_manager
 
@@ -20,16 +21,17 @@ def _wait_for_required_client_config() -> None:
     # The front panel asks for the device name, server and API key on first
     # run (utils/panel_ui.py); config/client_profile.json or
     # 'python Client.py setup' work too. Keep trying to reach the ESP32 while
-    # waiting, so the panel can take part even if it was late.
-    if not get_missing_required_client_fields():
+    # waiting, so the panel can take part even if it was late. Offline mode
+    # (chosen on the panel) needs none of them.
+    if not get_missing_required_client_fields() or is_offline_mode():
         return
     print("\n[config] Missing required client configuration: client_id, base_url, api_token")
-    print("[config] Set them on the front panel, in config/client_profile.json, or with 'python Client.py setup'")
-    while get_missing_required_client_fields():
+    print("[config] Set them on the front panel (or choose offline mode there), in config/client_profile.json, or with 'python Client.py setup'")
+    while get_missing_required_client_fields() and not is_offline_mode():
         if esp32_state.get_connection() is None:
             esp32_state.ensure_connection()
         time.sleep(2.0)
-    print("[config] Configuration complete")
+    print("[config] Offline mode" if is_offline_mode() else "[config] Configuration complete")
 
 
 def load_local_config():
@@ -95,8 +97,8 @@ if __name__ == "__main__":
             print("[startup] Connect camera via USB and it will be detected automatically")
             camera_state.set_available(False)
         
-        # Update GPS location on startup
-        update_location_config()
+        # Update GPS location on startup (no IP lookup in offline mode)
+        update_location_config(use_network=not is_offline_mode())
         
         # Attempt initial ESP32 connection and asset sync
         _connect_and_sync_esp32()

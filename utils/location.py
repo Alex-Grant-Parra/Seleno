@@ -67,9 +67,11 @@ def get_gps_from_ip():
         return None
 
 
-def update_location_config():
+def update_location_config(use_network=True):
     # Update the location configuration file with current GPS coordinates
-    # Tries hardware GPS first, falls back to IP geolocation
+    # Tries hardware GPS first, falls back to IP geolocation. A site typed on
+    # the front panel is kept unless a GPS fix replaces it, and use_network=False
+    # (offline mode) skips the IP lookup.
     print("[location] Attempting to retrieve GPS coordinates...")
     
     # Try hardware GPS first
@@ -77,6 +79,13 @@ def update_location_config():
     
     # Fallback to IP-based geolocation
     if location_data is None:
+        saved = get_location()
+        if saved.get('source') == 'manual':
+            print(f"[location] Keeping the site set on the front panel: {saved.get('latitude')}, {saved.get('longitude')}")
+            return True
+        if not use_network:
+            print("[location] Offline: keeping the saved location")
+            return bool(saved)
         print("[location] Hardware GPS not available, using IP geolocation...")
         location_data = get_gps_from_ip()
     
@@ -99,6 +108,25 @@ def update_location_config():
     except Exception as e:
         print(f"[location] Failed to save location data: {e}")
         return False
+
+
+def set_manual_location(latitude, longitude):
+    # A site typed on the front panel; kept over IP geolocation at startup.
+    save_location({
+        'latitude': float(latitude),
+        'longitude': float(longitude),
+        'source': 'manual',
+        'last_updated': datetime.utcnow().isoformat(),
+    })
+
+
+def forget_manual_location():
+    # Let GPS or IP geolocation set the site again (keeps the coordinates
+    # until they do).
+    saved = get_location()
+    if saved.get('source') == 'manual':
+        saved['source'] = 'saved'
+        save_location(saved)
 
 
 def get_current_location():

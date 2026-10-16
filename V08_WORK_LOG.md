@@ -711,4 +711,94 @@ Design:
   was tested with the devkit plus a harness.
 - Real buttons, LCD colours and orientation, and the backlight need the
   board.
-- Nothing is committed yet (branch `firmware/v0.8`).
+- Alex committed all of the above himself as `09fa190` ("new esp32
+  firmware").
+
+## Feature: offline mode and manual control (Alex, 2026-10-16)
+
+Alex asked for:
+- manual control of the telescope without a server;
+- a "use offline" button in the setup (name / server / API key) and a
+  toggle in settings once it's set up;
+- typing an RA and Dec to slew to and track, with no server;
+- in offline mode, photos saved to a local directory.
+
+**Done (uncommitted on `firmware/v0.8`, on top of `09fa190`):**
+- Offline mode is `client_config.offline` in config/client_profile.json
+  (`config_state.is_offline_mode()` / `set_offline_mode()`).
+  - `Client.py` doesn't wait for server settings when it's on, and skips
+    the IP location lookup.
+  - `websocket.py`: `run_client` and `send_frames` wait while
+    `server_enabled()` is false (offline, or settings missing), and
+    `server_state` says "offline" / "not set up". `websocketClient`
+    accepts a config without server settings when offline.
+  - `sky_data.py` never fetches offline; planet positions over 6 h old
+    aren't drawn (the Moon drifts).
+- Panel (`utils/panel_ui.py`, `utils/panel_menu.py`):
+  - The wizard's welcome is now a confirm: Connect / Offline. Backing out
+    while settings are missing offers offline (instead of "Leave setup?").
+    Finishing the wizard turns offline off.
+  - Setup tab: "Offline mode" toggle. Off with missing settings starts the
+    wizard; off with settings applies them and connects; on drops the
+    sockets.
+  - `run_flow(name, fn)`: prompt sequences run on their own thread, one at
+    a time (the wizard uses it too).
+  - `only_when(item, condition)`: an item's `visible` is sent with the
+    value diffs (`ui set` panel/item/fields). Live view is hidden offline.
+- Manual control (`utils/manual_control.py`), Scope tab:
+  - Go to RA/Dec: keyboard prompts (RA in hours `5 35 17`, `5:35:17`,
+    `5h35m17s`, `5.588`, or degrees with `d`; Dec `-5 23 28` etc.),
+    "Go there?" with the altitude, then checks: within 15 deg of the Sun
+    (computed locally, `sky_view.sun_radec`), below the horizon, E-stop
+    latched (offers to release). Then `show_sky` + `trackCoordinates`.
+    Target name is short for the strip: `5h35 -5`.
+  - Go to star: the 30 brightest named stars at least 10 deg up, from the
+    cached catalogue.
+  - Align on star: pick the star you've centred by hand; then
+    `tracking.sync_position()` (stop, zero the step counters, set the
+    position) and track it.
+  - Site: a Text item, "lat, lon" (also `51.5N 2.6W`); blank = back to
+    GPS/IP. A manual site (`source: manual`) survives startup's IP lookup;
+    a hardware GPS fix still replaces it.
+- Photos (`utils/photos.py`), new Camera tab: Take photos (press again to
+  stop after the current one), Shots 1-50, files on the Pi, path, and live
+  view (online only). Saved to `photos/offline/<night>/` (the night = the
+  date the evening started; `photos.local_dir` in client_config.json
+  overrides), with `photos.jsonl` recording time, target, RA/Dec and site.
+  Panel photos are always local; server-requested photos upload as before.
+  `Camera.capturePhoto` takes `save_folder`. LED calls in the photo run are
+  best effort (the firmware refuses LED commands during its LED test).
+- Firmware: a text item's `hint` is shown under the keyboard title
+  (ui_menu.cpp; PROTOCOL.md updated). Flashed to the devkit; both envs
+  build clean.
+- Also fixed:
+  - sky labels overlapped (the grid only reserved the anchor cell); labels
+    now reserve their whole box;
+  - `handlers.capturePhoto` uploaded to the server read at import, so a
+    server changed on the panel needed a restart;
+  - panel text avoids brackets (DejaVu9 draws them like "!").
+- Tests: test_panel_ui.py has 35 tests (manual control parsing, star list,
+  Sun, photo runs, flows against the fake connection, offline toggle,
+  first-run offline). A module fixture stops tests reaching a real serial
+  port: the LED manager used to find the devkit. test_interface_pty 12/12.
+- Devkit checks (harness with temporary config copies):
+  - first-run Offline;
+  - the tabs;
+  - typed RA/Dec with a bad value, then the slew;
+  - go to star with the E-stop release;
+  - toggling offline off reopens setup.
+
+  `Client.py` also ran end to end offline from a scratch copy: no server
+  attempts, panel attached, location kept.
+
+**Not done or not verified:**
+- No camera was connected, so `take_photo` has only been tested with a fake
+  capture.
+- Going from offline back online hasn't been run against the real server.
+- Photos taken with the camera's own shutter button stay on its card; only
+  panel photos are downloaded.
+- Possible next steps:
+  - upload offline photos when back online;
+  - nudging the scope with the arrows while tracking (the firmware's jog
+    stops sidereal tracking);
+  - exposure settings from the panel.

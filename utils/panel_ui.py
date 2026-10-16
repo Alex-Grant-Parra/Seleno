@@ -8,7 +8,8 @@
   double-RETURN stop (stop tracking, then acknowledge so the Pi may move the
   motors again) and sky-view zoom;
 * prompts (keyboard, confirm, message, choice) for the first-run setup of the
-  device name, server and API key;
+  device name, server and API key, or offline mode, and for the manual
+  go-to flows (utils/manual_control.py);
 * the sky view: while the panel shows it, a projected sky scene
   (utils/sky_view.py) about once a second while slewing, every few seconds
   otherwise.
@@ -26,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from utils.panel_menu import Panel, build_panels, validate_api_key, validate_device_name, validate_server
+from utils.photos import PhotoRun, shots as photo_shots
 from utils.sky_data import get_sky_data
 from utils.sky_view import FOV_STEPS, SkyOptions, build_scene
 
@@ -46,9 +48,11 @@ class PanelUI:
 		self._threads_started = False
 		self._panels: List[Panel] = []
 		self._sent_values: Dict[str, Any] = {}
+		self._sent_visible: Dict[str, bool] = {}
 		self._prompt_ids = itertools.count(1)
 		self._prompt_waiters: Dict[str, "queue.Queue[dict]"] = {}
-		self._wizard_running = False
+		self._flow_lock = threading.Lock()
+		self.photo_run = PhotoRun()
 		self._status: Dict[str, Any] = {}
 		self._tracking: Dict[str, Any] = {"state": "idle"}
 		self._sky_dirty = True
@@ -114,14 +118,16 @@ class PanelUI:
 		)
 		if reply is None:
 			return
-		self._sent_values = {f"{p.id}.{i.id}": i.to_json().get("value") for p in self._panels for i in p.items}
+		sent = {f"{p.id}.{i.id}": i.to_json() for p in self._panels for i in p.items}
+		self._sent_values = {key: item.get("value") for key, item in sent.items()}
+		self._sent_visible = {key: item["visible"] for key, item in sent.items() if "visible" in item}
 		self._note_reply(reply)
 		self.attached.set()
 		self._send("tracking", **self._tracking)
 		print(f"[panel] Front panel attached ({reply.get('width')}x{reply.get('height')})")
 		if reply.get("panel_stop_pending"):
 			self._queue_panel_stop()
-		if self.missing_settings():
+		if self.missing_settings() and not self.offline():
 			self.start_wizard()
 
 	def _status_fields(self) -> Dict[str, Any]:
@@ -136,12 +142,9 @@ class PanelUI:
 
 	@staticmethod
 	def _server_state() -> str:
-		try:
-			from core.networking.websocket import server_state
+		from utils.panel_menu import _server_state
 
-			return server_state.get("state", "?")
-		except Exception:
-			return "?"
+		return _server_state()
 
 	def _note_reply(self, reply: Dict[str, Any]) -> None:
 		with self._lock:
@@ -164,15 +167,18 @@ class PanelUI:
 		changed: Dict[str, Any] = {}
 		for panel in self._panels:
 			for item in panel.items:
-				if item.get is None:
+				if item.get is None and item.visible is None:
 					continue
 				try:
-					value = item.to_json().get("value")
+					fields = item.to_json()
 				except Exception:
 					continue
 				key = f"{panel.id}.{item.id}"
-				if self._sent_values.get(key) != value:
-					changed[key] = value
+				if item.get is not None and self._sent_values.get(key) != fields.get("value"):
+					changed[key] = fields.get("value")
+				if item.visible is not None and self._sent_visible.get(key) != fields["visible"]:
+					if self._send("set", panel=panel.id, item=item.id, fields={"visible": fields["visible"]}) is not None:
+						self._sent_visible[key] = fields["visible"]
 		if changed and self._send("set", values=changed) is not None:
 			self._sent_values.update(changed)
 
@@ -310,20 +316,37 @@ class PanelUI:
 			self._send("status", device=value)
 		return "Saved"
 
-	def start_wizard(self) -> Optional[str]:
-		if self._wizard_running:
-			return None
-		self._wizard_running = True
-		threading.Thread(target=self._wizard, name="panel-setup", daemon=True).start()
+	def run_flow(self, name: str, flow: Callable[["PanelUI"], None]) -> Optional[str]:
+		"""Run a sequence of prompts on its own thread (they block until
+		answered, so never on the worker). One at a time; RETURN on any prompt
+		ends it."""
+		if not self._flow_lock.acquire(blocking=False):
+			return "Finish the open dialog first"
+
+		def run() -> None:
+			try:
+				flow(self)
+			except (PromptCancelled, TimeoutError):
+				pass
+			except Exception as exc:
+				print(f"[panel] {name} failed: {exc}")
+				self.toast(str(exc)[:60] or name)
+			finally:
+				self._flow_lock.release()
+
+		threading.Thread(target=run, name=f"panel-{name}", daemon=True).start()
 		return None
 
+	def start_wizard(self) -> Optional[str]:
+		return self.run_flow("setup", lambda ui: ui._wizard())
+
 	def _wizard(self) -> None:
-		try:
-			while True:
-				try:
-					self._wizard_steps()
-					return
-				except PromptCancelled:
+		while True:
+			try:
+				self._wizard_steps()
+				return
+			except PromptCancelled:
+				if not self.missing_settings():
 					try:
 						leave = self.prompt("confirm", "Leave setup?",
 							"You can finish it later in the Setup tab.", yes="Leave", no="Back").get("value")
@@ -331,19 +354,35 @@ class PanelUI:
 						leave = True
 					if leave:
 						return
-		except TimeoutError:
-			pass
-		finally:
-			self._wizard_running = False
+					continue
+				# Not set up yet: offline mode is the way out.
+				try:
+					offline = self.prompt("confirm", "Use offline?",
+						"Use SELENO without a server for now? You can connect it later in the Setup tab.",
+						yes="Offline", no="Back").get("value")
+				except PromptCancelled:
+					offline = False
+				if offline:
+					self._go_offline()
+					return
+
+	def _go_offline(self) -> None:
+		self.set_offline(True)
+		self.prompt("message", "Offline mode",
+			"Go to coordinates or stars from the Scope tab. Photos are saved on the Pi. "
+			"Switch it off in the Setup tab.")
 
 	def _wizard_steps(self) -> None:
 		from utils.config_state import get_client_config, save_client_config
 		from utils.panel_menu import _bare_server
 		from utils import pi_system
 
-		self.prompt("message", "Welcome to SELENO",
-			"Let's connect this telescope to your Seleno account. You'll need the server "
-			"address and an API key from the website.")
+		# No brackets in panel text: the small font draws them like "!".
+		if not self.prompt("confirm", "Welcome to SELENO",
+				"Connect it to your Seleno account? You'll need the server and an API key. "
+				"Or use it offline.", yes="Connect", no="Offline", default="yes").get("value"):
+			self._go_offline()
+			return
 		cfg = get_client_config()
 		name = cfg.get("client_id") or pi_system.hostname()
 		server = _bare_server(cfg.get("base_url", ""))
@@ -355,7 +394,7 @@ class PanelUI:
 			summary = f"Name: {name}\nServer: {server}\nKey: ...{key[-4:]}"
 			if self.prompt("confirm", "Save these?", summary, yes="Save", no="Change", default="yes").get("value"):
 				break
-		save_client_config({"client_id": name, "base_url": server, "api_token": key})
+		save_client_config({"client_id": name, "base_url": server, "api_token": key, "offline": False})
 		self.busy("Connecting", f"Saved. Connecting to {server}...")
 		try:
 			from core.networking.websocket import apply_client_config
@@ -406,6 +445,45 @@ class PanelUI:
 					"(or run 'python Client.py setup')")
 				told = True
 			time.sleep(poll_s)
+
+	# --- offline mode -----------------------------------------------------------
+
+	@staticmethod
+	def offline() -> bool:
+		from utils.config_state import is_offline_mode
+
+		return is_offline_mode()
+
+	def set_offline(self, on: bool) -> Optional[str]:
+		"""Offline mode: no server connection (core/networking/websocket.py
+		waits); go-to and photos from the panel still work."""
+		from utils.config_state import get_client_config, set_offline_mode
+
+		set_offline_mode(on)
+		self.refresh_values()
+		try:
+			from core.networking import websocket
+		except Exception:
+			websocket = None
+		if on:
+			if websocket is not None:
+				websocket.request_reconnect()  # drops the open connections
+			return "Offline: no server"
+		if self.missing_settings():
+			self.start_wizard()
+			return None
+		if websocket is not None:
+			websocket.apply_client_config(get_client_config())
+		self._post("sky-data", lambda: get_sky_data().refresh())
+		return "Connecting to the server"
+
+	# --- photos ------------------------------------------------------------------
+
+	def take_photos(self) -> Optional[str]:
+		"""The Camera tab's button: start a run of photos, or stop one."""
+		if self.photo_run.running:
+			return self.photo_run.stop()
+		return self.photo_run.start(photo_shots(), self.toast)
 
 	def restart_client(self) -> Optional[str]:
 		from utils import pi_system

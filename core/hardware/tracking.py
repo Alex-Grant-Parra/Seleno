@@ -742,6 +742,24 @@ def on_esp32_reboot() -> None:
     print("[tracking] ESP32 restarted: motors will be re-initialised before the next move")
 
 
+def sync_position(ra: float, dec: float) -> None:
+    # The telescope has been centred on a known object by hand (front panel
+    # "Align on star"): stop, and take that as the current position. The
+    # step counters restart too, so moves made outside tracking (the panel's
+    # jog) aren't added to it.
+    global _last_ha_baseline
+    stop_tracking()
+    conn = _get_esp32_connection()
+    if conn:
+        try:
+            _reset_motor_positions(ESP32Motor(conn, "motor1"), ESP32Motor(conn, "motor2"))
+        except Exception as e:
+            print(f"[tracking] Warning: could not reset the step counters: {e}")
+    _last_ha_baseline = None
+    set_telescope_coords(float(ra), float(dec), source="manual_reset")
+    print(f"[tracking] Position set by hand: RA={float(ra):.4f}°, Dec={float(dec):.4f}°")
+
+
 def _set_polaris_alignment(location: dict) -> None:
     # Set telescope to Polaris coordinates for polar alignment.
     longitude = location.get('longitude')

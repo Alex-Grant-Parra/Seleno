@@ -70,6 +70,9 @@ def _default_client_profile() -> Dict[str, Any]:
             "client_id": "",
             "base_url": "",
             "api_token": "",
+            # Offline mode: no server connection; go-to and photos from the
+            # front panel only (utils/panel_menu.py).
+            "offline": False,
         },
         "location": {},
     }
@@ -317,6 +320,17 @@ def get_missing_required_client_fields() -> list[str]:
         if not isinstance(value, str) or not value.strip():
             missing.append(field)
     return missing
+
+
+def is_offline_mode() -> bool:
+    try:
+        return bool(get_client_config().get("offline", False))
+    except Exception:
+        return False
+
+
+def set_offline_mode(on: bool) -> None:
+    save_client_config({"offline": bool(on)})
 
 
 def get_slew_config() -> Dict[str, float]:

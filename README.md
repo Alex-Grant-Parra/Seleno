@@ -33,3 +33,9 @@ Optional interactive setup:
 ```bash
 python Client.py setup
 ```
+
+With the SELENO front panel, the client asks for these on the panel at first
+start instead. Choose **Offline** there (or turn on Setup > Offline mode) to
+use the telescope without a server: go to typed RA/Dec or a bright star from
+the Scope tab, and take photos from the Camera tab into `photos/offline/`.
+In the profile this is `client_config.offline: true`.

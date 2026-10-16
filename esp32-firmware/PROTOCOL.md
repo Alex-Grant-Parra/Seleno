@@ -239,7 +239,9 @@ panel counts the Pi as gone after 6 s without a byte from it.
 Menu items (`items[]`): `id`, `type` (`action`, `toggle`, `choice`,
 `number`, `text`, `info`), `label`, `value`, and by type: `options[]`;
 `min`, `max`, `step`, `unit`, `decimals`; `max_length`, `secret`; `confirm`
-(ask before an action or toggle); `hint`; `enabled`; `visible`. The panel
+(ask before an action or toggle); `hint` (shown under the keyboard's title
+for `text` items, and in the footer when 12 characters or fewer);
+`enabled`; `visible`. The panel
 changes the value at once and sends a `change` event; the host may `set` it
 back.
 
