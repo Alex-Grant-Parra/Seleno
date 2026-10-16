@@ -1,79 +1,54 @@
-#ifndef DISPLAY_H
-#define DISPLAY_H
+// ST7735S 128x160 LCD on S1, driven by LovyanGFX.
+//
+// Panel set-up matches the old hand-written driver that worked on Alex's
+// module: rotation 0 gives MADCTL 0x08 (BGR, no mirroring), offsets 0.
+// Check colours, orientation and edges on the real board (bring-up step 10);
+// adjust kLcdOffset*/kLcdRgbOrder in display.cpp if needed.
+//
+// Pixel payloads from the Pi are RGB565 big-endian (high byte first), which
+// is the panel's own byte order.
+#pragma once
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <cstdint>
 
-// ST7735S TFT LCD Pin Configuration
-#define DISPLAY_SCK   13   // D13 - SPI Clock
-#define DISPLAY_SDA   19   // D19 - SPI MOSI (Data)
-#define DISPLAY_DC    21   // D21 - Data/Command
-#define DISPLAY_RES   12   // D12 - Reset
-#define DISPLAY_CS    -1   // GND (tied to ground)
-#define DISPLAY_BL    15   // D15 - PWM Backlight
-
-// Display dimensions
-#define DISPLAY_WIDTH   128
-#define DISPLAY_HEIGHT  160
-#define DISPLAY_BPP     16  // 16-bit color
-
-// Color definitions (RGB565)
-#define COLOR_BLACK     0x0000
-#define COLOR_RED       0xF800
-#define COLOR_GREEN     0x07E0
-#define COLOR_BLUE      0x001F
-#define COLOR_WHITE     0xFFFF
-#define COLOR_YELLOW    0xFFE0
-#define COLOR_CYAN      0x07FF
-#define COLOR_MAGENTA   0xF81F
-
-struct DisplayState {
-  bool initialized;
-  bool powered;
-  uint8_t brightness;        // 0-255 PWM value for backlight
-  uint16_t background_color;
-  uint16_t text_color;
-  uint8_t text_size;
-  uint16_t cursor_x;
-  uint16_t cursor_y;
-};
-
-extern DisplayState g_display_state;
-
-// Initialization and control
-void initializeDisplay();
-void cleanupDisplay();
+bool displayInit();
+bool displayInitialized();
 void displayPower(bool on);
 void displayBacklight(uint8_t brightness);
+// The host's rotation (display commands, 128x160 assets assume 0).
+void displaySetRotation(uint8_t rotation);
+uint8_t displayHostRotation();
+// Rotate the panel without changing the host's setting (the UI's own
+// orientation). The host's comes back with displayUseRotation(displayHostRotation()).
+void displayUseRotation(uint8_t rotation);
+uint8_t displayBacklightLevel();
+uint16_t displayWidth();
+uint16_t displayHeight();
 
-// Drawing functions
 void displayFillScreen(uint16_t color);
-void displayDrawPixel(uint16_t x, uint16_t y, uint16_t color);
-void displayDrawRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
-void displayFillRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
-void displayDrawCircle(uint16_t x, uint16_t y, uint16_t r, uint16_t color);
-void displayFillCircle(uint16_t x, uint16_t y, uint16_t r, uint16_t color);
-void displayDrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color);
-void displayBeginBlit(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
-void displayWriteBlitData(const uint8_t* data, size_t len);
-void displayEndBlit();
+void displayDrawPixel(int32_t x, int32_t y, uint16_t color);
+void displayFillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color);
+void displayDrawRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color);
+void displayDrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t color);
+void displayDrawCircle(int32_t x, int32_t y, int32_t r, uint16_t color);
+void displayFillCircle(int32_t x, int32_t y, int32_t r, uint16_t color);
 
-// Text functions
+void displaySetCursor(int32_t x, int32_t y);
 void displaySetTextColor(uint16_t color);
 void displaySetBackgroundColor(uint16_t color);
 void displaySetTextSize(uint8_t size);
-void displaySetCursor(uint16_t x, uint16_t y);
-void displayPrintText(const String& text);
-void displayPrintLine(const String& text);
-void displayClearLine(uint16_t line_num);
+void displayPrint(const char* text);
 
-// Utility functions
-uint16_t hexToColor(const String& hex_str);
-String colorToHex(uint16_t color);
-void displayGetState();
-// Play a stored file from LittleFS. For now expects a raw RGB565 file sized
-// exactly w*h*2 bytes; the file will be streamed to the display at the
-// specified x,y position.
-void displayPlayFile(const char* name, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+// Whole-window pixel writes.
+void displayPushRgb565(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint8_t* bigEndianPixels);
+// Chunked writes for frames that don't fit in RAM. Chunks may split a pixel.
+void displayBeginStream(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+void displayStreamBytes(const uint8_t* data, size_t len);
+void displayEndStream();
 
-#endif // DISPLAY_H
+// Show a raw RGB565 file (w*h*2 bytes) stored on LittleFS.
+bool displayPlayFile(const char* name, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+
+void displayStatusJson(JsonObject out);

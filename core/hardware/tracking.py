@@ -29,6 +29,25 @@ _hour_angle_updater_active = False
 # Motor initialization flag
 _motors_initialized = False
 
+# What the front panel shows: idle, slewing, centering or tracking.
+_panel_state = "idle"
+
+
+def _publish_state(state: str, **fields) -> None:
+    # Tell the front panel (utils/panel_ui.py); never let it break tracking.
+    global _panel_state
+    _panel_state = state
+    try:
+        from utils.panel_ui import tracking_update
+
+        tracking_update(state=state, **fields)
+    except Exception as exc:
+        print(f"[tracking] Front panel update failed: {exc}")
+
+
+def is_sidereal_tracking() -> bool:
+    return _tracking_active and _panel_state == "tracking"
+
 # (ra, ha) written by the last motor-position update. The mount holds a fixed
 # HA while its motor is stopped, so the next update must start from this HA
 # rather than re-deriving it from RA at the current time.
@@ -91,7 +110,20 @@ def _initialize_motors():
                 continue
 
             if motor_id in motor_ids:
+                # The v0.8 firmware boots with motor1/motor2 registered but
+                # disengaged, so an existing motor may still need its driver on.
                 print(f"[tracking] {motor_id} ({label}) already exists")
+                try:
+                    motor = ESP32Motor(conn, motor_id)
+                    if bool(board.get("engage", True)) and not motor.status().get("enabled", False):
+                        motor.engage()
+                        print(f"[tracking] {motor_id} ({label}) engaged")
+                except Exception as e:
+                    if required:
+                        print(f"[tracking] Error engaging required motor {motor_id} ({label}): {e}")
+                        return False
+                    print(f"[tracking] Warning: could not engage optional motor {motor_id} ({label}): {e}")
+                _last_motor_steps[motor_id] = 0
                 continue
 
             print(f"[tracking] Creating {motor_id} ({label})...")
@@ -104,7 +136,9 @@ def _initialize_motors():
                     en_pin=int(pins.get("en")),
                     steps_per_rev=int(board.get("steps_per_rev", 1600)),
                     engage=bool(board.get("engage", True)),
-                    replace=bool(board.get("replace", True)),
+                    replace=bool(board.get("replace", False)),
+                    microsteps=board.get("microsteps"),
+                    chopper=board.get("chopper"),
                 )
                 motor_ids.add(motor_id)
                 _last_motor_steps[motor_id] = 0
@@ -448,12 +482,13 @@ def _start_ra_tracking() -> None:
         
         config = get_slew_config()
         ra_gear_ratio = config.get("ra_gear_ratio", 360.0)
-        ra_steps_per_rev = int(get_motor_boards()["ra"].get("steps_per_rev", 1600))
-        # One output revolution per sidereal day: ra_gear_ratio motor revolutions
-        tracking_speed_sps = ra_gear_ratio * ra_steps_per_rev / SIDEREAL_DAY_S
-        
         motor1 = ESP32Motor(conn, "motor1")
         motor2 = ESP32Motor(conn, "motor2")
+        # Steps per revolution follow the driver's microstep setting, which
+        # the firmware reports (it can be changed at runtime over the TMC UART).
+        ra_steps_per_rev = motor1.steps_per_rev
+        # One output revolution per sidereal day: ra_gear_ratio motor revolutions
+        tracking_speed_sps = ra_gear_ratio * ra_steps_per_rev / SIDEREAL_DAY_S
         
         # Stop any existing movement on both motors first
         print(f"[tracking] Stopping all motors before starting continuous tracking")
@@ -463,7 +498,17 @@ def _start_ra_tracking() -> None:
         except Exception as e:
             print(f"[tracking] Warning: Error stopping motors: {e}")
         
-        time.sleep(0.3)  # Brief pause to ensure motors fully stop
+        # A stop from slew speed ramps down (up to about a second), so wait
+        # until both have actually stopped rather than a fixed pause.
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            try:
+                if not motor1.status().get("moving") and not motor2.status().get("moving"):
+                    break
+            except Exception as e:
+                print(f"[tracking] Warning: Error reading motor status: {e}")
+                break
+            time.sleep(0.1)
         
         # Set speed to configured tracking rate
         print(f"[tracking] Setting RA motor speed to {tracking_speed_sps:.4f} sps (sidereal, {ra_gear_ratio}:1)")
@@ -505,6 +550,10 @@ def _continuous_tracking_loop() -> None:
             
             # Update current position from actual motor movements
             _update_current_coords_from_motors()
+            now_coords = get_telescope_coords() or {}
+            if now_coords:
+                _publish_state(_panel_state, ra_now=now_coords.get('right_ascension'),
+                               dec_now=now_coords.get('declination'))
             
             # Log current coordinates periodically for debugging
             coord_update_interval += 1
@@ -604,6 +653,7 @@ def _continuous_tracking_loop() -> None:
                                     leds.set_command_busy(False)
                                     _start_ra_tracking()
                                     sidereal_tracking_active = True
+                                    _publish_state("tracking", ra_now=current_ra, dec_now=current_dec)
                                 # If we're off target but motors stopped, issue correction slew
                                 else:
                                     print(f"[tracking] ⚠ Off target - issuing fine correction slew")
@@ -611,6 +661,7 @@ def _continuous_tracking_loop() -> None:
                                     print(f"[tracking]   Dec correction: {delta_dec:.6f}° ({'NORTH/forward' if delta_dec > 0 else 'SOUTH/backward'})")
                                     # Reset motor positions to establish new baseline
                                     _reset_motor_positions(motor1, motor2)
+                                    _publish_state("centering")
                                     # Move by the current error
                                     _move_motors(delta_ha, delta_dec)
                                     waiting_logged = False  # Reset for next wait cycle
@@ -627,7 +678,7 @@ def _continuous_tracking_loop() -> None:
     print("[tracking] Continuous tracking thread stopped")
 
 
-def stop_tracking() -> None:
+def stop_tracking(set_leds_idle: bool = True) -> None:
     # Stop continuous tracking and motors.
     global _tracking_active, _tracking_thread, _target_object
     leds = get_led_manager()
@@ -635,6 +686,7 @@ def stop_tracking() -> None:
     if _tracking_active:
         print("[tracking] Stopping continuous tracking")
         _tracking_active = False
+        _publish_state("idle")
         
         # Wait for thread to finish
         if _tracking_thread and _tracking_thread.is_alive():
@@ -668,7 +720,26 @@ def stop_tracking() -> None:
     else:
         print("[tracking] Warning: ESP32 connection not available to stop motors")
 
-    leds.set_idle()
+    if set_leds_idle:
+        leds.set_idle()
+
+
+def stop_tracking_for_estop() -> None:
+    # The ESP32 has latched its emergency stop and halted the motors itself.
+    # Stop the Pi's tracking loop so it doesn't keep issuing moves; the stop
+    # commands stop_tracking() sends are still accepted while latched.
+    print("[tracking] Emergency stop: stopping tracking")
+    stop_tracking(set_leds_idle=False)
+
+
+def on_esp32_reboot() -> None:
+    # A restarted ESP32 has its motors disengaged and step counters at zero.
+    # Re-create/engage on the next move and restart position deltas from 0.
+    global _motors_initialized
+    _motors_initialized = False
+    _last_motor_steps["motor1"] = 0
+    _last_motor_steps["motor2"] = 0
+    print("[tracking] ESP32 restarted: motors will be re-initialised before the next move")
 
 
 def _set_polaris_alignment(location: dict) -> None:
@@ -773,6 +844,12 @@ def trackCoordinates(name, ra, dec, mag):
         print(f"[tracking] Telescope not aligned. Checking again in 1 second...")
         time.sleep(1)
     print(f"[tracking] Telescope is aligned. Proceeding with tracking.")
+
+    try:
+        mag_value = float(mag)
+    except (TypeError, ValueError):
+        mag_value = None
+    _publish_state("slewing", target=str(name), ra=ra, dec=dec, mag=mag_value)
 
     # Slew, refine, and center on target
     if abs(DeltaHA) > 0.001 or abs(DeltaDec) > 0.001:

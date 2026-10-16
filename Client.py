@@ -1,6 +1,7 @@
 # Main client entry point
 
 from asyncio import run
+import sys
 import time
 from core.networking.websocket import websocketClient, cleanup_camera
 from core.camera.controller import Camera
@@ -15,25 +16,30 @@ from utils.config_state import (
 from utils.LEDmanager import get_led_manager
 
 
-def _validate_required_client_config() -> None:
-    missing = get_missing_required_client_fields()
-    if not missing:
+def _wait_for_required_client_config() -> None:
+    # The front panel asks for the device name, server and API key on first
+    # run (utils/panel_ui.py); config/client_profile.json or
+    # 'python Client.py setup' work too. Keep trying to reach the ESP32 while
+    # waiting, so the panel can take part even if it was late.
+    if not get_missing_required_client_fields():
         return
-
-    print("\n[config] Missing required client configuration fields.")
-    print("[config] Required: client_id, base_url, api_token")
-    print("[config] Update config/client_profile.json and rerun Client.py")
-    raise SystemExit(78)
+    print("\n[config] Missing required client configuration: client_id, base_url, api_token")
+    print("[config] Set them on the front panel, in config/client_profile.json, or with 'python Client.py setup'")
+    while get_missing_required_client_fields():
+        if esp32_state.get_connection() is None:
+            esp32_state.ensure_connection()
+        time.sleep(2.0)
+    print("[config] Configuration complete")
 
 
 def load_local_config():
     try:
         ensure_state_files()
-        _validate_required_client_config()
-        return get_client_config()
     except Exception as e:
         print(f"Failed to read configuration files: {e}")
         raise SystemExit(1)
+    _wait_for_required_client_config()
+    return get_client_config()
 
 
 def _connect_and_sync_esp32() -> None:
@@ -95,6 +101,11 @@ if __name__ == "__main__":
         # Attempt initial ESP32 connection and asset sync
         _connect_and_sync_esp32()
         
+        if len(sys.argv) > 1 and sys.argv[1] == "setup":
+            from core.networking.websocket import setup_client_config
+            setup_client_config()
+            raise SystemExit(0)
+
         cfg = load_local_config()
         
         # Run the main websocket client (camera scanner and ESP32 scanner run as background tasks)

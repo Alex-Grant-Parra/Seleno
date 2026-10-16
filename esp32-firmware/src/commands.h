@@ -1,17 +1,8 @@
-#ifndef COMMANDS_H
-#define COMMANDS_H
+// JSON command handlers. The protocol is documented in ../PROTOCOL.md.
+#pragma once
 
-#include <Arduino.h>
+#include <ArduinoJson.h>
 
-// Command handling and JSON response functions
-void handleCommand(const String& line);
-
-// JSON response helpers
-void sendError(const char* message);
-void sendOkEmpty();
-void sendOkLedStatus(const class LedChannel& led);
-void sendOkStatus(const String& motorId, class Motor* motor);
-void sendOkMotorList();
-void sendOkDisplayStatus();
-
-#endif // COMMANDS_H
+// Each returns true if it recognised cmd (and sent a response).
+bool handleMotorCommand(const char* cmd, JsonDocument& req);
+bool handleDisplayCommand(const char* cmd, JsonDocument& req);

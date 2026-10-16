@@ -1,604 +1,320 @@
-#include "display.h" 
-#include <SPI.h>
+#include "display.h"
+
 #include <LittleFS.h>
 
-// Global display state
-DisplayState g_display_state = {
-  .initialized = false,
-  .powered = true,
-  .brightness = 255,
-  .background_color = COLOR_BLACK,
-  .text_color = COLOR_WHITE,
-  .text_size = 1,
-  .cursor_x = 0,
-  .cursor_y = 0
+#include "display_device.h"
+
+#include "board_pins.h"
+#include "config.h"
+#include "logic/color.h"
+#include "storage.h"
+
+namespace {
+
+// Rotation 0 reproduces the old driver's CASET 0-127 / RASET 0-159 window.
+// The controller's frame memory is 132 x 162; LovyanGFX uses that to work out
+// offsets for the other rotations.
+constexpr uint16_t kLcdOffsetX = 0;
+constexpr uint16_t kLcdOffsetY = 0;
+constexpr bool kLcdRgbOrder = false;  // false = BGR, as MADCTL 0x08 before
+
+class SelenoLcd : public lgfx::LGFX_Device {
+ public:
+  SelenoLcd() {
+    {
+      auto cfg = bus_.config();
+      cfg.spi_host = SPI2_HOST;  // HSPI: IO14/IO13 are its IO_MUX pins
+      cfg.spi_mode = 0;
+      cfg.freq_write = kLcdSpiHz;
+      cfg.freq_read = 8000000;
+      cfg.spi_3wire = true;
+      cfg.use_lock = true;
+      cfg.dma_channel = SPI_DMA_CH_AUTO;
+      cfg.pin_sclk = PIN_LCD_SCK;
+      cfg.pin_mosi = PIN_LCD_MOSI;
+      cfg.pin_miso = -1;
+      cfg.pin_dc = PIN_LCD_DC;
+      bus_.config(cfg);
+      panel_.setBus(&bus_);
+    }
+    {
+      auto cfg = panel_.config();
+      cfg.pin_cs = PIN_LCD_CS;  // tied to GND on S1 pin 7
+      cfg.pin_rst = PIN_LCD_RST;
+      cfg.pin_busy = -1;
+      cfg.panel_width = kLcdWidth;
+      cfg.panel_height = kLcdHeight;
+      cfg.memory_width = 132;
+      cfg.memory_height = 162;
+      cfg.offset_x = kLcdOffsetX;
+      cfg.offset_y = kLcdOffsetY;
+      cfg.offset_rotation = 0;
+      cfg.readable = false;  // no MISO on S1
+      cfg.invert = false;
+      cfg.rgb_order = kLcdRgbOrder;
+      cfg.dlen_16bit = false;
+      cfg.bus_shared = false;
+      panel_.config(cfg);
+    }
+    {
+      auto cfg = light_.config();
+      cfg.pin_bl = PIN_LCD_BL;
+      cfg.invert = false;
+      cfg.freq = 12000;
+      cfg.pwm_channel = kLcdBacklightPwmChannel;
+      light_.config(cfg);
+      panel_.setLight(&light_);
+    }
+    setPanel(&panel_);
+  }
+
+ private:
+  lgfx::Panel_ST7735S panel_;
+  lgfx::Bus_SPI bus_;
+  lgfx::Light_PWM light_;
 };
 
-// Forward declarations for low-level SPI operations
-static void displayWrite8(uint8_t byte);
-static void displayWrite16(uint16_t word);
-static void displayWriteBytes(const uint8_t* data, size_t len);
-static void displayCommandMode();
-static void displayDataMode();
-static void displayReset();
-static void displaySetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
-static void displayFillCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t corners, uint16_t delta, uint16_t color);
-static String normalizeFsPath(const char* name) {
-  String path(name == nullptr ? "" : name);
-  path.trim();
-  if (path.length() > 0 && path[0] != '/') {
-    path = "/" + path;
+SelenoLcd g_lcd;
+
+struct DisplayState {
+  bool initialized = false;
+  bool powered = true;
+  uint8_t brightness = 255;
+  uint16_t textColor = 0xFFFF;
+  uint16_t backgroundColor = 0x0000;
+  uint8_t textSize = 1;
+  uint8_t rotation = 0;         // the host's
+  uint8_t appliedRotation = 0;  // what the panel is set to now
+  bool streaming = false;
+  bool havePendingByte = false;
+  uint8_t pendingByte = 0;
+} g_state;
+
+bool windowFits(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+  return w > 0 && h > 0 && x + w <= g_lcd.width() && y + h <= g_lcd.height();
+}
+
+}  // namespace
+
+bool displayInit() {
+  if (g_state.initialized) {
+    return true;
   }
-  return path;
-}
-
-// SPI communication helpers
-static void displayWrite8(uint8_t byte) {
-  SPI.write(byte);
-}
-
-static void displayWrite16(uint16_t word) {
-  displayWrite8(word >> 8);
-  displayWrite8(word & 0xFF);
-}
-
-static void displayWriteBytes(const uint8_t* data, size_t len) {
-  if (data == nullptr || len == 0) {
-    return;
+  // Keep the backlight dark until the panel RAM has been cleared, so the
+  // random power-up contents never show.
+  g_lcd.setBrightness(0);
+  if (!g_lcd.init()) {
+    return false;
   }
-
-  SPI.writeBytes(data, len);
-  if ((len & 0x3FF) == 0) {
-    yield();
-  }
+  g_lcd.setRotation(g_state.rotation);
+  g_state.appliedRotation = g_state.rotation;
+  g_lcd.setColorDepth(16);
+  g_lcd.fillScreen(0x0000);
+  g_lcd.setTextColor(g_state.textColor, g_state.backgroundColor);
+  g_lcd.setTextSize(g_state.textSize);
+  g_lcd.setCursor(0, 0);
+  g_state.initialized = true;
+  g_state.powered = true;
+  g_lcd.setBrightness(g_state.brightness);
+  return true;
 }
 
-static void displayCommandMode() {
-  digitalWrite(DISPLAY_DC, LOW);
-}
-
-static void displayDataMode() {
-  digitalWrite(DISPLAY_DC, HIGH);
-}
-
-static void displayReset() {
-  digitalWrite(DISPLAY_RES, LOW);
-  delay(10);
-  digitalWrite(DISPLAY_RES, HIGH);
-  delay(10);
-}
-
-static void displaySetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
-  // Column address set (CASET)
-  displayCommandMode();
-  displayWrite8(0x2A);
-  displayDataMode();
-  displayWrite16(x0);
-  displayWrite16(x1);
-  
-  // Row address set (RASET)
-  displayCommandMode();
-  displayWrite8(0x2B);
-  displayDataMode();
-  displayWrite16(y0);
-  displayWrite16(y1);
-}
-
-// Initialize display
-void initializeDisplay() {
-  if (g_display_state.initialized) {
-    return;
-  }
-
-  // Initialize pins
-  pinMode(DISPLAY_DC, OUTPUT);
-  pinMode(DISPLAY_RES, OUTPUT);
-  pinMode(DISPLAY_BL, OUTPUT);
-  // Keep backlight off until the panel RAM is explicitly cleared.
-  analogWrite(DISPLAY_BL, 0);
-
-  // Initialize SPI with explicit parameters
-  // SPI.begin(SCK, MISO, MOSI, CS)
-  // We don't use MISO (read-only) or CS (tied to ground)
-  SPI.begin(DISPLAY_SCK, -1, DISPLAY_SDA, -1);
-  SPI.setFrequency(40000000);  // 40 MHz for display throughput
-  SPI.setDataMode(SPI_MODE0);
-
-  // Reset display
-  displayReset();
-
-  // Initialize ST7735S - using smaller delays to avoid blocking serial
-  // Sleep out
-  displayCommandMode();
-  displayWrite8(0x11);  // SLPOUT
-  delay(10);
-  
-  // Yield to allow serial handler to run
-  yield();
-
-  // Interface Pixel Format - 16-bit/pixel (RGB565)
-  displayCommandMode();
-  displayWrite8(0x3A);  // COLMOD
-  displayDataMode();
-  displayWrite8(0x05);  // 16-bit/pixel
-  
-  delay(5);
-  yield();
-
-  // Memory Data Access Control - BGR mode
-  displayCommandMode();
-  displayWrite8(0x36);  // MADCTL
-  displayDataMode();
-  displayWrite8(0x08);  // BGR
-  
-  delay(5);
-  yield();
-  // Display on
-  displayCommandMode();
-  displayWrite8(0x29);  // DISPON
-  
-  delay(10);
-  yield();
-
-  // Set column address range (CASET)
-  displayCommandMode();
-  displayWrite8(0x2A);
-  displayDataMode();
-  displayWrite8(0x00);
-  displayWrite8(0x00);
-  displayWrite8(0x00);
-  displayWrite8(0x7F);  // 128-1
-  
-  delay(2);
-  yield();
-  
-  // Set row address range (RASET)
-  displayCommandMode();
-  displayWrite8(0x2B);
-  displayDataMode();
-  displayWrite8(0x00);
-  displayWrite8(0x00);
-  displayWrite8(0x00);
-  displayWrite8(0x9F);  // 160-1
-  
-  delay(2);
-  yield();
-
-  g_display_state.initialized = true;
-  // Ensure deterministic startup visuals (no random VRAM/static).
-  displayFillScreen(COLOR_BLACK);
-
-  // Set backlight to full brightness after clear completes.
-  analogWrite(DISPLAY_BL, 255);
-}
-
-void cleanupDisplay() {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  displayPower(false);
-  SPI.end();
-  g_display_state.initialized = false;
+bool displayInitialized() {
+  return g_state.initialized;
 }
 
 void displayPower(bool on) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  
-  displayCommandMode();
+  if (!g_state.initialized) return;
   if (on) {
-    displayWrite8(0x29);  // DISPON
-    g_display_state.powered = true;
+    g_lcd.wakeup();
   } else {
-    displayWrite8(0x28);  // DISPOFF
-    g_display_state.powered = false;
+    g_lcd.sleep();
   }
+  g_state.powered = on;
 }
 
 void displayBacklight(uint8_t brightness) {
-  if (!g_display_state.initialized) {
-    return;
+  g_state.brightness = brightness;
+  if (g_state.initialized) {
+    g_lcd.setBrightness(brightness);
   }
-  g_display_state.brightness = brightness;
-  analogWrite(DISPLAY_BL, brightness);
 }
 
-// Fill screen with color
+void displaySetRotation(uint8_t rotation) {
+  g_state.rotation = rotation & 3;
+  displayUseRotation(g_state.rotation);
+}
+
+uint8_t displayHostRotation() {
+  return g_state.rotation;
+}
+
+void displayUseRotation(uint8_t rotation) {
+  rotation &= 3;
+  if (g_state.initialized && rotation != g_state.appliedRotation) {
+    g_lcd.setRotation(rotation);
+  }
+  g_state.appliedRotation = rotation;
+}
+
+uint8_t displayBacklightLevel() {
+  return g_state.brightness;
+}
+
+lgfx::LGFX_Device& displayDevice() {
+  return g_lcd;
+}
+
+uint16_t displayWidth() {
+  return g_state.initialized ? g_lcd.width() : ((g_state.rotation & 1) ? kLcdHeight : kLcdWidth);
+}
+
+uint16_t displayHeight() {
+  return g_state.initialized ? g_lcd.height() : ((g_state.rotation & 1) ? kLcdWidth : kLcdHeight);
+}
+
 void displayFillScreen(uint16_t color) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  
-  displaySetWindow(0, 0, DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1);
-  
-  displayCommandMode();
-  displayWrite8(0x2C);  // RAMWR - Write to RAM
-  
-  displayDataMode();
-  for (uint16_t i = 0; i < DISPLAY_WIDTH * DISPLAY_HEIGHT; i++) {
-    displayWrite16(color);
-    // Yield every 256 pixels to prevent blocking serial handler
-    if ((i & 0xFF) == 0) {
-      yield();
-    }
-  }
-  
-  g_display_state.background_color = color;
-  g_display_state.cursor_x = 0;
-  g_display_state.cursor_y = 0;
+  if (!g_state.initialized) return;
+  g_lcd.fillScreen(color);
+  g_state.backgroundColor = color;
+  g_lcd.setTextColor(g_state.textColor, g_state.backgroundColor);
+  g_lcd.setCursor(0, 0);
 }
 
-// Signed-coordinate primitives. Shapes near the top/left edge produce negative
-// coordinates, which must be clipped rather than wrapped to ~65535.
-static void drawPixelClipped(int32_t x, int32_t y, uint16_t color) {
-  if (x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
-    return;
-  }
-
-  displaySetWindow(x, y, x, y);
-
-  displayCommandMode();
-  displayWrite8(0x2C);  // RAMWR
-
-  displayDataMode();
-  displayWrite16(color);
+void displayDrawPixel(int32_t x, int32_t y, uint16_t color) {
+  if (g_state.initialized) g_lcd.drawPixel(x, y, color);
 }
 
-static void fillRectClipped(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color) {
-  if (x < 0) { w += x; x = 0; }
-  if (y < 0) { h += y; y = 0; }
-  if (x + w > DISPLAY_WIDTH) { w = DISPLAY_WIDTH - x; }
-  if (y + h > DISPLAY_HEIGHT) { h = DISPLAY_HEIGHT - y; }
-  if (w <= 0 || h <= 0) {
-    return;
-  }
-
-  displaySetWindow(x, y, x + w - 1, y + h - 1);
-
-  displayCommandMode();
-  displayWrite8(0x2C);  // RAMWR
-
-  displayDataMode();
-  uint32_t pixel_count = (uint32_t)w * h;
-  for (uint32_t i = 0; i < pixel_count; i++) {
-    displayWrite16(color);
-    // Yield every 256 pixels to prevent blocking serial handler
-    if ((i & 0xFF) == 0) {
-      yield();
-    }
-  }
+void displayFillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color) {
+  if (g_state.initialized) g_lcd.fillRect(x, y, w, h, color);
 }
 
-// Bresenham's algorithm
-static void drawLineClipped(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t color) {
-  int32_t dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
-  int32_t dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
-  int32_t sx = (x0 < x1) ? 1 : -1;
-  int32_t sy = (y0 < y1) ? 1 : -1;
-  int32_t err = dx - dy;
-
-  while (1) {
-    drawPixelClipped(x0, y0, color);
-    if (x0 == x1 && y0 == y1) break;
-
-    int32_t e2 = 2 * err;
-    if (e2 > -dy) {
-      err -= dy;
-      x0 += sx;
-    }
-    if (e2 < dx) {
-      err += dx;
-      y0 += sy;
-    }
-  }
+void displayDrawRect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t color) {
+  if (g_state.initialized) g_lcd.drawRect(x, y, w, h, color);
 }
 
-// Draw single pixel
-void displayDrawPixel(uint16_t x, uint16_t y, uint16_t color) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  drawPixelClipped(x, y, color);
+void displayDrawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint16_t color) {
+  if (g_state.initialized) g_lcd.drawLine(x0, y0, x1, y1, color);
 }
 
-// Draw rectangle (outline)
-void displayDrawRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
-  if (!g_display_state.initialized || w == 0 || h == 0) {
-    return;
-  }
-
-  fillRectClipped(x, y, w, 1, color);              // Top
-  fillRectClipped(x, (int32_t)y + h - 1, w, 1, color);  // Bottom
-  fillRectClipped(x, y, 1, h, color);              // Left
-  fillRectClipped((int32_t)x + w - 1, y, 1, h, color);  // Right
+void displayDrawCircle(int32_t x, int32_t y, int32_t r, uint16_t color) {
+  if (g_state.initialized) g_lcd.drawCircle(x, y, r, color);
 }
 
-// Fill rectangle
-void displayFillRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  fillRectClipped(x, y, w, h, color);
+void displayFillCircle(int32_t x, int32_t y, int32_t r, uint16_t color) {
+  if (g_state.initialized) g_lcd.fillCircle(x, y, r, color);
 }
 
-// Draw circle (outline)
-void displayDrawCircle(uint16_t x, uint16_t y, uint16_t r, uint16_t color) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-
-  int32_t cx = x;
-  int32_t cy = y;
-  int32_t f = 1 - r;
-  int32_t ddF_x = 1;
-  int32_t ddF_y = -2 * (int32_t)r;
-  int32_t px = 0;
-  int32_t py = r;
-
-  drawPixelClipped(cx, cy + r, color);
-  drawPixelClipped(cx, cy - r, color);
-  drawPixelClipped(cx + r, cy, color);
-  drawPixelClipped(cx - r, cy, color);
-
-  while (px < py) {
-    if (f >= 0) {
-      py--;
-      ddF_y += 2;
-      f += ddF_y;
-    }
-    px++;
-    ddF_x += 2;
-    f += ddF_x;
-
-    drawPixelClipped(cx + px, cy + py, color);
-    drawPixelClipped(cx - px, cy + py, color);
-    drawPixelClipped(cx + px, cy - py, color);
-    drawPixelClipped(cx - px, cy - py, color);
-    drawPixelClipped(cx + py, cy + px, color);
-    drawPixelClipped(cx - py, cy + px, color);
-    drawPixelClipped(cx + py, cy - px, color);
-    drawPixelClipped(cx - py, cy - px, color);
-  }
+void displaySetCursor(int32_t x, int32_t y) {
+  if (g_state.initialized) g_lcd.setCursor(x, y);
 }
 
-// Fill circle
-void displayFillCircle(uint16_t x, uint16_t y, uint16_t r, uint16_t color) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-
-  fillRectClipped(x, (int32_t)y - r, 1, 2 * (int32_t)r + 1, color);
-  displayFillCircleHelper(x, y, r, 3, 0, color);
-}
-
-// Helper for filled circle: draws vertical spans either side of the centre
-static void displayFillCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t corners, uint16_t delta, uint16_t color) {
-  int32_t cx = x;
-  int32_t cy = y;
-  int32_t f = 1 - r;
-  int32_t ddF_x = 1;
-  int32_t ddF_y = -2 * (int32_t)r;
-  int32_t px = 0;
-  int32_t py = r;
-
-  while (px < py) {
-    if (f >= 0) {
-      py--;
-      ddF_y += 2;
-      f += ddF_y;
-    }
-    px++;
-    ddF_x += 2;
-    f += ddF_x;
-
-    if (corners & 1) {
-      fillRectClipped(cx + px, cy - py, 1, 2 * py + 1 + delta, color);
-      fillRectClipped(cx + py, cy - px, 1, 2 * px + 1 + delta, color);
-    }
-    if (corners & 2) {
-      fillRectClipped(cx - px, cy - py, 1, 2 * py + 1 + delta, color);
-      fillRectClipped(cx - py, cy - px, 1, 2 * px + 1 + delta, color);
-    }
-  }
-}
-
-// Draw line
-void displayDrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  drawLineClipped(x0, y0, x1, y1, color);
-}
-
-void displayBeginBlit(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-
-  if (w == 0 || h == 0) {
-    return;
-  }
-
-  displaySetWindow(x, y, x + w - 1, y + h - 1);
-  displayCommandMode();
-  displayWrite8(0x2C);  // RAMWR
-  displayDataMode();
-}
-
-void displayWriteBlitData(const uint8_t* data, size_t len) {
-  if (!g_display_state.initialized || data == nullptr || len == 0) {
-    return;
-  }
-
-  displayWriteBytes(data, len);
-}
-
-void displayEndBlit() {
-  // No-op; kept for symmetry and future hooks.
-}
-
-void displayPlayFile(const char* name, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
-  if (!g_display_state.initialized || name == nullptr) {
-    return;
-  }
-
-  // The frame is streamed straight into panel RAM, so it cannot be clipped;
-  // reject windows that fall outside the screen.
-  if (w == 0 || h == 0 || (uint32_t)x + w > DISPLAY_WIDTH || (uint32_t)y + h > DISPLAY_HEIGHT) {
-    return;
-  }
-
-  if (!LittleFS.begin(true)) {
-    return;
-  }
-
-  String fname = normalizeFsPath(name);
-  if (!LittleFS.exists(fname)) {
-    return;
-  }
-
-  File f = LittleFS.open(fname, "r");
-  if (!f) {
-    return;
-  }
-
-  uint32_t fileSize = f.size();
-  uint32_t expected = (uint32_t)w * (uint32_t)h * 2U;
-  if (fileSize < expected) {
-    // Not enough data for a single frame
-    f.close();
-    return;
-  }
-
-  // Set window and begin RAM write
-  displaySetWindow(x, y, x + w - 1, y + h - 1);
-  displayCommandMode();
-  displayWrite8(0x2C); // RAMWR
-  displayDataMode();
-
-  const size_t bufSize = 512;
-  uint8_t buf[bufSize];
-  uint32_t remaining = expected;
-  while (remaining > 0) {
-    size_t toRead = (remaining > bufSize) ? bufSize : remaining;
-    size_t r = f.read(buf, toRead);
-    if (r == 0) break;
-    displayWriteBytes(buf, r);
-    remaining -= r;
-    if ((remaining & 0x3FF) == 0) yield();
-  }
-
-  f.close();
-}
-
-// Text color functions
 void displaySetTextColor(uint16_t color) {
-  g_display_state.text_color = color;
+  g_state.textColor = color;
+  if (g_state.initialized) g_lcd.setTextColor(g_state.textColor, g_state.backgroundColor);
 }
 
 void displaySetBackgroundColor(uint16_t color) {
-  g_display_state.background_color = color;
+  g_state.backgroundColor = color;
+  if (g_state.initialized) g_lcd.setTextColor(g_state.textColor, g_state.backgroundColor);
 }
 
 void displaySetTextSize(uint8_t size) {
-  if (size > 0 && size <= 8) {
-    g_display_state.text_size = size;
+  if (size < 1 || size > 8) return;
+  g_state.textSize = size;
+  if (g_state.initialized) g_lcd.setTextSize(size);
+}
+
+void displayPrint(const char* text) {
+  if (g_state.initialized && text != nullptr) g_lcd.print(text);
+}
+
+void displayPushRgb565(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint8_t* bigEndianPixels) {
+  if (!g_state.initialized || bigEndianPixels == nullptr || !windowFits(x, y, w, h)) return;
+  g_lcd.pushImage(x, y, w, h, reinterpret_cast<const lgfx::swap565_t*>(bigEndianPixels));
+}
+
+void displayBeginStream(uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+  if (!g_state.initialized || !windowFits(x, y, w, h)) return;
+  g_lcd.startWrite();
+  g_lcd.setAddrWindow(x, y, w, h);
+  g_state.streaming = true;
+  g_state.havePendingByte = false;
+}
+
+void displayStreamBytes(const uint8_t* data, size_t len) {
+  if (!g_state.streaming || data == nullptr || len == 0) return;
+  // A chunk can end halfway through a pixel; carry the odd byte over.
+  if (g_state.havePendingByte) {
+    uint8_t pair[2] = {g_state.pendingByte, data[0]};
+    g_lcd.writePixels(reinterpret_cast<const lgfx::swap565_t*>(pair), 1);
+    data++;
+    len--;
+    g_state.havePendingByte = false;
+  }
+  size_t pixels = len / 2;
+  if (pixels > 0) {
+    g_lcd.writePixels(reinterpret_cast<const lgfx::swap565_t*>(data), static_cast<int32_t>(pixels));
+  }
+  if (len & 1) {
+    g_state.pendingByte = data[len - 1];
+    g_state.havePendingByte = true;
   }
 }
 
-void displaySetCursor(uint16_t x, uint16_t y) {
-  if (x < DISPLAY_WIDTH && y < DISPLAY_HEIGHT) {
-    g_display_state.cursor_x = x;
-    g_display_state.cursor_y = y;
-  }
+void displayEndStream() {
+  if (!g_state.streaming) return;
+  g_lcd.endWrite();
+  g_state.streaming = false;
+  g_state.havePendingByte = false;
 }
 
-// Print text at current cursor position
-void displayPrintText(const String& text) {
-  if (!g_display_state.initialized) {
-    return;
+bool displayPlayFile(const char* name, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+  if (!g_state.initialized || name == nullptr || !windowFits(x, y, w, h) || !storageMounted()) {
+    return false;
   }
-  
-  const uint8_t char_width = 6 * g_display_state.text_size;
-  const uint8_t char_height = 8 * g_display_state.text_size;
-  
-  for (size_t i = 0; i < text.length(); i++) {
-    uint16_t next_x = g_display_state.cursor_x + char_width;
-    if (next_x > DISPLAY_WIDTH) {
-      g_display_state.cursor_x = 0;
-      g_display_state.cursor_y += char_height;
+  String path = storagePath(name);
+  File f = LittleFS.open(path, "r");
+  if (!f) {
+    return false;
+  }
+  uint32_t expected = static_cast<uint32_t>(w) * h * 2U;
+  if (f.size() < expected) {
+    f.close();
+    return false;
+  }
+  static uint8_t buf[1024];
+  displayBeginStream(x, y, w, h);
+  uint32_t remaining = expected;
+  while (remaining > 0) {
+    size_t want = remaining > sizeof(buf) ? sizeof(buf) : remaining;
+    size_t got = f.read(buf, want);
+    if (got == 0) {
+      break;
     }
-    if (g_display_state.cursor_y + char_height > DISPLAY_HEIGHT) {
-      g_display_state.cursor_y = 0;
-    }
-    
-    // Simple character drawing placeholder
-    // In a real implementation, you'd draw individual pixels for each character
-    displaySetWindow(g_display_state.cursor_x, g_display_state.cursor_y,
-                     g_display_state.cursor_x + char_width - 1,
-                     g_display_state.cursor_y + char_height - 1);
-    displayCommandMode();
-    displayWrite8(0x2C);  // RAMWR
-    displayDataMode();
-    for (uint16_t j = 0; j < char_width * char_height; j++) {
-      displayWrite16(g_display_state.text_color);
-    }
-    
-    g_display_state.cursor_x = next_x;
-    yield();  // Yield after each character
+    displayStreamBytes(buf, got);
+    remaining -= got;
   }
+  displayEndStream();
+  f.close();
+  return remaining == 0;
 }
 
-void displayPrintLine(const String& text) {
-  displayPrintText(text);
-  g_display_state.cursor_x = 0;
-  g_display_state.cursor_y += 8 * g_display_state.text_size;
-}
-
-void displayClearLine(uint16_t line_num) {
-  if (!g_display_state.initialized) {
-    return;
-  }
-  
-  uint16_t y = line_num * (8 * g_display_state.text_size);
-  uint16_t height = 8 * g_display_state.text_size;
-  
-  if (y < DISPLAY_HEIGHT) {
-    displayFillRectangle(0, y, DISPLAY_WIDTH, height, g_display_state.background_color);
-  }
-}
-
-// Utility: Convert hex string to RGB565 color
-uint16_t hexToColor(const String& hex_str) {
-  unsigned long hex = strtoul(hex_str.c_str(), nullptr, 16);
-  
-  uint8_t r = (hex >> 16) & 0xFF;
-  uint8_t g = (hex >> 8) & 0xFF;
-  uint8_t b = hex & 0xFF;
-  
-  // Convert to RGB565
-  uint16_t r5 = (r >> 3) & 0x1F;
-  uint16_t g6 = (g >> 2) & 0x3F;
-  uint16_t b5 = (b >> 3) & 0x1F;
-  
-  return (r5 << 11) | (g6 << 5) | b5;
-}
-
-String colorToHex(uint16_t color) {
-  uint8_t r5 = (color >> 11) & 0x1F;
-  uint8_t g6 = (color >> 5) & 0x3F;
-  uint8_t b5 = color & 0x1F;
-  
-  uint8_t r = (r5 << 3) | (r5 >> 2);
-  uint8_t g = (g6 << 2) | (g6 >> 4);
-  uint8_t b = (b5 << 3) | (b5 >> 2);
-  
-  char hex[7];
-  snprintf(hex, sizeof(hex), "%02X%02X%02X", r, g, b);
-  return String(hex);
-}
-
-void displayGetState() {
-  // This is called by displayGetStatus in commands.cpp
+void displayStatusJson(JsonObject out) {
+  out["initialized"] = g_state.initialized;
+  out["powered"] = g_state.powered;
+  out["brightness"] = g_state.brightness;
+  out["width"] = displayWidth();
+  out["height"] = displayHeight();
+  out["rotation"] = g_state.rotation;
+  out["cursor_x"] = g_state.initialized ? g_lcd.getCursorX() : 0;
+  out["cursor_y"] = g_state.initialized ? g_lcd.getCursorY() : 0;
+  char hex[8];
+  seleno::rgb565ToHex(g_state.textColor, hex);
+  out["text_color"] = hex;
+  seleno::rgb565ToHex(g_state.backgroundColor, hex);
+  out["background_color"] = hex;
+  out["text_size"] = g_state.textSize;
+  out["spi_hz"] = kLcdSpiHz;
+  out["driver"] = "LovyanGFX Panel_ST7735S";
 }
