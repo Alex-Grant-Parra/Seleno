@@ -87,13 +87,14 @@ bool g_trackingPending = false;
 class ConfirmScreen : public Screen {
  public:
   void open(const String& title, const String& text, std::function<void(bool)> result, const char* yes,
-            const char* no, bool defaultYes) {
+            const char* no, bool defaultYes, Alert alert) {
     title_ = title;
     text_ = text;
     yes_ = yes != nullptr ? yes : "Yes";
     no_ = no != nullptr ? no : "No";
     result_ = std::move(result);
     yesSelected_ = defaultYes;  // normally the safe answer
+    alert_ = alert;
     push(this);
   }
 
@@ -104,6 +105,7 @@ class ConfirmScreen : public Screen {
     out["title"] = title_;
     out["text"] = text_;
     out["selected"] = yesSelected_ ? yes_ : no_;
+    if (alert_ != Alert::None) out["alert"] = alert_ == Alert::Danger ? "danger" : "warn";
   }
 
   void key(const KeyEvent& e) override {
@@ -122,9 +124,9 @@ class ConfirmScreen : public Screen {
   void draw(Gfx& g) override {
     const Theme& t = theme();
     int32_t w = screenW();
-    drawTitleBar(g, title_);
+    drawAlertBar(g, title_, alert_);
     g.setFont(fontBody());
-    drawWrapped(g, text_, 6, kBarH + 8, w - 12, t.text, 12);
+    drawWrapped(g, text_, 6, kBarH + (alert_ == Alert::None ? 8 : 5), w - 12, t.text, alert_ == Alert::None ? 12 : 11);
     int32_t by = screenH() - kFooterH - 24;
     int32_t bw = (w - 18) / 2;
     button(g, 6, by, bw, no_, !yesSelected_);
@@ -143,6 +145,7 @@ class ConfirmScreen : public Screen {
   String title_, text_, yes_, no_;
   std::function<void(bool)> result_;
   bool yesSelected_ = false;
+  Alert alert_ = Alert::None;
 
   void button(Gfx& g, int32_t x, int32_t y, int32_t w, const String& label, bool selected) {
     const Theme& t = theme();
@@ -248,6 +251,143 @@ class MessageScreen : public Screen {
 };
 
 MessageScreen g_message;
+
+// ------------------------------------------------------------ code
+
+// Unlocks something dangerous (pointing near the Sun): four random arrows
+// to press in order. A wrong key draws a new code; RETURN or the timeout
+// cancels. Repeats and SELECT don't count, so it takes four deliberate
+// presses.
+class CodeScreen : public Screen {
+ public:
+  static constexpr int kLength = 4;
+
+  void open(const String& title, const String& text, uint32_t timeoutMs, std::function<void(bool)> done) {
+    title_ = title;
+    text_ = text;
+    done_ = std::move(done);
+    closeAt_ = timeoutMs > 0 ? millis() + timeoutMs : 0;
+    wrongAtMs_ = 0;
+    newCode();
+    if (!onStack(this)) push(this);
+    invalidate();
+  }
+
+  const char* name() const override { return "code"; }
+  uint32_t refreshMs() const override { return 100; }
+  String footerHint() const override { return "\x1b cancel"; }
+
+  void stateJson(JsonObject out) const override {
+    out["title"] = title_;
+    out["text"] = text_;
+    char code[kLength + 1];
+    for (int i = 0; i < kLength; i++) code[i] = code_[i];
+    code[kLength] = '\0';
+    out["code"] = code;  // u, d, l, r
+    out["entered"] = entered_;
+  }
+
+  void key(const KeyEvent& e) override {
+    if (e.action != KeyAction::Press) return;
+    char dir = 0;
+    switch (e.key) {
+      case Key::Return: close(false); return;
+      case Key::Up: dir = 'u'; break;
+      case Key::Down: dir = 'd'; break;
+      case Key::Left: dir = 'l'; break;
+      case Key::Right: dir = 'r'; break;
+      default: return;
+    }
+    if (dir == code_[entered_]) {
+      wrongAtMs_ = 0;
+      if (++entered_ == kLength) close(true);
+    } else {
+      newCode();
+      wrongAtMs_ = millis();
+    }
+  }
+
+  void draw(Gfx& g) override {
+    const Theme& t = theme();
+    int32_t w = screenW();
+    if (closeAt_ != 0 && static_cast<int32_t>(millis() - closeAt_) >= 0) {
+      closeAt_ = 0;
+      close(false);
+      return;
+    }
+    drawAlertBar(g, title_, Alert::Danger);
+    g.setFont(fontBody());
+    drawWrapped(g, text_, 6, kBarH + 6, w - 12, t.text, 12);
+
+    constexpr int32_t kBox = 24, kGap = 6;
+    int32_t x0 = (w - (kLength * kBox + (kLength - 1) * kGap)) / 2;
+    int32_t y = screenH() - kFooterH - kBox - 12;
+    for (int i = 0; i < kLength; i++) {
+      int32_t x = x0 + i * (kBox + kGap);
+      uint16_t arrow;
+      if (i < entered_) {
+        g.fillRoundRect(x, y, kBox, kBox, 4, t.ok);
+        arrow = t.onAccent;
+      } else {
+        g.fillRoundRect(x, y, kBox, kBox, 4, t.surface);
+        if (i == entered_) {
+          g.drawRoundRect(x, y, kBox, kBox, 4, t.accent);
+          g.drawRoundRect(x + 1, y + 1, kBox - 2, kBox - 2, 3, t.accent);
+        }
+        arrow = i == entered_ ? t.text : t.textDim;
+      }
+      drawArrow(g, x + kBox / 2, y + kBox / 2, 6, code_[i], arrow);
+    }
+    if (wrongAtMs_ != 0 && millis() - wrongAtMs_ < 2000) {
+      g.setFont(fontBody());
+      g.setTextDatum(textdatum_t::bottom_center);
+      g.setTextColor(t.bad);
+      g.drawString("Wrong key: new code", w / 2, y - 3);
+    }
+    if (closeAt_ != 0) {
+      uint32_t left = (closeAt_ - millis()) / 1000;
+      g.setFont(fontSmall());
+      g.setTextDatum(textdatum_t::top_right);
+      g.setTextColor(t.textDim);
+      g.drawString(String(left) + "s", w - 3, y + kBox + 2);
+    }
+  }
+
+  void dismiss() {
+    done_ = nullptr;
+    if (onStack(this)) {
+      popTo(this);
+      pop();
+    }
+  }
+
+ private:
+  String title_, text_;
+  std::function<void(bool)> done_;
+  char code_[kLength] = {'u', 'u', 'u', 'u'};
+  int entered_ = 0;
+  uint32_t closeAt_ = 0;
+  uint32_t wrongAtMs_ = 0;
+
+  void newCode() {
+    static const char kDirs[] = {'u', 'd', 'l', 'r'};
+    bool same;
+    do {  // never one arrow four times
+      for (int i = 0; i < kLength; i++) code_[i] = kDirs[esp_random() & 3];
+      same = code_[0] == code_[1] && code_[1] == code_[2] && code_[2] == code_[3];
+    } while (same);
+    entered_ = 0;
+  }
+
+  void close(bool ok) {
+    auto done = std::move(done_);
+    done_ = nullptr;
+    if (top() == this) pop();
+    if (done) done(ok);
+  }
+};
+
+CodeScreen g_code;
 
 // ------------------------------------------------------------ choice list
 
@@ -360,9 +500,14 @@ TrackingInfo g_tracking;
 // ------------------------------------------------------------ dialogs
 
 void openConfirm(const String& title, const String& text, std::function<void(bool)> result, const char* yes,
-                 const char* no, bool defaultYes) {
+                 const char* no, bool defaultYes, Alert alert) {
   if (onStack(&g_confirm)) g_confirm.dismiss();
-  g_confirm.open(title, text, std::move(result), yes, no, defaultYes);
+  g_confirm.open(title, text, std::move(result), yes, no, defaultYes, alert);
+}
+
+void openCode(const String& title, const String& text, uint32_t timeoutMs, std::function<void(bool)> done) {
+  if (onStack(&g_code)) g_code.dismiss();
+  g_code.open(title, text, timeoutMs, std::move(done));
 }
 
 void openMessage(const String& title, const String& text, std::function<void()> closed) {
@@ -381,9 +526,11 @@ void openChoiceList(const String& title, const std::vector<String>& options, int
 }
 
 Screen* confirmScreen() { return &g_confirm; }
+Screen* codeScreen() { return &g_code; }
 Screen* messageScreen() { return &g_message; }
 Screen* choiceScreen() { return &g_choice; }
 void dismissConfirm() { g_confirm.dismiss(); }
+void dismissCode() { g_code.dismiss(); }
 void dismissMessage() { g_message.dismiss(); }
 void dismissChoice() { g_choice.dismiss(); }
 

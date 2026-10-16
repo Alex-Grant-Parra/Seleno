@@ -1,19 +1,23 @@
-from utils.config_state import load_runtime_state, save_runtime_state, runtime_state_lock
+"""Live view on or off for the server (core/camera/stream.py).
 
-def load_liveview_state() -> bool:
-    # Load live view state from runtime state file.
-    state = load_runtime_state()
-    return bool(state.get("liveview_enabled", False))
-
-
-def save_liveview_state(enabled: bool) -> None:
-    # Persist live view state to runtime state file.
-    with runtime_state_lock:
-        state = load_runtime_state()
-        state["liveview_enabled"] = bool(enabled)
-        save_runtime_state(state)
+Held in memory: it was read from config/runtime_state.json hundreds of
+times a second while streaming. Every client start begins with it off.
+"""
+from core.camera.stream import get_live_stream
 
 
 def is_liveview_enabled() -> bool:
-    # Check current live view state by reading the state file.
-    return load_liveview_state()
+    return get_live_stream().enabled
+
+
+def save_liveview_state(enabled: bool) -> None:
+    stream = get_live_stream()
+    if bool(enabled) == stream.enabled:
+        return
+    if enabled:
+        stream.start()
+    else:
+        stream.stop()
+
+
+load_liveview_state = is_liveview_enabled

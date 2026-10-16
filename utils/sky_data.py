@@ -7,7 +7,9 @@ and constellation figures (/api/constellations). The server is whatever
 
 Everything is cached in config/sky_cache.json so the panel still shows the
 sky with no network. Stars, names and figures are refetched weekly; planets
-(they move) every 10 minutes from /api/planets.
+(they move) every 10 minutes from /api/planets. Offline mode never fetches,
+and planet positions older than PLANETS_SHOWN_FOR_S aren't drawn (the Moon
+moves half a degree an hour).
 """
 from __future__ import annotations
 
@@ -20,12 +22,16 @@ from urllib.parse import urljoin
 
 import requests
 
-from utils.config_state import get_client_config
+from utils.config_state import get_client_config, is_offline_mode
+from utils.log import get_logger
+
+log = get_logger("sky_data")
 
 CACHE_FILE = os.path.join("config", "sky_cache.json")
 STAR_MAG_LIMIT = 5.0
 CATALOGUE_MAX_AGE_S = 7 * 24 * 3600
 PLANETS_MAX_AGE_S = 10 * 60
+PLANETS_SHOWN_FOR_S = 6 * 3600
 REQUEST_TIMEOUT_S = 10.0
 
 # (ra_deg, dec_deg, mag, catalogue id), brightest first
@@ -67,15 +73,22 @@ class SkyData:
 				self._fetch_planets(base)
 			return bool(self.stars)
 
+	def planets_fresh(self) -> bool:
+		return time.time() - self.planets_at < PLANETS_SHOWN_FOR_S
+
 	def snapshot(self) -> Tuple[List[Star], Dict[str, str], List[Dict[str, Any]], List[Dict[str, Any]]]:
 		with self._lock:
-			return self.stars, self.names, self.constellations, self.planets
+			planets = self.planets if self.planets_fresh() else []
+			return self.stars, self.names, self.constellations, planets
 
 	# --- internals --------------------------------------------------------------
 
 	@staticmethod
 	def _base_url() -> str:
+		# "" (fetch nothing) in offline mode or before a server is set.
 		try:
+			if is_offline_mode():
+				return ""
 			base = str(get_client_config().get("base_url", "") or "").strip()
 		except Exception:
 			return ""
@@ -93,7 +106,7 @@ class SkyData:
 			figures = self._get(base, "api/constellations")
 		except Exception as exc:
 			self.last_error = f"sky data: {exc}"
-			print(f"[sky] Could not fetch sky data from {base}: {exc}")
+			log.warning(f"Could not fetch sky data from {base}: {exc}")
 			return
 		stars: List[Star] = []
 		planets: List[Dict[str, Any]] = []
@@ -116,7 +129,7 @@ class SkyData:
 		self.base_url = base
 		self.catalogue_at = self.planets_at = time.time()
 		self.last_error = ""
-		print(f"[sky] {len(stars)} stars, {len(self.names)} names, {len(self.constellations)} figures, "
+		log.info(f"{len(stars)} stars, {len(self.names)} names, {len(self.constellations)} figures, "
 			f"{len(planets)} planets from {base}")
 		self._save_cache()
 
@@ -163,7 +176,7 @@ class SkyData:
 				json.dump(payload, f, separators=(",", ":"))
 			os.replace(tmp, self._cache_file)
 		except Exception as exc:
-			print(f"[sky] Could not save the sky cache: {exc}")
+			log.warning(f"Could not save the sky cache: {exc}")
 
 
 _instance: Optional[SkyData] = None

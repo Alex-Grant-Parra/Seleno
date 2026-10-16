@@ -5,7 +5,9 @@ config
 packager.py
 versions.txt
 test.gif
-*.json
 test.png
 temp
 *.zip
+logs
+*.tmp
+.ruff_cache

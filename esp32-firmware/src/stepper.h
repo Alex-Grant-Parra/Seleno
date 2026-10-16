@@ -64,3 +64,18 @@ int32_t stepperPulsesRemaining(int axis);
 // Returns the reason the last move ended, once, then None. The main loop
 // polls this to emit motion_done events.
 MotionEnd stepperTakeMotionEnd(int axis);
+
+// Both axes along a polyline (logic/path.h), without stopping at the
+// corners. Points are in 1/256 microsteps relative to where the axes are
+// now (axis 0, axis 1); speeds are for the faster axis in 1/256
+// microsteps per second (jump: the most either axis's speed may change at
+// once). Both axes must be idle with their pulse sizes set. While it runs
+// both axes report moving with no pulse count (like continuous moves); a
+// stop on either ramps down along the path, an emergency stop is
+// immediate. Both end with Complete at the last point.
+bool stepperStartPath(const double* xs256, const double* ys256, int n, double cruise256, double accel256,
+                      double jump256);
+bool stepperPathActive();
+// 0..1 along the path while one runs.
+double stepperPathProgress();
+double stepperPathEtaSeconds();

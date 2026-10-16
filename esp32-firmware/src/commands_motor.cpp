@@ -276,7 +276,46 @@ void handleSetChopper(int axis, JsonDocument& req) {
 
 }  // namespace
 
+// {"cmd":"path","points":[[motor1, motor2], ...],"speed":sps}: both motors
+// along a polyline (logical steps relative to now), without stopping at
+// the corners.
+void handlePath(JsonDocument& req) {
+  JsonArrayConst points = req["points"].as<JsonArrayConst>();
+  int n = static_cast<int>(points.size());
+  if (n < 1 || n > kMaxPathPoints) {
+    hostSendError("points must be 1-63 [motor1, motor2] pairs");
+    return;
+  }
+  static int32_t a0[kMaxPathPoints], a1[kMaxPathPoints];
+  int i = 0;
+  for (JsonArrayConst p : points) {
+    if (p.size() != 2 || !p[0].is<int32_t>() || !p[1].is<int32_t>()) {
+      hostSendError("each point is [motor1 steps, motor2 steps]");
+      return;
+    }
+    a0[i] = p[0].as<int32_t>();
+    a1[i] = p[1].as<int32_t>();
+    i++;
+  }
+  double speed = req["speed"] | 0.0;
+  if (!(speed > 0.0)) speed = motorSpeedSps(0);
+  const char* error = nullptr;
+  double eta = 0.0;
+  if (!motorsStartPath(a0, a1, n, speed, &eta, &error)) {
+    hostSendError(error != nullptr ? error : "Path refused");
+    return;
+  }
+  JsonDocument resp;
+  resp["data"]["points"] = n;
+  resp["data"]["eta_s"] = eta;
+  hostSendResponse(resp);
+}
+
 bool handleMotorCommand(const char* cmd, JsonDocument& req) {
+  if (strcmp(cmd, "path") == 0) {
+    handlePath(req);
+    return true;
+  }
   if (strcmp(cmd, "create_motor") == 0) {
     handleCreateMotor(req);
     return true;

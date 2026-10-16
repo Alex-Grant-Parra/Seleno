@@ -451,12 +451,16 @@ class MenuScreen : public Screen {
         editOriginal_ = it.value;
         break;
       case ItemKind::Text:
-        openKeyboard(it.label, it.text, it.maxLength, [again](const String& value) {
-          again([value](MenuPanel& pp, MenuItem& ii) {
-            ii.text = value;
-            commitItem(pp, ii);
-          });
-        });
+        // The hint (e.g. "lat, lon") goes under the keyboard's title.
+        openKeyboard(
+            it.label, it.text, it.maxLength,
+            [again](const String& value) {
+              again([value](MenuPanel& pp, MenuItem& ii) {
+                ii.text = value;
+                commitItem(pp, ii);
+              });
+            },
+            nullptr, it.hint);
         break;
       case ItemKind::Screen:
         if (it.changed) it.changed(it);

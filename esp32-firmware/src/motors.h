@@ -43,6 +43,13 @@ double motorSpeedSps(int axis);
 bool motorTurnDegrees(int axis, float degrees, bool forward, const char** error);
 bool motorMoveSteps(int axis, int32_t steps, const char** error);
 bool motorStartContinuous(int axis, bool forward, const char** error);
+// Both axes along a polyline without stopping at the corners: n points of
+// (axis 0, axis 1) in logical steps relative to the current positions, at
+// speedSps for the faster axis, with each axis's acceleration and start
+// speed (stepperStartPath). *etaS gets a rough duration.
+constexpr int kMaxPathPoints = 63;
+bool motorsStartPath(const int32_t* axis0, const int32_t* axis1, int n, double speedSps, double* etaS,
+                     const char** error);
 void motorStop(int axis);
 void motorsStopAll(MotionEnd reason);
 

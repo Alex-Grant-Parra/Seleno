@@ -8,7 +8,8 @@
   double-RETURN stop (stop tracking, then acknowledge so the Pi may move the
   motors again) and sky-view zoom;
 * prompts (keyboard, confirm, message, choice) for the first-run setup of the
-  device name, server and API key;
+  device name, server and API key, or offline mode, and for the manual
+  go-to flows (utils/manual_control.py);
 * the sky view: while the panel shows it, a projected sky scene
   (utils/sky_view.py) about once a second while slewing, every few seconds
   otherwise.
@@ -22,12 +23,16 @@ import queue
 import threading
 import time
 from dataclasses import asdict
-from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
-from utils.panel_menu import Panel, build_panels, validate_api_key, validate_device_name, validate_server
+from utils import clock
+from utils.panel_menu import Panel, build_panels, photo_plan, validate_api_key, validate_device_name, validate_server
+from utils.photos import PhotoRun, shots as photo_shots
 from utils.sky_data import get_sky_data
 from utils.sky_view import FOV_STEPS, SkyOptions, build_scene
+from utils.log import get_logger
+
+log = get_logger("panel")
 
 HEARTBEAT_S = 2.0
 SKY_FAST_S = 1.0    # while the scope moves
@@ -46,9 +51,12 @@ class PanelUI:
 		self._threads_started = False
 		self._panels: List[Panel] = []
 		self._sent_values: Dict[str, Any] = {}
+		self._sent_visible: Dict[str, bool] = {}
+		self._sent_options: Dict[str, Any] = {}
 		self._prompt_ids = itertools.count(1)
 		self._prompt_waiters: Dict[str, "queue.Queue[dict]"] = {}
-		self._wizard_running = False
+		self._flow_lock = threading.Lock()
+		self.photo_run = PhotoRun()
 		self._status: Dict[str, Any] = {}
 		self._tracking: Dict[str, Any] = {"state": "idle"}
 		self._sky_dirty = True
@@ -76,6 +84,9 @@ class PanelUI:
 		threading.Thread(target=self._heartbeat_loop, name="panel-heartbeat", daemon=True).start()
 		threading.Thread(target=self._sky_loop, name="panel-sky", daemon=True).start()
 
+	def has_panel(self) -> bool:
+		return self._conn is not None and self.attached.is_set()
+
 	def _send(self, action: str, **fields: Any) -> Optional[Dict[str, Any]]:
 		conn = self._conn
 		if conn is None:
@@ -83,7 +94,7 @@ class PanelUI:
 		try:
 			return conn.ui(action, timeout=2.0, **fields)
 		except Exception as exc:
-			print(f"[panel] ui {action} failed: {exc}")
+			log.warning(f"ui {action} failed: {exc}")
 			return None
 
 	def _post(self, name: str, fn: Callable[[], None]) -> None:
@@ -95,7 +106,7 @@ class PanelUI:
 			try:
 				fn()
 			except Exception as exc:
-				print(f"[panel] {name} failed: {exc}")
+				log.warning(f"{name} failed: {exc}")
 
 	# --- hello, status, menus -----------------------------------------------------
 
@@ -114,20 +125,27 @@ class PanelUI:
 		)
 		if reply is None:
 			return
-		self._sent_values = {f"{p.id}.{i.id}": i.to_json().get("value") for p in self._panels for i in p.items}
+		sent = {f"{p.id}.{i.id}": i.to_json() for p in self._panels for i in p.items}
+		self._sent_values = {key: item.get("value") for key, item in sent.items()}
+		self._sent_visible = {key: item["visible"] for key, item in sent.items() if "visible" in item}
+		self._sent_options = {f"{p.id}.{i.id}": sent[f"{p.id}.{i.id}"].get("options")
+			for p in self._panels for i in p.items if i.options is not None}
 		self._note_reply(reply)
 		self.attached.set()
 		self._send("tracking", **self._tracking)
-		print(f"[panel] Front panel attached ({reply.get('width')}x{reply.get('height')})")
+		log.info(f"Front panel attached ({reply.get('width')}x{reply.get('height')})")
 		if reply.get("panel_stop_pending"):
 			self._queue_panel_stop()
-		if self.missing_settings():
+		if self.missing_settings() and not self.offline():
 			self.start_wizard()
+		elif not clock.trusted():
+			# Offline with no RTC battery: go-tos would miss.
+			self.toast("Clock not synced: check Setup > Time", 6000)
 
 	def _status_fields(self) -> Dict[str, Any]:
 		from utils import pi_system
 
-		now = datetime.now()
+		now = clock.now().astimezone()  # local time, with the clock's offset
 		return {
 			"clock_s": now.hour * 3600 + now.minute * 60 + now.second,
 			"ip": pi_system.ip_address(),
@@ -136,12 +154,9 @@ class PanelUI:
 
 	@staticmethod
 	def _server_state() -> str:
-		try:
-			from core.networking.websocket import server_state
+		from utils.panel_menu import _server_state
 
-			return server_state.get("state", "?")
-		except Exception:
-			return "?"
+		return _server_state()
 
 	def _note_reply(self, reply: Dict[str, Any]) -> None:
 		with self._lock:
@@ -164,15 +179,23 @@ class PanelUI:
 		changed: Dict[str, Any] = {}
 		for panel in self._panels:
 			for item in panel.items:
-				if item.get is None:
+				if item.get is None and item.visible is None:
 					continue
 				try:
-					value = item.to_json().get("value")
+					fields = item.to_json()
 				except Exception:
 					continue
 				key = f"{panel.id}.{item.id}"
-				if self._sent_values.get(key) != value:
-					changed[key] = value
+				if item.options is not None and self._sent_options.get(key) != fields.get("options"):
+					# New options first, so the value is one of them.
+					if self._send("set", panel=panel.id, item=item.id, fields={"options": fields["options"]}) is not None:
+						self._sent_options[key] = fields["options"]
+						self._sent_values.pop(key, None)
+				if item.get is not None and self._sent_values.get(key) != fields.get("value"):
+					changed[key] = fields.get("value")
+				if item.visible is not None and self._sent_visible.get(key) != fields["visible"]:
+					if self._send("set", panel=panel.id, item=item.id, fields={"visible": fields["visible"]}) is not None:
+						self._sent_visible[key] = fields["visible"]
 		if changed and self._send("set", values=changed) is not None:
 			self._sent_values.update(changed)
 
@@ -234,13 +257,13 @@ class PanelUI:
 	def _handle_panel_stop(self) -> None:
 		"""RETURN was pressed twice on the panel: the ESP32 has stopped the
 		motors and holds host moves until we acknowledge."""
-		print("[panel] Stopped from the front panel: stopping tracking")
+		log.info("Stopped from the front panel: stopping tracking")
 		try:
 			from core.hardware.tracking import stop_tracking
 
 			stop_tracking()
 		except Exception as exc:
-			print(f"[panel] stop_tracking failed: {exc}")
+			log.warning(f"stop_tracking failed: {exc}")
 		self._send("ack_stop")
 		self._stop_queued.clear()
 
@@ -303,27 +326,44 @@ class PanelUI:
 
 				apply_client_config(cfg)
 			except Exception as exc:
-				print(f"[panel] Could not apply the new settings: {exc}")
+				log.warning(f"Could not apply the new settings: {exc}")
 		if key == "base_url":
 			self._post("sky-data", lambda: get_sky_data().refresh(force=True))
 		if key == "client_id":
 			self._send("status", device=value)
 		return "Saved"
 
-	def start_wizard(self) -> Optional[str]:
-		if self._wizard_running:
-			return None
-		self._wizard_running = True
-		threading.Thread(target=self._wizard, name="panel-setup", daemon=True).start()
+	def run_flow(self, name: str, flow: Callable[["PanelUI"], None]) -> Optional[str]:
+		"""Run a sequence of prompts on its own thread (they block until
+		answered, so never on the worker). One at a time; RETURN on any prompt
+		ends it."""
+		if not self._flow_lock.acquire(blocking=False):
+			return "Finish the open dialog first"
+
+		def run() -> None:
+			try:
+				flow(self)
+			except (PromptCancelled, TimeoutError):
+				pass
+			except Exception as exc:
+				log.warning(f"{name} failed: {exc}")
+				self.toast(str(exc)[:60] or name)
+			finally:
+				self._flow_lock.release()
+
+		threading.Thread(target=run, name=f"panel-{name}", daemon=True).start()
 		return None
 
+	def start_wizard(self) -> Optional[str]:
+		return self.run_flow("setup", lambda ui: ui._wizard())
+
 	def _wizard(self) -> None:
-		try:
-			while True:
-				try:
-					self._wizard_steps()
-					return
-				except PromptCancelled:
+		while True:
+			try:
+				self._wizard_steps()
+				return
+			except PromptCancelled:
+				if not self.missing_settings():
 					try:
 						leave = self.prompt("confirm", "Leave setup?",
 							"You can finish it later in the Setup tab.", yes="Leave", no="Back").get("value")
@@ -331,19 +371,35 @@ class PanelUI:
 						leave = True
 					if leave:
 						return
-		except TimeoutError:
-			pass
-		finally:
-			self._wizard_running = False
+					continue
+				# Not set up yet: offline mode is the way out.
+				try:
+					offline = self.prompt("confirm", "Use offline?",
+						"Use SELENO without a server for now? You can connect it later in the Setup tab.",
+						yes="Offline", no="Back").get("value")
+				except PromptCancelled:
+					offline = False
+				if offline:
+					self._go_offline()
+					return
+
+	def _go_offline(self) -> None:
+		self.set_offline(True)
+		self.prompt("message", "Offline mode",
+			"Go to coordinates or stars from the Scope tab. Photos are saved on the Pi. "
+			"Switch it off in the Setup tab.")
 
 	def _wizard_steps(self) -> None:
 		from utils.config_state import get_client_config, save_client_config
 		from utils.panel_menu import _bare_server
 		from utils import pi_system
 
-		self.prompt("message", "Welcome to SELENO",
-			"Let's connect this telescope to your Seleno account. You'll need the server "
-			"address and an API key from the website.")
+		# No brackets in panel text: the small font draws them like "!".
+		if not self.prompt("confirm", "Welcome to SELENO",
+				"Connect it to your Seleno account? You'll need the server and an API key. "
+				"Or use it offline.", yes="Connect", no="Offline", default="yes").get("value"):
+			self._go_offline()
+			return
 		cfg = get_client_config()
 		name = cfg.get("client_id") or pi_system.hostname()
 		server = _bare_server(cfg.get("base_url", ""))
@@ -355,7 +411,7 @@ class PanelUI:
 			summary = f"Name: {name}\nServer: {server}\nKey: ...{key[-4:]}"
 			if self.prompt("confirm", "Save these?", summary, yes="Save", no="Change", default="yes").get("value"):
 				break
-		save_client_config({"client_id": name, "base_url": server, "api_token": key})
+		save_client_config({"client_id": name, "base_url": server, "api_token": key, "offline": False})
 		self.busy("Connecting", f"Saved. Connecting to {server}...")
 		try:
 			from core.networking.websocket import apply_client_config
@@ -402,10 +458,58 @@ class PanelUI:
 		told = False
 		while self.missing_settings():
 			if not told:
-				print("[config] Waiting for setup: use the front panel, or edit config/client_profile.json "
+				log.info("Waiting for setup: use the front panel, or edit config/client_profile.json "
 					"(or run 'python Client.py setup')")
 				told = True
 			time.sleep(poll_s)
+
+	# --- offline mode -----------------------------------------------------------
+
+	@staticmethod
+	def offline() -> bool:
+		from utils.config_state import is_offline_mode
+
+		return is_offline_mode()
+
+	def set_offline(self, on: bool) -> Optional[str]:
+		"""Offline mode: no server connection (core/networking/websocket.py
+		waits); go-to and photos from the panel still work."""
+		from utils.config_state import get_client_config, set_offline_mode
+
+		set_offline_mode(on)
+		self.refresh_values()
+		try:
+			from core.networking import websocket
+		except Exception:
+			websocket = None
+		if on:
+			if websocket is not None:
+				websocket.request_reconnect()  # drops the open connections
+			return "Offline: no server"
+		if self.missing_settings():
+			self.start_wizard()
+			return None
+		if websocket is not None:
+			websocket.apply_client_config(get_client_config())
+		self._post("sky-data", lambda: get_sky_data().refresh())
+		return "Connecting to the server"
+
+	# --- photos ------------------------------------------------------------------
+
+	def take_photos(self) -> Optional[str]:
+		"""The Camera tab's button: start a run of photos, or stop one."""
+		if self.photo_run.running:
+			return self.photo_run.stop()
+		count = photo_shots()
+		plan = photo_plan(count)
+		if plan is not None and plan.kind in ("dark", "bias"):
+			# Covered telescope: asked on its own thread (prompts block).
+			def covered(ui: "PanelUI") -> None:
+				if ui.prompt("confirm", f"{plan.kind.capitalize()} frames",
+						"Put the cover on the telescope first.", yes="Covered", no="Cancel").get("value"):
+					ui.toast(ui.photo_run.start(count, ui.toast, plan=plan))
+			return self.run_flow("photos", covered)
+		return self.photo_run.start(count, self.toast, plan=plan)
 
 	def restart_client(self) -> Optional[str]:
 		from utils import pi_system
@@ -498,7 +602,7 @@ class PanelUI:
 				if scene is not None:
 					self._conn.ui_sky(scene)
 			except Exception as exc:
-				print(f"[panel] Sky view update failed: {exc}")
+				log.warning(f"Sky view update failed: {exc}")
 
 	def _build_sky(self, data, status: Dict[str, Any]) -> Optional[bytes]:
 		from utils.location import get_current_location
@@ -521,10 +625,16 @@ class PanelUI:
 		if status.get("sky_radar", True):
 			keepouts.append((0, height - 41, 41, 41))  # the radar inset
 		stars, names, figures, planets = data.snapshot()
+		now = clock.now()
+		if not planets:
+			# The server's copy is stale (offline): worked out here instead.
+			from utils import ephemeris
+
+			planets = ephemeris.positions(now, (float(loc["latitude"]), float(loc["longitude"])))
 		scene = build_scene(
 			width, height, stars, names, figures, planets,
 			(float(scope["right_ascension"]), float(scope["declination"])), target,
-			float(loc["latitude"]), float(loc["longitude"]), datetime.now(timezone.utc),
+			float(loc["latitude"]), float(loc["longitude"]), now,
 			self.sky_options, keepouts,
 		)
 		return scene.encode()
@@ -547,4 +657,4 @@ def tracking_update(**fields: Any) -> None:
 	try:
 		get_panel_ui().tracking_update(**fields)
 	except Exception as exc:
-		print(f"[panel] tracking update failed: {exc}")
+		log.warning(f"tracking update failed: {exc}")

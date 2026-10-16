@@ -1,6 +1,7 @@
 #include "motors.h"
 
 #include <Arduino.h>
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -331,6 +332,87 @@ bool motorStartContinuous(int axis, bool forward, const char** error) {
   return true;
 }
 
+namespace {
+
+// prepareMove for one axis of a path whose fastest speed on that axis is
+// peakSps (logical steps/s).
+bool preparePathAxis(int axis, double peakSps, const char** error) {
+  MotorSlot& slot = g_slots[axis];
+  double peakFsps = fullStepsPerSecond(axis, peakSps);
+  uint16_t microsteps = motorMicrosteps(axis);
+  if (slot.autoMicrosteps) {
+    microsteps = static_cast<uint16_t>(seleno::autoMicrosteps(
+        peakFsps, slot.autoParams.minMicrosteps, slot.autoParams.maxMicrosteps, slot.autoParams.maxPulseHz));
+  }
+  if (peakFsps * microsteps > kMaxStepRateSps) {
+    if (error) *error = "Path speed too high for the microstep setting";
+    return false;
+  }
+  if (microsteps != motorMicrosteps(axis) && !driverApplyMicrosteps(axis, microsteps, error)) {
+    return false;
+  }
+  if (!stepperSetPulseSize(axis, static_cast<uint16_t>(256 / microsteps))) {
+    if (error) *error = "Motor is already moving";
+    return false;
+  }
+  double pulsesPerLogicalStep = static_cast<double>(microsteps) / slot.logicalMicrosteps;
+  stepperSetRamp(axis, slot.accelSps2 * pulsesPerLogicalStep, slot.startSps * pulsesPerLogicalStep);
+  return true;
+}
+
+}  // namespace
+
+bool motorsStartPath(const int32_t* axis0, const int32_t* axis1, int n, double speedSps, double* etaS,
+                     const char** error) {
+  if (n < 1 || n > kMaxPathPoints) {
+    if (error) *error = "A path needs 1-63 points";
+    return false;
+  }
+  if (!(speedSps > 0.0) || !std::isfinite(speedSps)) {
+    if (error) *error = "Invalid speed";
+    return false;
+  }
+  for (int axis = 0; axis < kAxisCount; axis++) {
+    if (!checkCanMove(axis, error)) return false;
+  }
+  // Each axis's top speed: the path speed times its share of the fastest
+  // segment for it (the faster axis of a segment runs at the path speed),
+  // plus room for the follower's corrections.
+  double peak[kAxisCount] = {0.0, 0.0};
+  int32_t px = 0, py = 0;
+  for (int i = 0; i < n; i++) {
+    double dx = std::fabs(static_cast<double>(axis0[i]) - px);
+    double dy = std::fabs(static_cast<double>(axis1[i]) - py);
+    double len = dx > dy ? dx : dy;
+    if (len > 0.0) {
+      peak[0] = std::max(peak[0], dx / len);
+      peak[1] = std::max(peak[1], dy / len);
+    }
+    px = axis0[i];
+    py = axis1[i];
+  }
+  for (int axis = 0; axis < kAxisCount; axis++) {
+    double axisPeak = std::max(peak[axis], 0.05) * speedSps * 1.1;
+    if (!preparePathAxis(axis, axisPeak, error)) return false;
+  }
+  static double xs[kMaxPathPoints], ys[kMaxPathPoints];
+  for (int i = 0; i < n; i++) {
+    xs[i] = static_cast<double>(axis0[i]) * unitsPerLogicalStep(0);
+    ys[i] = static_cast<double>(axis1[i]) * unitsPerLogicalStep(1);
+  }
+  double unit = static_cast<double>(unitsPerLogicalStep(0));
+  double accel = std::min(g_slots[0].accelSps2 * unitsPerLogicalStep(0), g_slots[1].accelSps2 * unitsPerLogicalStep(1));
+  double jump = std::min(g_slots[0].startSps * unitsPerLogicalStep(0), g_slots[1].startSps * unitsPerLogicalStep(1));
+  g_axisSource[0] = g_currentSource;
+  g_axisSource[1] = g_currentSource;
+  if (!stepperStartPath(xs, ys, n, speedSps * unit, accel, jump)) {
+    if (error) *error = "Nothing to move, or a motor is already moving";
+    return false;
+  }
+  if (etaS != nullptr) *etaS = stepperPathEtaSeconds();
+  return true;
+}
+
 void motorStop(int axis) {
   stepperRequestStop(axis, MotionEnd::Stopped);
 }
@@ -489,6 +571,9 @@ void motorStatusJson(int axis, JsonObject out) {
   out["chopper_threshold_fsps"] = drv.chopperThresholdFsps;
   out["driver_present"] = driverPresent(axis);
   out["source"] = motionSourceName(g_axisSource[axis]);
+  if (stepperPathActive()) {
+    out["path_progress"] = stepperPathProgress();
+  }
 }
 
 const char* motionSourceName(MotionSource source) {

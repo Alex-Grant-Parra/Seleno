@@ -59,6 +59,31 @@ void drawTitleBar(Gfx& g, const String& title, const String& right) {
   g.drawString(fitText(g, title, w - 8 - rightW), 4, kBarH / 2);
 }
 
+void drawSun(Gfx& g, int32_t cx, int32_t cy, int32_t r, uint16_t color) {
+  g.fillCircle(cx, cy, r, color);
+  for (int i = 0; i < 8; i++) {
+    float a = i * 3.14159265f / 4.0f;
+    float c = cosf(a), s = sinf(a);
+    g.drawLine(cx + lroundf(c * (r + 2)), cy + lroundf(s * (r + 2)), cx + lroundf(c * (r + 3)),
+               cy + lroundf(s * (r + 3)), color);
+  }
+}
+
+void drawAlertBar(Gfx& g, const String& title, Alert level) {
+  if (level == Alert::None) {
+    drawTitleBar(g, title);
+    return;
+  }
+  const Theme& t = theme();
+  int32_t w = screenW();
+  g.fillRect(0, 0, w, kBarH, level == Alert::Danger ? t.bad : t.warn);
+  drawSun(g, w - 9, kBarH / 2, 3, t.onAccent);
+  g.setFont(fontBody());
+  g.setTextDatum(textdatum_t::middle_left);
+  g.setTextColor(t.onAccent);
+  g.drawString(fitText(g, title, w - 22), 4, kBarH / 2);
+}
+
 // Key icons inside hint text: \x07 SELECT, \x1b RETURN, \x10 \x11 \x1e \x1f
 // right/left/up/down. Everything else is Font0 text.
 constexpr int32_t kIconCellW = 7;

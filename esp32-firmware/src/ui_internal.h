@@ -121,6 +121,11 @@ void drawArrow(Gfx& g, int32_t cx, int32_t cy, int32_t size, char dir, uint16_t 
 void drawToggle(Gfx& g, int32_t x, int32_t cy, bool on, bool focused);
 // A bar with a title (left) and optional text (right).
 void drawTitleBar(Gfx& g, const String& title, const String& right = "");
+// Dialogs about the Sun: an amber (Warn) or red (Danger) title bar with a
+// Sun symbol.
+enum class Alert : uint8_t { None, Warn, Danger };
+void drawAlertBar(Gfx& g, const String& title, Alert level);
+void drawSun(Gfx& g, int32_t cx, int32_t cy, int32_t r, uint16_t color);
 void drawFooter(Gfx& g, const String& hint);
 // Font0 text where \x07 is the SELECT key, \x1b RETURN, and \x10 \x11
 // \x1e \x1f are right/left/up/down arrows (drawn, since LovyanGFX skips

@@ -711,4 +711,430 @@ Design:
   was tested with the devkit plus a harness.
 - Real buttons, LCD colours and orientation, and the backlight need the
   board.
-- Nothing is committed yet (branch `firmware/v0.8`).
+- Alex committed all of the above himself as `09fa190` ("new esp32
+  firmware").
+
+## Feature: offline mode and manual control (Alex, 2026-10-16)
+
+Alex asked for:
+- manual control of the telescope without a server;
+- a "use offline" button in the setup (name / server / API key) and a
+  toggle in settings once it's set up;
+- typing an RA and Dec to slew to and track, with no server;
+- in offline mode, photos saved to a local directory.
+
+**Done (uncommitted on `firmware/v0.8`, on top of `09fa190`):**
+- Offline mode is `client_config.offline` in config/client_profile.json
+  (`config_state.is_offline_mode()` / `set_offline_mode()`).
+  - `Client.py` doesn't wait for server settings when it's on, and skips
+    the IP location lookup.
+  - `websocket.py`: `run_client` and `send_frames` wait while
+    `server_enabled()` is false (offline, or settings missing), and
+    `server_state` says "offline" / "not set up". `websocketClient`
+    accepts a config without server settings when offline.
+  - `sky_data.py` never fetches offline; planet positions over 6 h old
+    aren't drawn (the Moon drifts).
+- Panel (`utils/panel_ui.py`, `utils/panel_menu.py`):
+  - The wizard's welcome is now a confirm: Connect / Offline. Backing out
+    while settings are missing offers offline (instead of "Leave setup?").
+    Finishing the wizard turns offline off.
+  - Setup tab: "Offline mode" toggle. Off with missing settings starts the
+    wizard; off with settings applies them and connects; on drops the
+    sockets.
+  - `run_flow(name, fn)`: prompt sequences run on their own thread, one at
+    a time (the wizard uses it too).
+  - `only_when(item, condition)`: an item's `visible` is sent with the
+    value diffs (`ui set` panel/item/fields). Live view is hidden offline.
+- Manual control (`utils/manual_control.py`), Scope tab:
+  - Go to RA/Dec: keyboard prompts (RA in hours `5 35 17`, `5:35:17`,
+    `5h35m17s`, `5.588`, or degrees with `d`; Dec `-5 23 28` etc.),
+    "Go there?" with the altitude, then checks: within 15 deg of the Sun
+    (computed locally, `sky_view.sun_radec`), below the horizon, E-stop
+    latched (offers to release). Then `show_sky` + `trackCoordinates`.
+    Target name is short for the strip: `5h35 -5`.
+  - Go to star: the 30 brightest named stars at least 10 deg up, from the
+    cached catalogue.
+  - Align on star: pick the star you've centred by hand; then
+    `tracking.sync_position()` (stop, zero the step counters, set the
+    position) and track it.
+  - Site: a Text item, "lat, lon" (also `51.5N 2.6W`); blank = back to
+    GPS/IP. A manual site (`source: manual`) survives startup's IP lookup;
+    a hardware GPS fix still replaces it.
+- Photos (`utils/photos.py`), new Camera tab: Take photos (press again to
+  stop after the current one), Shots 1-50, files on the Pi, path, and live
+  view (online only). Saved to `photos/offline/<night>/` (the night = the
+  date the evening started; `photos.local_dir` in client_config.json
+  overrides), with `photos.jsonl` recording time, target, RA/Dec and site.
+  Panel photos are always local; server-requested photos upload as before.
+  `Camera.capturePhoto` takes `save_folder`. LED calls in the photo run are
+  best effort (the firmware refuses LED commands during its LED test).
+- Firmware: a text item's `hint` is shown under the keyboard title
+  (ui_menu.cpp; PROTOCOL.md updated). Flashed to the devkit; both envs
+  build clean.
+- Also fixed:
+  - sky labels overlapped (the grid only reserved the anchor cell); labels
+    now reserve their whole box;
+  - `handlers.capturePhoto` uploaded to the server read at import, so a
+    server changed on the panel needed a restart;
+  - panel text avoids brackets (DejaVu9 draws them like "!").
+- Tests: test_panel_ui.py has 35 tests (manual control parsing, star list,
+  Sun, photo runs, flows against the fake connection, offline toggle,
+  first-run offline). A module fixture stops tests reaching a real serial
+  port: the LED manager used to find the devkit. test_interface_pty 12/12.
+- Devkit checks (harness with temporary config copies):
+  - first-run Offline;
+  - the tabs;
+  - typed RA/Dec with a bad value, then the slew;
+  - go to star with the E-stop release;
+  - toggling offline off reopens setup.
+
+  `Client.py` also ran end to end offline from a scratch copy: no server
+  attempts, panel attached, location kept.
+
+**Not done or not verified:**
+- No camera was connected, so `take_photo` has only been tested with a fake
+  capture.
+- Going from offline back online hasn't been run against the real server.
+- Photos taken with the camera's own shutter button stay on its card; only
+  panel photos are downloaded.
+- Possible next steps:
+  - upload offline photos when back online;
+  - nudging the scope with the arrows while tracking (the firmware's jog
+    stops sidereal tracking);
+  - exposure settings from the panel.
+
+## Feature: Sun protection (Alex, 2026-10-16)
+
+Committed before this: `06e8448` (offline mode, manual go-to, local
+photos).
+
+Alex asked for:
+- an on-screen warning within 30 deg of the Sun;
+- within 20 deg, a random 4-press code of up/down/left/right, shown on
+  screen, to be entered first;
+- a message about the dangers to eyes and equipment.
+
+**Done (committed by Alex as `50a9e25`; the next section changes parts of it):**
+- `utils/sun_guard.py`, called at the top of
+  `tracking.trackCoordinates`, so it covers go-tos from the panel and the
+  server. It runs before the previous tracking is stopped and before
+  anything moves; a refusal returns `{"error": ...}` to the caller.
+  - The Sun is computed locally (`sky_view.sun_radec`), so it works
+    offline. It applies whether or not the Sun is up.
+  - Distance is the closest approach: at the target or on the slew. The
+    slew model matches `_move_motors`: RA and Dec move together at the
+    same step rate (so Dec goes 2.5x faster in sky degrees at 360:1 and
+    144:1), and RA takes the short way. It starts from the dead-reckoned
+    position.
+  - Within 30 deg: a confirm with `style: warn` (amber bar with a Sun
+    symbol) about eyes, the finder and cameras. Cancel is selected first.
+  - Within 20 deg: a `style: danger` notice (red bar) about blinding and
+    burnt cameras and eyepieces, then a `code` prompt. The code screen
+    says "only with solar filters on the telescope and finder". The ESP32
+    picks the code and the screen times out after 90 s.
+  - No panel attached: a warning is logged and the go-to goes ahead;
+    within 20 deg is refused ("confirm on the telescope's front panel").
+  - A yes is remembered for that target for 2 minutes, used once. The
+    panel flows (`manual_control._sun_ok`) ask first, before the horizon
+    and E-stop prompts, and trackCoordinates then finds the answer.
+    trackCoordinates' own asks aren't remembered. Align on star checks
+    with no slew.
+  - The old 15 deg check in manual_control is gone. Panel go-tos no longer
+    call `show_sky`: the firmware opens the sky view itself when the slew
+    starts.
+- Firmware:
+  - `Alert` (None/Warn/Danger), `drawAlertBar` and `drawSun` (ui_draw.cpp).
+  - The confirm takes an alert (`style` in `ui prompt`).
+  - New `CodeScreen` (ui_screens.cpp, `openCode`): four arrow boxes (green
+    when done, the next one outlined), "Wrong key: new code" with a fresh
+    code, and a seconds countdown.
+  - The kinds are documented in PROTOCOL.md.
+- Tests: 43 in test_panel_ui.py (levels, the slew path, warn, danger and
+  code, cancel, no panel, trackCoordinates refusing before it stops
+  anything, panel flows with the Sun pinned).
+  - The test setup now writes all three config files before switching to
+    them. Leftover threads from earlier tests used to rebuild a blank
+    profile and start the wizard, which made the tests flaky.
+  - It also stops tracking's hour-angle thread, which had been writing to
+    the real runtime_state.json during tests.
+- Devkit:
+  - the warning (Go on);
+  - the danger notice for a slew passing the Sun, with a long name;
+  - the code: a wrong key draws a new one, the right code goes ahead;
+  - the night theme, and RETURN cancels.
+  All the text fits without scrolling. Both firmware envs build clean.
+
+**Not covered (by design or not yet):**
+- Raw motor commands from the server (`espMoveSteps`, `espStart`,
+  `espTurnDegrees`, ...) and the panel's Jog test move the motors with no
+  sky position, so the guard can't see them.
+- The tracking loop's small centring corrections aren't checked; they head
+  for a target that was already approved.
+- The path check trusts the dead-reckoned position; if that's wrong, so is
+  the path.
+
+## Feature: routes round the Sun, over the poles (Alex, 2026-10-16)
+
+Alex asked:
+- make sure nothing can track an object in the exclusion zone without the
+  check;
+- when a slew would pass through the zone, navigate smoothly round it;
+- slews should be efficient, so they may go over the zenith/nadir if
+  needed (read as: the Dec axis may go past either pole when that's the
+  quicker way).
+
+**Done (uncommitted, on top of `50a9e25`):**
+- Firmware `path` command: both motors along a polyline (up to 63 points,
+  logical steps from now) as one smooth move.
+  - The plan is pure logic in `logic/path.h`:
+    - a segment's length is its larger axis distance, so speed is for the
+      faster motor;
+    - the speed through each corner is limited so neither motor's speed
+      jumps by more than the start speed;
+    - a backward braking pass, then acceleration at runtime.
+  - `stepper.cpp` path mode:
+    - the 1 kHz ramp task moves a cursor along the path and steers each
+      axis to its point (feed-forward speed plus 20/s times the error);
+    - the ISR can reverse DIR mid-move, waiting a tick before stepping;
+    - stop slows down along the path; E-stop is immediate;
+    - it ends with Complete once both axes settle on the last point.
+  - `motorsStartPath` picks each axis's microsteps for its peak speed on
+    the path and runs the usual checks (E-stop, front-panel hold, engaged,
+    not moving).
+  - Status shows `path_progress`; the sky view's arcs and ETA follow paths.
+  - Devkit:
+    - a 24-point half circle held about 1600 sps (the cruise speed)
+      throughout, reversing Dec smoothly, and ended exactly on target;
+    - corners and full reversals land exactly;
+    - stop ramps; E-stop is immediate.
+  - Both envs build clean (RAM 13.8 %). The native env has no host
+    compiler on this Pi (`g++` isn't installed), so `path.h` was tested on
+    the devkit, not in `pio test`.
+- `core/hardware/mount.py` (pure):
+  - Axis angles: RA axis from the meridian, Dec axis from the equator,
+    unwrapped; past ±90 the mount is flipped (`sky_from_axes`,
+    `axis_solutions`, `nearest_solution`).
+  - Limits are `mount` in client_config.json: RA ±270, Dec ±180 and
+    `pole_crossing` true by default.
+  - `plan_route` tries every way of pointing at the target (normal or
+    flipped, every turn within the limits), quickest first. It goes
+    straight if that keeps clear of the Sun. Otherwise it takes the
+    shortest way round the keep-out: the Sun's circle mapped into the axis
+    plane scaled to motor turns, a convex hull every 15 deg, then Dijkstra
+    over a visibility graph. The result is checked along the route; if it
+    fails, the outline is padded 1.5/3/5 deg and tried again.
+  - Results:
+    - turns stay under ~11 deg, so the firmware keeps cruise speed;
+    - RA is geared 2.5x slower, so going round usually costs no time;
+    - if limits leave no way round, it goes straight and says so;
+    - planning takes 1-3 ms.
+- Position model (`utils/telescope_state.py`):
+  - The axis angles (`axis_ra_deg`, `axis_dec_deg`) are now the record.
+    `get_telescope_coords` derives RA/Dec from them and the time, so a
+    stopped scope's RA drifts as it should, and the old
+    `_last_ha_baseline` hack is gone.
+  - `set_telescope_coords` (syncs) picks the axes on the side the mount is
+    on.
+  - Older state files are converted from their RA/Dec at `updated_at`,
+    assuming the mount held still since.
+- `tracking.py`:
+  - `trackCoordinates` order:
+    1. check the site;
+    2. run the Sun guard (it plans the route);
+    3. stop the old session;
+    4. bring the axes up to date from the step counters, after waiting
+       for motion to stop;
+    5. `plan_goto`, aiming where the target will be on arrival;
+    6. `_run_route` sends `path`.
+
+    It returns `{status, seconds, round_the_sun, over_the_pole,
+    closest_to_sun_deg}` or `{error}`.
+  - Centring corrections go through the planner (at refine speed when
+    small).
+  - Step counter baselines are re-read when the motors are initialised,
+    and jogs between sessions are now counted.
+  - A watchdog in the loop stops tracking and toasts the panel if:
+    - the pointing or the target gets closer to the Sun than the session's
+      floor (on the way: min(19.5, the route's closest - 1); once locked:
+      19.5, or the approved target's distance - 1);
+    - an axis goes more than 2 deg past its limit.
+- Sun guard changes:
+  - The closeness on the way comes from the planned route, and moving away
+    from the Sun doesn't count.
+  - The warning is for targets under 30 deg. The code is for getting
+    under 20 deg, on the way or at the target, so a detour passing at
+    about 23 deg asks nothing.
+  - Keep-out: `keep_out_deg` = min(22, start - 0.5, target - 0.5).
+  - The global yes cache is replaced by a `SunApproval` object that the
+    panel flows pass to `trackCoordinates(..., sun_approval=)` (keyword
+    only). JSON from the server can't create one, and a dict is ignored.
+- Tests (51 in test_panel_ui.py):
+  - mount maths and routes;
+  - `trackCoordinates` against a `FakeMount`: a curved route, over the
+    pole, and the watchdog;
+  - the approval rules.
+
+  test_interface_pty 12/12. Stable over repeated runs.
+- Devkit end to end (scratch config copies, slew speed 4800):
+  - Curved: round the real Sun, 6 points, 33 s; its dead-reckoned pointing
+    stayed 23.4 deg or more from the Sun. It landed 0.014 deg off, made one
+    correction, then sidereal tracking (213.9 pulses/s).
+  - Over the pole: Dec axis 75 to 105 in 4 s (instead of 180 deg of RA),
+    then tracking on the flipped side.
+
+**Not covered / to check on the real mount:**
+- The default limits (RA ±270, Dec ±180) allow swinging the tube under the
+  south pole. Check the tube, camera and cables clear the tripod and pier
+  before relying on it; narrow `mount` in client_config.json if not.
+- Raw motor commands from the server (`espStart`, `espMoveSteps`, ...) and
+  the panel's Jog test still bypass the planner and the guard.
+- (Tested since: a double RETURN during a slow path stops both motors
+  without an E-stop, shows the menu, and refuses host paths until
+  `ack_stop`.)
+- Whether the mount is flipped can't be sensed: a sync takes the side it
+  was last on. After moving it by hand, use Align on star.
+
+## Job: optimise, clean up, add features (Alex, 2026-10-16)
+
+Alex asked for every item of a review of the client to be implemented,
+with a log so the work survives disconnects. **IMPROVEMENTS_LOG.md** is
+that log: the plan, decisions, server constraints, test commands and notes.
+The route work was committed first (aa2d410); this job is uncommitted on
+top of it. README.md now describes everything; the summary is below.
+
+**Live view and camera (core/camera/)**
+- One thread owns the camera (service.py).
+  - libgphoto2 in-process (the `gphoto2` package, now in the venv), or
+    the gphoto2 command as a fallback (backends.py).
+  - Photos pause live view and it carries on. Failures back off from 1 to
+    30 s and never turn live view off. Hotplug is found again.
+  - Keep-awake while streaming. No more pkill.
+- JPEG framing walks the markers (jpeg.py): embedded thumbnails can't end
+  a frame early.
+- Stream policy (stream.py):
+  - quality presets (medium is about a ninth of the data);
+  - 10 fps moving, 2 fps still, unchanged frames skipped with a 5 s
+    keyframe;
+  - adapts to a slow link instead of reconnecting;
+  - viewer-count pause (`liveViewViewers`); idle stop; focus crop with
+    HFR (focus.py); camera zoom.
+- Snapshot, video (MJPEG AVI) and timelapse (recorder.py, avi.py).
+- Upload queue (utils/uploads.py): persistent, JPEG first, RAW policy,
+  retries, per-file posts with pointing metadata, offline photos under an
+  owner id.
+- Sequences (lights, darks, flats, bias; bulb; dithering), camera battery
+  and card, Pi disk guard.
+
+**Pointing and tracking**
+- Precession and refraction (utils/astrometry.py). The mount had been
+  treating J2000 as of date (0.37 deg).
+- Moon and planet ephemeris on the Pi (utils/ephemeris.py), checked against
+  JPL DE421 in scratch with Skyfield:
+  - within 1.5' for every body;
+  - the topocentric Moon within 4.2'.
+  - Found doing it: the ASTRA server's Neptune has the wrong sign on its
+    Dec (+0.48 against -0.49).
+- tracking.py rewritten:
+  - slew ends from motion_done events;
+  - both axes run at the target's rates (ephemeris for bodies; lunar,
+    solar, King and custom presets), with a drift correction;
+  - fine positions (position_fine);
+  - horizon limits (refuse from the server, stop when it sets);
+  - park, unpark and set park; backlash take-up; dither and recentre;
+    track_object;
+  - southern hemisphere: the mount model mirrored, the RA motor reversed;
+  - no more hour-angle updater.
+- Pointing model from alignment points (core/hardware/pointing.py), with
+  the polar error report from three or more points.
+- ASTAP plate solving (core/astrometry/solver.py; installed in ~/astap with
+  the D05 and W08 databases) and utils/plate_solve.py: solve and sync,
+  centre the target, three-point polar alignment, drift checks.
+- Raw server motor commands guarded (utils/motor_guard.py): limits and the
+  Sun; policy setting.
+
+**Field use**
+- Astronomy clock with an offset from GPS or the panel; the sync state via
+  adjtimex; no root (utils/clock.py).
+- GPS read from gpsd in the background (utils/gps.py).
+- LAN page with an access code (core/networking/local_page.py).
+
+**Server link (core/networking/websocket.py)**
+- Commands in lanes (priority, query, camera, motion); every reply has its
+  id.
+- Live view connects only while it's on; reconnect backoff with jitter.
+- Optional status push (off: ASTRA only logs it).
+- Client and firmware update commands, off by default (utils/maintenance.py).
+- 67 server functions; README lists them.
+
+**Panel**
+- New items:
+  - Scope: planet, solve, centre, polar, alignment, rate, park.
+  - Camera: frames, exposure, dither, ISO and shutter from the camera,
+    battery, card, stream quality and stats, focus, zoom, snapshot,
+    record, offline upload.
+  - Setup: clock and UTC, horizon, hemisphere, local page, photo owner,
+    server motors.
+  - Pi: park before shutdown.
+- The clock warning at start. Local planets in the sky view.
+
+**Firmware**
+- Command line and RX buffer raised from 4/8 KB to 12 KB: the menu is
+  6.2 KB and was refused with "Command too long".
+- `led` takes `leds:{...}` for several at once.
+- Both envs build clean (RAM 18.8%); the devkit is flashed.
+
+**Optimisations**
+- Runtime state in memory: written within 5 s of a change, fsynced, stale
+  .tmp files removed. It used to be rewritten every second, forever.
+- LEDs: one batched command, no 0.5 s gaps.
+- Serial:
+  - replies matched by id, so stop, estop and stop_all don't wait;
+  - payloads kept whole;
+  - the scanner runs off the event loop and only pings a quiet link.
+- Startup asset sync removed.
+
+**Clean-up**
+- Removed:
+  - core/camera/liveview.py (Flask), core/camera/controller.py,
+    utils/Tools.py;
+  - graphics/, examples/;
+  - the `*WithMotorId` wrappers and espCommand (ASTRA never calls them).
+- Prints are now logging (utils/log.py: stdout and logs/seleno.log).
+- No telescopes.dev default; no cookie print.
+- Repo setup:
+  - .gitignore narrowed; requirements pinned (Flask and psutil out, numpy
+    and gphoto2 in);
+  - deploy/seleno-client.service; .github/workflows/tests.yml;
+    pyproject.toml (ruff).
+
+**Tests**
+- tests/: 74. Camera with a fake camera and a fake gphoto2; astronomy
+  against DE421; state, uploads, GPS, lanes, guard, local page, solver
+  (fake ASTAP and the real one), tracking with a fake mount, LEDs.
+- esp32/tests: 64, with a new stop-priority test.
+- ruff check: clean.
+
+**Devkit run (scratch configs, offline, fake camera)**
+- The panel attaches with the full menu; screenshots in scratch
+  `shots/120_*`.
+- Six LED changes in 0.02 s.
+- The Moon: locked in 18 s, both motors running (Dec at its rate). The Dec
+  error stays within about 1" with fine positions.
+- A raw move past the limit was refused.
+- Park reached (0, 90); go-tos refused until unparked.
+- The local page: login, MJPEG, photo, snapshot, files; path traversal
+  blocked.
+
+**Not done, or not tried on real hardware**
+- Needs the server or browser changed:
+  - H.264/WebRTC;
+  - the server sending viewer counts (the client side is ready).
+- Not built: periodic error correction and guiding (plate-solve drift
+  checks are the light version); an IMU polar helper (where the BNO085
+  sits on the mount isn't known).
+- No real camera on the Pi: the libgphoto2 backend (the default when
+  installed), bulb, zoom and keep-awake are untested on hardware. If live
+  view misbehaves, set `camera.backend` to `cli`.
+- Not run end to end: update_client and update_firmware; the southern
+  hemisphere on a real mount.
+- Not reformatted: tabs and spaces left as they are (ruff only lints).

@@ -1,6 +1,9 @@
 import time
 import requests
 from typing import Optional, Dict, Any
+from utils.log import get_logger
+
+log = get_logger("csrf")
 
 # Reusable HTTP session for cookies and connection pooling
 SESSION = requests.Session()
@@ -37,7 +40,7 @@ def get_csrf_token(server_url: str, force_refresh: bool = False) -> Optional[str
     # any cookie-based associations are preserved.
     global _CSRF_TOKEN, _CSRF_FETCH_TS
 
-    now = time.time()
+    now = time.monotonic()
     # If we have a cached token and it's fresh, reuse it only if we still have cookies
     if (
         not force_refresh
@@ -66,15 +69,10 @@ def get_csrf_token(server_url: str, force_refresh: bool = False) -> Optional[str
         if token:
             _CSRF_TOKEN = token
             _CSRF_FETCH_TS = now
-            try:
-                # Helpful for debugging cookie presence
-                print("[DEBUG] CSRF token obtained; session cookies:", SESSION.cookies.get_dict())
-            except Exception:
-                pass
             return token
         else:
-            print("[WARN] CSRF endpoint responded but no token was found in the payload.")
+            log.info("CSRF endpoint responded but no token was found in the payload.")
             return None
     except requests.RequestException as e:
-        print(f"[WARN] Failed to fetch CSRF token: {e}")
+        log.warning(f"Failed to fetch CSRF token: {e}")
         return None

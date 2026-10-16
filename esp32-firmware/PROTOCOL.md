@@ -14,9 +14,11 @@ The Pi side is `esp32/interfaceESP32.py`. Hardware facts come from
 ## Framing
 
 - **Request:** one JSON object per line with `"cmd"`, plus optional `"id"`
-  (a number or a short string). The firmware echoes `id` in the reply, so a
-  late reply can't be mistaken for the next one. Requests without `id` (old
-  hosts) still work.
+  (a number or a short string), at most 12 KB (the Pi's menu is about
+  6 KB). The firmware echoes `id` in the reply, so a late reply can't be
+  mistaken for the next one, and replies are matched by it: the Pi sends
+  `stop`/`estop`/`stop_all` without waiting for an earlier reply. Requests
+  without `id` (old hosts) still work.
 - **Reply:** `{"status":"ok","id":7,"data":{...}}` or
   `{"status":"error","id":7,"message":"..."}`. A reply goes back on the port
   the request came in on.
@@ -43,7 +45,7 @@ The Pi side is `esp32/interfaceESP32.py`. Hardware facts come from
 | `stop_all` | | ok (every axis stops; nothing is latched) |
 | `i2c_scan` | | `devices`: list of addresses (0x20 = MCP23017, 0x4A/0x4B = BNO085) |
 | `panel` (alias `buttons`) | `action`: `status` / `reinit` | `expander_present`, `buttons{}`, `leds{}`, `raw_gpio`, `interrupts`, `int_pin_low`, `expander_resets` |
-| `led` | `led`: `board`/`red`/`green`/`white`/`blue`/`yellow`; `mode`: `on`/`off`/`toggle`/`blink` (+`interval_ms`, `auto_off_ms`), or `on`: bool | ok |
+| `led` | `led`: `board`/`red`/`green`/`white`/`blue`/`yellow`; `mode`: `on`/`off`/`toggle`/`blink` (+`interval_ms`, `auto_off_ms`), or `on`: bool. Or several at once: `leds`: `{"red": "off", "blue": {"mode": "blink", "interval_ms": 700}}` (all names checked first) | ok |
 | `imu` | `action`: `status` / `read` / `enable` / `disable` / `reinit` | status: `present`, `address`, `firmware`, `events`, `errors`, `resets`. read: `rotation_vector` and `game_rotation_vector` (quaternion `i,j,k,real`, `accuracy`, `age_ms`, `euler_deg{yaw,pitch,roll}`), `gravity` and `magnetic_field` (`x,y,z`) |
 
 ## Emergency stop
@@ -139,8 +141,9 @@ floor of that value in logical steps; `position_fine` is the exact
 | `turn_degrees` | `degrees`, `forward` | Negative degrees reverse |
 | `move_steps` | `steps` (signed, logical) | |
 | `start_continuous` | `forward` | Runs until `stop`; the sidereal tracking path |
-| `stop` | | Ramps down from above the start speed, otherwise immediate |
-| `status` | | `enabled`, `moving`, `position`, `position_fine`, `steps_per_rev`, `speed_sps`, `speed_us`, `accel_sps2`, `start_sps`, `pulses_remaining` (−1 = continuous), `pulse_rate` (cruise), `pulse_rate_now`, `microsteps` (driver), `microstep_mode` (`auto`/`fixed`), `auto{}`, `chopper`, `chopper_threshold_fsps`, `driver_present` |
+| `stop` | | Ramps down from above the start speed, otherwise immediate. During a `path`, either motor's stop slows both along the path |
+| `path` (no `motor`) | `points`: up to 63 `[motor1, motor2]` pairs, logical steps from where the motors are now; `speed`: logical steps/s for the faster motor (default motor1's speed) | Both motors along the polyline as one smooth move: see below. Reply: `points`, `eta_s` |
+| `status` | | `enabled`, `moving`, `position`, `position_fine`, `steps_per_rev`, `speed_sps`, `speed_us`, `accel_sps2`, `start_sps`, `pulses_remaining` (−1 = continuous, and during a path), `pulse_rate` (cruise), `pulse_rate_now`, `microsteps` (driver), `microstep_mode` (`auto`/`fixed`), `auto{}`, `chopper`, `chopper_threshold_fsps`, `driver_present`, `path_progress` (0–1, while a path runs) |
 | `get_position` | | `position`, `position_fine`, `steps_per_rev`, `moving` |
 | `reset_position` / `set_position` (`position`, logical) | | |
 | `set_microsteps` | `microsteps`: `"auto"` or 1–256 (power of two) | A fixed value applies now (refused while moving) and turns auto off |
@@ -153,6 +156,23 @@ floor of that value in logical steps; `position_fine` is the exact
 
 Other defaults: 1.0 A run current, 0.5 A hold current, 256-step
 interpolation, StallGuard off.
+
+### Paths
+
+`path` moves both motors together along straight stretches between the
+points (src/logic/path.h): each stretch is a linear move of both axes, its
+faster motor at `speed`. It doesn't stop at the corners: the speed through
+a corner is limited so neither motor's speed jumps by more than the start
+speed (the lower of the two motors' `start_sps`), so a gently curving path
+(small turns at each point) keeps its speed throughout, and a sharp turn
+or reversal slows briefly. It accelerates and brakes at the lower of the
+two motors' `accel_sps2`, starting and ending at the start speed. A motor
+can change direction mid-path. Each motor's microstep setting is picked for
+its fastest speed on the path. Both end at the last point exactly, with
+`motion_done` `complete`. The Pi uses it for every slew: curving round
+the Sun, and over a pole (core/hardware/mount.py). The same checks as other
+moves apply (E-stop, the front panel's hold, engaged, not moving), and the
+RETURN policy sees its speed.
 
 ### Step timing
 
@@ -222,7 +242,7 @@ panel counts the Pi as gone after 6 s without a byte from it.
 | `status` | any string fields to show (`ip`, `server`, ...), `clock_s` (local seconds since midnight), `device` | `panel_stop_pending`, `estop`, `screen`, `sky_w`, `sky_h`, `sky_shown`, `sky_radar` |
 | `menu` | `panels[]`: `{id, title, order, items[]}`; replaces the host's tabs | ok |
 | `set` | `values{"panel.item": value}`, or `panel`, `item`, `fields{}` (any item field) | `changed` |
-| `prompt` | `prompt` (an id for the answer), `kind` (`text`, `confirm`, `message`, `busy`, `choice`), `title`, `text`; text: `value`, `max_length` (≤ 160), `subtitle`; confirm: `yes`, `no`, `default` (`yes`/`no`); choice: `options[]`, `selected`; message/busy: `timeout_ms` | `queued` (true while the user has that dialog open for something else) |
+| `prompt` | `prompt` (an id for the answer), `kind` (`text`, `confirm`, `message`, `busy`, `choice`, `code`), `title`, `text`; text: `value`, `max_length` (≤ 160), `subtitle`; confirm: `yes`, `no`, `default` (`yes`/`no`), `style` (`warn`: amber title bar, `danger`: red, both with a Sun symbol); choice: `options[]`, `selected`; message/busy/code: `timeout_ms` | `queued` (true while the user has that dialog open for something else) |
 | `close_prompt` | `prompt` (omit for any) | ok |
 | `toast` | `text`, `ms` | ok |
 | `mode` | `mode`: `menu`, `tracking`/`sky`, `loading` | ok |
@@ -236,10 +256,19 @@ panel counts the Pi as gone after 6 s without a byte from it.
 | `screenshot` | | `width`, `height`, `format` (`rgb565be`), `host_mode`, `base64` (the UI frame) |
 | `state` | | screen stack, menu position, the top screen's state, link, prompt, tracking |
 
+A `code` prompt unlocks something dangerous (a go-to near the Sun): the
+ESP32 picks four random arrows (never all the same) and shows them; they
+have to be pressed in order. A wrong arrow draws a new code; held-down
+repeats and SELECT don't count. The answer is `value: true` once entered,
+or `cancelled: true` on RETURN or after `timeout_ms`. `state` shows the
+code (`u`/`d`/`l`/`r`) and how many are entered, for testing.
+
 Menu items (`items[]`): `id`, `type` (`action`, `toggle`, `choice`,
 `number`, `text`, `info`), `label`, `value`, and by type: `options[]`;
 `min`, `max`, `step`, `unit`, `decimals`; `max_length`, `secret`; `confirm`
-(ask before an action or toggle); `hint`; `enabled`; `visible`. The panel
+(ask before an action or toggle); `hint` (shown under the keyboard's title
+for `text` items, and in the footer when 12 characters or fewer);
+`enabled`; `visible`. The panel
 changes the value at once and sends a `change` event; the host may `set` it
 back.
 

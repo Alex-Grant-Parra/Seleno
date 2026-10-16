@@ -6,6 +6,7 @@
 #include <soc/gpio_struct.h>
 
 #include "config.h"
+#include "logic/path.h"
 #include "logic/ramp.h"
 #include "logic/step_math.h"
 
@@ -30,10 +31,32 @@ struct Axis {
   double accel;        // pulses/s^2, 0 = no ramp
   double startRate;    // pulses/s reached without ramping
   bool stopping;       // ramped stop in progress
+  // DIR as set now, and as wanted: a path can reverse an axis mid-move.
+  // The ISR switches DIR and waits a tick before the next STEP.
+  bool forward;
+  bool wantForward;
+  bool pathMode;  // driven by the path follower, not its own ramp
+};
+
+// The path both axes follow (stepperStartPath); used by the ramp task.
+struct PathRun {
+  volatile bool active;
+  volatile bool stopping;
+  MotionEnd stopReason;
+  int64_t origin256[kAxisCount];
+  seleno::PathCursor cursor;
+  int64_t doneAtUs;  // when the cursor reached the end (0 = not yet)
 };
 
 DRAM_ATTR Axis g_axes[kAxisCount];
 portMUX_TYPE g_mux = portMUX_INITIALIZER_UNLOCKED;
+seleno::PathPlan g_plan;
+PathRun g_path = {};
+// Path follower: position error (1/256 microsteps) to extra speed, per second.
+constexpr double kPathGain = 20.0;
+// After the cursor reaches the end, how long the axes get to settle on
+// the last point before the path ends anyway.
+constexpr int64_t kPathSettleUs = 2000000;
 hw_timer_t* g_timer = nullptr;
 esp_timer_handle_t g_rampTimer = nullptr;
 constexpr uint32_t kRampPeriodUs = 1000;
@@ -64,6 +87,16 @@ void IRAM_ATTR onStepTick() {
       finishMove(a, a.stopRequest);
       continue;
     }
+    if (a.wantForward != a.forward) {
+      if (a.wantForward) {
+        GPIO.out_w1ts = a.dirMask;
+      } else {
+        GPIO.out_w1tc = a.dirMask;
+      }
+      a.forward = a.wantForward;
+      a.pulseDelta = a.forward ? a.pulseSize : -static_cast<int32_t>(a.pulseSize);
+      continue;  // DIR settles for a tick before the next STEP
+    }
     uint32_t before = a.phase;
     a.phase += a.phaseInc;
     if (a.phase < before) {
@@ -82,16 +115,99 @@ bool validAxis(int axis) {
   return axis >= 0 && axis < kAxisCount;
 }
 
+// Ends the path on both axes: those still running end with `reason` (or,
+// with Stopped, ramp down on their own).
+void endPath(MotionEnd reason) {
+  portENTER_CRITICAL(&g_mux);
+  g_path.active = false;
+  for (int i = 0; i < kAxisCount; i++) {
+    Axis& a = g_axes[i];
+    a.pathMode = false;
+    if (!a.running) continue;
+    if (reason == MotionEnd::Stopped && a.accel > 0.0 && a.currentRate > a.startRate) {
+      a.targetRate = a.currentRate;
+      a.stopping = true;
+    } else {
+      a.stopRequest = reason;
+    }
+  }
+  portEXIT_CRITICAL(&g_mux);
+}
+
+// Every millisecond while a path runs: move the cursor along it and steer
+// each axis to its point on the path (its speed there plus a correction
+// for any lag), switching direction where the path turns back.
+void pathTick(double dt) {
+  bool running[kAxisCount];
+  int64_t pos[kAxisCount];
+  uint16_t pulse[kAxisCount];
+  portENTER_CRITICAL(&g_mux);
+  for (int i = 0; i < kAxisCount; i++) {
+    running[i] = g_axes[i].running;
+    pos[i] = g_axes[i].position256 - g_path.origin256[i];
+    pulse[i] = g_axes[i].pulseSize;
+  }
+  bool stopping = g_path.stopping;
+  MotionEnd stopReason = g_path.stopReason;
+  portEXIT_CRITICAL(&g_mux);
+  if (!running[0] || !running[1]) {
+    // One axis ended on its own (emergency stop, fault, disengaged).
+    endPath(MotionEnd::Stopped);
+    return;
+  }
+  if (seleno::pathStep(g_plan, g_path.cursor, dt, stopping)) {
+    endPath(stopReason == MotionEnd::None ? MotionEnd::Stopped : stopReason);
+    return;
+  }
+  double want[kAxisCount], speed[kAxisCount];
+  seleno::pathPoint(g_plan, g_path.cursor, want[0], want[1], speed[0], speed[1]);
+  bool settled = true;
+  for (int i = 0; i < kAxisCount; i++) {
+    double error = want[i] - static_cast<double>(pos[i]);
+    if (std::fabs(error) > pulse[i] / 2.0) settled = false;
+    double cmd = speed[i] + kPathGain * error;  // 1/256 microsteps per second
+    if (g_path.cursor.done) {
+      // At the end: creep onto the last point, no faster than the jump speed.
+      if (std::fabs(error) <= pulse[i] / 2.0) cmd = 0.0;
+      double limit = g_plan.jump;
+      cmd = cmd > limit ? limit : (cmd < -limit ? -limit : cmd);
+    }
+    double rate = std::fabs(cmd) / pulse[i];  // pulses/s
+    if (rate < 0.5) rate = 0.0;
+    rate = clampRate(rate);
+    uint32_t inc = rate > 0.0 ? seleno::phaseIncrementForRate(rate, kStepTickHz) : 0;
+    portENTER_CRITICAL(&g_mux);
+    Axis& a = g_axes[i];
+    if (a.running && a.pathMode) {
+      if (rate > 0.0) a.wantForward = cmd > 0.0;
+      a.phaseInc = inc;
+      a.currentRate = rate;
+      a.targetRate = rate;
+    }
+    portEXIT_CRITICAL(&g_mux);
+  }
+  if (g_path.cursor.done) {
+    int64_t now = esp_timer_get_time();
+    if (g_path.doneAtUs == 0) g_path.doneAtUs = now;
+    if (settled || now - g_path.doneAtUs > kPathSettleUs) {
+      endPath(MotionEnd::Complete);
+    }
+  }
+}
+
 // Every millisecond: move each running axis's rate one step along its ramp.
 // The ISR only ever sees the resulting phase increment.
 void onRampTick(void*) {
   constexpr double dt = kRampPeriodUs / 1000000.0;
+  if (g_path.active) {
+    pathTick(dt);
+  }
   for (int i = 0; i < kAxisCount; i++) {
     Axis& a = g_axes[i];
     seleno::RampInput in;
     portENTER_CRITICAL(&g_mux);
-    bool active = a.running && (a.accel > 0.0) && (a.currentRate != a.targetRate || a.stopping ||
-                                                    a.pulsesRemaining >= 0);
+    bool active = a.running && !a.pathMode && (a.accel > 0.0) &&
+                  (a.currentRate != a.targetRate || a.stopping || a.pulsesRemaining >= 0);
     in.rate = a.currentRate;
     in.target = a.targetRate;
     in.startRate = a.startRate;
@@ -197,6 +313,9 @@ bool stepperStart(int axis, int32_t pulses, bool forward, double pulsesPerSecond
     GPIO.out_w1tc = a.dirMask;
   }
   portENTER_CRITICAL(&g_mux);
+  a.forward = forward;
+  a.wantForward = forward;
+  a.pathMode = false;
   if (pulsesPerSecond > 0.0) {
     a.targetRate = clampRate(pulsesPerSecond);
   }
@@ -281,7 +400,11 @@ void stepperRequestStop(int axis, MotionEnd reason) {
     // A plain stop above the pull-in rate ramps down so the motor doesn't
     // overshoot and lose steps; an emergency stop or fault is immediate.
     bool plainStop = reason == MotionEnd::Stopped || reason == MotionEnd::PanelStop;
-    if (plainStop && a.accel > 0.0 && a.currentRate > a.startRate) {
+    if (plainStop && a.pathMode) {
+      // Both axes slow down together along the path.
+      if (!g_path.stopping || reason == MotionEnd::PanelStop) g_path.stopReason = reason;
+      g_path.stopping = true;
+    } else if (plainStop && a.accel > 0.0 && a.currentRate > a.startRate) {
       a.stopping = true;
     } else {
       a.stopRequest = reason;
@@ -338,4 +461,52 @@ MotionEnd stepperTakeMotionEnd(int axis) {
   g_axes[axis].lastEnd = MotionEnd::None;
   portEXIT_CRITICAL(&g_mux);
   return r;
+}
+
+bool stepperStartPath(const double* xs256, const double* ys256, int n, double cruise256, double accel256,
+                      double jump256) {
+  if (g_path.active || g_axes[0].running || g_axes[1].running) {
+    return false;
+  }
+  if (!seleno::planPath(g_plan, xs256, ys256, n, cruise256, accel256, jump256)) {
+    return false;
+  }
+  portENTER_CRITICAL(&g_mux);
+  for (int i = 0; i < kAxisCount; i++) {
+    Axis& a = g_axes[i];
+    g_path.origin256[i] = a.position256;
+    a.pathMode = true;
+    a.wantForward = a.forward;
+    a.pulseDelta = a.forward ? a.pulseSize : -static_cast<int32_t>(a.pulseSize);
+    a.phaseInc = 0;  // the follower sets the speed on its first tick
+    a.phase = 0;
+    a.currentRate = 0.0;
+    a.targetRate = 0.0;
+    a.stopping = false;
+    a.pulsesRemaining = -1;
+    a.stopRequest = MotionEnd::None;
+    a.lastEnd = MotionEnd::None;
+  }
+  seleno::pathBegin(g_plan, g_path.cursor);
+  g_path.stopping = false;
+  g_path.stopReason = MotionEnd::None;
+  g_path.doneAtUs = 0;
+  g_axes[0].running = true;
+  g_axes[1].running = true;
+  g_path.active = true;
+  portEXIT_CRITICAL(&g_mux);
+  return true;
+}
+
+bool stepperPathActive() {
+  return g_path.active;
+}
+
+double stepperPathProgress() {
+  if (!g_path.active || !(g_plan.total > 0.0)) return 0.0;
+  return g_path.cursor.s / g_plan.total;
+}
+
+double stepperPathEtaSeconds() {
+  return g_path.active ? seleno::pathEtaSeconds(g_plan, g_path.cursor) : 0.0;
 }

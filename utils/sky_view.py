@@ -132,6 +132,15 @@ def ecliptic_to_equatorial(lam_deg: float, beta_deg: float) -> Tuple[float, floa
 	return (ra / DEG) % 360.0, dec / DEG
 
 
+def sun_radec(when: datetime) -> Tuple[float, float]:
+	# Low-precision solar position (Astronomical Almanac, ~0.01 deg), so the
+	# Sun can be found without the server.
+	n = julian_date(when) - 2451545.0
+	mean_lon = 280.460 + 0.9856474 * n
+	g = (357.528 + 0.9856003 * n) * DEG
+	return ecliptic_to_equatorial(mean_lon + 1.915 * math.sin(g) + 0.020 * math.sin(2 * g), 0.0)
+
+
 def angular_distance(ra1: float, dec1: float, ra2: float, dec2: float) -> float:
 	a, b = radec_to_xyz(ra1, dec1), radec_to_xyz(ra2, dec2)
 	dot = max(-1.0, min(1.0, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))
@@ -311,18 +320,16 @@ def ascii_text(text: str, limit: int) -> bytes:
 
 
 class _LabelGrid:
-	"""The star map's occupancy grid, so labels don't pile up, plus a keep-out
-	circle for the panel's reticle in the middle of the screen."""
+	"""Where labels have gone, so they don't pile up, plus a keep-out circle
+	for the panel's reticle in the middle of the screen."""
 
 	CHAR_W = 6  # the ESP32 draws labels in its 6x8 font
 	RETICLE_R = 18
 
-	def __init__(self, width: int, height: int, keepouts: Sequence[Tuple[int, int, int, int]] = (),
-			cell_w: int = 34, cell_h: int = 12) -> None:
+	def __init__(self, width: int, height: int, keepouts: Sequence[Tuple[int, int, int, int]] = ()) -> None:
 		self.cx, self.cy = width / 2.0, height / 2.0
 		self.keepouts = list(keepouts)  # (x, y, w, h) the panel draws over
-		self.cell_w, self.cell_h = cell_w, cell_h
-		self.taken: set = set()
+		self.taken: List[Tuple[float, float, float, float]] = []  # placed labels, padded
 
 	def clear_of_reticle(self, left: float, text: str, y: float) -> bool:
 		right = left + self.CHAR_W * len(text)
@@ -341,15 +348,18 @@ class _LabelGrid:
 		gap = max(3.0, r + 2)
 		for lx in (x + gap, x - gap - self.CHAR_W * len(text)):
 			if lx >= 0 and lx + self.CHAR_W * len(text) <= width and self.clear_of_reticle(lx, text, y):
-				if self.claim(lx, y):
+				if self.claim(lx, y, text):
 					return lx
 		return None
 
-	def claim(self, x: float, y: float) -> bool:
-		key = (int(x) // self.cell_w, int(y) // self.cell_h)
-		if key in self.taken:
-			return False
-		self.taken.add(key)
+	def claim(self, left: float, y: float, text: str) -> bool:
+		"""Take the box of a label drawn from left, centred on y, unless it
+		would touch one already placed."""
+		box = (left - 2, y - 5, left + self.CHAR_W * len(text) + 2, y + 5)
+		for other in self.taken:
+			if box[0] < other[2] and box[2] > other[0] and box[1] < other[3] and box[3] > other[1]:
+				return False
+		self.taken.append(box)
 		return True
 
 
@@ -400,7 +410,7 @@ def build_scene(
 		add_layer(LAYER_HZ_GRID, pts)
 		for az, name in ((0, "N"), (90, "E"), (180, "S"), (270, "W")):
 			p = proj.screen(proj.hz(3, az))
-			if proj.inside(p, 0) and grid.clear_of_reticle(p[0] - 3, name, p[1]) and grid.claim(p[0], p[1]):
+			if proj.inside(p, 0) and grid.clear_of_reticle(p[0] - 3, name, p[1]) and grid.claim(p[0] - 3, p[1], name):
 				labels.append((_clamp16(p[0]), _clamp16(p[1]), LABEL_CARDINAL, name))
 	if opt.equatorial_grid:
 		pts = []
@@ -491,7 +501,7 @@ def build_scene(
 			p = proj.screen(proj.eq(anchor[0], anchor[1]))
 			name = str(figure.get("name") or figure.get("id") or "")
 			if (proj.inside(p, -4) and name and grid.clear_of_reticle(p[0] - 3 * len(name), name, p[1])
-					and grid.claim(p[0], p[1])):
+					and grid.claim(p[0] - 3 * len(name), p[1], name)):
 				labels.append((_clamp16(p[0]), _clamp16(p[1]), LABEL_CONSTELLATION, name))
 	shown = 0
 	for x, y, r, name in named:

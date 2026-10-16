@@ -8,6 +8,9 @@ from typing import Optional
 
 from esp32.interfaceESP32 import ESP32Connection, ESP32LED
 from utils.esp32_state import esp32_state
+from utils.log import get_logger
+
+log = get_logger("leds")
 
 
 @dataclass
@@ -22,15 +25,19 @@ class _LedState:
 
 
 class LEDManager:
+	"""The front panel's status LEDs. Each change works out what every LED
+	should show and sends only the ones that differ, in one command
+	({"cmd":"led","leds":{...}}); older firmware without it gets one command
+	per LED."""
+
 	def __init__(self) -> None:
 		self._state = _LedState()
 		self._lock = threading.RLock()
 		self._flash_lock = threading.Lock()
-		self._last_led_command_at = 0.0
-		self._command_gap_s = 0.5
 		self._applied_signatures: dict[str, tuple[str, int]] = {}
 		self._conn: Optional[ESP32Connection] = None
 		self._leds: Optional[ESP32LED] = None
+		self._batch_ok = True  # the firmware takes "leds"
 
 	def _ensure_connection(self) -> bool:
 		conn = esp32_state.ensure_connection()
@@ -43,65 +50,72 @@ class LEDManager:
 		self._conn = conn
 		self._leds = ESP32LED(conn)
 		self._applied_signatures.clear()
-		print("[LEDManager] ESP32 LED connection established")
+		log.info("ESP32 LED connection established")
 		return True
 
 	def _set_channel(self, channel_name: str, mode: str, interval_ms: int = 500) -> None:
+		self._set_channels({channel_name: (mode, interval_ms)})
+
+	def _set_channels(self, wanted: dict) -> None:
+		"""wanted: {channel: (mode, interval_ms)}; sends what changed."""
 		if not self._ensure_connection() or self._leds is None:
 			return
-		signature = (mode, int(interval_ms) if mode == "blink" else 0)
-		if self._applied_signatures.get(channel_name) == signature:
+		changes = {}
+		for name, (mode, interval_ms) in wanted.items():
+			if mode not in ("on", "off", "blink"):
+				raise ValueError(f"Unsupported LED mode: {mode}")
+			signature = (mode, int(interval_ms) if mode == "blink" else 0)
+			if self._applied_signatures.get(name) != signature:
+				changes[name] = signature
+		if not changes:
 			return
-		now = time.monotonic()
-		elapsed = now - self._last_led_command_at
-		if elapsed < self._command_gap_s:
-			time.sleep(self._command_gap_s - elapsed)
-		channel = getattr(self._leds, channel_name, None)
-		if channel is None:
-			return
-		if mode == "on":
-			channel.on()
-		elif mode == "off":
-			channel.off()
-		elif mode == "blink":
-			channel.blink(interval_ms=interval_ms)
-		else:
-			raise ValueError(f"Unsupported LED mode: {mode}")
-		self._applied_signatures[channel_name] = signature
-		self._last_led_command_at = time.monotonic()
+		if self._batch_ok and len(changes) > 1:
+			payload = {name: ({"mode": "blink", "interval_ms": sig[1]} if sig[0] == "blink" else sig[0])
+				for name, sig in changes.items()}
+			try:
+				self._conn.send({"cmd": "led", "leds": payload})
+				self._applied_signatures.update(changes)
+				return
+			except Exception as exc:
+				if "LED test" in str(exc):
+					raise
+				self._batch_ok = False  # older firmware: one at a time
+		for name, (mode, interval_ms) in changes.items():
+			channel = getattr(self._leds, name, None)
+			if channel is None:
+				continue
+			if mode == "on":
+				channel.on()
+			elif mode == "off":
+				channel.off()
+			else:
+				channel.blink(interval_ms=interval_ms)
+			self._applied_signatures[name] = (mode, interval_ms if mode == "blink" else 0)
 
 	def _apply_locked(self) -> None:
 		if not self._ensure_connection() or self._leds is None:
 			return
-
-		if self._state.error_active:
-			self._set_channel("red", "blink" if self._state.error_critical else "on", 160)
-			self._set_channel("yellow", "off")
-			self._set_channel("green", "off")
-			self._set_channel("blue", "off")
+		wanted = {}
+		state = self._state
+		if state.error_active:
+			wanted["red"] = ("blink", 160) if state.error_critical else ("on", 0)
+			wanted.update(yellow=("off", 0), green=("off", 0), blue=("off", 0))
+			self._set_channels(wanted)
 			return
-
-		self._set_channel("red", "off")
-
-		if self._state.movement_mode == "homing":
-			self._set_channel("yellow", "on")
-			self._set_channel("green", "off")
-		elif self._state.movement_mode == "slewing":
-			self._set_channel("yellow", "blink", 700)
-			self._set_channel("green", "off")
-		elif self._state.tracking_active:
-			self._set_channel("yellow", "off")
-			self._set_channel("green", "blink" if self._state.tracking_pulse else "on", 1800)
+		wanted["red"] = ("off", 0)
+		if state.movement_mode == "homing":
+			wanted.update(yellow=("on", 0), green=("off", 0))
+		elif state.movement_mode == "slewing":
+			wanted.update(yellow=("blink", 700), green=("off", 0))
+		elif state.tracking_active:
+			wanted.update(yellow=("off", 0), green=("blink", 1800) if state.tracking_pulse else ("on", 0))
 		else:
-			self._set_channel("yellow", "off")
-			self._set_channel("green", "off")
-
-		if self._state.command_busy:
-			self._set_channel("blue", "blink", 1400)
-		elif self._state.blue_on_when_idle:
-			self._set_channel("blue", "on")
+			wanted.update(yellow=("off", 0), green=("off", 0))
+		if state.command_busy:
+			wanted["blue"] = ("blink", 1400)
 		else:
-			self._set_channel("blue", "off")
+			wanted["blue"] = ("on", 0) if state.blue_on_when_idle else ("off", 0)
+		self._set_channels(wanted)
 
 	def _flash_white(self, flashes: int = 1, on_time: float = 0.12, off_time: float = 0.08) -> None:
 		if not self._ensure_connection() or self._leds is None:

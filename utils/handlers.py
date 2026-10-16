@@ -1,247 +1,342 @@
-import time
-import requests
+"""What the server can ask of the telescope: the functions it calls by
+name over the command socket (core/networking/websocket.py), listed in
+function_map at the end.
+
+The camera ones go through the camera service (core/camera/service.py),
+which owns the camera; live view for the server is core/camera/stream.py;
+photos upload through utils/uploads.py. Commands the ASTRA server sends
+today keep their names and arguments; the rest are new (README.md lists
+them all).
+"""
 import os
-import json
+import threading
+import time
+from datetime import datetime
 from typing import Optional, Any, Dict, Callable
 from functools import wraps
-from core.camera.controller import Camera # type: ignore
-from core.networking.csrf import get_csrf_token, SESSION
-from utils.liveview_state import load_liveview_state, save_liveview_state
-from utils.camera_state import camera_state
-from utils.config_state import get_client_config, build_service_urls, load_static_state
+from core.camera.backends import CameraError
+from core.camera.service import get_camera_service
+from core.camera.stream import PRESETS, get_live_stream
+from utils import motor_guard, photos
+from utils.config_state import get_client_config, get_section, save_section, build_service_urls
 from utils.LEDmanager import get_led_manager
 from utils.esp32_state import esp32_state
+from utils.liveview_state import save_liveview_state
+from utils.log import get_logger
+from utils.uploads import get_upload_queue
 from esp32.interfaceESP32 import ESP32Error
 from core.hardware.tracking import trackCoordinates, stop_tracking
 from utils.telescope_state import get_telescope_coords
 
-CONFIG_FILE = "config/client_config.json"
+log = get_logger("handlers")
 
-# Decorator for camera operations
+
 def requires_camera(operation_name: str = "operation"):
-    # Decorator that checks camera availability and handles errors for camera operations.
-    # 
-    # Args:
-    #     operation_name: Name of the operation for error messages (e.g., "capture photo", "get settings")
-    # 
-    # Returns:
-    #     Decorated function that returns error dict if camera unavailable or operation fails
+    # Returns {"error": ...} when the camera isn't connected or the
+    # operation fails, rather than raising into the command loop.
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Check if camera is available
-            if not camera_state.is_available():
+            if not get_camera_service().is_available():
                 error_msg = f"Camera not connected - cannot {operation_name}"
-                print(f"[{func.__name__}] {error_msg}")
+                log.info(error_msg)
                 return {"error": error_msg}
-            
-            # Execute function with error handling
             try:
                 return func(*args, **kwargs)
             except Exception as e:
                 error_msg = f"Failed to {operation_name}: {str(e)}"
-                print(f"[{func.__name__}] {error_msg}")
+                log.warning(error_msg)
                 return {"error": error_msg}
-        
         return wrapper
     return decorator
 
-# Default server URL; will be overridden by config if present
-SERVER_URL = "https://telescopes.dev"
-try:
-    cfg = get_client_config()
-    SERVER_URL = build_service_urls(cfg.get("base_url", SERVER_URL))["http_url"].rstrip("/")
-except Exception:
-    # If the config can't be read, continue with default
-    pass
 
-# Load the live view state from file, or default to True
-liveview_enabled = load_liveview_state()
+def _server_url() -> str:
+    # Read at upload time: the server can be changed on the front panel.
+    base = get_client_config().get("base_url")
+    return build_service_urls(base)["http_url"].rstrip("/") if base else ""
+
 
 def echo(message):
     return f"Echo: {message}"
 
+
+# --- camera settings -------------------------------------------------------------------
+
+# What the web page calls them -> the setting (core/camera/backends.SETTING_ALIASES).
+CAMERA_SETTINGS = {
+    "shutterSpeed": "shutterspeed",
+    "iso": "iso",
+    "aperture": "aperture",
+    "whiteBalance": "whitebalance",
+    "imageFormat": "imageformat",
+    "exposureCompensation": "exposurecompensation",
+}
+def _setting_from_label(label: str) -> str:
+    # "/main/capturesettings/shutterspeed" (what the web page sends),
+    # "shutterSpeed" or "shutterspeed".
+    name = str(label).strip().rsplit("/", 1)[-1]
+    return CAMERA_SETTINGS.get(name, name.lower())
+
+
 @requires_camera("get camera settings")
 def get_camera_choices():
-    # Map setting names to gphoto2 config paths
-    settings = {
-        "shutterSpeed": "/main/capturesettings/shutterspeed",
-        "iso": "/main/imgsettings/iso",
-        # Add more settings as needed
-    }
-    choices = {}
-    
-    # Use camera lock to prevent conflicts with live view
-    with camera_state.get_command_lock():
-        # Check if live view is enabled and pause it
-        if load_liveview_state():
-            camera_state.pause_liveview_for_command()
-        
-        start = time.time()
-        for label, path in settings.items():
-            result = Camera.getSettingChoices(label, path)
-            choices[label] = result if result else []
-        print(f"get_camera_choices took {time.time() - start:.2f} seconds")
-    
+    """Choices for each setting the camera has ("shutterSpeed", "iso", ...)
+    and "current": their values now."""
+    service = get_camera_service()
+    choices: Dict[str, Any] = {}
+    current: Dict[str, Any] = {}
+    start = time.monotonic()
+    for label, setting in CAMERA_SETTINGS.items():
+        try:
+            info = service.get_setting(setting)
+        except CameraError:
+            if label in ("shutterSpeed", "iso"):
+                choices[label] = []
+            continue
+        choices[label] = info.get("choices") or []
+        current[label] = info.get("value")
+    choices["current"] = current
+    log.info("Camera settings read in %.2f s", time.monotonic() - start)
     return choices
+
 
 @requires_camera("set camera setting")
 def setCameraSetting(label, value):
-    # Use camera lock to prevent conflicts with live view
-    with camera_state.get_command_lock():
-        # Check if live view is enabled and pause it
-        if load_liveview_state():
-            camera_state.pause_liveview_for_command()
-        
-        Camera.setSetting(label, value)
-    
+    setting = _setting_from_label(label)
+    get_camera_service().set_setting(setting, value)
+    get_live_stream().poke()
     return f"Set {label} to {value}"
 
+
+# --- photos -----------------------------------------------------------------------------
+
 @requires_camera("capture photo")
-def capturePhoto(currentid):
-    # Use camera lock to prevent conflicts with live view
+def capturePhoto(currentid, exposure_s=None):
+    """Take a photo for the account currentid and queue it for upload.
+    exposure_s: a bulb exposure in seconds (else the shutter setting).
+    Returns once the camera has saved it; the upload carries on."""
     leds = get_led_manager()
     leds.set_command_busy(True)
     leds.flash_capture_started()
-
     try:
-        with camera_state.get_command_lock():
-            # Check if live view is enabled and pause it
-            if load_liveview_state():
-                camera_state.pause_liveview_for_command()
-            
-            files = Camera.capturePhoto(currentid=currentid) # Returns a list of two file names, one raw, one jpeg
-
-        print(files)
-
-        if not isinstance(files, list) or len(files) < 2:
-            print("[ERROR] Camera.capturePhoto() did not return two valid files")
-            leds.set_error(True, critical=False)
-            return {"error": "Camera did not return valid files"}
-
-        current_dir = os.getcwd()
-        photos_dir = os.path.join(current_dir, "photos/default")
-
-        # Ensure directory exists
-        if not os.path.exists(photos_dir):
-            print(f"[ERROR] Directory '{photos_dir}' does not exist.")
-            leds.set_error(True, critical=False)
-            return
-
-        # Prepare file paths
-        files = [os.path.join(photos_dir, file) for file in files]
-
-        # Verify files exist
-        missing_files = [file for file in files if not os.path.exists(file)]
-        if missing_files:
-            print(f"[ERROR] The following files are missing: {missing_files}")
-            leds.set_error(True, critical=False)
-            return
-        
-        server_url = f"{SERVER_URL}/upload"
-
-        # Prepare file tuples with filenames and basic content-types
-        def _guess_mime(path: str) -> str:
-            ext = os.path.splitext(path)[1].lower().lstrip(".")
-            if ext in {"jpg", "jpeg"}:
-                return "image/jpeg"
-            if ext in {"png"}:
-                return "image/png"
-            if ext in {"gif"}:
-                return "image/gif"
-            if ext in {"bmp"}:
-                return "image/bmp"
-            if ext in {"tiff", "tif"}:
-                return "image/tiff"
-            if ext in {"webp"}:
-                return "image/webp"
-            # RAW/other
-            return "application/octet-stream"
-
-        file_data = {
-            f"file{index}": (os.path.basename(file), open(file, "rb"), _guess_mime(file))
-            for index, file in enumerate(files)
-        }
-
-        # Prepare headers, attach CSRF if available
-        headers = {}
-        data = None
-        token = get_csrf_token(SERVER_URL)
-        if token:
-            # Send both common header variations to be safe
-            headers["X-CSRF-Token"] = token
-            headers["X-CSRFToken"] = token
-            # Also include token as form field to support Flask-WTF style
-            data = {"csrf_token": token}
-
+        owner = str(currentid or "").strip()
+        info = photos.pointing()
+        base = f"{owner or 'photo'}_photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         try:
-            print("[DEBUG] Sending files to server...")
-            response = SESSION.post(
-                server_url,
-                files=file_data,
-                headers=headers,
-                data=data,
-                timeout=60,
-            )
-            # Try to print JSON if available, else status/text
-            try:
-                print("[DEBUG] Server response:", response.json())
-            except ValueError:
-                print(f"[DEBUG] Server response status={response.status_code}, body={response.text[:300]}")
-            response.raise_for_status()
-            leds.flash_command_complete(True)
-        except requests.exceptions.RequestException as e:
-            print(f"[ERROR] Failed to upload files: {e}")
+            paths = photos.capture_to(photos.SERVER_DIR, base, float(exposure_s) if exposure_s else None)
+        except RuntimeError as exc:
             leds.set_error(True, critical=False)
-            leds.flash_command_complete(False)
-        finally:
-            # Ensure files are closed
-            for file_tuple in file_data.values():
-                file_tuple[1].close()
+            return {"error": str(exc)}
+        names = [os.path.basename(p) for p in paths]
+        photos.record(photos.SERVER_DIR, names, dict(info, owner=owner))
+        problems = get_upload_queue().add_many(paths, owner, info)
+        queued = sum(1 for p in problems if p is None)
+        problem = next((p for p in problems if p), None)
+        leds.flash_command_complete(True)
+        result: Dict[str, Any] = {"status": "captured", "files": names, "queued": queued}
+        if problem:
+            result["note"] = problem
+        return result
     finally:
         leds.set_command_busy(False)
 
-@requires_camera("start live view")
-def startLiveView():
-    global liveview_enabled
-    liveview_enabled = True
+
+def startPhotoSequence(kind="light", count=10, exposure_s=None, interval_s=0.0, dither_every=0, dither_arcmin=2.0):
+    """A run of frames on the Pi (saved locally, like panel photos):
+    kind light, dark, flat or bias."""
+    from utils.panel_ui import get_panel_ui
+
+    if not get_camera_service().is_available():
+        return {"error": "Camera not connected"}
+    plan = photos.SequencePlan(str(kind), int(count), float(exposure_s) if exposure_s else None,
+        float(interval_s or 0), int(dither_every or 0), float(dither_arcmin or 2.0))
+    ui = get_panel_ui()
+    message = ui.photo_run.start(plan.count, ui.toast, plan=plan)
+    return {"status": message, **ui.photo_run.status()}
+
+
+def stopPhotoSequence():
+    from utils.panel_ui import get_panel_ui
+
+    return {"status": get_panel_ui().photo_run.stop()}
+
+
+def getPhotoSequenceStatus():
+    from utils.panel_ui import get_panel_ui
+
+    return get_panel_ui().photo_run.status()
+
+
+def getUploadQueue():
+    return get_upload_queue().status()
+
+
+def uploadPending(kind="raw"):
+    """Send the files held back (RAWs with upload.raw = on_request)."""
+    return {"released": get_upload_queue().release(str(kind))}
+
+
+def retryFailedUploads():
+    return {"retrying": get_upload_queue().retry_failed()}
+
+
+def uploadOfflinePhotos(currentid=None):
+    """Queue the photos taken offline for upload, under currentid (or the
+    photo owner id set on the panel)."""
+    owner = str(currentid or photos.owner_id() or "").strip()
+    if not owner.isdigit():
+        return {"error": "No account id: pass one, or set the photo owner id on the panel"}
+    return {"queued": get_upload_queue().queue_folder(photos.local_dir(), owner)}
+
+
+# --- live view --------------------------------------------------------------------------
+
+def startLiveView(quality=None):
+    if quality is not None:
+        result = setLiveViewOptions(quality=quality)
+        if "error" in result:
+            return result
     save_liveview_state(True)
     get_led_manager().apply()
-    print("[liveview] Live view started.")
+    if not get_camera_service().is_available():
+        return "Live view on: waiting for the camera"
     return "Live view started"
 
+
 def stopLiveView():
-    global liveview_enabled
-    liveview_enabled = False
     save_liveview_state(False)
     get_led_manager().apply()
-    
-    # Release camera viewfinder using the Camera class (if camera available)
-    if camera_state.is_available():
-        try:
-            Camera.releaseViewfinder()
-        except Exception as e:
-            print(f"[stopLiveView] Warning: Failed to release viewfinder: {e}")
-    
-    print("[liveview] Live view stopped.")
     return "Live view stopped"
 
-def get_current_coordinates():
-    # Returns the current telescope coordinates (right ascension and declination).
-    # 
-    # Returns:
-    #     dict: Dictionary containing 'current_right_ascension' and 'current_declination'
-    #           or error dict if coordinates are unavailable
-    coords = get_telescope_coords()
-    if coords is None:
-        return {"error": "Telescope coordinates not available"}
-    
-    return {
-        "current_right_ascension": coords["right_ascension"],
-        "current_declination": coords["declination"]
-    }
 
-# ESP32 motor control handlers
+def liveViewViewers(count):
+    """The server says how many are watching: with nobody, the stream
+    pauses after liveview.viewer_grace_s and the camera rests."""
+    get_live_stream().set_viewers(int(count))
+    return {"viewers": int(count)}
+
+
+def getLiveViewStats():
+    return {**get_live_stream().stats(), "camera": get_camera_service().status()}
+
+
+_LIVEVIEW_OPTIONS = {"quality": str, "max_fps": float, "still_fps": float, "keyframe_s": float,
+    "adaptive": bool, "idle_stop_min": float, "viewer_grace_s": float}
+
+
+def setLiveViewOptions(**options):
+    """Change live view settings (saved): quality (original, high, medium,
+    low), max_fps, still_fps, keyframe_s, adaptive, idle_stop_min,
+    viewer_grace_s."""
+    changes: Dict[str, Any] = {}
+    for key, value in options.items():
+        if key not in _LIVEVIEW_OPTIONS:
+            return {"error": f"Unknown option {key}"}
+        try:
+            changes[key] = _LIVEVIEW_OPTIONS[key](value)
+        except (TypeError, ValueError):
+            return {"error": f"Bad value for {key}"}
+    if "quality" in changes and changes["quality"] not in PRESETS:
+        return {"error": f"quality is one of {', '.join(PRESETS)}"}
+    if changes:
+        save_section("liveview", changes)
+        get_live_stream().reload_settings()
+    return {"liveview": get_section("liveview")}
+
+
+def setLiveViewQuality(quality):
+    return setLiveViewOptions(quality=quality)
+
+
+def setLiveViewFocus(on=True):
+    """Focus mode: a full-size crop round the brightest star, with its HFR
+    in getLiveViewStats()."""
+    get_live_stream().set_focus(bool(on))
+    return {"focus": bool(on)}
+
+
+@requires_camera("zoom")
+def setCameraZoom(level, x=None, y=None):
+    """The camera's live-view magnification (1, 5 or 10 on Canon), and
+    where (x, y in the sensor's pixels)."""
+    service = get_camera_service()
+    if service.setting_name("zoom") is None:
+        return {"error": "This camera has no live-view zoom"}
+    service.set_setting("zoom", str(level))
+    if x is not None and y is not None and service.setting_name("zoomposition") is not None:
+        service.set_setting("zoomposition", f"{int(x)},{int(y)}")
+    get_live_stream().poke()
+    return {"zoom": level}
+
+
+def liveViewSnapshot(currentid=None):
+    """Save the current live-view frame (no shutter); uploaded too when an
+    account id comes with it."""
+    from core.camera.recorder import snapshot
+
+    try:
+        path = snapshot()
+    except RuntimeError as exc:
+        return {"error": str(exc)}
+    result: Dict[str, Any] = {"file": os.path.basename(path)}
+    owner = str(currentid or "").strip()
+    if owner.isdigit():
+        problem = get_upload_queue().add(path, owner, photos.pointing())
+        result["queued"] = problem is None
+    return result
+
+
+def startRecording(kind="video", interval_s=10.0):
+    """Record live view on the Pi: kind "video" (every frame, for stacking
+    the Moon and planets) or "timelapse" (a frame every interval_s)."""
+    from core.camera.recorder import get_recorder
+
+    if not get_camera_service().is_available():
+        return {"error": "Camera not connected"}
+    try:
+        return {"status": get_recorder().start(str(kind), float(interval_s))}
+    except (ValueError, RuntimeError) as exc:
+        return {"error": str(exc)}
+
+
+def stopRecording():
+    from core.camera.recorder import get_recorder
+
+    return {"status": get_recorder().stop(), **get_recorder().status()}
+
+
+def getRecordingStatus():
+    from core.camera.recorder import get_recorder
+
+    return get_recorder().status()
+
+
+_camera_info_cache: Dict[str, Any] = {"at": 0.0, "value": {}}
+
+
+def camera_info(max_age_s: float = 60.0) -> Dict[str, Any]:
+    """Battery and card space (asked of the camera at most once a minute)."""
+    service = get_camera_service()
+    if not service.is_available():
+        return {}
+    now = time.monotonic()
+    if now - _camera_info_cache["at"] < max_age_s:
+        return _camera_info_cache["value"]
+    info: Dict[str, Any] = {"battery": service.battery()}
+    try:
+        info["card"] = service.storage()
+    except CameraError:
+        info["card"] = None
+    _camera_info_cache.update(at=now, value=info)
+    return info
+
+
+def getCameraStatus():
+    return {**get_camera_service().status(), **camera_info(), "pi_disk": photos.disk_text()}
+
+
+# --- ESP32 motor controls ---------------------------------------------------------------
 
 def _get_esp32_connection():
     # Get the current ESP32 connection, reconnecting on demand if needed.
@@ -290,13 +385,19 @@ def espSetSpeed(sps: Any, motor_id: str = "motor1") -> Dict[str, Any]:
 
 def espStart(sps: Any, forward: Optional[Any] = None, motor_id: str = "motor1") -> Dict[str, Any]:
     # Start continuous rotation at speed with optional direction, until espStop.
+    # Guarded (utils/motor_guard.py): stopped at the axis limits or the Sun.
     try:
         conn = _get_esp32_connection()
         if not conn:
             return {"error": "ESP32 connection not available"}
+        fwd = bool(forward) if forward is not None else True
+        refused = motor_guard.check_raw_move(motor_id, continuous=True, forward=fwd)
+        if refused:
+            return {"error": refused}
         conn.send({"cmd": "set_speed", "motor": motor_id, "sps": float(sps)})
-        fwd = forward if forward is not None else True
-        return conn.send({"cmd": "start_continuous", "motor": motor_id, "forward": bool(fwd)})
+        result = conn.send({"cmd": "start_continuous", "motor": motor_id, "forward": fwd})
+        motor_guard.watch_continuous(motor_id, fwd)
+        return result
     except Exception as e:
         return _esp32_error_response(e)
 
@@ -307,11 +408,14 @@ def espMoveSteps(steps: Any, sps: Optional[Any] = None, forward: Optional[Any] =
         conn = _get_esp32_connection()
         if not conn:
             return {"error": "ESP32 connection not available"}
-        if sps is not None:
-            conn.send({"cmd": "set_speed", "motor": motor_id, "sps": float(sps)})
         count = int(steps)
         if forward is not None and not bool(forward):
             count = -abs(count)
+        refused = motor_guard.check_raw_move(motor_id, steps=count)
+        if refused:
+            return {"error": refused}
+        if sps is not None:
+            conn.send({"cmd": "set_speed", "motor": motor_id, "sps": float(sps)})
         return conn.send({"cmd": "move_steps", "motor": motor_id, "steps": count})
     except Exception as e:
         return _esp32_error_response(e)
@@ -431,6 +535,9 @@ def espTurnDegrees(degrees: Any, forward: Any = True, motor_id: str = "motor1") 
         conn = _get_esp32_connection()
         if not conn:
             return {"error": "ESP32 connection not available"}
+        refused = motor_guard.check_raw_move(motor_id, motor_degrees=float(degrees) * (1 if bool(forward) else -1))
+        if refused:
+            return {"error": refused}
         return conn.send({
             "cmd": "turn_degrees",
             "motor": motor_id,
@@ -440,212 +547,245 @@ def espTurnDegrees(degrees: Any, forward: Any = True, motor_id: str = "motor1") 
     except Exception as e:
         return _esp32_error_response(e)
 
-# Enhanced functions that can unpack motor_id from JSON-style arguments
-def espEnableWithMotorId(*args, **kwargs) -> Dict[str, Any]:
-    # Enable/disable motor - can extract motor_id from JSON arguments
-    motor_id = "motor1"  # default
-    on = False
-    
-    # Handle different argument patterns
-    if args:
-        if len(args) >= 2 and isinstance(args[1], str):
-            # (on, motor_id) pattern
-            on, motor_id = args[0], args[1]
-        elif len(args) == 1:
-            if isinstance(args[0], dict) and 'motor_id' in args[0]:
-                # JSON-like dict with motor_id
-                data = args[0]
-                on = data.get('on', data.get('value', False))
-                motor_id = data.get('motor_id', 'motor1')
-            else:
-                # Single value
-                on = args[0]
-    
-    if 'motor_id' in kwargs:
-        motor_id = kwargs['motor_id']
-    if 'on' in kwargs:
-        on = kwargs['on']
-    elif 'value' in kwargs:
-        on = kwargs['value']
-    
-    return espEnable(on, motor_id)
 
-def espStartWithMotorId(*args, **kwargs) -> Dict[str, Any]:
-    # Start motor - can extract motor_id from JSON arguments
-    motor_id = "motor1"
-    sps = 0
-    forward = None
-    
-    # Handle different argument patterns
-    if args:
-        if len(args) >= 3:
-            sps, forward, motor_id = args[0], args[1], args[2]
-        elif len(args) == 2:
-            if isinstance(args[1], str):
-                # (sps, motor_id)
-                sps, motor_id = args[0], args[1]
-            else:
-                # (sps, forward)
-                sps, forward = args[0], args[1]
-        elif len(args) == 1:
-            if isinstance(args[0], dict):
-                # JSON-like dict
-                data = args[0]
-                sps = data.get('sps', 0)
-                forward = data.get('forward')
-                motor_id = data.get('motor_id', 'motor1')
-            else:
-                sps = args[0]
-    
-    # Override with kwargs
-    motor_id = kwargs.get('motor_id', motor_id)
-    sps = kwargs.get('sps', sps)
-    if 'forward' in kwargs:
-        forward = kwargs['forward']
-    
-    return espStart(sps, forward, motor_id)
+# --- pointing and tracking ------------------------------------------------------------
 
-def espMoveStepsWithMotorId(*args, **kwargs) -> Dict[str, Any]:
-    # Move steps - can extract motor_id from JSON arguments
-    motor_id = "motor1"
-    steps = 0
-    sps = None
-    forward = None
-    
-    # Handle different argument patterns
-    if args:
-        if len(args) >= 4:
-            steps, sps, forward, motor_id = args[0], args[1], args[2], args[3]
-        elif len(args) >= 2 and isinstance(args[-1], str):
-            # Assume last string arg is motor_id
-            if len(args) == 4:
-                steps, sps, forward, motor_id = args[0], args[1], args[2], args[3]
-            elif len(args) == 3:
-                steps, sps, motor_id = args[0], args[1], args[2]
-            elif len(args) == 2:
-                steps, motor_id = args[0], args[1]
-        elif len(args) == 1:
-            if isinstance(args[0], dict):
-                # JSON-like dict
-                data = args[0]
-                steps = data.get('steps', 0)
-                sps = data.get('sps')
-                forward = data.get('forward')
-                motor_id = data.get('motor_id', 'motor1')
-            else:
-                steps = args[0]
-        else:
-            # (steps, sps, forward)
-            steps = args[0]
-            if len(args) > 1:
-                sps = args[1]
-            if len(args) > 2:
-                forward = args[2]
-    
-    # Override with kwargs
-    motor_id = kwargs.get('motor_id', motor_id)
-    steps = kwargs.get('steps', steps)
-    sps = kwargs.get('sps', sps)
-    if 'forward' in kwargs:
-        forward = kwargs['forward']
-    
-    return espMoveSteps(steps, sps, forward, motor_id)
+_jobs: Dict[str, Dict[str, Any]] = {}
+_jobs_lock = threading.Lock()
 
-def espStopWithMotorId(*args, **kwargs) -> Dict[str, Any]:
-    # Stop motor - can extract motor_id from JSON arguments
-    motor_id = "motor1"
-    
-    if args:
-        if len(args) >= 1:
-            if isinstance(args[0], dict):
-                # JSON-like dict
-                data = args[0]
-                motor_id = data.get('motor_id', 'motor1')
-            elif isinstance(args[0], str):
-                motor_id = args[0]
-    
-    motor_id = kwargs.get('motor_id', motor_id)
-    return espStop(motor_id)
 
-# Comprehensive wrappers for common ESP32 commands with flexible JSON parameter handling
-def espCommand(command_data: Dict[str, Any]) -> Dict[str, Any]:
-    # Universal ESP32 command handler that can parse JSON command structures
+def _start_job(name: str, fn: Callable[[], Any]) -> Dict[str, Any]:
+    """Run something long (a park, a plate solve) in the background: the
+    server only waits about 3 s for a reply. getJobStatus(name) says how it
+    went."""
+    with _jobs_lock:
+        job = _jobs.get(name)
+        if job and job.get("running"):
+            return {"error": f"{name} is already running"}
+        job = {"running": True, "started": time.time(), "result": None, "error": None}
+        _jobs[name] = job
+
+    def run() -> None:
+        try:
+            result = fn()
+            if isinstance(result, dict) and result.get("error"):
+                job["error"] = result["error"]
+            job["result"] = result
+        except Exception as exc:
+            job["error"] = str(exc)[:160]
+            log.warning("%s failed: %s", name, exc)
+        finally:
+            job["running"] = False
+            job["finished"] = time.time()
+
+    threading.Thread(target=run, name=f"job-{name}", daemon=True).start()
+    return {"status": "started", "job": name}
+
+
+def getJobStatus(name=None):
+    if name is None:
+        return {k: {kk: vv for kk, vv in v.items()} for k, v in _jobs.items()}
+    return _jobs.get(str(name)) or {"error": f"No job {name}"}
+
+
+def trackObject(name):
+    """Go to and track the Moon, a planet or a named star (worked out on
+    the Pi, so it works offline)."""
+    from core.hardware import tracking
+
+    return tracking.track_object(str(name))
+
+
+def park():
+    from core.hardware import tracking
+
+    return _start_job("park", tracking.park)
+
+
+def unpark():
+    from core.hardware import tracking
+
+    return tracking.unpark()
+
+
+def setParkHere():
+    from core.hardware import tracking
+
+    return tracking.set_park_here()
+
+
+def setTrackingRate(rate, custom_arcsec_per_s=None):
+    """sidereal, lunar, solar, king or custom (custom_arcsec_per_s)."""
+    from core.hardware import tracking
+
+    return tracking.set_rate(str(rate), custom_arcsec_per_s)
+
+
+def dither(arcmin=2.0):
+    from core.hardware import tracking
+
+    return _start_job("dither", lambda: {"settled": tracking.dither(float(arcmin))})
+
+
+def getAlignment():
+    from core.hardware import tracking
+
+    return tracking.alignment_summary()
+
+
+def clearAlignment():
+    from core.hardware import tracking
+
+    return tracking.clear_alignment()
+
+
+def solveAndSync(source="auto"):
+    """Plate-solve where it points, and add that to the alignment."""
+    from utils import plate_solve
+
+    return _start_job("solve", lambda: plate_solve.solve_and_sync(str(source)))
+
+
+def centreTarget(source="auto"):
+    from utils import plate_solve
+
+    return _start_job("centre", lambda: plate_solve.centre_target(source=str(source)))
+
+
+def polarAlign(step_deg=30.0, source="auto"):
+    """Three-point polar alignment (turns the RA axis twice)."""
+    from utils import plate_solve
+
+    return _start_job("polar", lambda: plate_solve.polar_align(float(step_deg), str(source)))
+
+
+def getMountStatus():
+    from core.hardware import tracking
+    from utils import clock
+    from utils.telescope_state import get_mount_axes, get_parked, hemisphere
+
+    axes = get_mount_axes()
+    return {
+        "state": tracking._panel_state,
+        "target": (tracking._target_object or {}).get("name") if tracking._tracking_active else None,
+        "coords": get_telescope_coords(),
+        "axes": axes,
+        "parked": get_parked(),
+        "hemisphere": hemisphere(),
+        "rate": tracking.current_rate(),
+        "alignment": tracking.alignment_summary(),
+        "clock": clock.status(),
+    }
+
+
+def setClock(utc):
+    """Set the time astronomy uses, when the Pi's clock isn't synchronised
+    ("2026-10-16 21:30:00", UTC)."""
+    from utils import clock
+
     try:
-        cmd_type = command_data.get('command', command_data.get('cmd', ''))
-        motor_id = command_data.get('motor_id', command_data.get('motor', 'motor1'))
-        
-        if cmd_type == 'enable':
-            value = command_data.get('value', command_data.get('on', False))
-            return espEnable(value, motor_id)
-        elif cmd_type == 'start':
-            sps = command_data.get('sps', 0)
-            forward = command_data.get('forward')
-            return espStart(sps, forward, motor_id)
-        elif cmd_type == 'move_steps':
-            steps = command_data.get('steps', 0)
-            sps = command_data.get('sps')
-            forward = command_data.get('forward')
-            return espMoveSteps(steps, sps, forward, motor_id)
-        elif cmd_type == 'turn_degrees':
-            degrees = command_data.get('degrees', 0)
-            forward = command_data.get('forward', True)
-            return espTurnDegrees(degrees, forward, motor_id)
-        elif cmd_type == 'stop':
-            return espStop(motor_id)
-        elif cmd_type == 'set_speed':
-            sps = command_data.get('sps', 0)
-            return espSetSpeed(sps, motor_id)
-        elif cmd_type == 'set_direction':
-            forward = command_data.get('forward', True)
-            return espSetDirection(forward, motor_id)
-        elif cmd_type == 'set_current':
-            mA = command_data.get('mA', command_data.get('current', 500))
-            return espSetCurrent(mA, motor_id, command_data.get('hold_mA'))
-        elif cmd_type == 'set_microsteps':
-            value = command_data.get('value', command_data.get('microsteps', 'auto'))
-            return espSetMicrosteps(value, motor_id)
-        elif cmd_type in ('set_mode', 'set_chopper'):
-            mode = command_data.get('mode', 'stealth')
-            return espSetMode(mode, motor_id, command_data.get('hybrid_threshold_sps'))
-        elif cmd_type == 'set_accel':
-            sps2 = command_data.get('sps2', command_data.get('accel', 3200))
-            return espSetAccel(sps2, motor_id, command_data.get('start_sps'))
-        elif cmd_type == 'status':
-            return espStatus(motor_id)
-        elif cmd_type == 'status_all':
-            return espStatusAll()
-        elif cmd_type == 'set_auto':
-            return espSetAuto(motor_id, command_data.get('min_microsteps'),
-                              command_data.get('max_microsteps'), command_data.get('max_pulse_hz'))
-        elif cmd_type == 'driver_status':
-            return espDriverStatus(motor_id)
-        elif cmd_type == 'estop':
-            return espEstop()
-        elif cmd_type == 'clear_estop':
-            return espClearEstop()
-        elif cmd_type == 'estop_status':
-            return espEstopStatus()
-        elif cmd_type == 'info':
-            return espInfo()
-        else:
-            return {"error": f"Unknown command: {cmd_type}"}
-    except Exception as e:
-        return _esp32_error_response(e)
+        offset = clock.set_time(clock.parse_utc(str(utc)), source="manual")
+    except ValueError as exc:
+        return {"error": str(exc)}
+    return {"offset_s": round(offset, 1), **clock.status()}
+
+
+def setHorizon(min_alt_deg=None, profile=None, stop_when_set=None):
+    """min_alt_deg; profile [[azimuth, altitude], ...]; stop_when_set."""
+    changes: Dict[str, Any] = {}
+    if min_alt_deg is not None:
+        changes["min_alt_deg"] = max(-10.0, min(60.0, float(min_alt_deg)))
+    if profile is not None:
+        try:
+            changes["profile"] = [[float(p[0]) % 360.0, float(p[1])] for p in profile]
+        except (TypeError, ValueError, IndexError):
+            return {"error": "profile is a list of [azimuth, altitude]"}
+    if stop_when_set is not None:
+        changes["stop_when_set"] = bool(stop_when_set)
+    if changes:
+        save_section("horizon", changes)
+    return get_section("horizon")
+
+
+def getPlanets():
+    """The Sun, Moon and planets now, J2000 (worked out on the Pi)."""
+    from core.hardware.tracking import _site
+    from utils import clock, ephemeris
+
+    return {"planets": ephemeris.positions(clock.now(), _site())}
+
+
+# --- the client as a whole ------------------------------------------------------------
+
+def getClientStatus():
+    """Everything at once: what the status push sends (websocket.py)."""
+    from utils import client_status
+
+    return client_status.collect()
+
+
+def updateClient():
+    """git pull and restart (only with server.allow_remote_update)."""
+    from utils import maintenance
+
+    return maintenance.update_client()
+
+
+def updateFirmware():
+    """Build and flash the ESP32 firmware (only with
+    server.allow_firmware_update)."""
+    from utils import maintenance
+
+    return maintenance.update_firmware()
+
+
+def get_current_coordinates():
+    # The current telescope coordinates (right ascension and declination).
+    coords = get_telescope_coords()
+    if coords is None:
+        return {"error": "Telescope coordinates not available"}
+    return {
+        "current_right_ascension": coords["right_ascension"],
+        "current_declination": coords["declination"]
+    }
+
 
 # Function mapping dictionary
 function_map = {
     # Debug
     "echo": echo,
+    "getClientStatus": getClientStatus,
     # Main track requests
     "trackCoordinates": trackCoordinates,
     "stopTracking": stop_tracking,
     "getCurrentCoordinates": get_current_coordinates,
+    # Camera
     "getCameraChoices": get_camera_choices,
     "setCameraSetting": setCameraSetting,
     "capturePhoto": capturePhoto,
+    "getCameraStatus": getCameraStatus,
+    "setCameraZoom": setCameraZoom,
+    "startPhotoSequence": startPhotoSequence,
+    "stopPhotoSequence": stopPhotoSequence,
+    "getPhotoSequenceStatus": getPhotoSequenceStatus,
+    # Uploads
+    "getUploadQueue": getUploadQueue,
+    "uploadPending": uploadPending,
+    "retryFailedUploads": retryFailedUploads,
+    "uploadOfflinePhotos": uploadOfflinePhotos,
+    # Live view
     "startLiveView": startLiveView,
     "stopLiveView": stopLiveView,
-    # ESP32 controls - original functions (backward compatibility)
+    "liveViewViewers": liveViewViewers,
+    "getLiveViewStats": getLiveViewStats,
+    "setLiveViewOptions": setLiveViewOptions,
+    "setLiveViewQuality": setLiveViewQuality,
+    "setLiveViewFocus": setLiveViewFocus,
+    "liveViewSnapshot": liveViewSnapshot,
+    "startRecording": startRecording,
+    "stopRecording": stopRecording,
+    "getRecordingStatus": getRecordingStatus,
+    # ESP32 controls (the web page's motor panel uses these)
     "espEnable": espEnable,
     "espSetDirection": espSetDirection,
     "espSetSpeed": espSetSpeed,
@@ -659,11 +799,6 @@ function_map = {
     "espSetAccel": espSetAccel,
     "espStatus": espStatus,
     "espStatusAll": espStatusAll,
-    # Enhanced ESP32 controls with motor ID support
-    "espEnableMotor": espEnableWithMotorId,
-    "espStartMotor": espStartWithMotorId,
-    "espMoveStepsMotor": espMoveStepsWithMotorId,
-    "espStopMotor": espStopWithMotorId,
     "espSetAuto": espSetAuto,
     "espDriverStatus": espDriverStatus,
     "espEstop": espEstop,
@@ -672,36 +807,29 @@ function_map = {
     "espInfo": espInfo,
     "espPanelStatus": espPanelStatus,
     "espImuRead": espImuRead,
-    # Universal command handler
-    "espCommand": espCommand,
+    # Pointing and tracking
+    "trackObject": trackObject,
+    "park": park,
+    "unpark": unpark,
+    "setParkHere": setParkHere,
+    "setTrackingRate": setTrackingRate,
+    "dither": dither,
+    "getAlignment": getAlignment,
+    "clearAlignment": clearAlignment,
+    "solveAndSync": solveAndSync,
+    "centreTarget": centreTarget,
+    "polarAlign": polarAlign,
+    "getMountStatus": getMountStatus,
+    "getJobStatus": getJobStatus,
+    "setClock": setClock,
+    "setHorizon": setHorizon,
+    "getPlanets": getPlanets,
+    # Maintenance (off unless allowed in config server)
+    "updateClient": updateClient,
+    "updateFirmware": updateFirmware,
 }
 
-# Example usage for motor identification:
-# 
-# 1. WebSocket JSON commands can now include motor_id:
-# {
-#   "function": "espStart",
-#   "args": [800, true],
-#   "motor_id": "motor1"
-# }
-# 
-# 2. Or use the universal command handler:
-# {
-#   "function": "espCommand",
-#   "args": [{
-#     "command": "start",
-#     "sps": 800,
-#     "forward": true,
-#     "motor_id": "motor1"
-#   }]
-# }
-# 
-# 3. Enhanced motor functions accept JSON-like arguments:
-# {
-#   "function": "espStartMotor",
-#   "args": [{
-#     "sps": 800,
-#     "forward": true,
-#     "motor_id": "motor1"
-#   }]
-# }
+# Commands that stop things run at once, even while another command is
+# still running (core/networking/websocket.py).
+PRIORITY_FUNCTIONS = {"stopTracking", "espStop", "espEstop", "stopLiveView", "stopRecording",
+    "stopPhotoSequence"}

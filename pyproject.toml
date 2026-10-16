@@ -1,0 +1,12 @@
+# Lint settings (ruff check .). Formatting isn't enforced: files keep their
+# own indentation (some tabs, some spaces), which a reformat would change
+# wholesale.
+[tool.ruff]
+line-length = 130
+extend-exclude = ["venv", "esp32-firmware", "esp32/tests/test.py"]
+
+[tool.ruff.lint]
+# Real mistakes: syntax errors, undefined names, unused imports and
+# variables, comparisons that are always wrong.
+select = ["E9", "F"]
+ignore = ["F541"]  # f-strings without placeholders: harmless

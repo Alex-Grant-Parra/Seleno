@@ -139,6 +139,35 @@ class InterfaceTest(unittest.TestCase):
 		self.assertEqual(conn.firmware.get("fw"), "test")
 		self.assertEqual(conn.list_motors(), {"motors": ["motor1", "motor2"]})
 
+	def test_a_stop_goes_out_while_another_reply_is_awaited(self) -> None:
+		def factory(dev: FakeESP32) -> Reply:
+			base = default_reply(dev)
+
+			def reply(req: Dict[str, Any]) -> List[bytes]:
+				if req.get("cmd") == "info":
+					# Answer a second later, as a busy firmware might.
+					threading.Timer(1.0, lambda: dev.send(dev.ok(req, {"slow": True}))).start()
+					return []
+				return base(req)
+			return reply
+
+		dev, conn = self.connect(factory)
+		finished: Dict[str, float] = {}
+		start = time.monotonic()
+
+		def slow() -> None:
+			conn.send({"cmd": "info"}, timeout=3.0)
+			finished["info"] = time.monotonic() - start
+		thread = threading.Thread(target=slow)
+		thread.start()
+		time.sleep(0.2)
+		conn.send({"cmd": "stop", "motor": "motor1"}, timeout=1.0)
+		finished["stop"] = time.monotonic() - start
+		thread.join()
+		self.assertLess(finished["stop"], 0.6)
+		self.assertGreater(finished["info"], 0.9)
+		self.assertGreater(conn.last_rx, 0.0)
+
 	def test_old_firmware_without_ids(self) -> None:
 		dev, conn = self.connect(echo_ids=False)
 		self.assertFalse(conn.supports_ids)
