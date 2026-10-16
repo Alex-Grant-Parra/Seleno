@@ -814,7 +814,7 @@ Alex asked for:
   screen, to be entered first;
 - a message about the dangers to eyes and equipment.
 
-**Done (uncommitted):**
+**Done (committed by Alex as `50a9e25`; the next section changes parts of it):**
 - `utils/sun_guard.py`, called at the top of
   `tracking.trackCoordinates`, so it covers go-tos from the panel and the
   server. It runs before the previous tracking is stopped and before
@@ -872,3 +872,124 @@ Alex asked for:
   for a target that was already approved.
 - The path check trusts the dead-reckoned position; if that's wrong, so is
   the path.
+
+## Feature: routes round the Sun, over the poles (Alex, 2026-10-16)
+
+Alex asked:
+- make sure nothing can track an object in the exclusion zone without the
+  check;
+- when a slew would pass through the zone, navigate smoothly round it;
+- slews should be efficient, so they may go over the zenith/nadir if
+  needed (read as: the Dec axis may go past either pole when that's the
+  quicker way).
+
+**Done (uncommitted, on top of `50a9e25`):**
+- Firmware `path` command: both motors along a polyline (up to 63 points,
+  logical steps from now) as one smooth move.
+  - The plan is pure logic in `logic/path.h`:
+    - a segment's length is its larger axis distance, so speed is for the
+      faster motor;
+    - the speed through each corner is limited so neither motor's speed
+      jumps by more than the start speed;
+    - a backward braking pass, then acceleration at runtime.
+  - `stepper.cpp` path mode:
+    - the 1 kHz ramp task moves a cursor along the path and steers each
+      axis to its point (feed-forward speed plus 20/s times the error);
+    - the ISR can reverse DIR mid-move, waiting a tick before stepping;
+    - stop slows down along the path; E-stop is immediate;
+    - it ends with Complete once both axes settle on the last point.
+  - `motorsStartPath` picks each axis's microsteps for its peak speed on
+    the path and runs the usual checks (E-stop, front-panel hold, engaged,
+    not moving).
+  - Status shows `path_progress`; the sky view's arcs and ETA follow paths.
+  - Devkit:
+    - a 24-point half circle held about 1600 sps (the cruise speed)
+      throughout, reversing Dec smoothly, and ended exactly on target;
+    - corners and full reversals land exactly;
+    - stop ramps; E-stop is immediate.
+  - Both envs build clean (RAM 13.8 %). The native env has no host
+    compiler on this Pi (`g++` isn't installed), so `path.h` was tested on
+    the devkit, not in `pio test`.
+- `core/hardware/mount.py` (pure):
+  - Axis angles: RA axis from the meridian, Dec axis from the equator,
+    unwrapped; past ±90 the mount is flipped (`sky_from_axes`,
+    `axis_solutions`, `nearest_solution`).
+  - Limits are `mount` in client_config.json: RA ±270, Dec ±180 and
+    `pole_crossing` true by default.
+  - `plan_route` tries every way of pointing at the target (normal or
+    flipped, every turn within the limits), quickest first. It goes
+    straight if that keeps clear of the Sun. Otherwise it takes the
+    shortest way round the keep-out: the Sun's circle mapped into the axis
+    plane scaled to motor turns, a convex hull every 15 deg, then Dijkstra
+    over a visibility graph. The result is checked along the route; if it
+    fails, the outline is padded 1.5/3/5 deg and tried again.
+  - Results:
+    - turns stay under ~11 deg, so the firmware keeps cruise speed;
+    - RA is geared 2.5x slower, so going round usually costs no time;
+    - if limits leave no way round, it goes straight and says so;
+    - planning takes 1-3 ms.
+- Position model (`utils/telescope_state.py`):
+  - The axis angles (`axis_ra_deg`, `axis_dec_deg`) are now the record.
+    `get_telescope_coords` derives RA/Dec from them and the time, so a
+    stopped scope's RA drifts as it should, and the old
+    `_last_ha_baseline` hack is gone.
+  - `set_telescope_coords` (syncs) picks the axes on the side the mount is
+    on.
+  - Older state files are converted from their RA/Dec at `updated_at`,
+    assuming the mount held still since.
+- `tracking.py`:
+  - `trackCoordinates` order:
+    1. check the site;
+    2. run the Sun guard (it plans the route);
+    3. stop the old session;
+    4. bring the axes up to date from the step counters, after waiting
+       for motion to stop;
+    5. `plan_goto`, aiming where the target will be on arrival;
+    6. `_run_route` sends `path`.
+
+    It returns `{status, seconds, round_the_sun, over_the_pole,
+    closest_to_sun_deg}` or `{error}`.
+  - Centring corrections go through the planner (at refine speed when
+    small).
+  - Step counter baselines are re-read when the motors are initialised,
+    and jogs between sessions are now counted.
+  - A watchdog in the loop stops tracking and toasts the panel if:
+    - the pointing or the target gets closer to the Sun than the session's
+      floor (on the way: min(19.5, the route's closest - 1); once locked:
+      19.5, or the approved target's distance - 1);
+    - an axis goes more than 2 deg past its limit.
+- Sun guard changes:
+  - The closeness on the way comes from the planned route, and moving away
+    from the Sun doesn't count.
+  - The warning is for targets under 30 deg. The code is for getting
+    under 20 deg, on the way or at the target, so a detour passing at
+    about 23 deg asks nothing.
+  - Keep-out: `keep_out_deg` = min(22, start - 0.5, target - 0.5).
+  - The global yes cache is replaced by a `SunApproval` object that the
+    panel flows pass to `trackCoordinates(..., sun_approval=)` (keyword
+    only). JSON from the server can't create one, and a dict is ignored.
+- Tests (51 in test_panel_ui.py):
+  - mount maths and routes;
+  - `trackCoordinates` against a `FakeMount`: a curved route, over the
+    pole, and the watchdog;
+  - the approval rules.
+
+  test_interface_pty 12/12. Stable over repeated runs.
+- Devkit end to end (scratch config copies, slew speed 4800):
+  - Curved: round the real Sun, 6 points, 33 s; its dead-reckoned pointing
+    stayed 23.4 deg or more from the Sun. It landed 0.014 deg off, made one
+    correction, then sidereal tracking (213.9 pulses/s).
+  - Over the pole: Dec axis 75 to 105 in 4 s (instead of 180 deg of RA),
+    then tracking on the flipped side.
+
+**Not covered / to check on the real mount:**
+- The default limits (RA ±270, Dec ±180) allow swinging the tube under the
+  south pole. Check the tube, camera and cables clear the tripod and pier
+  before relying on it; narrow `mount` in client_config.json if not.
+- Raw motor commands from the server (`espStart`, `espMoveSteps`, ...) and
+  the panel's Jog test still bypass the planner and the guard.
+- (Tested since: a double RETURN during a slow path stops both motors
+  without an E-stop, shows the menu, and refuses host paths until
+  `ack_stop`.)
+- Whether the mount is flipped can't be sensed: a sync takes the side it
+  was last on. After moving it by hand, use Align on star.

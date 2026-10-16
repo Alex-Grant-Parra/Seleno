@@ -60,6 +60,15 @@ def tearDownModule() -> None:
 		patch.stop()
 
 
+def sun_at(ra: float, dec: float) -> list:
+	"""Patches putting the Sun at (ra, dec) for the Sun guard and for
+	tracking's route planner."""
+	from unittest import mock
+
+	return [mock.patch("utils.sun_guard.sun_radec", return_value=(ra, dec)),
+		mock.patch("core.hardware.tracking.sun_radec", return_value=(ra, dec))]
+
+
 LAT, LON = 51.4623, -2.5502
 WHEN = datetime(2026, 10, 16, 22, 0, tzinfo=timezone.utc)
 
@@ -275,9 +284,6 @@ class PanelUIBase(unittest.TestCase):
 		self.ui = panel_ui.PanelUI()
 		from unittest import mock
 
-		from utils import sun_guard
-
-		sun_guard._approved.clear()
 		self._ui_patch = mock.patch.object(panel_ui, "get_panel_ui", return_value=self.ui)
 		self._ui_patch.start()
 		self.conn = FakeConn()
@@ -514,9 +520,9 @@ class ManualFlowTests(PanelUIBase):
 		self.goes: List[tuple] = []
 		self.syncs: List[tuple] = []
 		self.patches = [
-			mock.patch("utils.sun_guard.sun_radec", return_value=(201.0, -9.0)),
+			*sun_at(201.0, -9.0),
 			mock.patch.object(esp32_state, "get_connection", return_value=self.board),
-			mock.patch.object(tracking, "trackCoordinates", side_effect=lambda *a: self.goes.append(a)),
+			mock.patch.object(tracking, "trackCoordinates", side_effect=lambda *a, **k: self.goes.append(a)),
 			mock.patch.object(tracking, "sync_position", side_effect=lambda *a: self.syncs.append(a)),
 		]
 		for p in self.patches:
@@ -567,7 +573,7 @@ class ManualFlowTests(PanelUIBase):
 		from unittest import mock
 
 		# Polaris is always up from LAT; put the Sun 9 deg from it.
-		with mock.patch("utils.sun_guard.sun_radec", return_value=(37.95, 80.0)):
+		with sun_at(37.95, 80.0)[0], sun_at(37.95, 80.0)[1]:
 			self.board.estop = True
 			self.act("scope", "goto")
 			self.answer("RA", value="2 31 49")
@@ -584,7 +590,7 @@ class ManualFlowTests(PanelUIBase):
 	def test_backing_out_of_the_sun_warning_goes_nowhere(self) -> None:
 		from unittest import mock
 
-		with mock.patch("utils.sun_guard.sun_radec", return_value=(37.95, 64.0)):
+		with sun_at(37.95, 64.0)[0], sun_at(37.95, 64.0)[1]:
 			self.board.estop = True
 			self.act("scope", "goto")
 			self.answer("RA", value="2 31 49")
@@ -733,21 +739,21 @@ class SunGuardTests(PanelUIBase):
 
 	def setUp(self) -> None:
 		super().setUp()
-		from unittest import mock
-
-		self.sun_patch = mock.patch("utils.sun_guard.sun_radec", return_value=self.SUN)
-		self.sun_patch.start()
+		self.sun_patches = sun_at(*self.SUN)
+		for p in self.sun_patches:
+			p.start()
 
 	def tearDown(self) -> None:
-		self.sun_patch.stop()
+		for p in self.sun_patches:
+			p.stop()
 		super().tearDown()
 
-	def confirm_in_thread(self, ra: float, dec: float, start=None) -> List[tuple]:
+	def confirm_in_thread(self, ra: float, dec: float, start=None, approval=None) -> List[tuple]:
 		from utils import sun_guard
 
 		results: List[tuple] = []
-		threading.Thread(target=lambda: results.append(sun_guard.confirm_goto("Test", ra, dec, start=start)),
-			daemon=True).start()
+		threading.Thread(target=lambda: results.append(
+			sun_guard.confirm_goto("Test", ra, dec, start=start, approval=approval)), daemon=True).start()
 		return results
 
 	def test_levels_by_distance(self) -> None:
@@ -758,18 +764,16 @@ class SunGuardTests(PanelUIBase):
 			self.assertEqual(c.level, level, ra)
 			self.assertFalse(c.on_the_way)
 
-	def test_a_slew_past_the_sun_counts(self) -> None:
+	def test_moving_away_from_the_sun_isnt_getting_close(self) -> None:
 		from utils import sun_guard
 
-		c = sun_guard.check("x", 140.0, 0.0, start=(60.0, 0.0))  # both ends 40 deg away
+		c = sun_guard.SunCheck("x", target_deg=60.0, path_deg=10.0, start_deg=10.0)
+		self.assertEqual((c.level, c.on_the_way), ("clear", False))
+		c = sun_guard.SunCheck("x", target_deg=60.0, path_deg=5.0, start_deg=40.0)
 		self.assertEqual((c.level, c.on_the_way), ("danger", True))
-		self.assertIn("The slew to x passes 0 deg from the Sun", c.where())
-		# The short way round from 300 to 40 doesn't go near it.
-		self.assertEqual(sun_guard.check("x", 40.0, 0.0, start=(300.0, 0.0)).level, "clear")
-		# Dec moves 2.5x faster than RA (gears 360:1 and 144:1), so this slew
-		# finishes its Dec part early and passes south of the Sun, not through it.
-		c = sun_guard.check("x", 140.0, -40.0, start=(60.0, 0.0))
-		self.assertGreater(c.path_deg, 20.0)
+		self.assertIn("The slew to x passes 5 deg", c.where())
+		self.assertEqual(sun_guard.keep_out_deg(80.0, 60.0), 22.0)
+		self.assertEqual(sun_guard.keep_out_deg(10.0, 60.0), 9.5)
 
 	def test_a_warning_needs_go_on(self) -> None:
 		from utils import sun_guard
@@ -779,11 +783,13 @@ class SunGuardTests(PanelUIBase):
 		self.assertEqual((prompt["kind"], prompt["style"], prompt["no"]), ("confirm", "warn", "Cancel"))
 		self.assertIn("blinds", prompt["text"])
 		self.assertTrue(wait_for(lambda: results))
-		self.assertEqual(results[0], (True, ""))
+		allowed, _reason, approval = results[0]
+		self.assertTrue(allowed)
+		self.assertIsInstance(approval, sun_guard.SunApproval)
 		results = self.confirm_in_thread(126.0, 0.0, start=(126.0, 0.0))
 		self.answer("Sun warning", value=False)
 		self.assertTrue(wait_for(lambda: results))
-		self.assertEqual(results[0], (False, sun_guard.CANCELLED))
+		self.assertEqual(results[0], (False, sun_guard.CANCELLED, None))
 
 	def test_danger_needs_the_notice_and_the_code(self) -> None:
 		results = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
@@ -793,15 +799,21 @@ class SunGuardTests(PanelUIBase):
 		self.assertEqual(code["kind"], "code")
 		self.assertGreater(code["timeout_ms"], 0)
 		self.assertTrue(wait_for(lambda: results))
-		self.assertEqual(results[0], (True, ""))
-		# The yes holds once for the go-to that follows, then it asks again.
-		again = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
+		allowed, _reason, approval = results[0]
+		self.assertTrue(allowed)
+		# Handing the yes on doesn't ask again, for that target only.
+		again = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0), approval=approval)
 		self.assertTrue(wait_for(lambda: again))
-		self.assertEqual(again[0], (True, ""))
-		third = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
+		self.assertTrue(again[0][0])
+		other = self.confirm_in_thread(111.0, 0.0, start=(111.0, 0.0), approval=approval)
 		self.answer("DANGER: SUN", value=False)
-		self.assertTrue(wait_for(lambda: third))
-		self.assertFalse(third[0][0])
+		self.assertTrue(wait_for(lambda: other))
+		self.assertFalse(other[0][0])
+		# Something that only looks like one (as a server request could send) counts for nothing.
+		fake = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0), approval={"ra": 110.0, "dec": 0.0})
+		self.answer("DANGER: SUN", value=False)
+		self.assertTrue(wait_for(lambda: fake))
+		self.assertFalse(fake[0][0])
 
 	def test_a_cancelled_code_refuses(self) -> None:
 		results = self.confirm_in_thread(110.0, 0.0, start=(110.0, 0.0))
@@ -816,8 +828,8 @@ class SunGuardTests(PanelUIBase):
 		from utils import sun_guard
 
 		with mock.patch.object(self.ui, "has_panel", return_value=False):
-			self.assertEqual(sun_guard.confirm_goto("x", 125.0, 0.0, start=(125.0, 0.0)), (True, ""))
-			allowed, reason = sun_guard.confirm_goto("x", 110.0, 0.0, start=(110.0, 0.0))
+			self.assertEqual(sun_guard.confirm_goto("x", 125.0, 0.0, start=(125.0, 0.0)), (True, "", None))
+			allowed, reason, _ = sun_guard.confirm_goto("x", 110.0, 0.0, start=(110.0, 0.0))
 		self.assertFalse(allowed)
 		self.assertIn("front panel", reason)
 		self.assertEqual(self.conn.actions("prompt"), [])
@@ -827,12 +839,204 @@ class SunGuardTests(PanelUIBase):
 
 		import core.hardware.tracking as tracking
 
+		config_state.save_location({"latitude": LAT, "longitude": LON})
 		with mock.patch.object(self.ui, "has_panel", return_value=False), \
 				mock.patch.object(tracking, "stop_tracking") as stop, \
 				mock.patch.object(tracking, "_tracking_active", True):
 			result = tracking.trackCoordinates("Near", 105.0, 0.0, 1.0)
+			# A server can't pass an approval in: kwargs from JSON aren't one.
+			forged = tracking.trackCoordinates("Near", 105.0, 0.0, 1.0, sun_approval={"ra": 105.0})
 		self.assertIn("front panel", result["error"])
+		self.assertIn("front panel", forged["error"])
 		stop.assert_not_called()
+
+
+class MountTests(unittest.TestCase):
+	def setUp(self) -> None:
+		from core.hardware import mount
+
+		self.m = mount
+		self.config = mount.MountConfig()
+
+	def test_axes_and_sky_round_trip(self) -> None:
+		for ha in range(-180, 180, 23):
+			for dec in (-89.0, -45.0, 0.0, 30.0, 89.5):
+				solutions = self.m.axis_solutions(float(ha), dec, self.config)
+				self.assertTrue(any(not self.m.is_flipped(d) for _a, d in solutions))
+				self.assertTrue(any(self.m.is_flipped(d) for _a, d in solutions))
+				for a, d in solutions:
+					h2, d2 = self.m.sky_from_axes(a, d)
+					self.assertAlmostEqual(self.m.wrap180(h2 - ha), 0.0, places=9)
+					self.assertAlmostEqual(d2, dec, places=9)
+					self.assertTrue(self.config.within((a, d)))
+
+	def test_over_the_pole_when_quicker(self) -> None:
+		route = self.m.plan_route((-90.0, 80.0), (90.0, 80.0), self.config)
+		self.assertTrue(route.flips)
+		self.assertEqual(route.end, (-90.0, 100.0))  # only the Dec axis turns, through the pole
+		self.assertLess(route.seconds, 15.0)
+		stay = self.m.plan_route((-90.0, 80.0), (90.0, 80.0), self.m.MountConfig(pole_crossing=False))
+		self.assertFalse(stay.flips)
+		self.assertGreater(stay.seconds, 200.0)
+		# Under the south pole too, when that's the quick way.
+		under = self.m.plan_route((-60.0, 0.0), (60.0, 0.0), self.config)
+		self.assertTrue(under.flips)
+		self.assertLess(under.seconds, self.config.seconds((-60.0, 0.0), (60.0, 0.0)))
+
+	def test_curves_round_the_sun(self) -> None:
+		import math
+
+		config = self.m.MountConfig(pole_crossing=False, dec_limits=(-90.0, 90.0))
+		sun = (0.0, 0.0)
+		straight = [(-60.0, 0.0), (60.0, 0.0)]
+		self.assertLess(self.m.closest_to(straight, sun), 1.0)
+		route = self.m.plan_route((-60.0, 0.0), (60.0, 0.0), config, sun=sun, keep_out=22.0)
+		self.assertTrue(route.detour)
+		self.assertGreaterEqual(route.sun_deg, 22.0)
+		self.assertGreaterEqual(self.m.closest_to(route.points, sun, step_deg=0.1), 22.0)
+		# Smooth: small turns at every corner (the firmware keeps speed through them).
+		scaled = [(a * config.ra_gear, d * config.dec_gear) for a, d in route.points]
+		for p, q, r in zip(scaled, scaled[1:], scaled[2:]):
+			turn = math.atan2(r[1] - q[1], r[0] - q[0]) - math.atan2(q[1] - p[1], q[0] - p[0])
+			self.assertLess(abs((turn + math.pi) % (2 * math.pi) - math.pi), math.radians(15))
+		# The RA axis sets the pace, so going round costs no time here.
+		self.assertAlmostEqual(route.seconds, config.seconds((-60.0, 0.0), (60.0, 0.0)), places=6)
+		for start, end, s in (((-50.0, 23.0), (50.0, 23.0), (0.0, 23.4)), ((-30.0, -20.0), (40.0, 10.0), (5.0, -5.0))):
+			r = self.m.plan_route(start, end, config, sun=s, keep_out=22.0)
+			self.assertGreaterEqual(self.m.closest_to(r.points, s, step_deg=0.1), 22.0, (start, end))
+
+	def test_limits_and_no_way_round(self) -> None:
+		config = self.m.MountConfig(pole_crossing=False, ra_limits=(-70.0, 70.0), dec_limits=(-15.0, 15.0))
+		for p in self.m.plan_route((-60.0, 0.0), (60.0, 0.0), config).points:
+			self.assertTrue(config.within(p))
+		# Boxed in: the keep-out fills the gap, so it goes straight and says so.
+		route = self.m.plan_route((-60.0, 0.0), (60.0, 0.0), config, sun=(0.0, 0.0), keep_out=22.0)
+		self.assertLess(route.sun_deg, 22.0)
+		self.assertTrue(route.notes)
+
+	def test_motor_steps(self) -> None:
+		route = self.m.Route([(10.0, 5.0), (11.0, 4.0)], 0.0, 180.0)
+		self.assertEqual(self.m.route_steps(route, self.config), [(1600, -640)])  # 360:1 and 144:1
+
+
+class FakeMount:
+	"""An ESP32 that runs paths at once: just enough for tracking.py."""
+
+	def __init__(self) -> None:
+		self.pos = {"motor1": 0, "motor2": 0}
+		self.paths: List[List[tuple]] = []
+		self.motor_info: Dict[str, Any] = {}
+		self.continuous: List[str] = []
+
+	def list_motors(self) -> Dict[str, Any]:
+		return {"motors": ["motor1", "motor2"]}
+
+	def path(self, points, speed_sps) -> Dict[str, Any]:
+		self.paths.append([tuple(p) for p in points])
+		self.pos["motor1"] += points[-1][0]
+		self.pos["motor2"] += points[-1][1]
+		return {"eta_s": 1.0}
+
+	def send(self, payload: Dict[str, Any], timeout: Optional[float] = None) -> Dict[str, Any]:
+		cmd, motor = payload.get("cmd"), payload.get("motor")
+		if cmd in ("get_position", "status"):
+			return {"position": self.pos[motor], "steps_per_rev": 1600, "moving": False, "enabled": True}
+		if cmd == "reset_position":
+			self.pos[motor] = 0
+		if cmd == "start_continuous":
+			self.continuous.append(motor)
+		if cmd == "list_motors":
+			return self.list_motors()
+		return {}
+
+
+class TrackingRouteTests(PanelUIBase):
+	def setUp(self) -> None:
+		super().setUp()
+		from unittest import mock
+
+		import core.hardware.tracking as tracking
+		from utils.esp32_state import esp32_state
+
+		self.tracking = tracking
+		self.mount = FakeMount()
+		config_state.save_location({"latitude": LAT, "longitude": LON})
+		self.patches = [
+			mock.patch.object(esp32_state, "ensure_connection", return_value=self.mount),
+			mock.patch.object(tracking, "_motors_initialized", False),
+			mock.patch.object(tracking, "_last_motor_steps", {"motor1": 0, "motor2": 0}),
+		]
+		for p in self.patches:
+			p.start()
+
+	def tearDown(self) -> None:
+		self.tracking.stop_tracking()
+		for p in self.patches:
+			p.stop()
+		super().tearDown()
+
+	def at(self, ha: float, dec: float) -> tuple:
+		"""RA of an hour angle now."""
+		lst = lst_degrees(datetime.now(timezone.utc), LON)
+		return (lst - ha) % 360.0, dec
+
+	def route_sky(self, path) -> List[tuple]:
+		"""A sent path back to (ha, dec) along the way, from the start axes."""
+		from core.hardware import mount
+
+		config = self.tracking.mount_config()
+		out = []
+		for s1, s2 in path:
+			da, dd = config.axis_degrees(s1, s2)
+			out.append(mount.sky_from_axes(self.start[0] + da, self.start[1] + dd))
+		return out
+
+	def test_a_goto_curves_round_the_sun(self) -> None:
+		from unittest import mock
+
+		from core.hardware import mount
+		from utils.telescope_state import get_mount_axes, set_mount_axes
+
+		set_mount_axes(-60.0, 0.0, source="test")
+		self.start = get_mount_axes()
+		sun = self.at(0.0, 0.0)
+		target = self.at(60.0, 0.0)
+		with mock.patch("utils.config_state.get_mount_config", return_value={
+				"ra_axis_limits": [-270.0, 270.0], "dec_axis_limits": [-90.0, 90.0], "pole_crossing": False}), \
+				sun_at(*sun)[0], sun_at(*sun)[1]:
+			result = self.tracking.trackCoordinates("Far side", target[0], target[1], 1.0)
+		self.assertTrue(result["round_the_sun"], result)
+		self.assertGreaterEqual(result["closest_to_sun_deg"], 22.0)
+		path = self.mount.paths[0]
+		self.assertGreater(len(path), 2)
+		# The axes end where the route did, pointing at the target (the
+		# tracking loop reads the motors; the route aimed a little ahead).
+		self.assertTrue(wait_for(lambda: mount.separation(
+			mount.sky_from_axes(*get_mount_axes()), (60.0, 0.0)) < 1.0, timeout=5.0))
+
+	def test_a_goto_goes_over_the_pole_when_quicker(self) -> None:
+		from utils.telescope_state import get_mount_axes, set_mount_axes
+
+		set_mount_axes(-90.0, 80.0, source="test")
+		target = self.at(90.0, 80.0)
+		with sun_at(*self.at(0.0, -80.0))[0], sun_at(*self.at(0.0, -80.0))[1]:
+			result = self.tracking.trackCoordinates("Over", target[0], target[1], 1.0)
+		self.assertTrue(result["over_the_pole"], result)
+		self.assertLess(result["seconds"], 20.0)
+		self.assertTrue(wait_for(lambda: get_mount_axes()[1] > 90.0, timeout=5.0))  # on the far side now
+
+	def test_the_watchdog_stops_tracking_near_the_sun(self) -> None:
+		from utils.telescope_state import set_mount_axes
+
+		set_mount_axes(10.0, 0.0, source="test")
+		sun = self.at(0.0, 0.0)
+		with sun_at(*sun)[0], sun_at(*sun)[1]:
+			self.tracking._target_object = {"ra": self.at(10.0, 0.0)[0], "dec": 0.0, "sun_floor": 19.5}
+			problem = self.tracking._sun_and_limits_problem()
+			self.assertIn("from the Sun", problem)
+			self.tracking._target_object["sun_floor"] = 9.0  # approved this close
+			self.assertIsNone(self.tracking._sun_and_limits_problem())
+		self.tracking._target_object = None
 
 
 if __name__ == "__main__":

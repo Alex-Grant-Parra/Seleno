@@ -25,7 +25,7 @@ import time
 import zlib
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Callable, Deque, Dict, List, Optional
+from typing import Any, Callable, Deque, Dict, List, Optional, Sequence, Tuple
 
 import serial  # pyserial
 
@@ -536,6 +536,13 @@ class ESP32Connection:
 
 	def ui_state(self) -> Dict[str, Any]:
 		return self.ui("state")
+
+	def path(self, points: Sequence[Tuple[int, int]], speed_sps: float) -> Dict[str, Any]:
+		"""Move both motors along a polyline without stopping at the corners:
+		points are (motor1, motor2) in logical steps from where they are now
+		(at most 63). speed_sps is for the faster motor of each stretch. The
+		reply has a rough eta_s; motion_done events come for both motors."""
+		return self.send({"cmd": "path", "points": [[int(a), int(b)] for a, b in points], "speed": float(speed_sps)})
 
 	def ui_sky(self, scene: bytes) -> Dict[str, Any]:
 		"""Send a SKY1 sky scene (utils/sky_view.py) for the tracking screen."""

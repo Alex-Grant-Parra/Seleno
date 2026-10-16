@@ -1,8 +1,12 @@
 import threading
 import time
+from datetime import datetime, timezone
+from typing import Optional
+from core.hardware import mount as mount_model
 from utils.location import get_current_location
-from utils.Tools import hour_angle
-from utils.telescope_state import set_telescope_coords, get_telescope_coords, get_slew_config, set_target_coords, get_target_coords, update_hour_angle
+from utils.sky_view import lst_degrees, sun_radec
+from utils.telescope_state import (set_telescope_coords, get_telescope_coords, get_slew_config, set_target_coords,
+    get_target_coords, update_hour_angle, get_mount_axes, set_mount_axes)
 from utils.LEDmanager import get_led_manager
 from utils.esp32_state import esp32_state
 from esp32.pins import get_motor_boards
@@ -16,6 +20,7 @@ POLARIS_DEC_DEG = 89.26410897
 
 # One sidereal day in seconds (Earth's rotation period relative to the stars)
 SIDEREAL_DAY_S = 86164.0905
+SIDEREAL_DEG_PER_S = 360.0 / SIDEREAL_DAY_S
 
 # Global tracking state
 _tracking_thread = None
@@ -48,15 +53,11 @@ def _publish_state(state: str, **fields) -> None:
 def is_sidereal_tracking() -> bool:
     return _tracking_active and _panel_state == "tracking"
 
-# (ra, ha) written by the last motor-position update. The mount holds a fixed
-# HA while its motor is stopped, so the next update must start from this HA
-# rather than re-deriving it from RA at the current time.
-_last_ha_baseline = None
-
-# Last ESP32 step counter value read per motor. Coordinates advance by the
-# difference between reads; the counter is never reset mid-read, since steps
-# taken between a read and a reset would be lost.
+# Last ESP32 step counter value read per motor. The axis angles advance by
+# the difference between reads; the counter is never reset mid-read, since
+# steps taken between a read and a reset would be lost.
 _last_motor_steps = {"motor1": 0, "motor2": 0}
+_motor_steps_per_rev = 1600.0
 
 
 def _reset_motor_positions(motor1, motor2) -> None:
@@ -123,7 +124,6 @@ def _initialize_motors():
                         print(f"[tracking] Error engaging required motor {motor_id} ({label}): {e}")
                         return False
                     print(f"[tracking] Warning: could not engage optional motor {motor_id} ({label}): {e}")
-                _last_motor_steps[motor_id] = 0
                 continue
 
             print(f"[tracking] Creating {motor_id} ({label})...")
@@ -141,7 +141,6 @@ def _initialize_motors():
                     chopper=board.get("chopper"),
                 )
                 motor_ids.add(motor_id)
-                _last_motor_steps[motor_id] = 0
                 print(f"[tracking] {motor_id} ({label}) created successfully")
             except Exception as e:
                 if required:
@@ -155,6 +154,9 @@ def _initialize_motors():
                 traceback.print_exc()
         
         _motors_initialized = True
+        # Start counting from the counters as they are: steps taken before
+        # this (another session's slews) are already in the stored axes.
+        _resync_motor_baseline(conn)
         print("[tracking] Motor initialization complete")
         return True
         
@@ -221,251 +223,198 @@ def _stop_hour_angle_updater() -> None:
     print("[tracking] Hour angle updater stopped")
 
 
+def _resync_motor_baseline(conn) -> None:
+    for motor_id in ("motor1", "motor2"):
+        try:
+            _last_motor_steps[motor_id] = ESP32Motor(conn, motor_id).get_position()
+        except Exception as e:
+            print(f"[tracking] Could not read {motor_id}'s position: {e}")
+
+
+def mount_config(speed_sps: Optional[float] = None) -> mount_model.MountConfig:
+    # The mount as configured: gear ratios, speed and how far each axis may
+    # turn (config/client_config.json slew_config and mount).
+    from utils.config_state import get_mount_config
+
+    slew = get_slew_config()
+    limits = get_mount_config()
+    return mount_model.MountConfig(
+        ra_gear=slew["ra_gear_ratio"],
+        dec_gear=slew["dec_gear_ratio"],
+        steps_per_rev=_motor_steps_per_rev,
+        slew_sps=speed_sps or slew["slew_speed_sps"],
+        ra_limits=tuple(limits["ra_axis_limits"]),
+        dec_limits=tuple(limits["dec_axis_limits"]),
+        pole_crossing=limits["pole_crossing"],
+    )
+
+
+def _sun_hour_angle(longitude: float, when: Optional[datetime] = None):
+    when = when or datetime.now(timezone.utc)
+    sun_ra, sun_dec = sun_radec(when)
+    return mount_model.wrap180(lst_degrees(when, longitude) - sun_ra), sun_dec
+
+
+def _longitude() -> Optional[float]:
+    location = get_current_location() or {}
+    lon = location.get("longitude")
+    return float(lon) if lon is not None else None
+
+
+def plan_goto(ra: float, dec: float, start_axes=None, speed_sps: Optional[float] = None):
+    # The route from the axes (default: where the telescope is) to point at
+    # (ra, dec), aimed where the target will be when it gets there: the
+    # quickest way, over a pole if that's quicker, and curving round the
+    # Sun's keep-out (utils/sun_guard.keep_out_deg). None without a site
+    # or a known position.
+    from utils import sun_guard
+
+    lon = _longitude()
+    start = start_axes if start_axes is not None else get_mount_axes()
+    if lon is None or start is None:
+        return None
+    config = mount_config(speed_sps)
+    now = datetime.now(timezone.utc)
+    lst = lst_degrees(now, lon)
+    sun = _sun_hour_angle(lon, now)
+    start_sun = mount_model.separation(mount_model.sky_from_axes(*start), sun)
+    route = None
+    lead = 0.0
+    for _ in range(2):
+        target = (mount_model.wrap180(lst + lead - ra), dec)
+        keep_out = sun_guard.keep_out_deg(start_sun, mount_model.separation(target, sun))
+        route = mount_model.plan_route(start, target, config, sun=sun, keep_out=keep_out)
+        lead = route.seconds * SIDEREAL_DEG_PER_S
+    return route
+
+
 def _update_current_coords_from_motors() -> None:
-    # Update the current telescope coordinates based on actual motor positions.
-    # 
-    # Reads the ESP32 step counters and applies the change since the previous read
-    # to the current coordinates.
-    # 
-    # This ensures that the current RA/DEC always reflects the actual position based on
-    # how much the motors have turned, accounting for real-world movement inaccuracies.
-    global _last_ha_baseline
+    # Add the steps each motor has taken since the last read to the axis
+    # angles (core/hardware/mount.py); the RA/Dec follow from them.
+    global _motor_steps_per_rev
     try:
         conn = _get_esp32_connection()
         if not conn:
             return
-        
-        # Get motor positions in raw steps
-        config = get_slew_config()
-        motor1 = ESP32Motor(conn, "motor1")
-        motor2 = ESP32Motor(conn, "motor2")
-        
-        ra_gear_ratio = config.get("ra_gear_ratio", 360.0)
-        dec_gear_ratio = config.get("dec_gear_ratio", 144.0)
-        
-        # Step deltas since the previous read (0 if a read fails, so no movement is lost)
-        motor1_steps = 0
-        motor2_steps = 0
-        
-        try:
-            position = motor1.get_position()
-            motor1_steps = position - _last_motor_steps["motor1"]
-            _last_motor_steps["motor1"] = position
-        except Exception as e:
-            # Log ALL position read failures for debugging
-            print(f"[tracking] Error reading motor1 position: {e}")
-            
-        time.sleep(0.05)  # Small delay between commands to avoid overwhelming ESP32
-        
-        try:
-            position = motor2.get_position()
-            motor2_steps = position - _last_motor_steps["motor2"]
-            _last_motor_steps["motor2"] = position
-        except Exception as e:
-            # Log ALL position read failures for debugging
-            print(f"[tracking] Error reading motor2 position: {e}")
-        
-        # Convert motor steps to sky degrees using gear ratios
-        # A X:1 gearbox means X motor revolutions = 1 output revolution = 360° sky
-        # So: sky_degrees = (motor_steps / steps_per_rev) * (360 / gear_ratio)
-        # Example RA (360:1): 1 motor rev = 360/360 = 1° sky
-        # Example DEC (144:1): 1 motor rev = 360/144 = 2.5° sky
-        motor1_delta_deg = (motor1_steps / motor1._steps_per_rev) * (360.0 / ra_gear_ratio)
-        motor2_delta_deg = (motor2_steps / motor2._steps_per_rev) * (360.0 / dec_gear_ratio)
-        
-        # Get last known current coordinates
-        coords = get_telescope_coords() or {}
-        last_known_ra = coords.get('right_ascension', 0.0)
-        last_known_dec = coords.get('declination', 0.0)
-        
-        # Motors move in Hour Angle space, not RA space
-        # We need to convert HA position to RA using current time/location
-        # Formula: RA = LST - HA
-        
-        # Get current location for LST calculation
-        from utils.location import get_current_location
-        from utils.Tools import hour_angle
-        location = get_current_location()
-        if location:
-            longitude = location.get('longitude', 0)
-            
-            # Baseline HA is where the mount pointed at the last update. Reuse it
-            # when the stored RA is still the one we wrote; recomputing it from RA
-            # at the current time would count Earth's rotation twice while tracking.
-            if _last_ha_baseline is not None and _last_ha_baseline[0] == last_known_ra:
-                last_known_ha = _last_ha_baseline[1]
-            else:
-                last_known_ha = hour_angle(last_known_ra, longitude) if last_known_ra != 0.0 else 0.0
-            
-            # Add motor movement to HA (motors track in HA space)
-            updated_ha = last_known_ha + motor1_delta_deg
-            
-            # Convert updated HA back to RA using current LST
-            # We need to reverse the hour_angle formula: RA = LST - HA
-            from datetime import datetime, timezone
-            now = datetime.now(timezone.utc)
-            D = now.day + now.hour/24 + now.minute/1440 + now.second/86400
-            Y, M = now.year, now.month
-            if M <= 2:
-                Y -= 1
-                M += 12
-            A = Y // 100
-            B = 2 - A + A // 4
-            JD = int(365.25*(Y + 4716)) + int(30.6001*(M + 1)) + D + B - 1524.5
-            GMST = 280.46061837 + 360.98564736629 * (JD - 2451545)
-            LST = (GMST + longitude) % 360
-            
-            # RA = LST - HA (with normalization to 0-360)
-            updated_ra = (LST - updated_ha) % 360
-            _last_ha_baseline = (float(updated_ra), updated_ha)
-        else:
-            # Fallback if location not available (shouldn't happen but just in case)
-            updated_ra = last_known_ra + motor1_delta_deg
-        
-        # DEC moves directly (not affected by Earth's rotation)
-        updated_dec = last_known_dec + motor2_delta_deg
-        
-        # Calculate new current position based on motor movements
-        # updated_ra and updated_dec are already calculated above
-        
-        # Update state with actual current position
-        set_telescope_coords(updated_ra, updated_dec, source="tracking")
-        
-        if motor1_delta_deg != 0 or motor2_delta_deg != 0:
-            print(f"[tracking] Updated current from motors: HA delta={motor1_delta_deg:.6f}°, Dec delta={motor2_delta_deg:.6f}°")
-            print(f"[tracking] New current position: RA={updated_ra:.4f}°, Dec={updated_dec:.4f}°")
-        else:
-            # Log periodically even when stationary to help debug stuck coordinates
-            print(f"[tracking] Motor deltas are zero. Current position: RA={updated_ra:.4f}°, Dec={updated_dec:.4f}° (motor1_steps={motor1_steps}, motor2_steps={motor2_steps})")
-    
+        deltas = {"motor1": 0, "motor2": 0}
+        for motor_id in ("motor1", "motor2"):
+            motor = ESP32Motor(conn, motor_id)
+            try:
+                position = motor.get_position()
+            except Exception as e:
+                print(f"[tracking] Error reading {motor_id} position: {e}")
+                continue
+            deltas[motor_id] = position - _last_motor_steps[motor_id]
+            _last_motor_steps[motor_id] = position
+            if motor_id == "motor1":
+                _motor_steps_per_rev = float(motor.steps_per_rev or _motor_steps_per_rev)
+            time.sleep(0.05)  # Small delay between commands to avoid overwhelming ESP32
+        axes = get_mount_axes()
+        if axes is None:
+            return
+        d_ra, d_dec = mount_config().axis_degrees(deltas["motor1"], deltas["motor2"])
+        if d_ra or d_dec:
+            set_mount_axes(axes[0] + d_ra, axes[1] + d_dec, source="tracking")
+            print(f"[tracking] Axes moved RA {d_ra:+.5f}°, Dec {d_dec:+.5f}° "
+                  f"(steps {deltas['motor1']}, {deltas['motor2']}); now {axes[0] + d_ra:.4f}°, {axes[1] + d_dec:.4f}°")
     except Exception as e:
         print(f"[tracking] Error updating current coords from motors: {e}")
 
 
-def _move_motors(delta_ha: float, delta_dec: float) -> None:
-    # Move motors to compensate for HA and Dec deltas using multi-phase slewing.
-    # 
-    # Applies gear ratios to scale motor movements correctly.
-    # DOES NOT BLOCK - returns immediately after sending commands.
-    # Motor movements happen asynchronously; use _update_current_coords_from_motors() to track progress.
-    # 
-    # Args:
-    #     delta_ha: Hour angle difference in degrees (positive = east/forward)
-    #     delta_dec: Declination difference in degrees (positive = north)
+def _wait_until_stopped(conn, timeout_s: float = 5.0) -> None:
+    # A stop from slew speed ramps down (up to about a second).
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            if not any(ESP32Motor(conn, m).status().get("moving") for m in ("motor1", "motor2")):
+                return
+        except Exception as e:
+            print(f"[tracking] Warning: Error reading motor status: {e}")
+            return
+        time.sleep(0.1)
+
+
+def _run_route(route, config: mount_model.MountConfig) -> None:
+    # Drive both motors along the route as one smooth path ({"cmd":"path"}).
+    # Doesn't wait; the tracking loop watches for the end. Raises if the
+    # ESP32 refuses it.
+    global _motors_initialized
     conn = _get_esp32_connection()
     if not conn:
-        print("[tracking] Warning: ESP32 connection not available; cannot move motors")
-        return
-    
-    # Verify motors exist on ESP32 and re-initialize if needed
+        raise RuntimeError("ESP32 connection not available")
     try:
         motors = conn.list_motors()
         if "motor1" not in str(motors) or "motor2" not in str(motors):
-            print(f"[tracking] Motors not found on ESP32 (existing: {motors}), reinitializing...")
-            global _motors_initialized
-            _motors_initialized = False  # Force re-initialization
+            _motors_initialized = False
     except Exception as e:
-        print(f"[tracking] Could not verify motors: {e}, attempting initialization...")
+        print(f"[tracking] Could not verify motors: {e}")
         _motors_initialized = False
-    
-    # Ensure motors are initialized before trying to move them
     if not _initialize_motors():
-        print("[tracking] Warning: Motors not initialized; cannot move")
+        raise RuntimeError("Motors not ready")
+    for motor_id in ("motor1", "motor2"):
+        motor = ESP32Motor(conn, motor_id)
+        try:
+            if not motor.status().get("enabled", False):
+                motor.engage()
+        except Exception as e:
+            print(f"[tracking] Error engaging {motor_id}: {e}")
+    steps = mount_model.route_steps(route, config)
+    if not any(a or b for a, b in steps):
+        print("[tracking] Already there: nothing to move")
         return
-    
-    config = get_slew_config()
-    
-    # Apply gear ratios to convert sky movement to motor movement
-    # For a 360:1 gearbox, a 1° sky movement requires 360° motor rotation
-    ra_gear_ratio = config.get("ra_gear_ratio", 360.0)
-    dec_gear_ratio = config.get("dec_gear_ratio", 144.0)
-    
-    motor_delta_ha = delta_ha * ra_gear_ratio
-    motor_delta_dec = delta_dec * dec_gear_ratio
-    
-    # Absolute distances to target (in motor degrees)
-    abs_motor_delta_ha = abs(motor_delta_ha)
-    abs_motor_delta_dec = abs(motor_delta_dec)
-    
-    # Thresholds are in sky degrees, so we need to scale them by EACH motor's gear ratio
-    slew_threshold_motor_ra = config["slew_threshold_degrees"] * ra_gear_ratio
-    slew_threshold_motor_dec = config["slew_threshold_degrees"] * dec_gear_ratio
-    
-    print(f"[tracking] Sky deltas: HA={delta_ha:.4f}°, Dec={delta_dec:.4f}°")
-    print(f"[tracking] Motor deltas (with gear ratios {ra_gear_ratio}:1, {dec_gear_ratio}:1): HA={motor_delta_ha:.4f}°, Dec={motor_delta_dec:.4f}°")
-    print(f"[tracking] Slew thresholds (motor °): RA={slew_threshold_motor_ra:.4f}°, Dec={slew_threshold_motor_dec:.4f}°")
-    
+    shape = "round the Sun" if route.detour else "straight"
+    side = ", over the pole" if route.flips else ""
+    print(f"[tracking] Slewing {shape}{side}: {len(steps)} points, about {route.seconds:.0f} s at "
+          f"{config.slew_sps:.0f} sps, closest to the Sun {route.sun_deg:.1f}°")
+    conn.path(steps, config.slew_sps)
+
+
+def _sun_and_limits_problem() -> Optional[str]:
+    # Whether tracking has to stop: pointing (or aimed) closer to the Sun
+    # than this session was allowed, or an axis past its limit.
+    target = _target_object or {}
+    axes = get_mount_axes()
+    lon = _longitude()
+    if axes is None or lon is None or "ra" not in target:
+        return None
+    sun = _sun_hour_angle(lon)
+    pointing = mount_model.sky_from_axes(*axes)
+    lst = lst_degrees(datetime.now(timezone.utc), lon)
+    aimed = (mount_model.wrap180(lst - float(target["ra"])), float(target["dec"]))
+    floor = float(target.get("sun_floor", 19.5))
+    closest = min(mount_model.separation(pointing, sun), mount_model.separation(aimed, sun))
+    if closest < floor:
+        return f"{closest:.0f} deg from the Sun: tracking stopped"
+    if not mount_config().within(axes, slack=2.0):
+        return "An axis reached its limit: tracking stopped"
+    return None
+
+
+def _halt_from_loop(reason: str) -> None:
+    # Stop tracking from inside the tracking thread (stop_tracking would wait
+    # for this thread) and say why on the front panel.
+    global _tracking_active, _target_object
+    print(f"[tracking] {reason}")
+    _tracking_active = False
+    _target_object = None
+    conn = _get_esp32_connection()
+    if conn:
+        for motor_id in ("motor1", "motor2"):
+            try:
+                conn.send({"cmd": "stop", "motor": motor_id})
+            except Exception as e:
+                print(f"[tracking] Error stopping {motor_id}: {e}")
+    _publish_state("idle")
     try:
-        # Create motor instances
-        motor1 = ESP32Motor(conn, "motor1")
-        motor2 = ESP32Motor(conn, "motor2")
-        
-        # Engage motors before movement (they may be disengaged for safety)
-        print("[tracking] Engaging motors before movement...")
-        try:
-            motor1.engage()
-            print("[tracking] Motor1 (RA) engaged")
-        except Exception as e:
-            print(f"[tracking] Error engaging motor1: {e}")
-        
-        try:
-            motor2.engage()
-            print("[tracking] Motor2 (DEC) engaged")
-        except Exception as e:
-            print(f"[tracking] Error engaging motor2: {e}")
-        
-        # RA Motor: Choose speed based on distance (non-blocking)
-        if abs_motor_delta_ha > slew_threshold_motor_ra:
-            # Phase 1: Slew at high speed
-            try:
-                direction = "EAST/forward" if delta_ha > 0 else "WEST/backward"
-                print(f"[tracking] RA motor slewing: {motor_delta_ha:.4f}° (motor) for {delta_ha:.4f}° (sky) {direction} at {config['slew_speed_sps']:.1f} sps")
-                motor1.set_speed_sps(config["slew_speed_sps"])
-                motor1.turn_degrees(abs_motor_delta_ha, forward=delta_ha > 0)  # Non-blocking
-                print(f"[tracking] RA motor slew command sent (forward={delta_ha > 0})")
-            except Exception as e:
-                print(f"[tracking] Error moving RA motor: {e}")
-        elif abs_motor_delta_ha > 0.01:  # Minimum 0.01° motor movement (prevents tiny movements)
-            # Phase 2: Refine at medium speed (also used for fine corrections)
-            try:
-                direction = "EAST/forward" if delta_ha > 0 else "WEST/backward"
-                print(f"[tracking] RA motor refining: {motor_delta_ha:.4f}° (motor) {direction} at {config['refine_speed_sps']:.1f} sps")
-                motor1.set_speed_sps(config["refine_speed_sps"])
-                motor1.turn_degrees(abs_motor_delta_ha, forward=delta_ha > 0)  # Non-blocking
-                print(f"[tracking] RA motor refine command sent (forward={delta_ha > 0})")
-            except Exception as e:
-                print(f"[tracking] Error refining RA motor: {e}")
-        else:
-            print(f"[tracking] RA already at target (delta={motor_delta_ha:.6f}° motor)")
-        
-        # DEC Motor: Choose speed based on distance (non-blocking)
-        if abs_motor_delta_dec > slew_threshold_motor_dec:
-            # Phase 1: Slew at high speed
-            try:
-                direction = "NORTH/forward" if delta_dec > 0 else "SOUTH/backward"
-                print(f"[tracking] DEC motor slewing: {motor_delta_dec:.4f}° (motor) for {delta_dec:.4f}° (sky) {direction} at {config['slew_speed_sps']:.1f} sps")
-                motor2.set_speed_sps(config["slew_speed_sps"])
-                motor2.turn_degrees(abs_motor_delta_dec, forward=delta_dec > 0)  # Non-blocking
-                print(f"[tracking] DEC motor slew command sent (forward={delta_dec > 0})")
-            except Exception as e:
-                print(f"[tracking] Error moving DEC motor: {e}")
-        elif abs_motor_delta_dec > 0.01:  # Minimum 0.01° motor movement (prevents tiny movements)
-            # Phase 2: Refine at medium speed (also used for fine corrections)
-            try:
-                direction = "NORTH/forward" if delta_dec > 0 else "SOUTH/backward"
-                print(f"[tracking] DEC motor refining: {motor_delta_dec:.4f}° (motor) {direction} at {config['refine_speed_sps']:.1f} sps")
-                motor2.set_speed_sps(config["refine_speed_sps"])
-                motor2.turn_degrees(abs_motor_delta_dec, forward=delta_dec > 0)  # Non-blocking
-                print(f"[tracking] DEC motor refine command sent (forward={delta_dec > 0})")
-            except Exception as e:
-                print(f"[tracking] Error refining DEC motor: {e}")
-        else:
-            print(f"[tracking] DEC already at target (delta={motor_delta_dec:.6f}° motor)")
-        
-        print("[tracking] Motor movement commands sent (non-blocking)")
-    
-    except Exception as e:
-        print(f"[tracking] Error in motor movement: {e}")
+        get_led_manager().set_error(True, critical=False)
+    except Exception:
+        pass
+    try:
+        from utils.panel_ui import get_panel_ui
+
+        get_panel_ui().toast(reason, 6000)
+    except Exception:
+        pass
 
 
 def _start_ra_tracking() -> None:
@@ -565,6 +514,13 @@ def _continuous_tracking_loop() -> None:
             # Update hour angle to reflect Earth's rotation
             update_hour_angle()
             
+            # Never closer to the Sun than this session was allowed, nor past
+            # an axis limit (utils/sun_guard.py, core/hardware/mount.py).
+            problem = _sun_and_limits_problem()
+            if problem:
+                _halt_from_loop(problem)
+                break
+            
             # Check if we should start sidereal tracking
             if not sidereal_tracking_active:
                 conn = _get_esp32_connection()
@@ -610,60 +566,51 @@ def _continuous_tracking_loop() -> None:
                             waiting_logged = False  # Reset for next slew
                             print(f"[tracking] Both motors stopped - checking position")
                             
-                            # Verify we're actually at the target
-                            coords = get_telescope_coords() or {}
-                            target_coords = get_target_coords() or {}
-                            current_ra = coords.get('right_ascension', 0.0)
-                            current_dec = coords.get('declination', 0.0)
-                            target_ra = target_coords.get('right_ascension', 0.0)
-                            target_dec = target_coords.get('declination', 0.0)
-                            
-                            # Get location for HA calculation
-                            from utils.location import get_current_location
-                            from utils.Tools import hour_angle
-                            location = get_current_location()
-                            
-                            if location:
-                                longitude = location.get('longitude', 0)
-                                current_ha = hour_angle(current_ra, longitude)
-                                target_ha = hour_angle(target_ra, longitude)
+                            # Verify we're actually at the target: the axes that
+                            # point at it now, on the side the mount is on.
+                            axes = get_mount_axes()
+                            target = _target_object or {}
+                            lon = _longitude()
+                            if axes is not None and lon is not None and "ra" in target:
+                                config = mount_config()
+                                lst = lst_degrees(datetime.now(timezone.utc), lon)
+                                goal = mount_model.nearest_solution(
+                                    mount_model.wrap180(lst - float(target["ra"])), float(target["dec"]), axes, config)
+                                delta_ra_axis = goal[0] - axes[0]
+                                delta_dec_axis = goal[1] - axes[1]
                                 
-                                # Calculate shortest path around 360° circle
-                                delta_ha = target_ha - current_ha
-                                if delta_ha > 180:
-                                    delta_ha -= 360
-                                elif delta_ha < -180:
-                                    delta_ha += 360
-                                delta_dec = target_dec - current_dec
-                                abs_delta_ha = abs(delta_ha)
-                                abs_delta_dec = abs(delta_dec)
+                                slew = get_slew_config()
+                                centered_threshold = slew.get("centered_threshold_degrees", 0.01)
                                 
-                                config = get_slew_config()
-                                centered_threshold = config.get("centered_threshold_degrees", 0.01)
-                                refine_threshold = config.get("center_threshold_degrees", 0.1)
-                                
-                                print(f"[tracking] Position check: HA error={delta_ha:.6f}°, Dec error={delta_dec:.6f}°")
-                                print(f"[tracking] Thresholds: centered={centered_threshold}°, refine={refine_threshold}°")
+                                print(f"[tracking] Position check: RA axis error={delta_ra_axis:.6f}°, "
+                                      f"Dec axis error={delta_dec_axis:.6f}° (centred within {centered_threshold}°)")
                                 
                                 # If we're centered on target, start sidereal tracking
-                                if abs_delta_ha < centered_threshold and abs_delta_dec < centered_threshold:
+                                if abs(delta_ra_axis) < centered_threshold and abs(delta_dec_axis) < centered_threshold:
                                     print(f"[tracking] ✓ Within centered threshold - starting sidereal tracking")
                                     leds.flash_tracking_locked()
                                     leds.set_tracking(True, pulse=False)
                                     leds.set_command_busy(False)
                                     _start_ra_tracking()
                                     sidereal_tracking_active = True
-                                    _publish_state("tracking", ra_now=current_ra, dec_now=current_dec)
+                                    # From now on it holds on the target: as close to the
+                                    # Sun as the target was allowed, no closer.
+                                    _target_object["sun_floor"] = _target_object.get("sun_floor_tracking", 19.5)
+                                    coords = get_telescope_coords() or {}
+                                    _publish_state("tracking", ra_now=coords.get("right_ascension"),
+                                                   dec_now=coords.get("declination"))
                                 # If we're off target but motors stopped, issue correction slew
                                 else:
-                                    print(f"[tracking] ⚠ Off target - issuing fine correction slew")
-                                    print(f"[tracking]   HA correction: {delta_ha:.6f}° ({'EAST/forward' if delta_ha > 0 else 'WEST/backward'})")
-                                    print(f"[tracking]   Dec correction: {delta_dec:.6f}° ({'NORTH/forward' if delta_dec > 0 else 'SOUTH/backward'})")
-                                    # Reset motor positions to establish new baseline
-                                    _reset_motor_positions(motor1, motor2)
+                                    print(f"[tracking] ⚠ Off target - issuing correction")
+                                    small = max(abs(delta_ra_axis), abs(delta_dec_axis)) < slew.get("slew_threshold_degrees", 1.0)
+                                    speed = slew["refine_speed_sps"] if small else slew["slew_speed_sps"]
+                                    route = plan_goto(float(target["ra"]), float(target["dec"]), speed_sps=speed)
                                     _publish_state("centering")
-                                    # Move by the current error
-                                    _move_motors(delta_ha, delta_dec)
+                                    if route is not None:
+                                        try:
+                                            _run_route(route, mount_config(speed))
+                                        except Exception as e:
+                                            print(f"[tracking] Correction refused: {e}")
                                     waiting_logged = False  # Reset for next wait cycle
                     except Exception as e:
                         print(f"[tracking] Error checking motor status: {e}")
@@ -747,15 +694,15 @@ def sync_position(ra: float, dec: float) -> None:
     # "Align on star"): stop, and take that as the current position. The
     # step counters restart too, so moves made outside tracking (the panel's
     # jog) aren't added to it.
-    global _last_ha_baseline
     stop_tracking()
     conn = _get_esp32_connection()
     if conn:
+        _wait_until_stopped(conn)
         try:
             _reset_motor_positions(ESP32Motor(conn, "motor1"), ESP32Motor(conn, "motor2"))
         except Exception as e:
             print(f"[tracking] Warning: could not reset the step counters: {e}")
-    _last_ha_baseline = None
+    # The axes follow, on the side of the mount it's on now.
     set_telescope_coords(float(ra), float(dec), source="manual_reset")
     print(f"[tracking] Position set by hand: RA={float(ra):.4f}°, Dec={float(dec):.4f}°")
 
@@ -770,38 +717,47 @@ def _set_polaris_alignment(location: dict) -> None:
     set_telescope_coords(POLARIS_RA_DEG, POLARIS_DEC_DEG, source="polaris")
 
 
-def trackCoordinates(name, ra, dec, mag):
-    # Start tracking a celestial object with continuous sky rotation compensation.
+def trackCoordinates(name, ra, dec, mag, *, sun_approval=None):
+    # Slew to a celestial object and track it as the sky turns.
     # 
     # The telescope will:
-    # 1. Stop any existing tracking
-    # 2. Slew to the target at high speed
-    # 3. Refine approach at medium speed
-    # 4. Center on target at slow speed
-    # 5. Continuously track the object as the sky rotates
+    # 1. Check the Sun (utils/sun_guard.py): near it, someone at the front
+    #    panel has to confirm first; nothing moves or stops if they don't
+    # 2. Stop any existing tracking
+    # 3. Slew the quickest way (core/hardware/mount.py): over a pole if that's
+    #    quicker, curving round the Sun if the straight way passes it, as one
+    #    smooth move of both axes
+    # 4. Correct any small error, then track at the sidereal rate
     # 
     # Args:
     #     name: Object name
     #     ra: Right ascension in degrees (can be string or float)
     #     dec: Declination in degrees (can be string or float)
     #     mag: Magnitude
+    #     sun_approval: from sun_guard.confirm_goto when a panel flow already
+    #         asked (keyword only; a server request can't make one)
     global _tracking_active, _tracking_thread, _target_object
     leds = get_led_manager()
     
     # Convert string inputs to floats if needed
     try:
-        ra = float(ra)
+        ra = float(ra) % 360.0
         dec = float(dec)
     except (ValueError, TypeError) as e:
         print(f"[tracking] Error: Invalid RA or Dec format: {e}")
         leds.set_error(True, critical=False)
-        return
+        return {"error": "Invalid RA or Dec"}
+    if not -90.0 <= dec <= 90.0:
+        return {"error": "Dec must be -90 to 90"}
     
-    # Near the Sun (on the way or at the target), someone at the front panel
-    # has to confirm it first (utils/sun_guard.py). Nothing has moved or
-    # stopped yet if they don't.
+    location = get_current_location()
+    if location is None or location.get('longitude') is None or location.get('latitude') is None:
+        print("[tracking] Warning: Location data not available. Cannot calculate hour angle.")
+        leds.set_error(True, critical=False)
+        return {"error": "No site set: tracking needs latitude and longitude"}
+    
     from utils import sun_guard
-    allowed, reason = sun_guard.confirm_goto(str(name), ra, dec, remember=False)
+    allowed, reason, approval = sun_guard.confirm_goto(str(name), ra, dec, approval=sun_approval)
     if not allowed:
         print(f"[tracking] Not going to {name}: {reason}")
         return {"error": reason}
@@ -813,57 +769,9 @@ def trackCoordinates(name, ra, dec, mag):
         time.sleep(0.5)  # Brief pause to ensure tracking fully stops
     
     print(f"[tracking] Acquiring target: {name}, RA: {ra}, Dec: {dec}, Mag: {mag}")
-    
-    # Get current location from config
-    location = get_current_location()
-    if location is None:
-        print("[tracking] Warning: Location data not available. Cannot calculate hour angle.")
-        leds.set_error(True, critical=False)
-        return
-    
-    # Extract longitude and latitude from location JSON
-    longitude = location.get('longitude')
-    latitude = location.get('latitude')
-    print(f"[tracking] Observer location: Longitude={longitude}, Latitude={latitude}")
+    print(f"[tracking] Observer location: Longitude={location.get('longitude')}, Latitude={location.get('latitude')}")
     leds.clear_error()
-
-    # Convert target RA to hour angle using current location and time
-    TargetHA = hour_angle(ra, longitude)
-    TargetDec = dec
-    print(f"[tracking] Target: {name} - RA={ra:.4f}°, Dec={dec:.4f}°")
-    print(f"[tracking] Target Hour Angle (current): HA={TargetHA:.4f}°")
     leds.set_command_busy(True)
-
-    # Read current telescope coordinates from state (stored as RA, not HA)
-    coords = get_telescope_coords() or {}
-    CurrentRA = coords.get('right_ascension', 0.0)
-    CurrentDec = coords.get('declination', 0.0)
-    
-    # Validate coordinates - if corrupted, assume we're starting fresh at target
-    # Valid ranges: RA 0-360°, Dec -90° to +90°
-    if CurrentRA < 0 or CurrentRA > 360 or CurrentDec < -90 or CurrentDec > 90:
-        print(f"[tracking] WARNING: Corrupted coordinates detected (RA={CurrentRA:.2f}°, Dec={CurrentDec:.2f}°)")
-        print(f"[tracking] Resetting current position to target as starting point")
-        CurrentRA = ra
-        CurrentDec = dec
-    
-    # Convert current telescope RA to current hour angle
-    # This accounts for Earth's rotation since last slew
-    CurrentHA = hour_angle(CurrentRA, longitude) if CurrentRA != 0.0 else 0.0
-    
-    print(f"[tracking] Current telescope: RA={CurrentRA:.4f}°, Dec={CurrentDec:.4f}°")
-    print(f"[tracking] Current Hour Angle (recalculated): HA={CurrentHA:.4f}°")
-
-    # Calculate the difference between target and current coordinates
-    DeltaHA = TargetHA - CurrentHA
-    # Normalize to shortest path around 360° circle (especially important crossing 0°/360°)
-    if DeltaHA > 180:
-        DeltaHA -= 360
-    elif DeltaHA < -180:
-        DeltaHA += 360
-    DeltaDec = TargetDec - CurrentDec
-    print(f"[tracking] Delta to move: HA={DeltaHA:.4f}°, Dec={DeltaDec:.4f}°")
-    print(f"[tracking] Absolute delta: HA={abs(DeltaHA):.4f}°, Dec={abs(DeltaDec):.4f}°")
 
     # Poll ifAligned() until telescope is polar aligned
     print(f"[tracking] Waiting for polar alignment before tracking...")
@@ -878,39 +786,48 @@ def trackCoordinates(name, ra, dec, mag):
         mag_value = None
     _publish_state("slewing", target=str(name), ra=ra, dec=dec, mag=mag_value)
 
-    # Slew, refine, and center on target
-    if abs(DeltaHA) > 0.001 or abs(DeltaDec) > 0.001:
-        print(f"[tracking] Movement required, calling _move_motors...")
-        leds.set_movement("slewing")
-        
-        # Reset motor positions AND set current coordinates to establish clean baseline
-        try:
-            conn = _get_esp32_connection()
-            if conn:
-                motor1 = ESP32Motor(conn, "motor1")
-                motor2 = ESP32Motor(conn, "motor2")
-                _reset_motor_positions(motor1, motor2)
-                print("[tracking] Motor positions reset to zero")
-                
-                # Set current coordinates to CURRENT position (where we are NOW, before slew)
-                # NOT to target - motor position tracking will update coords as we move toward target
-                # This prevents double-counting the movement
-                set_telescope_coords(CurrentRA, CurrentDec, source="tracking")
-                print(f"[tracking] Current position baseline: RA={CurrentRA:.4f}°, Dec={CurrentDec:.4f}°")
-        except Exception as e:
-            print(f"[tracking] Warning: Could not reset motor positions: {e}")
-        
-        # Move the motors to target (non-blocking)
-        _move_motors(DeltaHA, DeltaDec)
-        # Motor positions will be updated by the continuous tracking loop as motors move
-    else:
-        print(f"[tracking] Telescope already at target")
+    # Bring the position up to date (any motion has stopped first).
+    conn = _get_esp32_connection()
+    if conn and _initialize_motors():
+        _wait_until_stopped(conn)
+        _update_current_coords_from_motors()
+    if get_mount_axes() is None:
+        # Nothing known about where it points: start from the target.
+        print("[tracking] WARNING: No known position; taking the target as the starting point")
+        set_telescope_coords(ra, dec, source="assumed")
 
-    # Store target for continuous tracking
-    _target_object = {"name": name, "ra": ra, "dec": dec, "mag": mag}
-    
-    # Update target coordinates in state
+    route = plan_goto(ra, dec)
+    if route is None:
+        _publish_state("idle")
+        leds.set_command_busy(False)
+        return {"error": "Couldn't plan the slew"}
+    if route.notes:
+        print(f"[tracking] Note: {'; '.join(route.notes)}")
+
+    # How close to the Sun this session may get: on the way, and then on
+    # the target (the watchdog in the tracking loop holds it to that).
+    target_sun = mount_model.separation(
+        (mount_model.wrap180(lst_degrees(datetime.now(timezone.utc), float(location['longitude'])) - ra), dec),
+        _sun_hour_angle(float(location['longitude'])))
+    danger = sun_guard.DANGER_DEG - 0.5
+    _target_object = {
+        "name": name, "ra": ra, "dec": dec, "mag": mag,
+        "sun_floor": min(danger, route.sun_deg - 1.0),
+        "sun_floor_tracking": min(danger, target_sun - 1.0) if approval is not None else danger,
+    }
     set_target_coords(ra, dec, source="tracking")
+
+    config = mount_config()
+    try:
+        leds.set_movement("slewing")
+        _run_route(route, config)
+    except Exception as e:
+        print(f"[tracking] Slew refused: {e}")
+        _target_object = None
+        _publish_state("idle")
+        leds.set_error(True, critical=False)
+        leds.set_command_busy(False)
+        return {"error": f"Slew refused: {e}"}
     
     # Start continuous tracking thread if not already running
     if not _tracking_active:
@@ -920,8 +837,13 @@ def trackCoordinates(name, ra, dec, mag):
         _start_hour_angle_updater()  # Also start the background hour angle updater
         print(f"[tracking] Continuous tracking started for {name}")
 
-    # Note: ifAligned() check removed here - it was overwriting target coordinates with Polaris
-    # Polaris alignment should be done separately via a dedicated alignment command
+    return {
+        "status": "slewing",
+        "seconds": round(route.seconds, 1),
+        "round_the_sun": route.detour,
+        "over_the_pole": route.flips,
+        "closest_to_sun_deg": round(route.sun_deg, 1),
+    }
 
 
 def ifAligned():

@@ -1,35 +1,42 @@
 """Sun protection for every go-to (core/hardware/tracking.trackCoordinates,
 so the panel's and the server's alike).
 
-What counts is the closest the telescope gets to the Sun: at the target,
-or on the way there (the slew moves RA and Dec together, so a path between
-two safe points can cross the Sun).
+What counts is the closest the telescope gets to the Sun on the planned
+route (core/hardware/mount.py): at the target, or on the way. Routes curve
+round the Sun's keep-out (DANGER_DEG plus a margin) when the straight way
+would pass it, so in practice it's the target that decides:
 
-* Closer than WARN_DEG (30): a warning on the front panel about eyes and
-  equipment; Cancel is selected first.
-* Closer than DANGER_DEG (20): a danger notice, then a code of four random
-  arrows that the ESP32 picks and shows, to be pressed in order on the panel.
+* a target closer than WARN_DEG (30): a warning on the front panel about
+  eyes and equipment; Cancel is selected first;
+* closer than DANGER_DEG (20), at the target or on the way: a danger
+  notice, then a code of four random arrows that the ESP32 picks and
+  shows, to be pressed in order.
 
-With no panel attached a warning is only logged, and anything inside 20 deg
-is refused: someone has to be at the telescope to confirm it. An answer
-holds for that target for APPROVAL_S, so a panel flow that asks first
-isn't asked again when it calls trackCoordinates.
+Moving away from the Sun (from a target near it) isn't getting close. With
+no panel attached a warning is only logged and anything inside 20 deg is
+refused: someone has to be at the telescope.
+
+A yes is a SunApproval: the panel flow that asked passes it to
+trackCoordinates (keyword only; a server request can't make one), for that
+target, once, within APPROVAL_S. The tracking loop then holds the session
+to it: never closer to the Sun than the route or the target allowed
+(tracking._sun_and_limits_problem).
 
 The Sun's position is computed here (sky_view.sun_radec), so this works
 offline. It applies whether or not the Sun is up.
 """
 from __future__ import annotations
 
-import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 from utils.sky_view import angular_distance, sun_radec
 
 WARN_DEG = 30.0
 DANGER_DEG = 20.0
+ROUTE_MARGIN_DEG = 2.0   # routes keep this much further out than DANGER_DEG
 PROMPT_TIMEOUT_S = 90.0
 APPROVAL_S = 120.0
 CANCELLED = "Cancelled"
@@ -37,25 +44,36 @@ CANCELLED = "Cancelled"
 RaDec = Tuple[float, float]
 
 
+def keep_out_deg(start_deg: float, target_deg: float) -> float:
+	"""How far from the Sun a route keeps: outside the danger zone, but
+	never asked to be further out than its own start or target are."""
+	return max(0.0, min(DANGER_DEG + ROUTE_MARGIN_DEG, start_deg - 0.5, target_deg - 0.5))
+
+
 @dataclass
 class SunCheck:
 	name: str
 	target_deg: float  # target to the Sun
-	path_deg: float    # closest approach on the slew, target included
-
-	@property
-	def closest(self) -> float:
-		return min(self.target_deg, self.path_deg)
+	path_deg: float    # closest on the route, target included
+	start_deg: float = 180.0  # where it starts
 
 	@property
 	def on_the_way(self) -> bool:
-		return self.path_deg < self.target_deg - 1.0
+		# The route goes closer than both its ends.
+		return self.path_deg < self.target_deg - 1.0 and self.path_deg < self.start_deg - 0.5
+
+	@property
+	def closest(self) -> float:
+		return self.path_deg if self.on_the_way else self.target_deg
 
 	@property
 	def level(self) -> str:
+		# The code for getting inside DANGER_DEG at all, on the way or at the
+		# target; the warning is about where it'll point (a slew curving
+		# round the keep-out passes inside WARN_DEG without stopping there).
 		if self.closest < DANGER_DEG:
 			return "danger"
-		return "warn" if self.closest < WARN_DEG else "clear"
+		return "warn" if self.target_deg < WARN_DEG else "clear"
 
 	def where(self) -> str:
 		if self.on_the_way:
@@ -63,82 +81,45 @@ class SunCheck:
 		return f"{self.name}: {self.target_deg:.0f} deg from the Sun."
 
 
-def _wrap180(deg: float) -> float:
-	return (deg + 180.0) % 360.0 - 180.0
+@dataclass(frozen=True)
+class SunApproval:
+	"""A yes from the panel for one target."""
+	ra: float
+	dec: float
+	closest_deg: float
+	expires: float  # time.monotonic()
+
+	def covers(self, ra: float, dec: float, closest_deg: float) -> bool:
+		return (time.monotonic() < self.expires
+			and angular_distance(ra, dec, self.ra, self.dec) < 0.05
+			and closest_deg >= self.closest_deg - 1.0)
 
 
-def closest_on_slew(start: RaDec, end: RaDec, sun: RaDec, ra_gear: float, dec_gear: float,
-		samples: int = 240) -> float:
-	"""Closest approach to the Sun along a slew from start to end, as
-	tracking._move_motors drives it: both axes at once at the same step rate,
-	so in sky degrees Dec moves ra_gear/dec_gear times as fast as RA, and RA
-	goes the short way round."""
-	d_ra = _wrap180(end[0] - start[0])
-	d_dec = end[1] - start[1]
-	# Motor degrees for each axis; the longer one sets the slew's length.
-	length = max(abs(d_ra) * ra_gear, abs(d_dec) * dec_gear)
-	closest = angular_distance(end[0], end[1], sun[0], sun[1])
-	if length <= 0:
-		return closest
-	for i in range(samples + 1):
-		s = length * i / samples
-		ra = start[0] + (min(abs(d_ra), s / ra_gear) if d_ra >= 0 else -min(abs(d_ra), s / ra_gear))
-		dec = start[1] + (min(abs(d_dec), s / dec_gear) if d_dec >= 0 else -min(abs(d_dec), s / dec_gear))
-		closest = min(closest, angular_distance(ra % 360.0, max(-90.0, min(90.0, dec)), sun[0], sun[1]))
-	return closest
-
-
-def check(name: str, ra: float, dec: float, start: Optional[RaDec] = None,
-		when: Optional[datetime] = None) -> SunCheck:
-	"""How close a go-to from start (default: where the telescope is now)
-	to (ra, dec) comes to the Sun."""
-	sun = sun_radec(when or datetime.now(timezone.utc))
-	target_deg = angular_distance(ra, dec, sun[0], sun[1])
-	if start is None:
-		start = _current_position()
-	path_deg = target_deg
+def check(name: str, ra: float, dec: float, start: Optional[RaDec] = None) -> SunCheck:
+	"""How close a go-to to (ra, dec) comes to the Sun on its planned route.
+	start=(ra, dec) means it's already pointing there (nothing slews)."""
+	sun_ra, sun_dec = sun_radec(datetime.now(timezone.utc))
+	target_deg = angular_distance(ra, dec, sun_ra, sun_dec)
 	if start is not None:
-		from utils.config_state import get_slew_config
-
-		config = get_slew_config()
-		path_deg = closest_on_slew(start, (ra, dec), sun, config["ra_gear_ratio"], config["dec_gear_ratio"])
-	return SunCheck(name, target_deg, path_deg)
-
-
-def _current_position() -> Optional[RaDec]:
+		start_deg = angular_distance(start[0], start[1], sun_ra, sun_dec)
+		return SunCheck(name, target_deg, min(target_deg, start_deg), start_deg)
 	try:
-		from utils.telescope_state import get_telescope_coords
+		from core.hardware import mount as mount_model
+		from core.hardware.tracking import plan_goto
+		from utils.telescope_state import get_mount_axes
 
-		coords = get_telescope_coords()
-	except Exception:
-		return None
-	if not coords:
-		return None
-	ra, dec = float(coords["right_ascension"]), float(coords["declination"])
-	if not (0.0 <= ra <= 360.0 and -90.0 <= dec <= 90.0):
-		return None
-	return ra, dec
+		axes = get_mount_axes()
+		route = plan_goto(ra, dec, start_axes=axes)
+	except Exception as exc:
+		print(f"[sun] Couldn't plan the route: {exc}")
+		route, axes = None, None
+	if route is None or axes is None:
+		return SunCheck(name, target_deg, target_deg)
+	from utils.telescope_state import get_telescope_coords
 
-
-# --- answers ------------------------------------------------------------------
-
-_approved: Dict[Tuple[int, int], float] = {}
-_lock = threading.Lock()
-
-
-def _key(ra: float, dec: float) -> Tuple[int, int]:
-	return int(round((ra % 360.0) * 10)), int(round(dec * 10))
-
-
-def _take_approval(ra: float, dec: float) -> bool:
-	with _lock:
-		expires = _approved.pop(_key(ra, dec), 0.0)
-	return expires > time.monotonic()
-
-
-def _approve(ra: float, dec: float) -> None:
-	with _lock:
-		_approved[_key(ra, dec)] = time.monotonic() + APPROVAL_S
+	now = get_telescope_coords()
+	start_deg = angular_distance(now["right_ascension"], now["declination"], sun_ra, sun_dec) if now else 180.0
+	return SunCheck(name, target_deg, route.sun_deg, start_deg)
 
 
 def _panel():
@@ -173,29 +154,25 @@ def _ask(ui, c: SunCheck) -> bool:
 
 
 def confirm_goto(name: str, ra: float, dec: float, start: Optional[RaDec] = None,
-		remember: bool = True) -> Tuple[bool, str]:
+		approval: Optional[SunApproval] = None) -> Tuple[bool, str, Optional[SunApproval]]:
 	"""Whether a go-to may go ahead, asking on the panel if it comes near the
-	Sun. start: where the slew begins (default: the telescope now; pass the
-	target itself when nothing will move). remember: keep a yes for the
-	go-to that follows (trackCoordinates, which asks last, doesn't).
-	Returns (allowed, reason)."""
+	Sun. start: see check(). approval: a yes the caller already has for
+	this target. Returns (allowed, reason, the approval to pass on)."""
 	c = check(name, ra, dec, start)
 	if c.level == "clear":
-		return True, ""
-	if _take_approval(ra, dec):
+		return True, "", None
+	if isinstance(approval, SunApproval) and approval.covers(ra, dec, c.closest):
 		print(f"[sun] {c.where()} Already confirmed on the panel.")
-		return True, ""
+		return True, "", approval
 	ui = _panel()
 	if ui is None:
 		if c.level == "warn":
 			print(f"[sun] Warning: {c.where()} (no front panel to show it on)")
-			return True, ""
+			return True, "", None
 		print(f"[sun] Refused: {c.where()} Within {DANGER_DEG:.0f} deg needs confirming on the front panel.")
-		return False, f"Within {DANGER_DEG:.0f} deg of the Sun: confirm on the telescope's front panel"
+		return False, f"Within {DANGER_DEG:.0f} deg of the Sun: confirm on the telescope's front panel", None
 	if _ask(ui, c):
 		print(f"[sun] {c.where()} Confirmed on the panel ({c.level}).")
-		if remember:
-			_approve(ra, dec)
-		return True, ""
+		return True, "", SunApproval(ra % 360.0, dec, c.closest, time.monotonic() + APPROVAL_S)
 	print(f"[sun] {c.where()} Not confirmed: not going.")
-	return False, CANCELLED
+	return False, CANCELLED, None

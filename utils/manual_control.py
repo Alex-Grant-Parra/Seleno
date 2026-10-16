@@ -19,7 +19,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
 
 from utils.sky_view import lst_degrees, radec_to_altaz
 
@@ -262,34 +262,40 @@ def _release_estop(ui: "PanelUI") -> bool:
 	return True
 
 
-def _sun_ok(ui: "PanelUI", name: str, ra: float, dec: float, start: Optional[Tuple[float, float]] = None) -> bool:
-	# Asked first, before anything else is changed (utils/sun_guard.py);
-	# trackCoordinates then finds the answer and doesn't ask again.
+# What _sun_ok and _safe_to_go return when it's a no.
+_NO = (False, None)
+
+
+def _sun_ok(ui: "PanelUI", name: str, ra: float, dec: float,
+		start: Optional[Tuple[float, float]] = None) -> Tuple[bool, Any]:
+	# Asked first, before anything else is changed (utils/sun_guard.py).
+	# The approval goes on to trackCoordinates so it doesn't ask again.
 	from utils import sun_guard
 
-	allowed, reason = sun_guard.confirm_goto(name, ra, dec, start=start)
+	allowed, reason, approval = sun_guard.confirm_goto(name, ra, dec, start=start)
 	if not allowed and reason != sun_guard.CANCELLED:
 		ui.prompt("message", "Not going", reason)
-	return allowed
+	return allowed, approval
 
 
-def _safe_to_go(ui: "PanelUI", name: str, ra: float, dec: float, here: Tuple[float, float]) -> bool:
-	if not _sun_ok(ui, name, ra, dec):
-		return False
+def _safe_to_go(ui: "PanelUI", name: str, ra: float, dec: float, here: Tuple[float, float]) -> Tuple[bool, Any]:
+	allowed, approval = _sun_ok(ui, name, ra, dec)
+	if not allowed:
+		return _NO
 	now = datetime.now(timezone.utc)
 	alt, _az = radec_to_altaz(ra, dec, lst_degrees(now, here[1]), here[0])
 	if alt < 0:
 		if not ui.prompt("confirm", "Below the horizon",
 				f"{name} is {-alt:.0f} deg below the horizon. Go anyway?", yes="Go", no="Cancel").get("value"):
-			return False
-	return _release_estop(ui)
+			return _NO
+	return (True, approval) if _release_estop(ui) else _NO
 
 
-def _start(ui: "PanelUI", name: str, ra: float, dec: float, mag: Optional[float]) -> None:
+def _start(ui: "PanelUI", name: str, ra: float, dec: float, mag: Optional[float], approval: Any = None) -> None:
 	# The panel switches to the sky view itself once the slew starts.
 	from core.hardware.tracking import trackCoordinates
 
-	result = trackCoordinates(name, ra, dec, mag)
+	result = trackCoordinates(name, ra, dec, mag, sun_approval=approval)
 	if isinstance(result, dict) and result.get("error"):
 		ui.toast(str(result["error"])[:60])
 
@@ -307,8 +313,9 @@ def goto_coordinates(ui: "PanelUI") -> None:
 			yes="Go", no="Cancel", default="yes").get("value"):
 		return
 	name = target_name(ra, dec)
-	if _safe_to_go(ui, name, ra, dec, here):
-		_start(ui, name, ra, dec, None)
+	ok, approval = _safe_to_go(ui, name, ra, dec, here)
+	if ok:
+		_start(ui, name, ra, dec, None, approval)
 
 
 def goto_star(ui: "PanelUI") -> None:
@@ -316,8 +323,11 @@ def goto_star(ui: "PanelUI") -> None:
 	if here is None:
 		return
 	star = _pick_star(ui, "Go to star", here)
-	if star is not None and _safe_to_go(ui, star.name, star.ra, star.dec, here):
-		_start(ui, star.name, star.ra, star.dec, star.mag)
+	if star is None:
+		return
+	ok, approval = _safe_to_go(ui, star.name, star.ra, star.dec, here)
+	if ok:
+		_start(ui, star.name, star.ra, star.dec, star.mag, approval)
 
 
 def align_on_star(ui: "PanelUI") -> None:
@@ -333,12 +343,11 @@ def align_on_star(ui: "PanelUI") -> None:
 		return
 	# Nothing slews (it's already there), but tracking it near the Sun
 	# still needs confirming.
-	if not _sun_ok(ui, star.name, star.ra, star.dec, start=(star.ra, star.dec)):
-		return
-	if not _release_estop(ui):
+	allowed, approval = _sun_ok(ui, star.name, star.ra, star.dec, start=(star.ra, star.dec))
+	if not allowed or not _release_estop(ui):
 		return
 	from core.hardware.tracking import sync_position
 
 	sync_position(star.ra, star.dec)
 	ui.toast(f"Aligned on {star.name}")
-	_start(ui, star.name, star.ra, star.dec, star.mag)
+	_start(ui, star.name, star.ra, star.dec, star.mag, approval)

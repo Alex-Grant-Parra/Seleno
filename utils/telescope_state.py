@@ -1,8 +1,14 @@
-from datetime import datetime
-from typing import Optional, Dict, Any
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any, Tuple
 from utils.config_state import load_runtime_state, save_runtime_state, runtime_state_lock, get_slew_config as get_static_slew_config
 
 _STATE_CACHE: Optional[Dict[str, Any]] = None
+
+# Where the telescope points is kept as its two axis angles (axis_ra_deg,
+# axis_dec_deg; see core/hardware/mount.py): that says which side of the
+# mount it's on and how far each axis has turned. The current RA/Dec follow
+# from them and the time (a stopped telescope's RA drifts with the sky), and
+# are written alongside for anything that reads the file.
 
 
 def _load_state_from_disk() -> Optional[Dict[str, Any]]:
@@ -38,16 +44,92 @@ def _write_state_to_disk(state_update: Dict[str, Any]) -> None:
         _STATE_CACHE = merged
 
 
+def _longitude() -> Optional[float]:
+    from utils.location import get_current_location
+
+    loc = get_current_location() or {}
+    lon = loc.get("longitude")
+    return float(lon) if lon is not None else None
+
+
+def _lst(longitude: float, when: Optional[datetime] = None) -> float:
+    from utils.sky_view import lst_degrees
+
+    return lst_degrees(when or datetime.now(timezone.utc), longitude)
+
+
+def _mount_config():
+    from core.hardware.mount import MountConfig
+    from utils.config_state import get_mount_config
+
+    m = get_mount_config()
+    return MountConfig(ra_limits=tuple(m["ra_axis_limits"]), dec_limits=tuple(m["dec_axis_limits"]),
+        pole_crossing=m["pole_crossing"])
+
+
+def get_mount_axes() -> Optional[Tuple[float, float]]:
+    """The telescope's axis angles (RA axis, Dec axis), degrees. Older
+    state files only have RA/Dec: the axes are then worked out from them as
+    they were when saved (the mount held still since), on the normal side."""
+    global _STATE_CACHE
+    if _STATE_CACHE is None:
+        _STATE_CACHE = _load_state_from_disk()
+    state = _STATE_CACHE or {}
+    a, d = state.get("axis_ra_deg"), state.get("axis_dec_deg")
+    if a is not None and d is not None:
+        return float(a), float(d)
+    lon = _longitude()
+    ra, dec = state.get("current_right_ascension"), state.get("current_declination")
+    if lon is None or ra is None or dec is None:
+        return None
+    when = None
+    try:
+        stamp = datetime.fromisoformat(str(state.get("updated_at")))
+        when = stamp if stamp.tzinfo else stamp.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        pass
+    from core.hardware.mount import wrap180
+
+    axes = (wrap180(_lst(lon, when) - float(ra)), max(-90.0, min(90.0, float(dec))))
+    _write_state_to_disk({"axis_ra_deg": axes[0], "axis_dec_deg": axes[1]})
+    return axes
+
+
+def set_mount_axes(ra_axis: float, dec_axis: float, source: str = "tracking") -> None:
+    """Record the axis angles (and the RA/Dec they point at now)."""
+    update: Dict[str, Any] = {
+        "axis_ra_deg": float(ra_axis),
+        "axis_dec_deg": float(dec_axis),
+        "source": source,
+        "updated_at": datetime.utcnow().isoformat(),
+    }
+    lon = _longitude()
+    if lon is not None:
+        from core.hardware.mount import sky_from_axes
+
+        ha, dec = sky_from_axes(ra_axis, dec_axis)
+        update["current_right_ascension"] = (_lst(lon) - ha) % 360.0
+        update["current_declination"] = dec
+        update["current_hour_angle"] = ha
+    _write_state_to_disk(update)
+
+
 def get_telescope_coords() -> Optional[Dict[str, float]]:
-    # Return the current telescope coordinates (RA/Dec) if available.
-    # 
-    # Returns RA (right ascension) which is time-invariant, unlike hour angle.
-    # Use get_telescope_hour_angle() to get the current hour angle.
+    # Return the current telescope coordinates (RA/Dec) if available: from
+    # the axis angles and the time when they're known.
     global _STATE_CACHE
     if _STATE_CACHE is None:
         _STATE_CACHE = _load_state_from_disk()
     if not _STATE_CACHE:
         return None
+    a, d = _STATE_CACHE.get("axis_ra_deg"), _STATE_CACHE.get("axis_dec_deg")
+    if a is not None and d is not None:
+        lon = _longitude()
+        if lon is not None:
+            from core.hardware.mount import sky_from_axes
+
+            ha, dec = sky_from_axes(float(a), float(d))
+            return {"right_ascension": (_lst(lon) - ha) % 360.0, "declination": dec}
     
     # Handle backward compatibility: old state files may have 'right_ascension'/'declination'
     current_ra = _STATE_CACHE.get("current_right_ascension")
@@ -115,6 +197,19 @@ def set_telescope_coords(right_ascension: float, declination: float, source: str
     if hour_angle is not None:
         update["current_hour_angle"] = float(hour_angle)
 
+    # The axes that point there now, on the side of the mount it's on (a
+    # sync doesn't flip it); without a site they're worked out later.
+    lon = _longitude()
+    if lon is not None:
+        from core.hardware.mount import nearest_solution, wrap180
+
+        ha = wrap180(_lst(lon) - float(right_ascension))
+        near = get_mount_axes() or (ha, float(declination))
+        axes = nearest_solution(ha, float(declination), near, _mount_config())
+        update["axis_ra_deg"], update["axis_dec_deg"] = axes
+    else:
+        update["axis_ra_deg"] = update["axis_dec_deg"] = None
+
     _write_state_to_disk(update)
     print(f"[telescope_state] Current coords set: RA={right_ascension:.4f}°, Dec={declination:.4f}°")
 
@@ -149,6 +244,20 @@ def update_hour_angle() -> Optional[float]:
     global _STATE_CACHE
     if _STATE_CACHE is None:
         _STATE_CACHE = _load_state_from_disk() or {}
+
+    # With the axis angles known, the hour angle is the RA axis's (it only
+    # changes when the motor turns) and it's the RA that drifts.
+    a, d = _STATE_CACHE.get("axis_ra_deg"), _STATE_CACHE.get("axis_dec_deg")
+    if a is not None and d is not None:
+        from core.hardware.mount import sky_from_axes
+
+        coords = get_telescope_coords()
+        ha, _dec = sky_from_axes(float(a), float(d))
+        update = {"current_hour_angle": float(ha)}
+        if coords:
+            update["current_right_ascension"] = coords["right_ascension"]
+        _write_state_to_disk(update)
+        return ha
 
     # Get current RA (which is time-invariant)
     current_ra = _STATE_CACHE.get("current_right_ascension", 0.0)

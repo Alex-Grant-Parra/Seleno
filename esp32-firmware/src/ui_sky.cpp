@@ -468,6 +468,15 @@ class SkyScreen : public Screen {
       if (!stepperIsMoving(a)) continue;
       int32_t rem = stepperPulsesRemaining(a);
       uint16_t c = tone(t.warn);
+      if (stepperPathActive()) {
+        // A curved slew: both arcs show how far along the path it is.
+        float done = static_cast<float>(stepperPathProgress());
+        if (done > 0.0f) {
+          if (a == 0) g.fillArc(cx, cy, 15, 14, start + span * (1.0f - done), start + span, c);
+          else g.fillArc(cx, cy, 15, 14, start, start + span * done, c);
+        }
+        continue;
+      }
       if (rem < 0) {
         // Continuous (tracking): a short segment sweeping along the arc.
         float pos = static_cast<float>((millis() / 25) % 140);
@@ -610,6 +619,7 @@ class SkyScreen : public Screen {
 
   // Seconds until both axes finish their finite moves (0 = none running).
   uint32_t etaSeconds() const {
+    if (stepperPathActive()) return static_cast<uint32_t>(stepperPathEtaSeconds() + 0.5);
     float worst = 0.0f;
     for (int a = 0; a < kAxisCount; a++) {
       int32_t rem = stepperPulsesRemaining(a);

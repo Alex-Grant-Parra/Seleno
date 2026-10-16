@@ -51,6 +51,16 @@ def _default_static_state() -> Dict[str, Any]:
             "ra_gear_ratio": 360.0,
             "dec_gear_ratio": 144.0,
         },
+        "mount": {
+            # How far each axis may turn, degrees (core/hardware/mount.py).
+            # RA: from the meridian; Dec: from the equator, where past +-90
+            # the telescope is on the other side of the mount (over a pole).
+            # Slews take the quickest way, over a pole if that's quicker,
+            # unless pole_crossing is off.
+            "ra_axis_limits": [-270.0, 270.0],
+            "dec_axis_limits": [-180.0, 180.0],
+            "pole_crossing": True,
+        },
         "esp32": {
             # "auto": USB serial devices (dev kit) first, then the Pi's GPIO
             # UART (SELENO v0.8 board on J7). A found port is saved here and
@@ -139,6 +149,8 @@ def _migrate_static_state() -> Dict[str, Any]:
             state["slew_config"] = _merge_defaults(defaults["slew_config"], static_existing["slew_config"])
         if "esp32" in static_existing and isinstance(static_existing["esp32"], dict):
             state["esp32"] = _merge_defaults(defaults["esp32"], static_existing["esp32"])
+        if "mount" in static_existing and isinstance(static_existing["mount"], dict):
+            state["mount"] = _merge_defaults(defaults["mount"], static_existing["mount"])
 
     if "slew_config" in telescope_legacy and isinstance(telescope_legacy["slew_config"], dict):
         state["slew_config"] = _merge_defaults(state["slew_config"], telescope_legacy["slew_config"])
@@ -347,6 +359,21 @@ def get_slew_config() -> Dict[str, float]:
         "ra_gear_ratio": float(merged.get("ra_gear_ratio", defaults["ra_gear_ratio"])),
         "dec_gear_ratio": float(merged.get("dec_gear_ratio", defaults["dec_gear_ratio"])),
     }
+
+
+def get_mount_config() -> Dict[str, Any]:
+    defaults = _default_static_state()["mount"]
+    saved = load_static_state().get("mount", {})
+    merged = _merge_defaults(defaults, saved if isinstance(saved, dict) else {})
+    try:
+        ra = [float(v) for v in merged["ra_axis_limits"]][:2]
+        dec = [float(v) for v in merged["dec_axis_limits"]][:2]
+        if len(ra) != 2 or len(dec) != 2 or ra[0] >= ra[1] or dec[0] >= dec[1]:
+            raise ValueError
+    except (TypeError, ValueError, KeyError):
+        print("[config] Bad mount limits in config/client_config.json; using the defaults")
+        ra, dec = defaults["ra_axis_limits"], defaults["dec_axis_limits"]
+    return {"ra_axis_limits": ra, "dec_axis_limits": dec, "pole_crossing": bool(merged.get("pole_crossing", True))}
 
 
 def save_slew_config(slew_config: Dict[str, Any]) -> None:

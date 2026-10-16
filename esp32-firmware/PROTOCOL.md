@@ -139,8 +139,9 @@ floor of that value in logical steps; `position_fine` is the exact
 | `turn_degrees` | `degrees`, `forward` | Negative degrees reverse |
 | `move_steps` | `steps` (signed, logical) | |
 | `start_continuous` | `forward` | Runs until `stop`; the sidereal tracking path |
-| `stop` | | Ramps down from above the start speed, otherwise immediate |
-| `status` | | `enabled`, `moving`, `position`, `position_fine`, `steps_per_rev`, `speed_sps`, `speed_us`, `accel_sps2`, `start_sps`, `pulses_remaining` (−1 = continuous), `pulse_rate` (cruise), `pulse_rate_now`, `microsteps` (driver), `microstep_mode` (`auto`/`fixed`), `auto{}`, `chopper`, `chopper_threshold_fsps`, `driver_present` |
+| `stop` | | Ramps down from above the start speed, otherwise immediate. During a `path`, either motor's stop slows both along the path |
+| `path` (no `motor`) | `points`: up to 63 `[motor1, motor2]` pairs, logical steps from where the motors are now; `speed`: logical steps/s for the faster motor (default motor1's speed) | Both motors along the polyline as one smooth move: see below. Reply: `points`, `eta_s` |
+| `status` | | `enabled`, `moving`, `position`, `position_fine`, `steps_per_rev`, `speed_sps`, `speed_us`, `accel_sps2`, `start_sps`, `pulses_remaining` (−1 = continuous, and during a path), `pulse_rate` (cruise), `pulse_rate_now`, `microsteps` (driver), `microstep_mode` (`auto`/`fixed`), `auto{}`, `chopper`, `chopper_threshold_fsps`, `driver_present`, `path_progress` (0–1, while a path runs) |
 | `get_position` | | `position`, `position_fine`, `steps_per_rev`, `moving` |
 | `reset_position` / `set_position` (`position`, logical) | | |
 | `set_microsteps` | `microsteps`: `"auto"` or 1–256 (power of two) | A fixed value applies now (refused while moving) and turns auto off |
@@ -153,6 +154,23 @@ floor of that value in logical steps; `position_fine` is the exact
 
 Other defaults: 1.0 A run current, 0.5 A hold current, 256-step
 interpolation, StallGuard off.
+
+### Paths
+
+`path` moves both motors together along straight stretches between the
+points (src/logic/path.h): each stretch is a linear move of both axes, its
+faster motor at `speed`. It doesn't stop at the corners: the speed through
+a corner is limited so neither motor's speed jumps by more than the start
+speed (the lower of the two motors' `start_sps`), so a gently curving path
+(small turns at each point) keeps its speed throughout, and a sharp turn
+or reversal slows briefly. It accelerates and brakes at the lower of the
+two motors' `accel_sps2`, starting and ending at the start speed. A motor
+can change direction mid-path. Each motor's microstep setting is picked for
+its fastest speed on the path. Both end at the last point exactly, with
+`motion_done` `complete`. The Pi uses it for every slew: curving round
+the Sun, and over a pole (core/hardware/mount.py). The same checks as other
+moves apply (E-stop, the front panel's hold, engaged, not moving), and the
+RETURN policy sees its speed.
 
 ### Step timing
 
