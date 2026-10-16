@@ -29,8 +29,8 @@ constexpr uint32_t kHostBaud = SELENO_HOST_BAUD;
 constexpr uint16_t kHostTxChunkBytes = 32;
 constexpr uint16_t kHostTxGapUs = 500;
 // Large enough to absorb bursts while the main loop is busy drawing.
-constexpr size_t kHostRxBufferBytes = 8192;
-constexpr size_t kMaxCommandLineBytes = 4096;
+constexpr size_t kHostRxBufferBytes = 12288;
+constexpr size_t kMaxCommandLineBytes = 12288;  // the Pi's menu (ui hello) is about 6 KB
 // Abort a binary transfer if the host goes quiet for this long.
 constexpr uint32_t kTransferTimeoutMs = 5000;
 

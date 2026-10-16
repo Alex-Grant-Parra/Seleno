@@ -1,8 +1,14 @@
+import atexit
+import glob
 import json
 import os
 import threading
+import time
 from copy import deepcopy
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from utils.log import get_logger
+
+log = get_logger("config")
 
 CLIENT_PROFILE_FILE = os.path.join("config", "client_profile.json")
 STATIC_STATE_FILE = os.path.join("config", "client_config.json")
@@ -20,9 +26,10 @@ runtime_state_lock = threading.RLock()
 
 
 def _normalize_base_url(raw_url: str) -> str:
+    # "" stays "": no server set (never a built-in default).
     raw_url = (raw_url or "").strip()
     if not raw_url:
-        return "https://telescopes.dev/"
+        return ""
     if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
         raw_url = f"https://{raw_url}"
     return raw_url.rstrip("/") + "/"
@@ -30,6 +37,8 @@ def _normalize_base_url(raw_url: str) -> str:
 
 def build_service_urls(base_url: str) -> Dict[str, str]:
     normalized = _normalize_base_url(base_url)
+    if not normalized:
+        raise ValueError("No server set")
     host = normalized.split("://", 1)[1].rstrip("/")
     ws_scheme = "wss" if normalized.startswith("https://") else "ws"
     return {
@@ -60,6 +69,87 @@ def _default_static_state() -> Dict[str, Any]:
             "ra_axis_limits": [-270.0, 270.0],
             "dec_axis_limits": [-180.0, 180.0],
             "pole_crossing": True,
+            # "auto" (from the site's latitude), "north" or "south"
+            "hemisphere": "auto",
+            # Park/home: axis angles. (0, 90) points at the pole with the
+            # counterweight down, the usual place to start a session.
+            "park_axes": [0.0, 90.0],
+            # Extra motor steps taken when an axis reverses, to take up the
+            # gears' slack (0: none).
+            "backlash_steps": [0, 0],
+        },
+        "horizon": {
+            # Go-tos from the server below this altitude are refused (the
+            # panel asks), and tracking stops when the target sets below it.
+            "min_alt_deg": 0.0,
+            # Optional [[azimuth, altitude], ...] (trees, a house): the
+            # higher of this and min_alt_deg applies.
+            "profile": [],
+            "stop_when_set": True,
+        },
+        "tracking": {
+            # "sidereal", "lunar", "solar" or "custom" (custom_arcsec_per_s
+            # of RA). The Moon and planets are followed with their own
+            # rates automatically when auto_rate is on.
+            "rate": "sidereal",
+            "custom_arcsec_per_s": 15.041,
+            "auto_rate": True,
+            # Aim where things appear (the air lifts them near the horizon).
+            "refraction": True,
+        },
+        "liveview": {
+            # "low", "medium", "high" or "original" (as the camera sends it)
+            "quality": "medium",
+            "max_fps": 10.0,      # while slewing, focusing or changing
+            "still_fps": 2.0,     # while the view isn't changing
+            "keyframe_s": 5.0,    # an unchanged view is still sent this often
+            "adaptive": True,     # lower the quality when the link is slow
+            "idle_stop_min": 0,   # stop after this long with no viewers (0: never)
+            "viewer_grace_s": 60, # pause this long after the last viewer leaves
+        },
+        "camera": {
+            # "auto" (libgphoto2 if installed, else the gphoto2 command),
+            # "libgphoto2" or "cli"
+            "backend": "auto",
+            # Turn the camera's auto power-off off while live view runs.
+            "keep_awake": True,
+        },
+        "upload": {
+            # RAW files: "after_jpeg" (queued behind the JPEGs),
+            # "on_request" (kept on the Pi until asked) or "never".
+            "raw": "after_jpeg",
+            "retry_max_s": 600,
+        },
+        "local_page": {
+            # A page on the local network with the live view, photos and
+            # status; it asks for the code shown on the front panel.
+            "enabled": False,
+            "port": 8080,
+        },
+        "server": {
+            # Raw motor commands from the server (espStart, espMoveSteps...):
+            # "guarded" (refused near the Sun or past the axis limits),
+            # "off" or "unrestricted" (bench testing only).
+            "raw_motor_commands": "guarded",
+            # Send the client's status that often (seconds, 15 at least; 0:
+            # off). The ASTRA server only logs such messages for now.
+            "status_push_s": 0,
+            # Let the server update the client (git pull and restart).
+            "allow_remote_update": False,
+            "allow_firmware_update": False,
+        },
+        "solver": {
+            # ASTAP (astap_cli). "" finds it in ~/astap or on the PATH.
+            "path": "",
+            "fov_deg": 0.0,           # image height in degrees; 0: work it out
+            "search_radius_deg": 15.0,
+            "timeout_s": 60.0,
+            "centre_tolerance_arcmin": 2.0,
+            "drift_check_min": 0,     # re-solve and correct while tracking (0: off)
+        },
+        "gps": {
+            "enabled": True,
+            "poll_s": 60.0,
         },
         "esp32": {
             # "auto": USB serial devices (dev kit) first, then the Pi's GPIO
@@ -117,14 +207,44 @@ def _has_valid_state_file(path: str) -> bool:
     return isinstance(data, dict)
 
 
-def _save_json(path: str, payload: Dict[str, Any]) -> None:
+def _save_json(path: str, payload: Dict[str, Any], sync: bool = True) -> None:
     # Write to a temp file and rename over the target, so a concurrent reader never
     # sees a truncated file (which would load as defaults and be saved back as zeros).
+    # sync: flush it to the SD card before the rename, so a power cut (the usual way
+    # a telescope in a field stops) leaves the old file or the new one, not nothing.
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp_path = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
     with open(tmp_path, "w") as f:
         json.dump(payload, f, indent=2)
+        if sync:
+            f.flush()
+            os.fsync(f.fileno())
     os.replace(tmp_path, path)
+    if sync:
+        try:
+            fd = os.open(os.path.dirname(path) or ".", os.O_RDONLY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        except OSError:
+            pass
+
+
+def remove_stale_temp_files(max_age_s: float = 60.0) -> int:
+    # Temp files left by writes that were cut off (the process was killed
+    # between the write and the rename). Returns how many were removed.
+    removed = 0
+    folders = {os.path.dirname(p) or "." for p in (CLIENT_PROFILE_FILE, STATIC_STATE_FILE, RUNTIME_STATE_FILE)}
+    for folder in folders:
+        for tmp in glob.glob(os.path.join(folder, "*.json.*.tmp")):
+            try:
+                if time.time() - os.path.getmtime(tmp) > max_age_s:
+                    os.remove(tmp)
+                    removed += 1
+            except OSError:
+                pass
+    return removed
 
 
 def _merge_defaults(defaults: Dict[str, Any], incoming: Dict[str, Any]) -> Dict[str, Any]:
@@ -237,6 +357,7 @@ def ensure_state_files() -> None:
     global _STATE_READY
     if _STATE_READY:
         return
+    remove_stale_temp_files()
 
     if (
         _has_valid_state_file(CLIENT_PROFILE_FILE)
@@ -282,19 +403,96 @@ def save_static_state(state: Dict[str, Any]) -> None:
     _STATE_READY = True
 
 
+class RuntimeStore:
+    """config/runtime_state.json, held in memory.
+
+    Reads come from memory. Changes are written out in the background, at
+    most every FLUSH_DELAY_S (when="soon": the axes while tracking), at once
+    (when="now": a stop, a sync, a park) or not at all (when="never": values
+    worked out from others). Before this, the file was rewritten every
+    second whether anything had changed or not."""
+
+    FLUSH_DELAY_S = 5.0
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._path: Optional[str] = None
+        self._data: Dict[str, Any] = {}
+        self._dirty = False
+        self._timer: Optional[threading.Timer] = None
+
+    def _ensure_loaded(self) -> None:
+        # Reload when the path changes (the tests point it at copies).
+        if self._path == RUNTIME_STATE_FILE:
+            return
+        ensure_state_files()
+        loaded = _load_json(RUNTIME_STATE_FILE)
+        self._data = _merge_defaults(_default_runtime_state(), loaded or {})
+        self._path = RUNTIME_STATE_FILE
+        self._dirty = False
+
+    def reload(self) -> None:
+        with self._lock:
+            self._path = None
+            self._ensure_loaded()
+
+    def get(self, key: str, default: Any = None) -> Any:
+        with self._lock:
+            self._ensure_loaded()
+            return deepcopy(self._data.get(key, default))
+
+    def snapshot(self) -> Dict[str, Any]:
+        with self._lock:
+            self._ensure_loaded()
+            return deepcopy(self._data)
+
+    def update(self, changes: Dict[str, Any], when: str = "soon") -> None:
+        with self._lock:
+            self._ensure_loaded()
+            self._data.update(deepcopy(changes))
+            if when == "never":
+                return
+            self._dirty = True
+            if when == "now":
+                self._flush_locked()
+            elif self._timer is None:
+                self._timer = threading.Timer(self.FLUSH_DELAY_S, self.flush)
+                self._timer.daemon = True
+                self._timer.start()
+
+    def flush(self) -> None:
+        with self._lock:
+            self._flush_locked()
+
+    def _flush_locked(self) -> None:
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+        if not self._dirty or self._path is None:
+            return
+        try:
+            _save_json(self._path, self._data)
+            self._dirty = False
+        except OSError as exc:
+            log.warning(f"Couldn't save the runtime state: {exc}")
+
+
+_RUNTIME_STORE = RuntimeStore()
+atexit.register(_RUNTIME_STORE.flush)
+
+
+def runtime_store() -> RuntimeStore:
+    return _RUNTIME_STORE
+
+
 def load_runtime_state() -> Dict[str, Any]:
-    ensure_state_files()
-    return _load_json(RUNTIME_STATE_FILE) or _default_runtime_state()
+    return _RUNTIME_STORE.snapshot()
 
 
 def save_runtime_state(state: Dict[str, Any]) -> None:
     global _STATE_READY
-    with runtime_state_lock:
-        existing = _load_json(RUNTIME_STATE_FILE) or {}
-        normalized = _merge_defaults(_default_runtime_state(), existing)
-        normalized = _merge_defaults(normalized, state)
-        _save_json(RUNTIME_STATE_FILE, normalized)
-        _STATE_READY = True
+    _RUNTIME_STORE.update(state, when="now")
+    _STATE_READY = True
 
 
 def get_client_config() -> Dict[str, Any]:
@@ -361,6 +559,23 @@ def get_slew_config() -> Dict[str, float]:
     }
 
 
+def get_section(name: str) -> Dict[str, Any]:
+    """One section of config/client_config.json with its defaults filled in."""
+    defaults = _default_static_state().get(name, {})
+    saved = load_static_state().get(name, {})
+    return _merge_defaults(defaults, saved if isinstance(saved, dict) else {})
+
+
+def save_section(name: str, values: Dict[str, Any]) -> None:
+    """Change some settings in one section of config/client_config.json."""
+    state = load_static_state()
+    current = state.get(name) if isinstance(state.get(name), dict) else {}
+    current = dict(current)
+    current.update(values)
+    state[name] = current
+    save_static_state(state)
+
+
 def get_mount_config() -> Dict[str, Any]:
     defaults = _default_static_state()["mount"]
     saved = load_static_state().get("mount", {})
@@ -371,9 +586,20 @@ def get_mount_config() -> Dict[str, Any]:
         if len(ra) != 2 or len(dec) != 2 or ra[0] >= ra[1] or dec[0] >= dec[1]:
             raise ValueError
     except (TypeError, ValueError, KeyError):
-        print("[config] Bad mount limits in config/client_config.json; using the defaults")
+        log.info("Bad mount limits in config/client_config.json; using the defaults")
         ra, dec = defaults["ra_axis_limits"], defaults["dec_axis_limits"]
-    return {"ra_axis_limits": ra, "dec_axis_limits": dec, "pole_crossing": bool(merged.get("pole_crossing", True))}
+    hemisphere = str(merged.get("hemisphere", "auto")).lower()
+    if hemisphere not in ("auto", "north", "south"):
+        hemisphere = "auto"
+    try:
+        park = [float(v) for v in merged.get("park_axes", defaults["park_axes"])][:2]
+        backlash = [max(0, int(v)) for v in merged.get("backlash_steps", [0, 0])][:2]
+        if len(park) != 2 or len(backlash) != 2:
+            raise ValueError
+    except (TypeError, ValueError):
+        park, backlash = list(defaults["park_axes"]), [0, 0]
+    return {"ra_axis_limits": ra, "dec_axis_limits": dec, "pole_crossing": bool(merged.get("pole_crossing", True)),
+        "hemisphere": hemisphere, "park_axes": park, "backlash_steps": backlash}
 
 
 def save_slew_config(slew_config: Dict[str, Any]) -> None:

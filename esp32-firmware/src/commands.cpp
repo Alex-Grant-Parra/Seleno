@@ -194,9 +194,51 @@ void handleHost(JsonDocument& req) {
   hostSendResponse(resp);
 }
 
+// One LED's mode from a request (or a "leds" entry): "on", "off",
+// "toggle", "blink" (+ interval_ms, auto_off_ms). Returns an error or null.
+const char* applyLedMode(int led, const char* mode, uint32_t intervalMs, uint32_t autoOffMs) {
+  if (strcmp(mode, "on") == 0) {
+    ledSet(led, true);
+  } else if (strcmp(mode, "off") == 0) {
+    ledSet(led, false);
+  } else if (strcmp(mode, "blink") == 0) {
+    ledBlink(led, intervalMs, autoOffMs);
+  } else if (strcmp(mode, "toggle") == 0) {
+    ledToggle(led);
+  } else {
+    return "Invalid LED mode";
+  }
+  return nullptr;
+}
+
 void handleLed(JsonDocument& req) {
   if (uiLedTestActive()) {
     hostSendError("LED test running on the front panel");
+    return;
+  }
+  // Several at once: {"leds": {"red": "off", "blue": {"mode": "blink",
+  // "interval_ms": 700}}}. All are checked before any changes.
+  if (req["leds"].is<JsonObject>()) {
+    JsonObject leds = req["leds"].as<JsonObject>();
+    for (JsonPair kv : leds) {
+      if (ledFind(kv.key().c_str()) < 0) {
+        hostSendError("Unknown LED");
+        return;
+      }
+    }
+    for (JsonPair kv : leds) {
+      int led = ledFind(kv.key().c_str());
+      JsonVariant v = kv.value();
+      const char* mode = v.is<const char*>() ? v.as<const char*>() : (v["mode"] | "");
+      uint32_t interval = v.is<JsonObject>() ? (v["interval_ms"] | seleno::kDefaultLedBlinkMs) : seleno::kDefaultLedBlinkMs;
+      uint32_t autoOff = v.is<JsonObject>() ? (v["auto_off_ms"] | 0u) : 0u;
+      const char* error = applyLedMode(led, mode, interval, autoOff);
+      if (error != nullptr) {
+        hostSendError(error);
+        return;
+      }
+    }
+    hostSendOk();
     return;
   }
   const char* name = req["led"] | "board";
@@ -206,17 +248,10 @@ void handleLed(JsonDocument& req) {
     return;
   }
   if (!req["mode"].isNull()) {
-    const char* mode = req["mode"] | "";
-    if (strcmp(mode, "on") == 0) {
-      ledSet(led, true);
-    } else if (strcmp(mode, "off") == 0) {
-      ledSet(led, false);
-    } else if (strcmp(mode, "blink") == 0) {
-      ledBlink(led, req["interval_ms"] | seleno::kDefaultLedBlinkMs, req["auto_off_ms"] | 0u);
-    } else if (strcmp(mode, "toggle") == 0) {
-      ledToggle(led);
-    } else {
-      hostSendError("Invalid LED mode");
+    const char* error = applyLedMode(led, req["mode"] | "", req["interval_ms"] | seleno::kDefaultLedBlinkMs,
+                                     req["auto_off_ms"] | 0u);
+    if (error != nullptr) {
+      hostSendError(error);
       return;
     }
     hostSendOk();

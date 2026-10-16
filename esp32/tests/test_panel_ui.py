@@ -47,12 +47,6 @@ def setUpModule() -> None:
 	]
 	for patch in _hardware_patches:
 		patch.start()
-	# Importing tracking starts a thread that writes the runtime state every
-	# second; while the tests swap the config files round it could write a
-	# blank profile over a test's (or touch the real one).
-	import core.hardware.tracking as tracking
-
-	tracking._stop_hour_angle_updater()
 
 
 def tearDownModule() -> None:
@@ -570,7 +564,6 @@ class ManualFlowTests(PanelUIBase):
 		self.assertEqual(self.board.cleared, 1)
 
 	def test_near_the_sun_needs_the_code(self) -> None:
-		from unittest import mock
 
 		# Polaris is always up from LAT; put the Sun 9 deg from it.
 		with sun_at(37.95, 80.0)[0], sun_at(37.95, 80.0)[1]:
@@ -588,7 +581,6 @@ class ManualFlowTests(PanelUIBase):
 			self.assertTrue(wait_for(lambda: self.goes))
 
 	def test_backing_out_of_the_sun_warning_goes_nowhere(self) -> None:
-		from unittest import mock
 
 		with sun_at(37.95, 64.0)[0], sun_at(37.95, 64.0)[1]:
 			self.board.estop = True

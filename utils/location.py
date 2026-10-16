@@ -5,36 +5,26 @@
 import json
 from datetime import datetime
 from utils.config_state import save_location, get_location
+from utils.log import get_logger
+
+log = get_logger("location")
 
 
 def get_gps_from_hardware():
-    # Attempt to get GPS coordinates from hardware GPS module using gpsd
-    # Returns: dict with lat, lon, timestamp if successful, None otherwise
-    try:
-        from gps import gps, WATCH_ENABLE # type: ignore
-        
-        # Connect to gpsd
-        session = gps(mode=WATCH_ENABLE)
-        
-        # Try to get a fix (timeout after a few attempts)
-        for _ in range(10):
-            report = session.next()
-            if report['class'] == 'TPV':
-                if hasattr(report, 'lat') and hasattr(report, 'lon'):
-                    return {
-                        'latitude': report.lat,
-                        'longitude': report.lon,
-                        'altitude': getattr(report, 'alt', None),
-                        'timestamp': datetime.utcnow().isoformat(),
-                        'source': 'hardware_gps'
-                    }
+    # The latest GPS fix from the background gpsd reader (utils/gps.py);
+    # None without one. Never waits (it used to block on gpsd).
+    from utils import gps
+
+    if not gps.has_fix(max_age_s=120.0):
         return None
-    except ImportError:
-        # gps library not installed
-        return None
-    except Exception as e:
-        print(f"[location] Hardware GPS error: {e}")
-        return None
+    fix = gps.last_fix()
+    return {
+        'latitude': fix['latitude'],
+        'longitude': fix['longitude'],
+        'altitude': fix.get('altitude'),
+        'timestamp': datetime.utcnow().isoformat(),
+        'source': 'hardware_gps'
+    }
 
 
 def get_gps_from_ip():
@@ -44,7 +34,7 @@ def get_gps_from_ip():
         import urllib.request
         import urllib.error
         
-        # Using ip-api.com free service (no API key required)
+        # ip-api.com's free service (no API key; plain HTTP only on the free tier)
         url = "http://ip-api.com/json/"
         
         with urllib.request.urlopen(url, timeout=5) as response:
@@ -63,7 +53,7 @@ def get_gps_from_ip():
                 }
         return None
     except Exception as e:
-        print(f"[location] IP geolocation error: {e}")
+        log.warning(f"IP geolocation error: {e}")
         return None
 
 
@@ -72,7 +62,7 @@ def update_location_config(use_network=True):
     # Tries hardware GPS first, falls back to IP geolocation. A site typed on
     # the front panel is kept unless a GPS fix replaces it, and use_network=False
     # (offline mode) skips the IP lookup.
-    print("[location] Attempting to retrieve GPS coordinates...")
+    log.info("Attempting to retrieve GPS coordinates...")
     
     # Try hardware GPS first
     location_data = get_gps_from_hardware()
@@ -81,16 +71,16 @@ def update_location_config(use_network=True):
     if location_data is None:
         saved = get_location()
         if saved.get('source') == 'manual':
-            print(f"[location] Keeping the site set on the front panel: {saved.get('latitude')}, {saved.get('longitude')}")
+            log.info(f"Keeping the site set on the front panel: {saved.get('latitude')}, {saved.get('longitude')}")
             return True
         if not use_network:
-            print("[location] Offline: keeping the saved location")
+            log.info("Offline: keeping the saved location")
             return bool(saved)
-        print("[location] Hardware GPS not available, using IP geolocation...")
+        log.warning("Hardware GPS not available, using IP geolocation...")
         location_data = get_gps_from_ip()
     
     if location_data is None:
-        print("[location] Failed to retrieve location data")
+        log.warning("Failed to retrieve location data")
         return False
     
     # Add metadata
@@ -103,10 +93,10 @@ def update_location_config(use_network=True):
         source = location_data.get('source', 'unknown')
         lat = location_data.get('latitude', 'N/A')
         lon = location_data.get('longitude', 'N/A')
-        print(f"[location] Location updated successfully via {source}: {lat}, {lon}")
+        log.info(f"Location updated successfully via {source}: {lat}, {lon}")
         return True
     except Exception as e:
-        print(f"[location] Failed to save location data: {e}")
+        log.warning(f"Failed to save location data: {e}")
         return False
 
 
@@ -136,7 +126,7 @@ def get_current_location():
         location = get_location()
         return location or None
     except Exception as e:
-        print(f"[location] Failed to read location data: {e}")
+        log.warning(f"Failed to read location data: {e}")
         return None
 
 

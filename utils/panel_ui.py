@@ -23,13 +23,16 @@ import queue
 import threading
 import time
 from dataclasses import asdict
-from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
-from utils.panel_menu import Panel, build_panels, validate_api_key, validate_device_name, validate_server
+from utils import clock
+from utils.panel_menu import Panel, build_panels, photo_plan, validate_api_key, validate_device_name, validate_server
 from utils.photos import PhotoRun, shots as photo_shots
 from utils.sky_data import get_sky_data
 from utils.sky_view import FOV_STEPS, SkyOptions, build_scene
+from utils.log import get_logger
+
+log = get_logger("panel")
 
 HEARTBEAT_S = 2.0
 SKY_FAST_S = 1.0    # while the scope moves
@@ -49,6 +52,7 @@ class PanelUI:
 		self._panels: List[Panel] = []
 		self._sent_values: Dict[str, Any] = {}
 		self._sent_visible: Dict[str, bool] = {}
+		self._sent_options: Dict[str, Any] = {}
 		self._prompt_ids = itertools.count(1)
 		self._prompt_waiters: Dict[str, "queue.Queue[dict]"] = {}
 		self._flow_lock = threading.Lock()
@@ -90,7 +94,7 @@ class PanelUI:
 		try:
 			return conn.ui(action, timeout=2.0, **fields)
 		except Exception as exc:
-			print(f"[panel] ui {action} failed: {exc}")
+			log.warning(f"ui {action} failed: {exc}")
 			return None
 
 	def _post(self, name: str, fn: Callable[[], None]) -> None:
@@ -102,7 +106,7 @@ class PanelUI:
 			try:
 				fn()
 			except Exception as exc:
-				print(f"[panel] {name} failed: {exc}")
+				log.warning(f"{name} failed: {exc}")
 
 	# --- hello, status, menus -----------------------------------------------------
 
@@ -124,19 +128,24 @@ class PanelUI:
 		sent = {f"{p.id}.{i.id}": i.to_json() for p in self._panels for i in p.items}
 		self._sent_values = {key: item.get("value") for key, item in sent.items()}
 		self._sent_visible = {key: item["visible"] for key, item in sent.items() if "visible" in item}
+		self._sent_options = {f"{p.id}.{i.id}": sent[f"{p.id}.{i.id}"].get("options")
+			for p in self._panels for i in p.items if i.options is not None}
 		self._note_reply(reply)
 		self.attached.set()
 		self._send("tracking", **self._tracking)
-		print(f"[panel] Front panel attached ({reply.get('width')}x{reply.get('height')})")
+		log.info(f"Front panel attached ({reply.get('width')}x{reply.get('height')})")
 		if reply.get("panel_stop_pending"):
 			self._queue_panel_stop()
 		if self.missing_settings() and not self.offline():
 			self.start_wizard()
+		elif not clock.trusted():
+			# Offline with no RTC battery: go-tos would miss.
+			self.toast("Clock not synced: check Setup > Time", 6000)
 
 	def _status_fields(self) -> Dict[str, Any]:
 		from utils import pi_system
 
-		now = datetime.now()
+		now = clock.now().astimezone()  # local time, with the clock's offset
 		return {
 			"clock_s": now.hour * 3600 + now.minute * 60 + now.second,
 			"ip": pi_system.ip_address(),
@@ -177,6 +186,11 @@ class PanelUI:
 				except Exception:
 					continue
 				key = f"{panel.id}.{item.id}"
+				if item.options is not None and self._sent_options.get(key) != fields.get("options"):
+					# New options first, so the value is one of them.
+					if self._send("set", panel=panel.id, item=item.id, fields={"options": fields["options"]}) is not None:
+						self._sent_options[key] = fields["options"]
+						self._sent_values.pop(key, None)
 				if item.get is not None and self._sent_values.get(key) != fields.get("value"):
 					changed[key] = fields.get("value")
 				if item.visible is not None and self._sent_visible.get(key) != fields["visible"]:
@@ -243,13 +257,13 @@ class PanelUI:
 	def _handle_panel_stop(self) -> None:
 		"""RETURN was pressed twice on the panel: the ESP32 has stopped the
 		motors and holds host moves until we acknowledge."""
-		print("[panel] Stopped from the front panel: stopping tracking")
+		log.info("Stopped from the front panel: stopping tracking")
 		try:
 			from core.hardware.tracking import stop_tracking
 
 			stop_tracking()
 		except Exception as exc:
-			print(f"[panel] stop_tracking failed: {exc}")
+			log.warning(f"stop_tracking failed: {exc}")
 		self._send("ack_stop")
 		self._stop_queued.clear()
 
@@ -312,7 +326,7 @@ class PanelUI:
 
 				apply_client_config(cfg)
 			except Exception as exc:
-				print(f"[panel] Could not apply the new settings: {exc}")
+				log.warning(f"Could not apply the new settings: {exc}")
 		if key == "base_url":
 			self._post("sky-data", lambda: get_sky_data().refresh(force=True))
 		if key == "client_id":
@@ -332,7 +346,7 @@ class PanelUI:
 			except (PromptCancelled, TimeoutError):
 				pass
 			except Exception as exc:
-				print(f"[panel] {name} failed: {exc}")
+				log.warning(f"{name} failed: {exc}")
 				self.toast(str(exc)[:60] or name)
 			finally:
 				self._flow_lock.release()
@@ -444,7 +458,7 @@ class PanelUI:
 		told = False
 		while self.missing_settings():
 			if not told:
-				print("[config] Waiting for setup: use the front panel, or edit config/client_profile.json "
+				log.info("Waiting for setup: use the front panel, or edit config/client_profile.json "
 					"(or run 'python Client.py setup')")
 				told = True
 			time.sleep(poll_s)
@@ -486,7 +500,16 @@ class PanelUI:
 		"""The Camera tab's button: start a run of photos, or stop one."""
 		if self.photo_run.running:
 			return self.photo_run.stop()
-		return self.photo_run.start(photo_shots(), self.toast)
+		count = photo_shots()
+		plan = photo_plan(count)
+		if plan is not None and plan.kind in ("dark", "bias"):
+			# Covered telescope: asked on its own thread (prompts block).
+			def covered(ui: "PanelUI") -> None:
+				if ui.prompt("confirm", f"{plan.kind.capitalize()} frames",
+						"Put the cover on the telescope first.", yes="Covered", no="Cancel").get("value"):
+					ui.toast(ui.photo_run.start(count, ui.toast, plan=plan))
+			return self.run_flow("photos", covered)
+		return self.photo_run.start(count, self.toast, plan=plan)
 
 	def restart_client(self) -> Optional[str]:
 		from utils import pi_system
@@ -579,7 +602,7 @@ class PanelUI:
 				if scene is not None:
 					self._conn.ui_sky(scene)
 			except Exception as exc:
-				print(f"[panel] Sky view update failed: {exc}")
+				log.warning(f"Sky view update failed: {exc}")
 
 	def _build_sky(self, data, status: Dict[str, Any]) -> Optional[bytes]:
 		from utils.location import get_current_location
@@ -602,10 +625,16 @@ class PanelUI:
 		if status.get("sky_radar", True):
 			keepouts.append((0, height - 41, 41, 41))  # the radar inset
 		stars, names, figures, planets = data.snapshot()
+		now = clock.now()
+		if not planets:
+			# The server's copy is stale (offline): worked out here instead.
+			from utils import ephemeris
+
+			planets = ephemeris.positions(now, (float(loc["latitude"]), float(loc["longitude"])))
 		scene = build_scene(
 			width, height, stars, names, figures, planets,
 			(float(scope["right_ascension"]), float(scope["declination"])), target,
-			float(loc["latitude"]), float(loc["longitude"]), datetime.now(timezone.utc),
+			float(loc["latitude"]), float(loc["longitude"]), now,
 			self.sky_options, keepouts,
 		)
 		return scene.encode()
@@ -628,4 +657,4 @@ def tracking_update(**fields: Any) -> None:
 	try:
 		get_panel_ui().tracking_update(**fields)
 	except Exception as exc:
-		print(f"[panel] tracking update failed: {exc}")
+		log.warning(f"tracking update failed: {exc}")

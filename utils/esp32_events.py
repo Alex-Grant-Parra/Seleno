@@ -9,6 +9,8 @@ thread; attach() installs the app's policy for each:
               firmware already halted every motor. Stop the Pi's tracking
               loop so it doesn't keep issuing moves, show the critical red
               LED. Clearing the stop turns the LED back to normal.
+* motion_done A move ended: the tracking loop looks at once instead of
+              waiting for its next status poll.
 * boot        The ESP32 restarted: motors are disengaged and the step
               counters are zero. Tracking re-initialises the motors before
               its next move.
@@ -29,6 +31,9 @@ from __future__ import annotations
 import queue
 import threading
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from utils.log import get_logger
+
+log = get_logger("esp32_events")
 
 ButtonCallback = Callable[[Dict[str, Any]], None]
 
@@ -73,7 +78,7 @@ def _work_loop() -> None:
 		try:
 			fn()
 		except Exception as exc:
-			print(f"[esp32_events] {name} failed: {exc}")
+			log.warning(f"{name} failed: {exc}")
 
 
 def _in_thread(name: str, fn: Callable[[], None]) -> None:
@@ -92,7 +97,7 @@ def _on_estop(event: Dict[str, Any]) -> None:
 	active = bool(event.get("active"))
 	_estop_active = active
 	if active:
-		print(f"[esp32_events] EMERGENCY STOP from {event.get('source', '?')}: all motors halted by the ESP32")
+		log.info(f"EMERGENCY STOP from {event.get('source', '?')}: all motors halted by the ESP32")
 
 		def stop_everything() -> None:
 			from core.hardware.tracking import stop_tracking_for_estop
@@ -103,12 +108,12 @@ def _on_estop(event: Dict[str, Any]) -> None:
 
 		_in_thread("esp32-estop", stop_everything)
 	else:
-		print("[esp32_events] Emergency stop cleared")
+		log.info("Emergency stop cleared")
 		_in_thread("esp32-estop-clear", lambda: _leds().clear_error())
 
 
 def _on_boot(event: Dict[str, Any]) -> None:
-	print(f"[esp32_events] ESP32 booted (firmware {event.get('fw')}, drivers {event.get('drivers')})")
+	log.info(f"ESP32 booted (firmware {event.get('fw')}, drivers {event.get('drivers')})")
 
 	def reinit() -> None:
 		from core.hardware.tracking import on_esp32_reboot
@@ -125,7 +130,7 @@ def _on_driver_event(event: Dict[str, Any]) -> None:
 	motor = event.get("motor") or f"axis {event.get('axis')}"
 	flags = event.get("drv_status") or {}
 	raised = sorted(k for k, v in flags.items() if v is True)
-	print(f"[esp32_events] {name} on {motor}" + (f": {', '.join(raised)}" if raised else ""))
+	log.warning(f"{name} on {motor}" + (f": {', '.join(raised)}" if raised else ""))
 	if name in ("driver_fault", "driver_lost"):
 		_in_thread("esp32-driver-fault", lambda: _leds().set_error(True, critical=False))
 
@@ -135,7 +140,7 @@ def _on_button(event: Dict[str, Any]) -> None:
 	action = event.get("action")
 	if action != "hold":
 		held = f" after {event['held_ms']} ms" if "held_ms" in event else ""
-		print(f"[esp32_events] button {button} {action}{held}")
+		log.info(f"button {button} {action}{held}")
 	with _handlers_lock:
 		handlers = list(_button_handlers)
 	for want_button, want_action, callback in handlers:
@@ -146,7 +151,7 @@ def _on_button(event: Dict[str, Any]) -> None:
 		try:
 			callback(event)
 		except Exception as exc:
-			print(f"[esp32_events] button handler error: {exc}")
+			log.warning(f"button handler error: {exc}")
 
 
 def _on_expander(event: Dict[str, Any]) -> None:
@@ -154,13 +159,23 @@ def _on_expander(event: Dict[str, Any]) -> None:
 	if name == "expander_lost":
 		# The front-panel buttons are gone, RETURN's stop included; the Pi's
 		# own estop command still works.
-		print("[esp32_events] WARNING: front-panel I/O expander lost: buttons (and RETURN's stop) don't work")
+		log.warning("WARNING: front-panel I/O expander lost: buttons (and RETURN's stop) don't work")
 	else:
-		print(f"[esp32_events] Front-panel I/O expander: {name}")
+		log.info(f"Front-panel I/O expander: {name}")
+
+
+def _on_motion_done(event: Dict[str, Any]) -> None:
+	# Quick (it only sets an event), so it runs on the event thread.
+	try:
+		from core.hardware.tracking import on_motion_done
+
+		on_motion_done(event)
+	except Exception as exc:
+		log.warning(f"motion_done handler failed: {exc}")
 
 
 def _on_link_lost(event: Dict[str, Any]) -> None:
-	print(f"[esp32_events] Serial link to the ESP32 lost: {event.get('error')}")
+	log.warning(f"Serial link to the ESP32 lost: {event.get('error')}")
 
 	def drop() -> None:
 		from utils.esp32_state import esp32_state
@@ -176,6 +191,7 @@ def attach(conn) -> None:
 	conn.add_event_listener(_on_boot, "boot")
 	conn.add_event_listener(_on_button, "button")
 	conn.add_event_listener(_on_link_lost, "link_lost")
+	conn.add_event_listener(_on_motion_done, "motion_done")
 	for name in ("expander_lost", "expander_found", "expander_reset"):
 		conn.add_event_listener(_on_expander, name)
 	conn.add_event_listener(_on_driver_event)

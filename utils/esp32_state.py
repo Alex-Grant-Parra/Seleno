@@ -7,6 +7,9 @@ from typing import Optional
 
 from esp32.interfaceESP32 import DEFAULT_BAUDRATE, ESP32Connection, ESP32SerialConfig
 from utils.config_state import load_static_state, save_static_state
+from utils.log import get_logger
+
+log = get_logger("esp32")
 
 
 class ESP32State:
@@ -43,7 +46,7 @@ class ESP32State:
 			self._last_check_time = time.time()
 		if changed:
 			status = "available" if available else "unavailable"
-			print(f"[esp32_state] ESP32 is now {status}")
+			log.info(f"ESP32 is now {status}")
 
 	def get_last_check_time(self) -> float:
 		with self._state_lock:
@@ -65,7 +68,7 @@ class ESP32State:
 			state["esp32"] = esp32
 			save_static_state(state)
 		except Exception as exc:
-			print(f"[esp32_state] Warning: could not save ESP32 port: {exc}")
+			log.warning(f"Warning: could not save ESP32 port: {exc}")
 
 	def set_connection(self, conn: Optional[ESP32Connection]) -> None:
 		old_conn: Optional[ESP32Connection] = None
@@ -87,16 +90,16 @@ class ESP32State:
 
 				attach_event_handlers(conn)
 			except Exception as exc:
-				print(f"[esp32_state] Warning: could not attach ESP32 event handlers: {exc}")
+				log.warning(f"Warning: could not attach ESP32 event handlers: {exc}")
 			try:
 				from utils.panel_ui import get_panel_ui
 
 				get_panel_ui().attach(conn)
 			except Exception as exc:
-				print(f"[esp32_state] Warning: could not attach the front panel: {exc}")
-			print(f"[esp32_state] Connected to ESP32 on {conn.cfg.port} ({conn.transport})")
+				log.warning(f"Warning: could not attach the front panel: {exc}")
+			log.info(f"Connected to ESP32 on {conn.cfg.port} ({conn.transport})")
 		else:
-			print("[esp32_state] ESP32 connection cleared")
+			log.info("ESP32 connection cleared")
 
 	def clear_connection(self) -> None:
 		self.set_connection(None)
@@ -131,6 +134,9 @@ class ESP32State:
 
 esp32_state = ESP32State()
 
+# The scanner only pings when nothing has come from the ESP32 for this long.
+LINK_QUIET_S = 5.0
+
 
 def _refresh_led_state_on_esp32_reconnect(force_reapply: bool = False) -> None:
 	# Re-assert UI/idle LED state after transport reconnect so blue comes back on.
@@ -139,46 +145,46 @@ def _refresh_led_state_on_esp32_reconnect(force_reapply: bool = False) -> None:
 
 		get_led_manager().set_ui_connected(True, force_reapply=force_reapply)
 	except Exception as exc:
-		print(f"[esp32_scanner] Warning: failed to refresh LED state: {exc}")
+		log.warning(f"Warning: failed to refresh LED state: {exc}")
 
 
 async def esp32_scanner_task(check_interval: float = 2.0):
-	# Background task that continuously scans for ESP32 availability.
+	# Background task that keeps the ESP32 link up. The serial work runs in a
+	# thread: a port search can take seconds, and on the event loop it held up
+	# the server links (their pings included).
 
-	print(f"[esp32_scanner] Started ESP32 scanner (checking every {check_interval}s)")
-	last_led_reassert_at = 0.0
-	led_reassert_interval = max(3.0, check_interval * 2.0)
+	log.info(f"Started ESP32 scanner (checking every {check_interval}s)")
 	while True:
 		try:
-			conn = esp32_state.get_connection()
-			if conn is not None:
-				try:
-					conn.list_motors()
-					now = time.monotonic()
-					if not esp32_state.is_available():
-						esp32_state.set_available(True)
-						_refresh_led_state_on_esp32_reconnect(force_reapply=True)
-						last_led_reassert_at = now
-					elif now - last_led_reassert_at >= led_reassert_interval:
-						# Keep LED state in sync after brief ESP32 reboots that may not
-						# be observed as a full disconnect by the scanner.
-						_refresh_led_state_on_esp32_reconnect(force_reapply=True)
-						last_led_reassert_at = now
-				except Exception as exc:
-					print(f"[esp32_scanner] ESP32 connection lost: {exc}")
-					esp32_state.mark_disconnected()
-					conn = None
-
-			if conn is None:
-				was_unavailable = not esp32_state.is_available()
-				new_conn = esp32_state.ensure_connection()
-				if new_conn is not None:
-					if was_unavailable:
-						esp32_state.set_available(True)
-					_refresh_led_state_on_esp32_reconnect(force_reapply=True)
-					last_led_reassert_at = time.monotonic()
+			await asyncio.to_thread(_scan_once)
 		except Exception as exc:
-				if esp32_state.is_available():
-					print(f"[esp32_scanner] ESP32 scan failed: {exc}")
-					esp32_state.mark_disconnected()
+			if esp32_state.is_available():
+				log.warning(f"ESP32 scan failed: {exc}")
+				esp32_state.mark_disconnected()
 		await asyncio.sleep(check_interval)
+
+
+def _scan_once() -> None:
+	"""Check the link (only when nothing else has heard from the ESP32
+	lately: the panel's heartbeat already talks to it every 2 s) and
+	reconnect if it's gone."""
+	conn = esp32_state.get_connection()
+	if conn is not None:
+		quiet_s = time.monotonic() - getattr(conn, "last_rx", 0.0)
+		if quiet_s < LINK_QUIET_S and esp32_state.is_available():
+			return
+		try:
+			conn.ping()
+			if not esp32_state.is_available():
+				esp32_state.set_available(True)
+				_refresh_led_state_on_esp32_reconnect(force_reapply=True)
+			return
+		except Exception as exc:
+			log.warning(f"ESP32 connection lost: {exc}")
+			esp32_state.mark_disconnected()
+	was_unavailable = not esp32_state.is_available()
+	new_conn = esp32_state.ensure_connection()
+	if new_conn is not None:
+		if was_unavailable:
+			esp32_state.set_available(True)
+		_refresh_led_state_on_esp32_reconnect(force_reapply=True)

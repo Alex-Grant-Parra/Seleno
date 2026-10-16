@@ -1,7 +1,10 @@
-websockets
-ujson
-requests
-pyserial
-flask
-Pillow
-psutil
+# The client (Python 3.12 on the Pi). Versions as tested on 2026-10-16.
+websockets==17.1
+ujson==6.0.0
+requests==2.34.2
+pyserial==3.5
+Pillow==12.3.0
+numpy==2.5.4
+# libgphoto2 in-process (binary wheels for the Pi): one owner for the camera.
+# Without it the client falls back to the gphoto2 command.
+gphoto2==2.6.4

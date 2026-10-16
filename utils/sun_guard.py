@@ -29,10 +29,13 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Optional, Tuple
 
+from utils import clock
 from utils.sky_view import angular_distance, sun_radec
+from utils.log import get_logger
+
+log = get_logger("sun")
 
 WARN_DEG = 30.0
 DANGER_DEG = 20.0
@@ -98,20 +101,19 @@ class SunApproval:
 def check(name: str, ra: float, dec: float, start: Optional[RaDec] = None) -> SunCheck:
 	"""How close a go-to to (ra, dec) comes to the Sun on its planned route.
 	start=(ra, dec) means it's already pointing there (nothing slews)."""
-	sun_ra, sun_dec = sun_radec(datetime.now(timezone.utc))
+	sun_ra, sun_dec = sun_radec(clock.now())
 	target_deg = angular_distance(ra, dec, sun_ra, sun_dec)
 	if start is not None:
 		start_deg = angular_distance(start[0], start[1], sun_ra, sun_dec)
 		return SunCheck(name, target_deg, min(target_deg, start_deg), start_deg)
 	try:
-		from core.hardware import mount as mount_model
 		from core.hardware.tracking import plan_goto
 		from utils.telescope_state import get_mount_axes
 
 		axes = get_mount_axes()
 		route = plan_goto(ra, dec, start_axes=axes)
 	except Exception as exc:
-		print(f"[sun] Couldn't plan the route: {exc}")
+		log.warning(f"Couldn't plan the route: {exc}")
 		route, axes = None, None
 	if route is None or axes is None:
 		return SunCheck(name, target_deg, target_deg)
@@ -162,17 +164,17 @@ def confirm_goto(name: str, ra: float, dec: float, start: Optional[RaDec] = None
 	if c.level == "clear":
 		return True, "", None
 	if isinstance(approval, SunApproval) and approval.covers(ra, dec, c.closest):
-		print(f"[sun] {c.where()} Already confirmed on the panel.")
+		log.info(f"{c.where()} Already confirmed on the panel.")
 		return True, "", approval
 	ui = _panel()
 	if ui is None:
 		if c.level == "warn":
-			print(f"[sun] Warning: {c.where()} (no front panel to show it on)")
+			log.warning(f"Warning: {c.where()} (no front panel to show it on)")
 			return True, "", None
-		print(f"[sun] Refused: {c.where()} Within {DANGER_DEG:.0f} deg needs confirming on the front panel.")
+		log.warning(f"Refused: {c.where()} Within {DANGER_DEG:.0f} deg needs confirming on the front panel.")
 		return False, f"Within {DANGER_DEG:.0f} deg of the Sun: confirm on the telescope's front panel", None
 	if _ask(ui, c):
-		print(f"[sun] {c.where()} Confirmed on the panel ({c.level}).")
+		log.info(f"{c.where()} Confirmed on the panel ({c.level}).")
 		return True, "", SunApproval(ra % 360.0, dec, c.closest, time.monotonic() + APPROVAL_S)
-	print(f"[sun] {c.where()} Not confirmed: not going.")
+	log.info(f"{c.where()} Not confirmed: not going.")
 	return False, CANCELLED, None

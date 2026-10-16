@@ -993,3 +993,148 @@ Alex asked:
   `ack_stop`.)
 - Whether the mount is flipped can't be sensed: a sync takes the side it
   was last on. After moving it by hand, use Align on star.
+
+## Job: optimise, clean up, add features (Alex, 2026-10-16)
+
+Alex asked for every item of a review of the client to be implemented,
+with a log so the work survives disconnects. **IMPROVEMENTS_LOG.md** is
+that log: the plan, decisions, server constraints, test commands and notes.
+The route work was committed first (aa2d410); this job is uncommitted on
+top of it. README.md now describes everything; the summary is below.
+
+**Live view and camera (core/camera/)**
+- One thread owns the camera (service.py).
+  - libgphoto2 in-process (the `gphoto2` package, now in the venv), or
+    the gphoto2 command as a fallback (backends.py).
+  - Photos pause live view and it carries on. Failures back off from 1 to
+    30 s and never turn live view off. Hotplug is found again.
+  - Keep-awake while streaming. No more pkill.
+- JPEG framing walks the markers (jpeg.py): embedded thumbnails can't end
+  a frame early.
+- Stream policy (stream.py):
+  - quality presets (medium is about a ninth of the data);
+  - 10 fps moving, 2 fps still, unchanged frames skipped with a 5 s
+    keyframe;
+  - adapts to a slow link instead of reconnecting;
+  - viewer-count pause (`liveViewViewers`); idle stop; focus crop with
+    HFR (focus.py); camera zoom.
+- Snapshot, video (MJPEG AVI) and timelapse (recorder.py, avi.py).
+- Upload queue (utils/uploads.py): persistent, JPEG first, RAW policy,
+  retries, per-file posts with pointing metadata, offline photos under an
+  owner id.
+- Sequences (lights, darks, flats, bias; bulb; dithering), camera battery
+  and card, Pi disk guard.
+
+**Pointing and tracking**
+- Precession and refraction (utils/astrometry.py). The mount had been
+  treating J2000 as of date (0.37 deg).
+- Moon and planet ephemeris on the Pi (utils/ephemeris.py), checked against
+  JPL DE421 in scratch with Skyfield:
+  - within 1.5' for every body;
+  - the topocentric Moon within 4.2'.
+  - Found doing it: the ASTRA server's Neptune has the wrong sign on its
+    Dec (+0.48 against -0.49).
+- tracking.py rewritten:
+  - slew ends from motion_done events;
+  - both axes run at the target's rates (ephemeris for bodies; lunar,
+    solar, King and custom presets), with a drift correction;
+  - fine positions (position_fine);
+  - horizon limits (refuse from the server, stop when it sets);
+  - park, unpark and set park; backlash take-up; dither and recentre;
+    track_object;
+  - southern hemisphere: the mount model mirrored, the RA motor reversed;
+  - no more hour-angle updater.
+- Pointing model from alignment points (core/hardware/pointing.py), with
+  the polar error report from three or more points.
+- ASTAP plate solving (core/astrometry/solver.py; installed in ~/astap with
+  the D05 and W08 databases) and utils/plate_solve.py: solve and sync,
+  centre the target, three-point polar alignment, drift checks.
+- Raw server motor commands guarded (utils/motor_guard.py): limits and the
+  Sun; policy setting.
+
+**Field use**
+- Astronomy clock with an offset from GPS or the panel; the sync state via
+  adjtimex; no root (utils/clock.py).
+- GPS read from gpsd in the background (utils/gps.py).
+- LAN page with an access code (core/networking/local_page.py).
+
+**Server link (core/networking/websocket.py)**
+- Commands in lanes (priority, query, camera, motion); every reply has its
+  id.
+- Live view connects only while it's on; reconnect backoff with jitter.
+- Optional status push (off: ASTRA only logs it).
+- Client and firmware update commands, off by default (utils/maintenance.py).
+- 67 server functions; README lists them.
+
+**Panel**
+- New items:
+  - Scope: planet, solve, centre, polar, alignment, rate, park.
+  - Camera: frames, exposure, dither, ISO and shutter from the camera,
+    battery, card, stream quality and stats, focus, zoom, snapshot,
+    record, offline upload.
+  - Setup: clock and UTC, horizon, hemisphere, local page, photo owner,
+    server motors.
+  - Pi: park before shutdown.
+- The clock warning at start. Local planets in the sky view.
+
+**Firmware**
+- Command line and RX buffer raised from 4/8 KB to 12 KB: the menu is
+  6.2 KB and was refused with "Command too long".
+- `led` takes `leds:{...}` for several at once.
+- Both envs build clean (RAM 18.8%); the devkit is flashed.
+
+**Optimisations**
+- Runtime state in memory: written within 5 s of a change, fsynced, stale
+  .tmp files removed. It used to be rewritten every second, forever.
+- LEDs: one batched command, no 0.5 s gaps.
+- Serial:
+  - replies matched by id, so stop, estop and stop_all don't wait;
+  - payloads kept whole;
+  - the scanner runs off the event loop and only pings a quiet link.
+- Startup asset sync removed.
+
+**Clean-up**
+- Removed:
+  - core/camera/liveview.py (Flask), core/camera/controller.py,
+    utils/Tools.py;
+  - graphics/, examples/;
+  - the `*WithMotorId` wrappers and espCommand (ASTRA never calls them).
+- Prints are now logging (utils/log.py: stdout and logs/seleno.log).
+- No telescopes.dev default; no cookie print.
+- Repo setup:
+  - .gitignore narrowed; requirements pinned (Flask and psutil out, numpy
+    and gphoto2 in);
+  - deploy/seleno-client.service; .github/workflows/tests.yml;
+    pyproject.toml (ruff).
+
+**Tests**
+- tests/: 74. Camera with a fake camera and a fake gphoto2; astronomy
+  against DE421; state, uploads, GPS, lanes, guard, local page, solver
+  (fake ASTAP and the real one), tracking with a fake mount, LEDs.
+- esp32/tests: 64, with a new stop-priority test.
+- ruff check: clean.
+
+**Devkit run (scratch configs, offline, fake camera)**
+- The panel attaches with the full menu; screenshots in scratch
+  `shots/120_*`.
+- Six LED changes in 0.02 s.
+- The Moon: locked in 18 s, both motors running (Dec at its rate). The Dec
+  error stays within about 1" with fine positions.
+- A raw move past the limit was refused.
+- Park reached (0, 90); go-tos refused until unparked.
+- The local page: login, MJPEG, photo, snapshot, files; path traversal
+  blocked.
+
+**Not done, or not tried on real hardware**
+- Needs the server or browser changed:
+  - H.264/WebRTC;
+  - the server sending viewer counts (the client side is ready).
+- Not built: periodic error correction and guiding (plate-solve drift
+  checks are the light version); an IMU polar helper (where the BNO085
+  sits on the mount isn't known).
+- No real camera on the Pi: the libgphoto2 backend (the default when
+  installed), bulb, zoom and keep-awake are untested on hardware. If live
+  view misbehaves, set `camera.backend` to `cli`.
+- Not run end to end: update_client and update_firmware; the southern
+  hemisphere on a real mount.
+- Not reformatted: tabs and spaces left as they are (ruff only lints).

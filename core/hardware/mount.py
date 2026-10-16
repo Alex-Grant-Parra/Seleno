@@ -11,7 +11,19 @@ wrap is known):
   angle round.
 
 So every direction in the sky can be reached two ways (normal and flipped),
-each in several turns of the axes. plan_route() picks the quickest that
+each in several turns of the axes.
+
+South of the equator the polar axis points at the south celestial pole.
+The maths runs in the "mount frame", which is the sky as a northern mount
+would see it: (hour angle, declination) mirrored to (-ha, -dec). The
+public functions take and return real sky coordinates and mirror at the
+boundary when config.south is set; sidereal tracking then turns the RA
+motor backwards (tracking_direction()).
+
+A pointing model (core/hardware/pointing.py) can say where the telescope
+really points for given axes. Pass it as `model` and the axis solutions
+are refined so the telescope lands on the target, not where the ideal
+geometry says it should be. plan_route() picks the quickest that
 stays inside the axis limits and keeps clear of the Sun. When the straight
 move (both axes together) would pass too close, it curves round the Sun.
 The firmware runs the route as one smooth path ({"cmd":"path"}), so the
@@ -25,10 +37,12 @@ from __future__ import annotations
 import heapq
 import math
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 DEG = math.pi / 180.0
 Point = Tuple[float, float]  # (ra axis, dec axis), degrees
+# axes -> where the telescope really points, (ha, dec) in the mount frame
+Model = Callable[[Point], Tuple[float, float]]
 
 
 @dataclass
@@ -40,6 +54,7 @@ class MountConfig:
 	ra_limits: Tuple[float, float] = (-270.0, 270.0)
 	dec_limits: Tuple[float, float] = (-180.0, 180.0)
 	pole_crossing: bool = True        # may use the flipped side
+	south: bool = False               # polar axis at the south celestial pole
 
 	def motor_steps(self, d_ra: float, d_dec: float) -> Tuple[float, float]:
 		"""Axis degrees to motor1/motor2 logical steps."""
@@ -71,17 +86,67 @@ def is_flipped(dec_axis: float) -> bool:
 	return abs(wrap180(dec_axis)) > 90.0
 
 
-def sky_from_axes(ra_axis: float, dec_axis: float) -> Tuple[float, float]:
-	"""Axis angles to (hour angle, declination), degrees."""
+def mount_frame(sky: Tuple[float, float], config: Optional[MountConfig]) -> Tuple[float, float]:
+	"""Real (ha, dec) to the mount frame and back (the mirror is its own
+	inverse)."""
+	if config is not None and config.south:
+		return wrap180(-sky[0]), -sky[1]
+	return sky
+
+
+def tracking_direction(config: Optional[MountConfig]) -> int:
+	"""+1: sidereal tracking turns the RA motor forward; -1 in the south."""
+	return -1 if config is not None and config.south else 1
+
+
+def _frame_from_axes(ra_axis: float, dec_axis: float) -> Tuple[float, float]:
 	d = wrap180(dec_axis)
 	if -90.0 <= d <= 90.0:
 		return wrap180(ra_axis), d
 	return wrap180(ra_axis + 180.0), (180.0 - d) if d > 0 else (-180.0 - d)
 
 
-def axis_solutions(ha: float, dec: float, config: MountConfig, slack: float = 0.0) -> List[Point]:
+def sky_from_axes(ra_axis: float, dec_axis: float, config: Optional[MountConfig] = None) -> Tuple[float, float]:
+	"""Axis angles to (hour angle, declination), degrees (ideal geometry;
+	the pointing model, if any, is applied by the caller)."""
+	return mount_frame(_frame_from_axes(ra_axis, dec_axis), config)
+
+
+def axis_rates(ha_rate: float, dec_rate: float, dec_axis: float, config: Optional[MountConfig]) -> Tuple[float, float]:
+	"""Sky rates (deg/s of hour angle and declination) to axis rates (deg/s
+	of the RA and Dec axes) on the side the mount is on."""
+	m = -1.0 if config is not None and config.south else 1.0
+	da = m * ha_rate
+	dd = m * dec_rate
+	return da, (-dd if is_flipped(dec_axis) else dd)
+
+
+def _refine(goal: Point, target: Tuple[float, float], model: Model, rounds: int = 4) -> Point:
+	"""Nudge an axis position until the model says it points at target
+	(mount frame). The model's errors are small, so a few rounds do."""
+	a, d = goal
+	for _ in range(rounds):
+		ha, dec = model((a, d))
+		dha, ddec = wrap180(target[0] - ha), target[1] - dec
+		if abs(dha) < 1e-6 and abs(ddec) < 1e-6:
+			break
+		a += dha
+		d += -ddec if is_flipped(d) else ddec
+	return a, d
+
+
+def axis_solutions(ha: float, dec: float, config: MountConfig, slack: float = 0.0,
+		model: Optional[Model] = None) -> List[Point]:
 	"""Every axis position inside the limits that points at (ha, dec):
 	normal and (if allowed) flipped, each in every turn of the axes."""
+	ha, dec = mount_frame((ha, dec), config)
+	found = _frame_solutions(ha, dec, config, slack)
+	if model is None:
+		return found
+	return [_refine(p, (ha, dec), model) for p in found]
+
+
+def _frame_solutions(ha: float, dec: float, config: MountConfig, slack: float = 0.0) -> List[Point]:
 	bases = [(ha, dec)]
 	if config.pole_crossing:
 		bases.append((ha + 180.0, 180.0 - dec))
@@ -98,10 +163,12 @@ def axis_solutions(ha: float, dec: float, config: MountConfig, slack: float = 0.
 	return found
 
 
-def nearest_solution(ha: float, dec: float, near: Point, config: MountConfig) -> Point:
+def nearest_solution(ha: float, dec: float, near: Point, config: MountConfig,
+		model: Optional[Model] = None) -> Point:
 	"""Of the ways to point at (ha, dec), the one closest to `near` (for a
 	sync: the side the mount is on now). Ignores the limits if it must."""
-	options = axis_solutions(ha, dec, config) or axis_solutions(ha, dec, config, slack=1e6)
+	options = (axis_solutions(ha, dec, config, model=model)
+		or axis_solutions(ha, dec, config, slack=1e6, model=model))
 	return min(options, key=lambda p: config.seconds(near, p))
 
 
@@ -117,20 +184,22 @@ def separation(a: Tuple[float, float], b: Tuple[float, float]) -> float:
 	return math.acos(dot) / DEG
 
 
-def closest_to(route: Sequence[Point], sky: Tuple[float, float], step_deg: float = 0.5) -> float:
+def closest_to(route: Sequence[Point], sky: Tuple[float, float], step_deg: float = 0.5,
+		config: Optional[MountConfig] = None) -> float:
 	"""Closest a route comes to a sky direction (ha, dec), checked every
 	step_deg of axis travel."""
+	sky = mount_frame(sky, config)
 	target = _xyz(*sky)
 	best = 180.0
 	for a, b in zip(route, route[1:]):
 		n = max(1, int(math.ceil(max(abs(b[0] - a[0]), abs(b[1] - a[1])) / step_deg)))
 		for i in range(n + 1):
 			t = i / n
-			p = _xyz(*sky_from_axes(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+			p = _xyz(*_frame_from_axes(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
 			dot = max(-1.0, min(1.0, p[0] * target[0] + p[1] * target[1] + p[2] * target[2]))
 			best = min(best, math.acos(dot) / DEG)
 	if len(route) == 1:
-		best = separation(sky_from_axes(*route[0]), sky)
+		best = separation(_frame_from_axes(*route[0]), sky)
 	return best
 
 
@@ -339,19 +408,21 @@ class _Planner:
 
 
 def plan_route(start: Point, target: Tuple[float, float], config: MountConfig,
-		sun: Optional[Tuple[float, float]] = None, keep_out: float = 0.0) -> Route:
+		sun: Optional[Tuple[float, float]] = None, keep_out: float = 0.0,
+		model: Optional[Model] = None) -> Route:
 	"""The quickest route from the axis position `start` to point at
 	target (ha, dec), over the pole if that's quicker and allowed, and
 	never closer than keep_out degrees to the Sun (ha, dec) when there's a
 	way round. If nothing keeps clear, the quickest route anyway; its
 	sun_deg says how close it gets."""
-	goals = axis_solutions(target[0], target[1], config)
+	goals = axis_solutions(target[0], target[1], config, model=model)
 	if not goals:
-		goals = [nearest_solution(target[0], target[1], start, config)]
+		goals = [nearest_solution(target[0], target[1], start, config, model=model)]
 	goals.sort(key=lambda g: config.seconds(start, g))
 	if sun is None or keep_out <= 0.0:
 		goal = goals[0]
 		return Route([start, goal], config.seconds(start, goal), 180.0)
+	sun = mount_frame(sun, config)  # the planner works in the mount frame
 	planner = _Planner(config, sun, keep_out)
 	best: Optional[Route] = None
 	for goal in goals:
@@ -380,3 +451,20 @@ def route_steps(route: Route, config: MountConfig) -> List[Tuple[int, int]]:
 		s1, s2 = config.motor_steps(p[0] - start[0], p[1] - start[1])
 		out.append((int(round(s1)), int(round(s2))))
 	return out
+
+
+def plan_axes_route(start: Point, goal: Point, config: MountConfig,
+		sun: Optional[Tuple[float, float]] = None, keep_out: float = 0.0) -> Route:
+	"""A route between two axis positions (parking): round the Sun's
+	keep-out when the straight way passes it. sun is real (ha, dec)."""
+	if sun is None or keep_out <= 0.0:
+		return Route([start, goal], config.seconds(start, goal), 180.0)
+	sun_m = mount_frame(sun, config)
+	points = _Planner(config, sun_m, keep_out).route(start, goal)
+	note = []
+	if points is None:
+		points = [start, goal]
+		note.append("no way round the Sun inside the axis limits")
+	route = Route(points, _route_seconds(points, config), closest_to(points, sun_m), detour=len(points) > 2)
+	route.notes.extend(note)
+	return route

@@ -1,0 +1,30 @@
+# systemd unit for the SELENO client.
+#
+#   sudo cp deploy/seleno-client.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now seleno-client.service
+#   journalctl -u seleno-client -f        # the log (also in logs/seleno.log)
+#
+# It replaces a client.service that runs Client.py inside screen; disable
+# that one first (sudo systemctl disable --now client.service). Change User
+# and the paths if the client lives elsewhere.
+[Unit]
+Description=SELENO telescope client
+After=network-online.target gpsd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alex
+WorkingDirectory=/home/alex/SelenoClient
+ExecStart=/home/alex/SelenoClient/venv/bin/python Client.py
+Environment=PYTHONUNBUFFERED=1
+# Stop: Client.py parks nothing by itself, but it releases the camera and
+# writes the position before it exits.
+KillSignal=SIGTERM
+TimeoutStopSec=20
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

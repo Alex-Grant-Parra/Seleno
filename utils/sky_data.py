@@ -23,6 +23,9 @@ from urllib.parse import urljoin
 import requests
 
 from utils.config_state import get_client_config, is_offline_mode
+from utils.log import get_logger
+
+log = get_logger("sky_data")
 
 CACHE_FILE = os.path.join("config", "sky_cache.json")
 STAR_MAG_LIMIT = 5.0
@@ -103,7 +106,7 @@ class SkyData:
 			figures = self._get(base, "api/constellations")
 		except Exception as exc:
 			self.last_error = f"sky data: {exc}"
-			print(f"[sky] Could not fetch sky data from {base}: {exc}")
+			log.warning(f"Could not fetch sky data from {base}: {exc}")
 			return
 		stars: List[Star] = []
 		planets: List[Dict[str, Any]] = []
@@ -126,7 +129,7 @@ class SkyData:
 		self.base_url = base
 		self.catalogue_at = self.planets_at = time.time()
 		self.last_error = ""
-		print(f"[sky] {len(stars)} stars, {len(self.names)} names, {len(self.constellations)} figures, "
+		log.info(f"{len(stars)} stars, {len(self.names)} names, {len(self.constellations)} figures, "
 			f"{len(planets)} planets from {base}")
 		self._save_cache()
 
@@ -173,7 +176,7 @@ class SkyData:
 				json.dump(payload, f, separators=(",", ":"))
 			os.replace(tmp, self._cache_file)
 		except Exception as exc:
-			print(f"[sky] Could not save the sky cache: {exc}")
+			log.warning(f"Could not save the sky cache: {exc}")
 
 
 _instance: Optional[SkyData] = None

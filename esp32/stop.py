@@ -1,5 +1,4 @@
-from interfaceESP32 import ESP32Connection, ESP32Motor, ESP32SerialConfig
-import time
+from interfaceESP32 import ESP32Connection, ESP32Motor
 from esp32.pins import get_motor_board_by_id
 
 # Auto-detect available USB port

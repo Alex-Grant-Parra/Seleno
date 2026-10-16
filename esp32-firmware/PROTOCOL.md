@@ -14,9 +14,11 @@ The Pi side is `esp32/interfaceESP32.py`. Hardware facts come from
 ## Framing
 
 - **Request:** one JSON object per line with `"cmd"`, plus optional `"id"`
-  (a number or a short string). The firmware echoes `id` in the reply, so a
-  late reply can't be mistaken for the next one. Requests without `id` (old
-  hosts) still work.
+  (a number or a short string), at most 12 KB (the Pi's menu is about
+  6 KB). The firmware echoes `id` in the reply, so a late reply can't be
+  mistaken for the next one, and replies are matched by it: the Pi sends
+  `stop`/`estop`/`stop_all` without waiting for an earlier reply. Requests
+  without `id` (old hosts) still work.
 - **Reply:** `{"status":"ok","id":7,"data":{...}}` or
   `{"status":"error","id":7,"message":"..."}`. A reply goes back on the port
   the request came in on.
@@ -43,7 +45,7 @@ The Pi side is `esp32/interfaceESP32.py`. Hardware facts come from
 | `stop_all` | | ok (every axis stops; nothing is latched) |
 | `i2c_scan` | | `devices`: list of addresses (0x20 = MCP23017, 0x4A/0x4B = BNO085) |
 | `panel` (alias `buttons`) | `action`: `status` / `reinit` | `expander_present`, `buttons{}`, `leds{}`, `raw_gpio`, `interrupts`, `int_pin_low`, `expander_resets` |
-| `led` | `led`: `board`/`red`/`green`/`white`/`blue`/`yellow`; `mode`: `on`/`off`/`toggle`/`blink` (+`interval_ms`, `auto_off_ms`), or `on`: bool | ok |
+| `led` | `led`: `board`/`red`/`green`/`white`/`blue`/`yellow`; `mode`: `on`/`off`/`toggle`/`blink` (+`interval_ms`, `auto_off_ms`), or `on`: bool. Or several at once: `leds`: `{"red": "off", "blue": {"mode": "blink", "interval_ms": 700}}` (all names checked first) | ok |
 | `imu` | `action`: `status` / `read` / `enable` / `disable` / `reinit` | status: `present`, `address`, `firmware`, `events`, `errors`, `resets`. read: `rotation_vector` and `game_rotation_vector` (quaternion `i,j,k,real`, `accuracy`, `age_ms`, `euler_deg{yaw,pitch,roll}`), `gravity` and `magnetic_field` (`x,y,z`) |
 
 ## Emergency stop

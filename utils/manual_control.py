@@ -5,10 +5,16 @@
 * Go to star: pick one of the brightest named stars that are up now, from
   the sky view's cached catalogue (utils/sky_data.py), so it works offline
   once the catalogue has been downloaded.
+* Go to planet: the Moon and planets that are up, worked out on the Pi
+  (utils/ephemeris.py), tracked at their own rates.
 * Align on star: centre a bright star by hand, then tell SELENO which it
   is; that becomes the telescope's position, and it tracks the star.
 * Site: latitude and longitude typed in, for when there's no GPS or
   internet to find it.
+* Solve and sync, Centre target, Polar align: plate solving
+  (utils/plate_solve.py), when ASTAP is installed.
+* Every go-to checks the Sun, the clock (a wrong clock means a wrong
+  go-to), the park and the horizon limit, asking where it's a choice.
 
 Each flow runs on its own thread (PanelUI.run_flow) and asks through
 PanelUI.prompt; backing out of any prompt (RETURN) ends it.
@@ -18,9 +24,10 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple
 
+from utils import clock
 from utils.sky_view import lst_degrees, radec_to_altaz
 
 if TYPE_CHECKING:
@@ -31,6 +38,8 @@ STAR_CHOICES = 30
 
 # The last coordinates typed, offered again next time.
 _last_typed = {"ra": "", "dec": ""}
+# The clock warning is shown once a session.
+_clock_warned = {"done": False}
 
 
 # --- coordinates ----------------------------------------------------------------
@@ -234,7 +243,7 @@ def _pick_star(ui: "PanelUI", title: str, here: Tuple[float, float]) -> Optional
 		ui.prompt("message", "No star list", "The star list hasn't been downloaded yet. Connect to the server once.")
 		return None
 	stars, names, _figures, _planets = data.snapshot()
-	choices = stars_up(stars, names, here[0], here[1], datetime.now(timezone.utc))
+	choices = stars_up(stars, names, here[0], here[1], clock.now())
 	if not choices:
 		ui.prompt("message", title, "No bright named stars are above the horizon.")
 		return None
@@ -263,7 +272,7 @@ def _release_estop(ui: "PanelUI") -> bool:
 
 
 # What _sun_ok and _safe_to_go return when it's a no.
-_NO = (False, None)
+_NO = (False, None, False)
 
 
 def _sun_ok(ui: "PanelUI", name: str, ra: float, dec: float,
@@ -278,24 +287,58 @@ def _sun_ok(ui: "PanelUI", name: str, ra: float, dec: float,
 	return allowed, approval
 
 
-def _safe_to_go(ui: "PanelUI", name: str, ra: float, dec: float, here: Tuple[float, float]) -> Tuple[bool, Any]:
+def _clock_ok(ui: "PanelUI") -> bool:
+	"""Once a session: a go-to with an unset clock lands in the wrong place."""
+	if clock.trusted() or _clock_warned["done"]:
+		return True
+	_clock_warned["done"] = True
+	return bool(ui.prompt("confirm", "Clock not set",
+		f"The Pi's clock isn't synced (it says {clock.now().strftime('%H:%M')} UTC). Go-tos will miss "
+		"if it's wrong. Set it in Setup > Time.", yes="Go anyway", no="Cancel").get("value"))
+
+
+def _unparked(ui: "PanelUI") -> bool:
+	from utils.telescope_state import get_parked
+
+	if not get_parked():
+		return True
+	if not ui.prompt("confirm", "Parked", "The telescope is parked. Unpark it and go?",
+			yes="Unpark", no="Cancel").get("value"):
+		return False
+	from core.hardware.tracking import unpark
+
+	unpark()
+	return True
+
+
+def _safe_to_go(ui: "PanelUI", name: str, ra: float, dec: float, here: Tuple[float, float]) -> Tuple[bool, Any, bool]:
+	"""(go, sun approval, below the horizon limit and said yes)."""
+	from utils import horizon
+
 	allowed, approval = _sun_ok(ui, name, ra, dec)
 	if not allowed:
 		return _NO
-	now = datetime.now(timezone.utc)
-	alt, _az = radec_to_altaz(ra, dec, lst_degrees(now, here[1]), here[0])
-	if alt < 0:
-		if not ui.prompt("confirm", "Below the horizon",
-				f"{name} is {-alt:.0f} deg below the horizon. Go anyway?", yes="Go", no="Cancel").get("value"):
+	if not _clock_ok(ui) or not _unparked(ui):
+		return _NO
+	alt, _az, limit = horizon.check(ra, dec, here[0], lst_degrees(clock.now(), here[1]))
+	below = alt < limit
+	if below:
+		where = f"{-alt:.0f} deg below the horizon" if alt < 0 else f"{alt:.0f} deg up, under the {limit:.0f} deg limit"
+		if not ui.prompt("confirm", "Below the horizon", f"{name} is {where}. Go anyway?",
+				yes="Go", no="Cancel").get("value"):
 			return _NO
-	return (True, approval) if _release_estop(ui) else _NO
+	return (True, approval, below) if _release_estop(ui) else _NO
 
 
-def _start(ui: "PanelUI", name: str, ra: float, dec: float, mag: Optional[float], approval: Any = None) -> None:
+def _start(ui: "PanelUI", name: str, ra: float, dec: float, mag: Optional[float], approval: Any = None,
+		below_ok: bool = False) -> None:
 	# The panel switches to the sky view itself once the slew starts.
 	from core.hardware.tracking import trackCoordinates
 
-	result = trackCoordinates(name, ra, dec, mag, sun_approval=approval)
+	kwargs = {"sun_approval": approval}
+	if below_ok:
+		kwargs["allow_below_horizon"] = True
+	result = trackCoordinates(name, ra, dec, mag, **kwargs)
 	if isinstance(result, dict) and result.get("error"):
 		ui.toast(str(result["error"])[:60])
 
@@ -308,14 +351,14 @@ def goto_coordinates(ui: "PanelUI") -> None:
 	_last_typed["ra"] = ra_text
 	dec, dec_text = _ask_parsed(ui, "Dec", _last_typed["dec"], "degrees: -5 23 28", parse_dec)
 	_last_typed["dec"] = dec_text
-	alt, _az = radec_to_altaz(ra, dec, lst_degrees(datetime.now(timezone.utc), here[1]), here[0])
+	alt, _az = radec_to_altaz(ra, dec, lst_degrees(clock.now(), here[1]), here[0])
 	if not ui.prompt("confirm", "Go there?", f"RA {format_ra(ra)}\nDec {format_dec(dec)}\nAltitude {alt:.0f} deg",
 			yes="Go", no="Cancel", default="yes").get("value"):
 		return
 	name = target_name(ra, dec)
-	ok, approval = _safe_to_go(ui, name, ra, dec, here)
+	ok, approval, below = _safe_to_go(ui, name, ra, dec, here)
 	if ok:
-		_start(ui, name, ra, dec, None, approval)
+		_start(ui, name, ra, dec, None, approval, below)
 
 
 def goto_star(ui: "PanelUI") -> None:
@@ -325,9 +368,9 @@ def goto_star(ui: "PanelUI") -> None:
 	star = _pick_star(ui, "Go to star", here)
 	if star is None:
 		return
-	ok, approval = _safe_to_go(ui, star.name, star.ra, star.dec, here)
+	ok, approval, below = _safe_to_go(ui, star.name, star.ra, star.dec, here)
 	if ok:
-		_start(ui, star.name, star.ra, star.dec, star.mag, approval)
+		_start(ui, star.name, star.ra, star.dec, star.mag, approval, below)
 
 
 def align_on_star(ui: "PanelUI") -> None:
@@ -351,3 +394,128 @@ def align_on_star(ui: "PanelUI") -> None:
 	sync_position(star.ra, star.dec)
 	ui.toast(f"Aligned on {star.name}")
 	_start(ui, star.name, star.ra, star.dec, star.mag, approval)
+
+
+def planets_up(lat: float, lon: float, when: datetime, min_alt: float = 0.0) -> List[Target]:
+	"""The Moon and planets above min_alt, brightest first (never the Sun)."""
+	from utils import ephemeris
+
+	lst = lst_degrees(when, lon)
+	found: List[Target] = []
+	for p in ephemeris.positions(when, (lat, lon)):
+		if p["name"] == "Sun":
+			continue
+		alt, _az = radec_to_altaz(float(p["ra"]), float(p["dec"]), lst, lat)
+		if alt >= min_alt:
+			mag = p.get("mag")
+			found.append(Target(str(p["name"]), float(p["ra"]), float(p["dec"]),
+				float(mag) if mag is not None else None, alt))
+	found.sort(key=lambda t: t.mag if t.mag is not None else 99.0)
+	return found
+
+
+def goto_planet(ui: "PanelUI") -> None:
+	here = _need_site(ui)
+	if here is None:
+		return
+	choices = planets_up(here[0], here[1], clock.now())
+	if not choices:
+		ui.prompt("message", "Go to planet", "The Moon and the planets are all below the horizon.")
+		return
+	answer = ui.prompt("choice", "Go to planet", options=[f"{t.name} {t.alt:.0f} deg up" for t in choices], selected=0)
+	index = int(answer.get("value", -1))
+	if not 0 <= index < len(choices):
+		return
+	body = choices[index]
+	ok, approval, below = _safe_to_go(ui, body.name, body.ra, body.dec, here)
+	if ok:
+		_start(ui, body.name, body.ra, body.dec, body.mag, approval, below)
+
+
+# --- plate solving ------------------------------------------------------------------
+
+def _solver_ready(ui: "PanelUI") -> bool:
+	from core.astrometry import solver
+
+	if solver.available():
+		return True
+	ui.prompt("message", "No solver", "Plate solving needs ASTAP in ~/astap on the Pi.")
+	return False
+
+
+def solve_and_sync(ui: "PanelUI") -> None:
+	from utils import plate_solve
+
+	if not _solver_ready(ui):
+		return
+	ui.busy("Solving", "Taking a picture and working out where it points...")
+	try:
+		result = plate_solve.solve_and_sync()
+	except plate_solve.SolveJobError as exc:
+		ui.prompt("message", "Not solved", str(exc)[:120])
+		return
+	off = result.get("was_off_arcmin")
+	ui.prompt("message", "Solved", f"RA {format_ra(result['ra'])}\nDec {format_dec(result['dec'])}"
+		+ (f"\nIt was {off:.0f}' off" if off is not None else ""))
+
+
+def centre_target(ui: "PanelUI") -> None:
+	from utils import plate_solve
+
+	if not _solver_ready(ui):
+		return
+	ui.busy("Centring", "Solving and correcting...")
+	try:
+		result = plate_solve.centre_target()
+	except plate_solve.SolveJobError as exc:
+		ui.prompt("message", "Not centred", str(exc)[:120])
+		return
+	if result["centred"]:
+		ui.prompt("message", "Centred", f"Within {result['error_arcmin']:.1f}' after {result['rounds']} solve(s)")
+	else:
+		ui.prompt("message", "Not centred", f"Still {result['error_arcmin']:.1f}' off")
+
+
+def polar_align(ui: "PanelUI") -> None:
+	from utils import plate_solve
+
+	if not _solver_ready(ui):
+		return
+	if not ui.prompt("confirm", "Polar align",
+			"Point roughly at the pole first. SELENO takes three pictures, turning RA 30 deg twice. "
+			"Keep the cables and tripod clear.", yes="Start", no="Cancel").get("value"):
+		return
+	try:
+		result = plate_solve.polar_align(progress=lambda text: ui.busy("Polar align", text))
+	except plate_solve.SolveJobError as exc:
+		ui.prompt("message", "Polar align", str(exc)[:120])
+		return
+	ui.prompt("message", "Polar align", result["report"] + ". Adjust, then run it again to check.")
+
+
+def clear_alignment(ui: "PanelUI") -> None:
+	from core.hardware.tracking import clear_alignment as clear
+
+	clear()
+	ui.toast("Alignment cleared")
+
+
+def alignment_text() -> str:
+	try:
+		from core.hardware.tracking import alignment_summary
+
+		a = alignment_summary()
+	except Exception:
+		return "?"
+	if not a["points"]:
+		return "none"
+	return f"{a['points']} pts, {a['rms_arcmin']:.1f}'"
+
+
+def polar_text() -> str:
+	try:
+		from core.hardware.tracking import alignment_summary
+
+		return alignment_summary().get("polar") or "need 3+ points"
+	except Exception:
+		return "?"

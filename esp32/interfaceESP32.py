@@ -31,6 +31,9 @@ import serial  # pyserial
 
 from esp32 import serial_ports
 from esp32.pins import get_display_config, get_led_channels
+from utils.log import get_logger
+
+log = get_logger("esp32_link")
 
 
 _DISPLAY_CONFIG = get_display_config()
@@ -39,6 +42,11 @@ _DISPLAY_HEIGHT = int(_DISPLAY_CONFIG["height"])
 
 DEFAULT_BAUDRATE = 921600
 DEFAULT_STEPS_PER_REV = 1600
+
+# Sent at once, even while another command waits for its reply (new
+# firmware, which tags replies with their ids): a stop never queues behind a
+# slow command on the Pi's side.
+_PRIORITY_COMMANDS = frozenset({"stop", "estop", "stop_all"})
 
 # Safe to send twice: a lost reply to one of these is retried once.
 _IDEMPOTENT_COMMANDS = frozenset({
@@ -71,6 +79,17 @@ class ESP32SerialConfig:
 	timeout: float = 0.5
 	# "auto", "usb" or "gpio_uart" (restricts the port search).
 	transport: str = serial_ports.TRANSPORT_AUTO
+
+
+class _NoLock:
+	def __enter__(self) -> None:
+		return None
+
+	def __exit__(self, *exc) -> None:
+		return None
+
+
+_NO_LOCK = _NoLock()
 
 
 class _Waiter:
@@ -130,9 +149,11 @@ class ESP32Connection:
 		# Per-motor facts the firmware reports (steps_per_rev, microsteps).
 		self.motor_info: Dict[str, Dict[str, Any]] = {}
 
-		self._lock = threading.Lock()          # one request in flight
+		self._lock = threading.Lock()          # one request in flight (stops excepted)
+		self._write_lock = threading.RLock()   # whole lines and payloads on the wire
 		self._waiter_lock = threading.Lock()
-		self._waiter: Optional[_Waiter] = None
+		self._waiters: Dict[int, _Waiter] = {}
+		self.last_rx = 0.0  # time.monotonic() of the last line from the ESP32
 		self._ids = itertools.count(1)
 		self._stop = threading.Event()
 		self._failure: Optional[BaseException] = None
@@ -186,7 +207,7 @@ class ESP32Connection:
 				self.firmware = self.send({"cmd": "ping"}, timeout=1.0)
 			except Exception:
 				self.firmware = {}
-		print(f"[ESP32] Connected to {self.cfg.port} ({self.transport}"
+		log.info(f"Connected to {self.cfg.port} ({self.transport}"
 			f"{', firmware ' + str(self.firmware.get('fw')) if self.firmware else ''})")
 		try:
 			ESP32LED.attach(self)
@@ -224,7 +245,7 @@ class ESP32Connection:
 					return isinstance(motors, list)
 			return False
 		except Exception as exc:
-			print(f"[ESP32] Probe error on {self.cfg.port}: {exc}")
+			log.warning(f"Probe error on {self.cfg.port}: {exc}")
 			return False
 
 	def close(self) -> None:
@@ -271,7 +292,7 @@ class ESP32Connection:
 			except (serial.SerialException, OSError, TypeError, AttributeError) as exc:
 				if not self._stop.is_set():
 					self._failure = exc
-					print(f"[ESP32] Serial link lost on {self.cfg.port}: {exc}")
+					log.warning(f"Serial link lost on {self.cfg.port}: {exc}")
 					self._release_waiter()
 					self._events.put({"event": "link_lost", "port": self.cfg.port, "error": str(exc)})
 				break
@@ -303,19 +324,26 @@ class ESP32Connection:
 			self.stats["events"] += 1
 			self._events.put(obj)
 			return
+		self.last_rx = time.monotonic()
 		with self._waiter_lock:
-			waiter = self._waiter
-			if waiter is not None and ("id" not in obj or obj.get("id") == waiter.request_id):
+			if "id" in obj:
+				waiter = self._waiters.pop(obj.get("id"), None)
+			elif len(self._waiters) == 1:
+				# Old firmware: replies carry no id, and there's one request at a time.
+				waiter = self._waiters.pop(next(iter(self._waiters)))
+			else:
+				waiter = None
+			if waiter is not None:
 				waiter.response = obj
-				self._waiter = None
 				waiter.event.set()
 				return
 		self.stats["stale_responses"] += 1
 
 	def _release_waiter(self) -> None:
 		with self._waiter_lock:
-			waiter, self._waiter = self._waiter, None
-		if waiter is not None:
+			waiters = list(self._waiters.values())
+			self._waiters.clear()
+		for waiter in waiters:
 			waiter.event.set()
 
 	# --- events -----------------------------------------------------------
@@ -335,7 +363,7 @@ class ESP32Connection:
 				try:
 					callback(event)
 				except Exception as exc:
-					print(f"[ESP32] Event listener error for {name}: {exc}")
+					log.warning(f"Event listener error for {name}: {exc}")
 
 	def add_event_listener(self, callback: EventCallback, event: Optional[str] = None) -> int:
 		"""Call callback(event_dict) for every event, or only events named
@@ -381,14 +409,14 @@ class ESP32Connection:
 	def _arm(self, request_id: int) -> _Waiter:
 		waiter = _Waiter(request_id)
 		with self._waiter_lock:
-			self._waiter = waiter
+			self._waiters[request_id] = waiter
 		return waiter
 
 	def _await(self, waiter: _Waiter, timeout: float) -> Optional[Dict[str, Any]]:
 		waiter.event.wait(timeout)
 		with self._waiter_lock:
-			if self._waiter is waiter:
-				self._waiter = None
+			if self._waiters.get(waiter.request_id) is waiter:
+				del self._waiters[waiter.request_id]
 		if waiter.response is None:
 			self._check_link()
 		return waiter.response
@@ -396,8 +424,9 @@ class ESP32Connection:
 	def _write(self, data: bytes) -> None:
 		ser = self._check_link()
 		try:
-			ser.write(data)
-			ser.flush()
+			with self._write_lock:
+				ser.write(data)
+				ser.flush()
 		except (serial.SerialException, OSError) as exc:
 			self._failure = exc
 			raise ESP32TransportError(f"ESP32 write failed: {exc}") from exc
@@ -424,7 +453,8 @@ class ESP32Connection:
 		if retry is None:
 			retry = payload.get("cmd") in _IDEMPOTENT_COMMANDS
 		attempts = 2 if retry else 1
-		with self._lock:
+		priority = self.supports_ids and payload.get("cmd") in _PRIORITY_COMMANDS
+		with (_NO_LOCK if priority else self._lock):
 			for _ in range(attempts):
 				request_id = next(self._ids)
 				waiter = self._arm(request_id)
@@ -449,10 +479,11 @@ class ESP32Connection:
 		with self._lock:
 			request_id = next(self._ids)
 			waiter = self._arm(request_id)
-			self._write(self._line(payload, request_id))
-			# Let the firmware parse the header and allocate before the bytes.
-			time.sleep(0.02)
-			self._write(data_bytes)
+			with self._write_lock:  # nothing between the header and its bytes
+				self._write(self._line(payload, request_id))
+				# Let the firmware parse the header and allocate before the bytes.
+				time.sleep(0.02)
+				self._write(data_bytes)
 			resp = self._await(waiter, transfer_timeout)
 		if resp is None:
 			raise TimeoutError("No response from ESP32 after binary payload")
@@ -589,10 +620,11 @@ class ESP32Connection:
 			self._parse_response(first)
 			final_waiter = self._arm(request_id)
 			view = memoryview(data)
-			for start in range(0, len(view), 512):
-				self._write(view[start:start + 512].tobytes())
-				# Pace the upload a little so the ESP32's RX buffer keeps up.
-				time.sleep(0.001)
+			with self._write_lock:  # a stop mustn't land in the middle of the file
+				for start in range(0, len(view), 512):
+					self._write(view[start:start + 512].tobytes())
+					# Pace the upload a little so the ESP32's RX buffer keeps up.
+					time.sleep(0.001)
 			resp = self._await(final_waiter, transfer_timeout)
 		if resp is None:
 			raise TimeoutError("No response from ESP32 after upload")
