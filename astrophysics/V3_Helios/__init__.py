@@ -50,7 +50,14 @@ def _degrees_to_dms(dec_deg):
         minutes = 0
         degrees += 1
 
-    degrees *= sign
+    # Put the sign on the first nonzero field: -0 deg 28' would otherwise lose
+    # it (0 * -1 == 0) and read back as +0 deg 28'.
+    if degrees:
+        degrees *= sign
+    elif minutes:
+        minutes *= sign
+    else:
+        seconds *= sign
     return [degrees, minutes, seconds]
 
 

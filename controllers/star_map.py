@@ -86,10 +86,7 @@ def get_all_celestial_objects(_dt: Optional[datetime] = None):
         mag = _celestial_magnitude(obj_name, coords)
 
         ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        if dec_d < 0:
-            dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-        else:
-            dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
         obj_payload = {
             "name": obj_name.capitalize(),
@@ -143,10 +140,7 @@ def get_stars():
             mag = _celestial_magnitude(obj_name, coords)
 
             ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-            if dec_d < 0:
-                dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-            else:
-                dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+            dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
             obj_payload = {
                 "name": obj_name.capitalize(),
@@ -395,10 +389,7 @@ def get_planets():
         mag = _celestial_magnitude(obj_name, coords)
 
         ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        if dec_d < 0:
-            dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-        else:
-            dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
         obj_payload = {
             "name": obj_name.capitalize(),
@@ -429,10 +420,7 @@ def star_info(star_name):
         mag = _celestial_magnitude(obj_name_lower, coords)
 
         ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        if dec_d < 0:
-            dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-        else:
-            dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
         obj_payload = {
             "name": star_name.capitalize(),
