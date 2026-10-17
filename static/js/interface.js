@@ -48,14 +48,18 @@ document.querySelectorAll(".draggable-panel").forEach(panel => {
         // Selected telescope state
         let selectedTelescopeId = null;
         let selectedMotorId = "motor1"; // Default motor
+        let telescopeAccess = { control: false, owner: false };
 
         // Enable/disable UI controls based on telescope selection
         function setControlsEnabled(enabled) {
             const ids = [
                 "shutterSpeedSelect",
                 "isoSelect",
+                "apertureSelect",
                 "whiteBalance",
                 "photoFormat",
+                "exposureCompSelect",
+                "bulbSeconds",
                 "takePhotoBtn",
                 "liveViewToggleBtn"
             ];
@@ -63,70 +67,87 @@ document.querySelectorAll(".draggable-panel").forEach(panel => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = !enabled;
             });
-            
+
             // Also enable/disable advanced motor controls
             setAdvancedControlsEnabled(enabled);
         }
-        
+
         function setAdvancedControlsEnabled(enabled) {
             const advancedIds = [
                 "motorEnableBtn",
                 "speedControl",
                 "stepsControl",
-                "microstepsControl", 
+                "microstepsControl",
                 "currentControl",
                 "accelControl",
                 "modeControl"
             ];
-            
+
             advancedIds.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.disabled = !enabled;
             });
-            
+
             // Also disable direction and movement buttons
             const directionBtns = document.querySelectorAll('[onclick^="setDirection"]');
             const movementBtns = document.querySelectorAll('[onclick="startMotor()"], [onclick="stopMotor()"], [onclick="moveSteps()"]');
             const settingBtns = document.querySelectorAll('[onclick="setSpeed()"], [onclick="setCurrent()"], [onclick="setAcceleration()"], [onclick="getMotorStatus()"]');
-            
+
             [...directionBtns, ...movementBtns, ...settingBtns].forEach(btn => {
                 btn.disabled = !enabled;
             });
         }
 
-// Fetch camera choices and populate dropdowns
+// Show owner-only controls (the Device tab, clearing an e-stop) to the owner and admins
+function applyTelescopeAccess(access) {
+    telescopeAccess = access || { control: false, owner: false };
+    document.getElementById('deviceTabItem')?.classList.toggle('d-none', !telescopeAccess.owner);
+    document.querySelectorAll('.owner-only').forEach(el => el.classList.toggle('d-none', !telescopeAccess.owner));
+}
+
+// Camera settings: the select each getCameraChoices list fills, and the field it sets
+const CAMERA_SELECTS = [
+    { key: "shutterSpeed", id: "shutterSpeedSelect" },
+    { key: "iso", id: "isoSelect" },
+    { key: "aperture", id: "apertureSelect" },
+    { key: "whiteBalance", id: "whiteBalance" },
+    { key: "imageFormat", id: "photoFormat" },
+    { key: "exposureCompensation", id: "exposureCompSelect" }
+];
+window.cameraChoices = null;
+
+// Fetch camera choices and populate dropdowns, preset to the camera's current values
 function populateCameraChoices() {
             if (!selectedTelescopeId) {
                 console.warn("Skipping camera choices fetch: no telescope selected");
                 return;
             }
 
-            fetch("/interface/get_camera_choices")
+            fetch(`/interface/get_camera_choices?telescope_id=${encodeURIComponent(selectedTelescopeId)}`)
         .then(response => response.json())
         .then(data => {
                     if (data && data.status === "error") {
                         console.error("Failed to fetch camera choices:", data.message);
                         return;
                     }
-            // Populate shutter speed
-            let shutterSelect = document.getElementById("shutterSpeedSelect");
-            shutterSelect.innerHTML = "";
-                    (data.shutterSpeed || []).forEach(choice => {
-                let opt = document.createElement("option");
-                opt.value = choice;
-                opt.text = choice;
-                shutterSelect.appendChild(opt);
+            window.cameraChoices = data;
+            const current = data.current || {};
+            CAMERA_SELECTS.forEach(({ key, id }) => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                select.innerHTML = "";
+                (data[key] || []).forEach(choice => {
+                    const opt = document.createElement("option");
+                    opt.value = choice;
+                    opt.text = choice;
+                    select.appendChild(opt);
+                });
+                if (current[key] !== undefined && current[key] !== null) {
+                    select.value = String(current[key]);
+                }
+                select.disabled = !(data[key] || []).length;
             });
-
-            // Populate ISO
-            let isoSelect = document.getElementById("isoSelect");
-            isoSelect.innerHTML = "";
-            (data.iso || []).forEach(choice => {
-                let opt = document.createElement("option");
-                opt.value = choice;
-                opt.text = choice;
-                isoSelect.appendChild(opt);
-            });
+            updateBulbVisibility();
         })
         .catch(error => {
             console.error("Failed to fetch camera choices:", error);
@@ -140,8 +161,10 @@ document.addEventListener("DOMContentLoaded", function() {
     loadTelescopes();
     loadSelectedTelescope();
     loadTrackingStatus();
+    initializeLiveView();
     initializeLiveHistogram();
-    
+    setInterval(pollTelescopeStatus, 5000);
+
     // Initialize draggable panels
     const trackingPanel = document.getElementById('trackingPanel');
     if (trackingPanel) {
@@ -155,27 +178,33 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 
-// Update settings to backend
-function updateSetting() {
+// Send one changed camera setting to the backend
+function updateSetting(field, value) {
     if (!selectedTelescopeId) {
         alert("Please select a telescope first.");
         return;
     }
-    let data = {
-        shutterSpeed: document.getElementById("shutterSpeedSelect").value,
-        iso: document.getElementById("isoSelect").value,
-        aperture: document.getElementById("apertureValue").innerText,
-        whiteBalance: document.getElementById("whiteBalance").value,
-        photoFormat: document.getElementById("photoFormat").value,
-        telescope_id: selectedTelescopeId
-    };
+    if (value === undefined || value === null || value === "") return;
     fetch("/interface/update_camera", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ [field]: value, telescope_id: selectedTelescopeId })
     }).then(response => response.json())
-    .then(data => console.log("Response from server:", data))
+    .then(data => {
+        if (data.status !== "success") {
+            alert("Camera setting not changed: " + (data.message || "Unknown error"));
+        }
+    })
     .catch(error => console.error("Fetch error:", error));
+}
+
+function isBulbShutter(value) {
+    return /bulb/i.test(String(value || ""));
+}
+
+function updateBulbVisibility() {
+    const shutter = document.getElementById("shutterSpeedSelect");
+    document.getElementById("bulbRow")?.classList.toggle("d-none", !isBulbShutter(shutter && shutter.value));
 }
 
 function takePhoto() {
@@ -183,10 +212,22 @@ function takePhoto() {
         alert("Please select a telescope first.");
         return;
     }
+    const shutter = document.getElementById("shutterSpeedSelect").value;
+    const body = { telescope_id: selectedTelescopeId, shutter };
+    if (isBulbShutter(shutter)) {
+        const seconds = parseFloat(document.getElementById("bulbSeconds").value);
+        if (isNaN(seconds) || seconds <= 0 || seconds > 900) {
+            alert("Enter a bulb exposure between 0 and 900 seconds.");
+            return;
+        }
+        body.exposure_s = seconds;
+    }
+    const btn = document.getElementById("takePhotoBtn");
+    btn.disabled = true;
     fetch("/interface/take_photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telescope_id: selectedTelescopeId })
+        body: JSON.stringify(body)
     })
     .then(response => response.json())
     .then(data => {
@@ -198,15 +239,65 @@ function takePhoto() {
     })
     .catch(error => {
         alert("Error taking photo: " + error);
+    })
+    .finally(() => {
+        btn.disabled = false;
     });
 }
 
-// Live View Toggle Logic
+// Live View: a canvas player fed over the live-view socket (H.264, or JPEG)
 let liveViewActive = false;
-let liveViewImage = null;
-let refreshInterval = null;
+let liveViewPlayer = null;
 let liveHistogram = null;
-const REFRESH_RATE = 1000; // Refresh every 1 second
+
+function setLiveViewOverlay(text) {
+    const overlay = document.getElementById('liveViewOverlay');
+    if (!overlay) return;
+    overlay.textContent = text || '';
+    overlay.classList.toggle('d-none', !text);
+}
+
+function initializeLiveView() {
+    const canvas = document.getElementById('liveViewCanvas');
+    if (!canvas || typeof window.LiveViewPlayer !== 'function') return;
+    liveViewPlayer = new window.LiveViewPlayer(canvas, {
+        onState: (state, detail) => {
+            const badge = document.getElementById('liveViewBadge');
+            if (state === 'playing') {
+                setLiveViewOverlay('');
+                if (badge) {
+                    badge.textContent = detail || '';
+                    badge.classList.remove('d-none');
+                }
+                return;
+            }
+            badge?.classList.add('d-none');
+            // Keep showing the last frame while the camera restarts
+            const messages = {
+                connecting: 'Connecting…',
+                waiting: 'Waiting for the telescope…',
+                offline: 'Live view off',
+                error: detail || 'Live view unavailable'
+            };
+            setLiveViewOverlay(messages[state] || '');
+        }
+    });
+
+    // Click the picture to zoom there
+    canvas.addEventListener('click', (event) => {
+        if (!selectedTelescopeId || !liveViewActive) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / rect.width;
+        const y = (event.clientY - rect.top) / rect.height;
+        const levelSelect = document.getElementById('liveViewZoom');
+        let level = parseFloat(levelSelect.value);
+        if (level <= 1) {
+            level = 5;
+            levelSelect.value = '5';
+        }
+        telescopeAction('set_camera_zoom', { level, x: x.toFixed(4), y: y.toFixed(4) }, { quiet: true });
+    });
+}
 
 function initializeLiveHistogram() {
     if (typeof window.HistogramPanel !== 'function' || liveHistogram) {
@@ -220,45 +311,25 @@ function initializeLiveHistogram() {
         emptyMessage: 'Waiting for live frame...'
     });
 
-    const image = document.getElementById('liveViewImage');
-    if (liveHistogram && image) {
-        image.crossOrigin = 'anonymous';
-        liveHistogram.setSourceImage(image);
+    const canvas = document.getElementById('liveViewCanvas');
+    if (liveHistogram && canvas) {
+        liveHistogram.setSourceImage(canvas);
     }
 }
 
-// Function to start refreshing the live view image
-function startImageRefresh() {
-    if (!liveViewImage) {
-        liveViewImage = document.getElementById('liveViewImage');
-    }
-    
-    if (liveViewImage && !refreshInterval) {
-        const baseUrl = liveViewImage.src.split('?')[0]; // Remove any existing query params
-        
-        refreshInterval = setInterval(() => {
-            // Add a timestamp to prevent caching
-            liveViewImage.src = baseUrl + '?t=' + new Date().getTime();
-        }, REFRESH_RATE);
-        
-        console.log("Image refresh started");
-    }
-}
-
-// Function to stop refreshing the live view image
-function stopImageRefresh() {
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
-        refreshInterval = null;
-        console.log("Image refresh stopped");
-    }
+function setLiveViewButton(active) {
+    const btn = document.getElementById("liveViewToggleBtn");
+    if (!btn) return;
+    btn.textContent = active ? "Stop" : "Start";
+    btn.classList.toggle("btn-outline-danger", active);
+    btn.classList.toggle("btn-outline-primary", !active);
 }
 
 function toggleLiveView() {
     console.log("Live view toggled");
-    
+
     const btn = document.getElementById("liveViewToggleBtn");
-    
+
     if (!btn) {
         console.error("Live view button not found! Make sure an element with ID 'liveViewToggleBtn' exists.");
         alert("Live view button not found in the page!");
@@ -268,31 +339,21 @@ function toggleLiveView() {
         alert("Please select a telescope first.");
         return;
     }
-    
-    // console.log("Button found, current liveViewActive state:", liveViewActive);
-    
+
     if (liveViewActive) {
         // Stop live view
-        console.log("Attempting to stop live view...");
-        console.log("Making POST request to /interface/stop_live_view");
         fetch("/interface/stop_live_view", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ telescope_id: selectedTelescopeId })
         })
-        .then(response => {
-            console.log("Stop live view response received:", response);
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            console.log("Stop live view data:", data);
             if (data.status === "success") {
                 liveViewActive = false;
-                btn.textContent = "Start";
-                btn.classList.remove("btn-outline-danger");
-                btn.classList.add("btn-outline-primary");
-                stopImageRefresh(); // Stop refreshing the image
-                console.log("Live view stopped successfully");
+                setLiveViewButton(false);
+                if (liveViewPlayer) liveViewPlayer.stop();
+                setLiveViewOverlay('Live view off');
             } else {
                 console.error("Failed to stop live view:", data.message);
                 alert("Error stopping live view: " + data.message);
@@ -303,30 +364,19 @@ function toggleLiveView() {
             alert("Error stopping live view: " + error);
         });
     } else {
-        // Start live view
-        console.log("Attempting to start live view...");
-        console.log("Making POST request to /interface/start_live_view");
-        // Ensure the image src matches the selected telescope before starting refresh
-        updateLiveViewSrcForTelescope(selectedTelescopeId);
+        // Start live view, and watch it
         fetch("/interface/start_live_view", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ telescope_id: selectedTelescopeId })
         })
         .then(checkAuthResponse)
-        .then(response => {
-            console.log("Start live view response received:", response);
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            console.log("Start live view data:", data);
             if (data.status === "success") {
                 liveViewActive = true;
-                btn.textContent = "Stop";
-                btn.classList.remove("btn-outline-primary");
-                btn.classList.add("btn-outline-danger");
-                startImageRefresh(); // Start refreshing the image
-                console.log("Live view started successfully");
+                setLiveViewButton(true);
+                if (liveViewPlayer) liveViewPlayer.start(selectedTelescopeId);
             } else {
                 console.error("Failed to start live view:", data.message);
                 alert("Error starting live view: " + data.message);
@@ -730,6 +780,7 @@ function selectTelescope() {
             setControlsEnabled(true);
             updateLiveViewSrcForTelescope(selectedTelescopeId);
             populateCameraChoices();
+            onTelescopeSelected(data.access);
         } else {
             alert("Failed to select telescope: " + data.message);
         }
@@ -796,6 +847,7 @@ function loadSelectedTelescope() {
                         setControlsEnabled(true);
                         updateLiveViewSrcForTelescope(selectedTelescopeId);
                         populateCameraChoices();
+                        onTelescopeSelected(data.access);
                         break;
                     }
                 }
@@ -809,25 +861,11 @@ function loadSelectedTelescope() {
         });
 }
 
-// Update the main live view image src to point to the selected telescope
+// Watch the selected telescope's live view, if live view is on
 function updateLiveViewSrcForTelescope(telescopeId) {
-    if (!telescopeId) return;
-    if (!liveViewImage) {
-        liveViewImage = document.getElementById('liveViewImage');
-    }
-    if (!liveViewImage) return;
-
-    liveViewImage.crossOrigin = 'anonymous';
-
-    const domain = (window.APP_DOMAIN && typeof window.APP_DOMAIN === 'string') ? window.APP_DOMAIN : 'telescopes.dev';
-    const newSrc = `https://${domain}/liveview/${encodeURIComponent(telescopeId)}`;
-    const wasRefreshing = !!refreshInterval;
-    if (wasRefreshing) {
-        stopImageRefresh();
-    }
-    liveViewImage.src = newSrc;
-    if (wasRefreshing) {
-        startImageRefresh();
+    if (!telescopeId || !liveViewPlayer) return;
+    if (liveViewActive) {
+        liveViewPlayer.start(telescopeId);
     }
 }
 
@@ -1375,3 +1413,447 @@ function loadTrackingStatus() {
         .catch(error => console.log('Could not fetch tracking status from server'));
 }
 
+// Telescope commands (POST /interface/command). Returns the result, or throws with the
+// telescope's message. Jobs (park, dither, solve, centre, polar align) are polled until done.
+function showCommandResult(title, value) {
+    const box = document.getElementById('telescopeResult');
+    if (!box) return;
+    box.classList.remove('d-none');
+    const text = (value === undefined || value === null) ? '' :
+        (typeof value === 'string' ? value : JSON.stringify(value, null, 2));
+    box.textContent = `${title}${text ? '\n' + text : ''}`;
+}
+
+function telescopeAction(action, params = {}, options = {}) {
+    if (!selectedTelescopeId) {
+        alert("Please select a telescope first.");
+        return Promise.reject(new Error("No telescope selected"));
+    }
+    return fetch("/interface/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, params, telescope_id: selectedTelescopeId })
+    })
+    .then(checkAuthResponse)
+    .then(response => response.json())
+    .then(data => {
+        if (data.status !== "success") {
+            showCommandResult(`✗ ${action}: ${data.message || 'failed'}`);
+            throw new Error(data.message || `${action} failed`);
+        }
+        if (!options.quiet) {
+            showCommandResult(`✓ ${action}`, data.result);
+        }
+        if (data.job) {
+            pollJob(data.job);
+        }
+        return data.result;
+    })
+    .catch(error => {
+        console.error(`Command ${action} failed:`, error);
+        throw error;
+    });
+}
+
+function confirmAction(question, action, params = {}) {
+    if (confirm(question)) {
+        telescopeAction(action, params).catch(() => {});
+    }
+}
+
+const JOB_LABELS = { park: 'Parking', dither: 'Dithering', solve: 'Plate solving', centre: 'Centring', polar: 'Polar alignment' };
+const runningJobs = new Set();
+
+// Poll getJobStatus every 2 s until the job stops running, then show its result or error
+function pollJob(name) {
+    if (runningJobs.has(name)) return;
+    runningJobs.add(name);
+    const line = document.getElementById('jobStatusLine');
+    const label = JOB_LABELS[name] || name;
+    const tick = () => {
+        telescopeAction('job_status', { name }, { quiet: true })
+            .then(status => {
+                status = status || {};
+                if (status.running) {
+                    const progress = status.progress !== undefined ? ` (${status.progress})` : '';
+                    if (line) line.textContent = `${label}…${progress}`;
+                    setTimeout(tick, 2000);
+                    return;
+                }
+                runningJobs.delete(name);
+                if (status.error) {
+                    if (line) line.textContent = `${label} failed: ${status.error}`;
+                    showCommandResult(`✗ ${label} failed`, status.error);
+                } else {
+                    if (line) line.textContent = `${label} done.`;
+                    showCommandResult(`✓ ${label} done`, status.result);
+                }
+            })
+            .catch(() => {
+                runningJobs.delete(name);
+                if (line) line.textContent = `${label}: lost track of the job.`;
+            });
+    };
+    if (line) line.textContent = `${label}…`;
+    setTimeout(tick, 2000);
+}
+
+function emergencyStopMount() {
+    telescopeAction('estop').then(() => updateMotorStatusDisplay('🚨 Emergency stop sent', 'error')).catch(() => {});
+}
+
+function clearEstop() {
+    confirmAction('Clear the emergency stop? Make sure nothing is in the way of the mount.', 'clear_estop');
+}
+
+function solveSource() {
+    return document.getElementById('solveSource').value || null;
+}
+
+function setTrackingRate() {
+    const rate = document.getElementById('trackingRateSelect').value;
+    const params = { rate };
+    if (rate === 'custom') {
+        const custom = parseFloat(document.getElementById('customRateInput').value);
+        if (isNaN(custom)) {
+            alert('Enter a custom rate in arcseconds per second.');
+            return;
+        }
+        params.custom_arcsec_per_s = custom;
+    }
+    telescopeAction('set_tracking_rate', params).catch(() => {});
+}
+
+// The Moon and planets: the Pi works out where they appear from its own site
+function trackPlanet() {
+    const name = document.getElementById('planetSelect').value;
+    telescopeAction('track_object', { name })
+        .then(result => {
+            const ra = result && result.ra !== undefined ? result.ra : '—';
+            const dec = result && result.dec !== undefined ? result.dec : '—';
+            updateTrackingPanel({ name, ra, dec, mag: '—' });
+            updateMotorStatusDisplay(`🎯 Tracking ${name}`, 'success');
+        })
+        .catch(error => alert(`Couldn't go to ${name}: ${error.message}`));
+}
+
+function loadPlanets() {
+    // Fill the planet list from the Pi when it offers one
+    telescopeAction('get_planets', {}, { quiet: true })
+        .then(result => {
+            const names = Array.isArray(result) ? result : (result && Array.isArray(result.planets) ? result.planets : null);
+            if (!names || !names.length) return;
+            const select = document.getElementById('planetSelect');
+            select.innerHTML = '';
+            names.forEach(entry => {
+                const name = typeof entry === 'string' ? entry : entry.name;
+                if (!name) return;
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.text = typeof entry === 'object' && entry.alt_deg !== undefined
+                    ? `${name} (${Number(entry.alt_deg).toFixed(0)}°)` : name;
+                select.appendChild(opt);
+            });
+        })
+        .catch(() => {});
+}
+
+function setZoomLevel(level) {
+    telescopeAction('set_camera_zoom', { level: parseFloat(level) }, { quiet: true }).catch(() => {});
+}
+
+function startRecording() {
+    const kind = document.getElementById('recordingKind').value;
+    const params = { kind };
+    if (kind === 'timelapse') {
+        params.interval_s = parseFloat(document.getElementById('recordingInterval').value) || 5;
+    }
+    telescopeAction('start_recording', params).then(refreshRecordingStatus).catch(() => {});
+}
+
+function refreshRecordingStatus() {
+    return telescopeAction('recording_status', {}, { quiet: true })
+        .then(status => renderRecording(status))
+        .catch(() => {});
+}
+
+function renderRecording(status) {
+    const line = document.getElementById('recordingStatus');
+    if (!line || !status) return;
+    if (status.error && !status.recording) {
+        line.textContent = `Last recording error: ${status.error}`;
+    } else if (status.recording) {
+        const seconds = status.seconds !== undefined ? ` · ${Math.round(status.seconds)} s` : '';
+        line.textContent = `● Recording ${status.kind || ''}: ${status.frames || 0} frames${seconds}`;
+    } else {
+        line.textContent = status.path ? `Saved ${status.path}` : 'Not recording.';
+    }
+}
+
+function refreshLiveViewStats() {
+    telescopeAction('liveview_stats', {}, { quiet: true })
+        .then(stats => {
+            if (!stats) return;
+            const parts = [];
+            if (stats.codec) parts.push(stats.codec.toUpperCase());
+            if (stats.fps !== undefined) parts.push(`${Number(stats.fps).toFixed(1)} fps`);
+            if (stats.kbps !== undefined || stats.bitrate_kbps !== undefined) parts.push(`${Math.round(stats.kbps ?? stats.bitrate_kbps)} kbps`);
+            if (stats.avg_kb !== undefined) parts.push(`${Number(stats.avg_kb).toFixed(0)} KB/frame`);
+            if (stats.keyframes !== undefined) parts.push(`${stats.keyframes} keyframes`);
+            document.getElementById('liveViewStats').textContent = parts.join(' · ') || 'No stats';
+        })
+        .catch(() => {});
+}
+
+function formatBytes(bytes) {
+    if (bytes === undefined || bytes === null || isNaN(bytes)) return '—';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = Number(bytes);
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit++;
+    }
+    return `${value.toFixed(unit ? 1 : 0)} ${units[unit]}`;
+}
+
+function refreshCameraStatus() {
+    telescopeAction('camera_status', {}, { quiet: true })
+        .then(status => {
+            if (!status) return;
+            const battery = status.battery ?? status.batteryLevel ?? '—';
+            const card = status.card_free ?? status.cardFree ?? status.card ?? '—';
+            const cardText = typeof card === 'number' ? formatBytes(card) + ' free' : card;
+            document.getElementById('cameraStatusLine').textContent = `Battery ${battery} · Card ${cardText}`;
+        })
+        .catch(() => {});
+}
+
+function refreshUploadQueue() {
+    if (!selectedTelescopeId) return Promise.resolve();
+    return telescopeAction('upload_queue', {}, { quiet: true })
+        .then(queue => renderUploads(queue))
+        .catch(() => {});
+}
+
+function renderUploads(uploads) {
+    const box = document.getElementById('uploadQueueSummary');
+    if (!box || !uploads) return;
+    if (uploads.error && Object.keys(uploads).length === 1) {
+        box.textContent = `Uploads: ${uploads.error}`;
+        return;
+    }
+    const waiting = uploads.waiting ?? (Array.isArray(uploads.queue) ? uploads.queue.length : undefined);
+    const parts = [
+        `Waiting ${waiting ?? '—'}`,
+        `RAWs held ${uploads.waiting_raw ?? uploads.held ?? '—'}`,
+        `Failed ${uploads.failed ?? '—'}`,
+        `Sent ${uploads.sent ?? '—'}`
+    ];
+    let text = parts.join(' · ');
+    if (uploads.current) text += `\nSending ${typeof uploads.current === 'string' ? uploads.current : (uploads.current.filename || '')}`;
+    if (uploads.last_error) text += `\nLast error: ${uploads.last_error}`;
+    box.textContent = text;
+    box.style.whiteSpace = 'pre-line';
+}
+
+function setHorizon() {
+    const params = {
+        min_alt_deg: document.getElementById('horizonMinAlt').value,
+        profile: document.getElementById('horizonProfile').value,
+        stop_when_set: document.getElementById('horizonStopWhenSet').checked
+    };
+    telescopeAction('set_horizon', params).catch(() => {});
+}
+
+// Telescope status: the Pi pushes a status message every 15 s; the page reads the latest
+function statusPart(status, name) {
+    const part = status ? status[name] : undefined;
+    if (part && typeof part === 'object' && part.error && Object.keys(part).length === 1) {
+        return { error: part.error };
+    }
+    return part;
+}
+
+function describeStatus(status, viewers) {
+    const rows = [];
+    const add = (label, value) => rows.push([label, value]);
+    const tracking = statusPart(status, 'tracking');
+    if (tracking) {
+        if (tracking.error) add('Mount', `⚠ ${tracking.error}`);
+        else {
+            let text = tracking.parked ? 'Parked' : (tracking.state || '—');
+            if (tracking.target) text += ` · ${tracking.target}`;
+            if (tracking.rate) text += ` · ${tracking.rate}`;
+            add('Mount', text);
+        }
+    }
+    const camera = statusPart(status, 'camera');
+    if (camera) {
+        add('Camera', camera.error ? `⚠ ${camera.error}` : `${camera.connected ? (camera.model || 'Connected') : 'Not connected'}`);
+    }
+    const lv = statusPart(status, 'liveview');
+    if (lv) {
+        if (lv.error) add('Live view', `⚠ ${lv.error}`);
+        else {
+            let text = lv.enabled ? (lv.paused ? 'Paused (no viewers)' : 'On') : 'Off';
+            if (lv.enabled && lv.fps !== undefined) text += ` · ${Number(lv.fps).toFixed(1)} fps`;
+            if (lv.enabled && lv.kbps !== undefined) text += ` · ${Math.round(lv.kbps)} kbps`;
+            add('Live view', text);
+        }
+    }
+    add('Watching', String(viewers ?? 0));
+    const recording = statusPart(status, 'recording');
+    if (recording && recording.recording) add('Recording', `${recording.kind || ''} · ${recording.frames || 0} frames`);
+    const uploads = statusPart(status, 'uploads');
+    if (uploads) {
+        add('Uploads', uploads.error ? `⚠ ${uploads.error}` :
+            `${uploads.waiting ?? 0} waiting · ${uploads.failed ?? 0} failed${uploads.last_error ? ' · ' + uploads.last_error : ''}`);
+    }
+    const clock = statusPart(status, 'clock');
+    if (clock) add('Clock', clock.error ? `⚠ ${clock.error}` : `${clock.trusted ? 'Trusted' : 'Not trusted'}${clock.source ? ' · ' + clock.source : ''}${clock.offset_s !== undefined ? ' · ' + Number(clock.offset_s).toFixed(2) + ' s' : ''}`);
+    const disk = status ? status.disk : undefined;
+    if (disk !== undefined) add('Disk', typeof disk === 'number' ? `${formatBytes(disk)} free` : (disk.error ? `⚠ ${disk.error}` : `${formatBytes(disk.free_bytes ?? disk.free)} free`));
+    const esp = statusPart(status, 'esp32');
+    if (esp) add('Controller', esp.error ? `⚠ ${esp.error}` : `${esp.connected ? 'Connected' : 'Not connected'}${esp.estop ? ' · E-STOP' : ''}`);
+    return rows;
+}
+
+function renderTelescopeStatus(data) {
+    const grid = document.getElementById('telescopeStatusGrid');
+    const age = document.getElementById('statusAge');
+    if (!grid) return;
+    grid.innerHTML = '';
+    if (!data.telescope_status) {
+        grid.innerHTML = '<dt>—</dt><dd>No status from the telescope yet</dd>';
+        if (age) age.textContent = '';
+    } else {
+        describeStatus(data.telescope_status, data.viewers).forEach(([label, value]) => {
+            const dt = document.createElement('dt');
+            dt.textContent = label;
+            const dd = document.createElement('dd');
+            dd.textContent = value;
+            grid.append(dt, dd);
+        });
+        if (age) age.textContent = data.age_s !== null ? `${Math.round(data.age_s)} s ago` : '';
+        const lv = statusPart(data.telescope_status, 'liveview');
+        // Live view switched on elsewhere (or before a reload): watch it here too
+        if (lv && lv.enabled && !liveViewActive && liveViewPlayer) {
+            liveViewActive = true;
+            setLiveViewButton(true);
+            liveViewPlayer.start(selectedTelescopeId);
+        }
+        const recording = statusPart(data.telescope_status, 'recording');
+        if (recording && !recording.error) renderRecording(recording);
+        const uploads = statusPart(data.telescope_status, 'uploads');
+        if (uploads && !uploads.error) renderUploads(uploads);
+    }
+    renderPlan(data.plan);
+}
+
+function renderPlan(plan) {
+    const box = document.getElementById('planBox');
+    if (!box) return;
+    if (!plan) {
+        box.classList.add('d-none');
+        return;
+    }
+    box.classList.remove('d-none');
+    const status = plan.last_status || {};
+    const state = status.state || plan.state;
+    document.getElementById('planTitle').textContent = plan.name;
+    document.getElementById('planState').textContent = state;
+    const steps = plan.steps || [];
+    const stepIndex = typeof status.step === 'number' ? status.step : null;
+    let progress = '';
+    if (stepIndex !== null && steps[stepIndex]) {
+        progress = `Step ${stepIndex + 1} of ${steps.length}: ${steps[stepIndex].type}`;
+        if (status.frame !== undefined) progress += ` · frame ${status.frame + 1}`;
+    }
+    if (status.time_left_s !== undefined) progress += ` · ${Math.round(status.time_left_s / 60)} min left`;
+    if (Array.isArray(status.messages) && status.messages.length) progress += `\n${status.messages[status.messages.length - 1]}`;
+    const progressEl = document.getElementById('planProgress');
+    progressEl.textContent = progress || 'Starting…';
+    progressEl.style.whiteSpace = 'pre-line';
+
+    const coverWait = state === 'waiting' && status.waiting === 'cover';
+    document.getElementById('planCoverPrompt').classList.toggle('d-none', !coverWait);
+    document.getElementById('planCoverBtn').classList.toggle('d-none', !coverWait);
+    document.getElementById('planPauseBtn').classList.toggle('d-none', state !== 'running');
+    document.getElementById('planResumeBtn').classList.toggle('d-none', state !== 'paused');
+}
+
+function pollTelescopeStatus() {
+    if (!selectedTelescopeId || document.hidden) return;
+    fetch(`/interface/telescope_status?telescope_id=${encodeURIComponent(selectedTelescopeId)}`)
+        .then(response => response.json().then(body => ({ ok: response.ok, body })))
+        .then(({ ok, body }) => {
+            if (!ok || body.status !== 'success') {
+                const grid = document.getElementById('telescopeStatusGrid');
+                if (grid) grid.innerHTML = `<dt>—</dt><dd></dd>`;
+                if (grid) grid.querySelector('dd').textContent = body.message || 'Status unavailable';
+                return;
+            }
+            if (body.access) applyTelescopeAccess(body.access);
+            renderTelescopeStatus(body);
+        })
+        .catch(() => {});
+}
+
+function planControl(action) {
+    if (!selectedTelescopeId) return;
+    fetch('/interface/capture/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, telescope_id: selectedTelescopeId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status !== 'success') {
+            alert(`Couldn't ${action} the plan: ${data.message || 'unknown error'}`);
+            return;
+        }
+        renderPlan(data.plan && ['done', 'stopped', 'failed'].includes(data.plan.state) ? null : data.plan);
+        pollTelescopeStatus();
+    })
+    .catch(error => alert(`Couldn't ${action} the plan: ${error}`));
+}
+
+function loadPlanHistory() {
+    const box = document.getElementById('planHistory');
+    if (!box || !selectedTelescopeId) return;
+    fetch(`/interface/capture/history?telescope_id=${encodeURIComponent(selectedTelescopeId)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status !== 'success') return;
+            box.innerHTML = '';
+            if (!data.plans.length) {
+                box.textContent = 'No plans run on this telescope yet.';
+                return;
+            }
+            data.plans.slice(0, 8).forEach(plan => {
+                const row = document.createElement('div');
+                row.className = 'd-flex justify-content-between border-bottom py-1';
+                const name = document.createElement('span');
+                name.textContent = plan.name;
+                const state = document.createElement('span');
+                state.className = 'text-muted';
+                state.textContent = `${plan.state}${plan.frames_done ? ' · ' + plan.frames_done + ' frames' : ''}`;
+                row.append(name, state);
+                box.appendChild(row);
+            });
+        })
+        .catch(() => {});
+}
+
+// Called whenever a telescope becomes the selected one
+function onTelescopeSelected(access) {
+    applyTelescopeAccess(access);
+    if (!telescopeAccess.control) {
+        updateMotorStatusDisplay("You can view this telescope, but controlling it needs ownership or a booking that covers now.", 'warning');
+    }
+    pollTelescopeStatus();
+    loadPlanHistory();
+    loadPlanets();
+    refreshCameraStatus();
+}

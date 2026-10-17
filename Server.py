@@ -357,6 +357,8 @@ from models.trusted_device import TrustedDevice  # Import to register the model
 from models.logging import RequestLog, SecurityLog, WebsocketSecurityLog  # Import to register log tables
 from models.client_release import ClientReleaseSubmission  # Import to register release review model
 from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import to register SumUp payment tables
+from models.photo import Photo, TelescopeUpload  # Import to register photo and resumable upload tables
+from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -524,10 +526,10 @@ def index():
 from app.WebsocketServer import (
     start_websocket_servers,
     send_command_handler,
-    liveview_handler,
     register_client_handler,
     admin_disconnect_ws_client_handler,
 )
+from app.liveview import liveview_handler
 
 # Flask routes that interface with websocket servers
 @app.route('/sendCommand', methods=['POST'])
@@ -542,6 +544,11 @@ except Exception:
 
 @app.route('/liveview/<client_id>')
 def liveview(client_id):
+    # Same rule as the viewer tickets: owner, approved booking covering now, or admin
+    from app.telescope_access import telescope_access_error
+    denied = telescope_access_error(client_id)
+    if denied:
+        return denied
     return liveview_handler(client_id)
 
 @app.route('/client/register', methods=['POST'])
@@ -574,6 +581,14 @@ try:
 except Exception:
     pass
 
+# Exempt the telescopes' resumable upload API from CSRF checks (token-authenticated, no cookies).
+try:
+    telescope_uploads_blueprint = app.blueprints.get('telescope_uploads')
+    if telescope_uploads_blueprint:
+        csrf.exempt(telescope_uploads_blueprint)
+except Exception:
+    pass
+
 # Exempt SumUp webhook endpoint from CSRF checks (external server-to-server callback).
 try:
     sumup_webhook_view = app.view_functions.get('payments.sumup_webhook')
@@ -597,6 +612,12 @@ if __name__ == '__main__':
     # must live in the same process as Flask so routes can reach their clients.
     if not debugMode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         start_websocket_servers()
+
+        # Daily removal of abandoned partial uploads, and the capture plan backup stop
+        from controllers.telescope_uploads import start_upload_cleanup
+        from app.capture_plans import start_plan_watchdog
+        start_upload_cleanup(app)
+        start_plan_watchdog(app)
 
     # Cloudflare Tunnel (infrastructure/config.yml) targets localhost:FlaskServerPort
     flask_host = "0.0.0.0"

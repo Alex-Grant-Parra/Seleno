@@ -1,14 +1,13 @@
 import requests
 import ujson
-import asyncio
-import websockets
-import subprocess
 import os
 from flask import session, has_request_context
-from app.WebsocketServer import clients
-from time import sleep
-from PIL import Image
-import io
+from app.WebsocketServer import (
+    clients,
+    DEFAULT_COMMAND_TIMEOUT,
+    INTERNAL_COMMAND_HEADER,
+    INTERNAL_COMMAND_KEY,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,6 +19,56 @@ app_domain = os.getenv("APP_DOMAIN", "seleno.org")
 
 url = f"http://localhost:{flask_port}/sendCommand"
 external_domain = f"https://{app_domain}"
+
+# Seconds the telescope gets to reply, for commands slower than the default
+COMMAND_TIMEOUTS = {
+    "getCameraChoices": 15,   # reads six camera settings
+    "startCapturePlan": 10,   # a large message
+}
+# Margin on top of the exposure for capturePhoto
+CAPTURE_MARGIN_S = 30
+
+# Commands that start a background job and reply at once; poll getJobStatus(name)
+JOB_NAMES = {
+    "park": "park",
+    "dither": "dither",
+    "solveAndSync": "solve",
+    "centreTarget": "centre",
+    "polarAlign": "polar",
+}
+
+
+def command_timeout(command):
+    return float(COMMAND_TIMEOUTS.get(command, DEFAULT_COMMAND_TIMEOUT))
+
+
+def result_error(result):
+    """The telescope's refusal message, when a command's result is {"error": ...}.
+
+    Many client commands refuse by returning an error as a normal result (a
+    go-to below the horizon, near the Sun, while parked), so a reply alone
+    doesn't mean success."""
+    if isinstance(result, dict):
+        error = result.get("error")
+        if error:
+            return error if isinstance(error, str) else ujson.dumps(error)
+    return None
+
+
+def shutter_seconds(value):
+    # A shutter setting such as "1/250", "30" or '2.5"' in seconds; None for Bulb or unknown
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value) if value > 0 else None
+    text = str(value).strip().lower().rstrip('s"').strip()
+    try:
+        if '/' in text:
+            num, den = text.split('/', 1)
+            return float(num) / float(den)
+        return float(text)
+    except (ValueError, ZeroDivisionError):
+        return None
 
 
 def load_api_token():
@@ -42,21 +91,43 @@ class Telescope:
         self.client_id = client_id
         self.camera = CameraController(self)
         self.motor = MotorController(self)
+        self.scope = ScopeController(self)
+        self.liveview = LiveViewController(self)
+        self.uploads = UploadController(self)
+        self.device = DeviceController(self)
+        self.plans = CapturePlanController(self)
 
-    # Framework to send a command over the websocket
-    def send_command(self, command: str, args=None, kwargs=None):
-        payload = {"client_id": self.client_id, "command": command}
+    # Framework to send a command over the websocket.
+    # Returns the command's result, or {"error": message} when it couldn't be delivered.
+    def send_command(self, command: str, args=None, kwargs=None, timeout=None):
+        timeout = command_timeout(command) if timeout is None else float(timeout)
+        payload = {"client_id": self.client_id, "command": command, "timeout": timeout}
         if args is not None:
             payload["args"] = args
         if kwargs is not None:
             payload["kwargs"] = kwargs
         try:
-            resp_text = requests.post(url, json=payload, timeout=8).text
-            data = ujson.loads(resp_text)
-            return data.get("result", data)
+            # The HTTP call waits a little longer than the command server does
+            resp = requests.post(
+                url,
+                json=payload,
+                timeout=timeout + 4,
+                headers={INTERNAL_COMMAND_HEADER: INTERNAL_COMMAND_KEY},
+            )
+            data = ujson.loads(resp.text)
         except Exception:
             logger.exception("send_command %s failed for %s", command, self.client_id)
-            return {"error": "Command failed"}
+            return {"error": "Could not reach the command server"}
+        if data.get("status") == "error":
+            return {"error": data.get("error") or "Command failed"}
+        return data.get("result", data)
+
+    def call(self, command, *args, timeout=None):
+        # Positional arguments, without trailing Nones so the client's defaults apply
+        args = list(args)
+        while args and args[-1] is None:
+            args.pop()
+        return self.send_command(command, args, timeout=timeout)
 
     @staticmethod
     def resolve_client_id(provided_id=None):
@@ -90,8 +161,15 @@ class CameraController:
     def set_settings(self, args):
         return self.telescope.send_command("setCameraSetting", args)
 
-    def capture_photo(self, current_id):
-        return self.telescope.send_command("capturePhoto", current_id)
+    def capture_photo(self, current_id, exposure_s=None, shutter=None):
+        # Bulb exposures take exposure_s; otherwise the shutter setting sets the wait
+        seconds = exposure_s if exposure_s else shutter_seconds(shutter)
+        timeout = (seconds or 0) + CAPTURE_MARGIN_S
+        return self.telescope.call("capturePhoto", current_id, exposure_s, timeout=timeout)
+
+    def get_status(self):
+        # Battery and card
+        return self.telescope.call("getCameraStatus")
 
     def start_live_view(self):
         return self.telescope.send_command("startLiveView")
@@ -99,79 +177,162 @@ class CameraController:
     def stop_live_view(self):
         return self.telescope.send_command("stopLiveView")
 
-    # Starts LiveView
-    def stream_live_view(self):
-        # Maximum allowed websocket frame size
-        MAX_FRAME_SIZE = 2 * 1024 * 1024 - 10240
 
-        # Attempt to compress JPEG frames until they fit under MAX_FRAME_SIZE.
-        # Returns the original data if already small enough, a compressed
-        # bytes object if compression succeeds, or None if still too large.
-        def compress_frame_if_needed(frame_data: bytes):
-            if len(frame_data) <= MAX_FRAME_SIZE:
-                return frame_data
-            try:
-                image = Image.open(io.BytesIO(frame_data))
-                # Try progressively lower JPEG quality levels until the resulting bytes are small enough to send.
-                for quality in [85, 70, 55, 40, 25]:
-                    output = io.BytesIO()
-                    image.save(output, format='JPEG', quality=quality, optimize=True)
-                    compressed = output.getvalue()
-                    if len(compressed) <= MAX_FRAME_SIZE:
-                        print(f"[LiveView] Compressed frame {len(frame_data)} -> {len(compressed)} bytes (q={quality})")
-                        return compressed
-                # Could not compress below threshold; skip this frame.
-                print(f"[LiveView] Frame still too large ({len(frame_data)} bytes), skipping")
-                return None
-            except Exception as e:
-                # If image parsing or compression fails, log and skip
-                print(f"[LiveView] Compression error: {e}")
-                return None
+class ScopeController:
+    def __init__(self, telescope: 'Telescope'):
+        self.telescope = telescope
 
-        # Read frames from gphoto2 stdout and stream them over a websocket.
-        async def send_frames():
-            api_token = load_api_token()
-            if not api_token:
-                print("[LiveView] No API token found")
-                return
+    def park(self):
+        return self.telescope.call("park")
 
-            # Build LiveView websocket URL and connect.
-            lv_domain = os.getenv("APP_DOMAIN", "seleno.org")
-            uri = f"wss://liveview.{lv_domain}"
-            async with websockets.connect(uri, max_size=2*1024*1024) as ws:
-                # Authenticate the live view connection with token + client id.
-                await ws.send(ujson.dumps({"token": api_token, "client_id": self.telescope.client_id}))
+    def unpark(self):
+        return self.telescope.call("unpark")
 
-                # Spawn gphoto2 to capture continuous movie frames to stdout.
-                proc = subprocess.Popen(["gphoto2", "--capture-movie", "--stdout"], stdout=subprocess.PIPE)
-                frame_buffer = b""
-                try:
-                    while True:
-                        # Read a chunk from the camera process stdout.
-                        chunk = proc.stdout.read(1024 * 32)
-                        if not chunk:
-                            break
-                        frame_buffer += chunk
+    def set_park_here(self):
+        return self.telescope.call("setParkHere")
 
-                        # JPEG frames end with the 0xFFD9 marker; extract complete
-                        # frames as they arrive and process/send them.
-                        while b'\xff\xd9' in frame_buffer:
-                            end_pos = frame_buffer.find(b'\xff\xd9') + 2
-                            complete = frame_buffer[:end_pos]
-                            frame_buffer = frame_buffer[end_pos:]
-                            processed = compress_frame_if_needed(complete)
-                            if processed:
-                                try:
-                                    # Send raw/compressed bytes over websocket.
-                                    await ws.send(processed)
-                                except websockets.exceptions.ConnectionClosed:
-                                    print("[LiveView] Connection closed during send")
-                                    return
-                                except Exception as e:
-                                    print(f"[LiveView] Send error: {e}")
-                finally:
-                    proc.terminate()
-        asyncio.run(send_frames())
+    def track_object(self, name):
+        # The Pi works out where the Moon or a planet appears from its own site
+        return self.telescope.call("trackObject", name)
+
+    def get_planets(self):
+        return self.telescope.call("getPlanets")
+
+    def set_tracking_rate(self, rate, custom_arcsec_per_s=None):
+        return self.telescope.call("setTrackingRate", rate, custom_arcsec_per_s)
+
+    def estop(self):
+        return self.telescope.call("espEstop")
+
+    def clear_estop(self):
+        return self.telescope.call("espClearEstop")
+
+    def estop_status(self):
+        return self.telescope.call("espEstopStatus")
+
+    def solve_and_sync(self, source=None):
+        return self.telescope.call("solveAndSync", source)
+
+    def centre_target(self, source=None):
+        return self.telescope.call("centreTarget", source)
+
+    def polar_align(self, step_deg=None, source=None):
+        return self.telescope.call("polarAlign", step_deg, source)
+
+    def job_status(self, name):
+        return self.telescope.call("getJobStatus", name)
+
+    def get_alignment(self):
+        return self.telescope.call("getAlignment")
+
+    def clear_alignment(self):
+        return self.telescope.call("clearAlignment")
+
+    def mount_status(self):
+        return self.telescope.call("getMountStatus")
+
+    def dither(self, arcmin=None):
+        return self.telescope.call("dither", arcmin)
+
+
+class LiveViewController:
+    def __init__(self, telescope: 'Telescope'):
+        self.telescope = telescope
+
+    def set_quality(self, quality):
+        return self.telescope.call("setLiveViewQuality", quality)
+
+    def set_focus(self, on):
+        return self.telescope.call("setLiveViewFocus", bool(on))
+
+    def set_zoom(self, level, x=None, y=None):
+        return self.telescope.call("setCameraZoom", level, x, y)
+
+    def set_options(self, **options):
+        # codec (auto, h264, jpeg), bitrate_kbps, gop_s
+        options = {key: value for key, value in options.items() if value is not None}
+        return self.telescope.send_command("setLiveViewOptions", [], options)
+
+    def snapshot(self, current_id):
+        return self.telescope.call("liveViewSnapshot", current_id)
+
+    def start_recording(self, kind, interval_s=None):
+        return self.telescope.call("startRecording", kind, interval_s)
+
+    def stop_recording(self):
+        return self.telescope.call("stopRecording")
+
+    def recording_status(self):
+        return self.telescope.call("getRecordingStatus")
+
+    def stats(self):
+        return self.telescope.call("getLiveViewStats")
+
+
+class UploadController:
+    def __init__(self, telescope: 'Telescope'):
+        self.telescope = telescope
+
+    def queue(self):
+        return self.telescope.call("getUploadQueue")
+
+    def upload_pending(self, kind="raw"):
+        return self.telescope.call("uploadPending", kind)
+
+    def retry_failed(self):
+        return self.telescope.call("retryFailedUploads")
+
+    def upload_offline(self, current_id):
+        return self.telescope.call("uploadOfflinePhotos", current_id)
+
+
+class DeviceController:
+    def __init__(self, telescope: 'Telescope'):
+        self.telescope = telescope
+
+    def client_status(self):
+        return self.telescope.call("getClientStatus")
+
+    def set_clock(self, utc):
+        return self.telescope.call("setClock", utc)
+
+    def set_horizon(self, min_alt_deg=None, profile=None, stop_when_set=None):
+        return self.telescope.call("setHorizon", min_alt_deg, profile, stop_when_set)
+
+    def esp_info(self):
+        return self.telescope.call("espInfo")
+
+    def esp_driver_status(self):
+        return self.telescope.call("espDriverStatus")
+
+    def update_client(self):
+        return self.telescope.call("updateClient")
+
+    def update_firmware(self):
+        return self.telescope.call("updateFirmware")
+
+
+class CapturePlanController:
+    def __init__(self, telescope: 'Telescope'):
+        self.telescope = telescope
+
+    def start(self, plan):
+        return self.telescope.call("startCapturePlan", plan)
+
+    def status(self, plan_id=None):
+        return self.telescope.call("getCapturePlanStatus", plan_id)
+
+    def pause(self):
+        return self.telescope.call("pauseCapturePlan")
+
+    def resume(self):
+        return self.telescope.call("resumeCapturePlan")
+
+    def skip_step(self):
+        return self.telescope.call("skipCaptureStep")
+
+    def stop(self):
+        return self.telescope.call("stopCapturePlan")
 
 
 class MotorController:

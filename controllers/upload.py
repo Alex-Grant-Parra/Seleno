@@ -12,7 +12,9 @@ os.makedirs(BASE_UPLOAD_FOLDER, exist_ok=True)  # Ensure the base folder exists
 # Allowed file extensions for upload
 ALLOWED_EXTENSIONS = {
     'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp',
-    'cr2', 'nef', 'arw', 'orf', 'rw2', 'dng', 'heic', 'fits'
+    'cr2', 'cr3', 'nef', 'nrw', 'arw', 'orf', 'rw2', 'raf', 'pef', 'srw', 'dng', 'heic', 'fits',
+    # Video steps in capture plans
+    'mp4', 'avi',
 }
 
 def allowed_file(filename: str) -> bool:

@@ -311,7 +311,21 @@
                 <h1 class="mb-1">Photo Album</h1>
                 <div class="text-muted">Click a thumbnail to inspect and edit the embedded metadata.</div>
             </div>
-            <div class="button-group">
+            <div class="button-group d-flex flex-wrap gap-2 align-items-center">
+                <select id="frame-type-filter" class="form-select form-select-sm" style="width: auto;" title="Show one kind of frame">
+                    <option value="">All frames</option>
+                    <option value="light">Lights</option>
+                    <option value="bracket">Brackets</option>
+                    <option value="timelapse">Timelapse</option>
+                    <option value="snapshot">Snapshots</option>
+                    <option value="dark">Darks</option>
+                    <option value="flat">Flats</option>
+                    <option value="bias">Bias</option>
+                </select>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Group photos">
+                    <button id="view-by-date" type="button" class="btn btn-outline-secondary active">By date</button>
+                    <button id="view-by-plan" type="button" class="btn btn-outline-secondary">By plan</button>
+                </div>
                 <button id="download-btn" class="btn btn-primary btn-sm" disabled>Download</button>
                 <button id="delete-selected-btn" class="btn btn-danger btn-sm" disabled>Delete</button>
             </div>
@@ -492,10 +506,51 @@
         deleteBtn.disabled = !hasSel;
     }
 
+    let viewMode = 'date';
+    let plans = [];
+
+    function photoCard(photo, subtitle) {
+        const col = document.createElement('div');
+        col.className = 'col-6 col-sm-4 col-md-3 col-xl-2';
+
+        const div = document.createElement('div');
+        div.className = 'photo-card card p-2 h-100' + (selectedNames.includes(photo.name) ? ' selected' : '');
+        div.dataset.photoName = photo.name;
+        div.style.cursor = 'pointer';
+        div.onclick = (event) => handlePhotoClick(photo, event.currentTarget, event);
+        div.ondblclick = () => showPhotoModal(photo.url);
+
+        const img = document.createElement('img');
+        img.src = photo.url;
+        img.alt = photo.name;
+        img.className = 'mb-2';
+        img.loading = 'lazy';
+        const body = document.createElement('div');
+        body.className = 'card-body p-0';
+        const name = document.createElement('div');
+        name.className = 'photo-name';
+        name.textContent = photo.name;
+        const date = document.createElement('div');
+        date.className = 'text-muted small';
+        date.textContent = subtitle !== undefined ? subtitle : (photo.date || '');
+        body.append(name, date);
+        div.append(img, body);
+        col.appendChild(div);
+        return col;
+    }
+
     function renderGallery() {
+        if (viewMode === 'plan') {
+            renderPlans();
+            return;
+        }
         const gallery = document.getElementById('gallery');
         gallery.innerHTML = '';
         const groups = groupPhotosByDate(photos);
+
+        if (!groups.length) {
+            gallery.innerHTML = '<p class="text-muted mt-3">No photos here yet.</p>';
+        }
 
         groups.forEach(group => {
             const heading = document.createElement('h4');
@@ -507,25 +562,8 @@
             row.className = 'row g-3';
 
             group.items.forEach(photo => {
-                const col = document.createElement('div');
-                col.className = 'col-6 col-sm-4 col-md-3 col-xl-2';
-
-                const div = document.createElement('div');
-                div.className = 'photo-card card p-2 h-100' + (selectedNames.includes(photo.name) ? ' selected' : '');
-                div.dataset.photoName = photo.name;
-                div.style.cursor = 'pointer';
-                div.onclick = (event) => handlePhotoClick(photo, event.currentTarget, event);
-                div.ondblclick = () => showPhotoModal(photo.url);
-                div.innerHTML = `
-                    <img src="${photo.url}" alt="${photo.name}" class="mb-2">
-                    <div class="card-body p-0">
-                        <div class="photo-name">${photo.name}</div>
-                        <div class="text-muted small">${photo.date}</div>
-                    </div>
-                `;
-
-                col.appendChild(div);
-                row.appendChild(col);
+                const extra = [photo.frame_type, photo.label].filter(Boolean).join(' · ');
+                row.appendChild(photoCard(photo, extra ? `${photo.date} · ${extra}` : photo.date));
             });
 
             gallery.appendChild(row);
@@ -533,6 +571,99 @@
 
         updateToolbar();
     }
+
+    // Capture plans: steps in order, calibration frames apart, each plan downloadable as one zip
+    function stepHeading(step) {
+        const parts = [];
+        if (step.step !== null && step.step !== undefined) parts.push(`Step ${step.step + 1}`);
+        parts.push(step.type || step.frame_type || 'frames');
+        if (step.label) parts.push(step.label);
+        const counts = [`${step.jpeg.length} JPEG`];
+        if (step.raw) counts.push(`${step.raw} RAW`);
+        if (step.video) counts.push(`${step.video} video`);
+        return `${parts.join(' · ')} (${counts.join(', ')})`;
+    }
+
+    function renderStepGroup(container, step) {
+        const heading = document.createElement('h6');
+        heading.className = 'mt-3 mb-2 text-muted';
+        heading.textContent = stepHeading(step);
+        container.appendChild(heading);
+        const filter = document.getElementById('frame-type-filter').value;
+        const row = document.createElement('div');
+        row.className = 'row g-3';
+        step.jpeg.forEach(file => {
+            if (filter && step.frame_type !== filter) return;
+            row.appendChild(photoCard({ name: file.name, url: file.url, date: '' },
+                file.frame !== null && file.frame !== undefined ? `Frame ${file.frame + 1}` : ''));
+        });
+        container.appendChild(row);
+    }
+
+    function renderPlans() {
+        const gallery = document.getElementById('gallery');
+        gallery.innerHTML = '';
+        if (!plans.length) {
+            gallery.innerHTML = '<p class="text-muted mt-3">No photos from capture plans yet.</p>';
+            updateToolbar();
+            return;
+        }
+        plans.forEach(plan => {
+            const section = document.createElement('section');
+            section.className = 'mt-3 pb-3 border-bottom';
+            const header = document.createElement('div');
+            header.className = 'd-flex justify-content-between align-items-center flex-wrap gap-2';
+            const title = document.createElement('h4');
+            title.className = 'mb-0';
+            title.textContent = plan.name;
+            const meta = document.createElement('span');
+            meta.className = 'text-muted small ms-2';
+            const when = plan.started_at ? new Date(plan.started_at).toLocaleString() : '';
+            meta.textContent = [when, plan.state, `${plan.files} files`].filter(Boolean).join(' · ');
+            title.appendChild(meta);
+            const download = document.createElement('a');
+            download.className = 'btn btn-outline-primary btn-sm';
+            download.href = `/album/plan/${encodeURIComponent(plan.plan_id)}/download`;
+            download.textContent = 'Download plan (zip)';
+            header.append(title, download);
+            section.appendChild(header);
+
+            plan.steps.forEach(step => renderStepGroup(section, step));
+            if (plan.calibration.length) {
+                const calHeading = document.createElement('h5');
+                calHeading.className = 'mt-4 mb-1';
+                calHeading.textContent = 'Calibration frames';
+                section.appendChild(calHeading);
+                plan.calibration.forEach(step => renderStepGroup(section, step));
+            }
+            gallery.appendChild(section);
+        });
+        updateToolbar();
+    }
+
+    function fetchPlans() {
+        fetch('/album/plans')
+            .then(r => r.json())
+            .then(data => {
+                plans = data.plans || [];
+                renderGallery();
+            });
+    }
+
+    function setViewMode(mode) {
+        viewMode = mode;
+        document.getElementById('view-by-date').classList.toggle('active', mode === 'date');
+        document.getElementById('view-by-plan').classList.toggle('active', mode === 'plan');
+        if (mode === 'plan') fetchPlans();
+        else fetchPhotos();
+    }
+
+    document.getElementById('view-by-date').addEventListener('click', () => setViewMode('date'));
+    document.getElementById('view-by-plan').addEventListener('click', () => setViewMode('plan'));
+    document.getElementById('frame-type-filter').addEventListener('change', () => {
+        if (viewMode === 'plan') renderGallery();
+        else fetchPhotos();
+    });
 
     function handlePhotoClick(photo, photoDiv, event) {
         if (!photo) return;
@@ -763,7 +894,8 @@
                     activePhoto = null;
                     showEmptyPreview('Select a photo to view metadata.');
                 }
-                renderGallery();
+                if (viewMode === 'plan') fetchPlans();
+                else renderGallery();
                 updateToolbar();
                 let msg = 'Deleted: ' + (body.deleted || []).join(', ');
                 if (body.failed && body.failed.length) {
@@ -783,7 +915,8 @@
     });
 
     function fetchPhotos() {
-        fetch('/album/photos')
+        const frameType = document.getElementById('frame-type-filter').value;
+        fetch('/album/photos' + (frameType ? `?frame_type=${encodeURIComponent(frameType)}` : ''))
             .then(r => r.json())
             .then(data => {
                 photos = data;

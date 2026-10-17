@@ -6,18 +6,21 @@ from models import star_catalog
 
 from astrophysics.planetary_model import getAllCelestialData
 from astrophysics.V1_Keplarian.convert import convert
-from app.telescopeLink import Telescope
+from app.telescopeLink import Telescope, result_error
+from app.telescope_access import telescope_access_error
 
 logger = logging.getLogger(__name__)
 
 star_map_bp = Blueprint("star_map", __name__)
 
+# Bodies the Pi locates itself with trackObject, from its own site: the Moon's
+# parallax alone shifts it by up to about 1 degree
+_TRACK_BY_NAME = {"moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"}
 
-def _require_telescope_control_access():
-    from flask_login import current_user
-    if getattr(current_user, 'is_limited', False):
-        return jsonify({"status": "error", "message": "Limited accounts cannot control telescopes."}), 403
-    return None
+
+def _require_telescope_control_access(telescope_id):
+    # Owner, approved booking covering now, or admin; None when allowed
+    return telescope_access_error(telescope_id)
 
 _CELESTIAL_DEFAULT_VMAGS = {
     "sun": -26.74,
@@ -469,10 +472,6 @@ def track_star():
             "message": "Must be logged in to control telescope"
         }), 401
 
-    guard = _require_telescope_control_access()
-    if guard:
-        return guard
-    
     data = request.get_json()
     ra = data.get("ra")
     dec = data.get("dec")
@@ -496,21 +495,41 @@ def track_star():
             "redirect": True,
             "message": "Please select a telescope in the Interface page to begin tracking"
         }), 422
-    
+
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
     try:
         # Create telescope instance and send coordinates
         t = Telescope(telescope_id)
-        print(f"\n[TRACKING] Sending {name} coordinates to telescope {telescope_id}")
-        print(f"[TRACKING] RA: {ra}°, DEC: {dec}°, Mag: {mag}\n", flush=True)
-        
-        # Send track command with coordinates to the telescope
-        result = t.send_command("trackCoordinates", kwargs={
-            "name": name,
-            "ra": ra,
-            "dec": dec,
-            "mag": mag
-        })
-        
+        if str(name or "").strip().lower() in _TRACK_BY_NAME:
+            print(f"\n[TRACKING] Sending {name} to telescope {telescope_id} by name\n", flush=True)
+            result = t.scope.track_object(str(name).strip())
+        else:
+            print(f"\n[TRACKING] Sending {name} coordinates to telescope {telescope_id}")
+            print(f"[TRACKING] RA: {ra}°, DEC: {dec}°, Mag: {mag}\n", flush=True)
+
+            # Send track command with coordinates to the telescope
+            result = t.send_command("trackCoordinates", kwargs={
+                "name": name,
+                "ra": ra,
+                "dec": dec,
+                "mag": mag
+            })
+
+        # A go-to below the horizon, near the Sun, while parked... is refused as a result
+        refusal = result_error(result)
+        if refusal:
+            print(f"[TRACKING] Telescope refused {name}: {refusal}", flush=True)
+            return jsonify({
+                "status": "error",
+                "error": refusal,
+                "message": refusal,
+                "telescope_id": telescope_id,
+                "result": result
+            })
+
         # Store in sesh
         session["selectedObject"] = {
             "name": name,
@@ -561,10 +580,6 @@ def get_tracking_status():
 
 @star_map_bp.route("/stop_tracking", methods=["POST"])
 def stop_tracking():
-    guard = _require_telescope_control_access()
-    if guard:
-        return guard
-
     # Stop tracking the current object
     # Check if a telescope is selected
     selected_telescope = session.get('selected_telescope')
@@ -577,18 +592,32 @@ def stop_tracking():
             "error": "No telescope selected",
             "message": "No telescope selected"
         }), 422
-    
+
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
     try:
         # Create telescope instance and send stop tracking command
         t = Telescope(telescope_id)
         print(f"\n[TRACKING] Stopping tracking on telescope {telescope_id}\n", flush=True)
-        
+
         # Send stop tracking command to the telescope
         result = t.send_command("stopTracking")
-        
+
         # Clear session tracking data
         session.pop("selectedObject", None)
-        
+
+        refusal = result_error(result)
+        if refusal:
+            return jsonify({
+                "status": "error",
+                "error": refusal,
+                "message": refusal,
+                "telescope_id": telescope_id,
+                "result": result
+            })
+
         print(f"[TRACKING] Tracking stopped successfully")
         
         return jsonify({
@@ -621,7 +650,11 @@ def get_telescope_position():
             "error": "No telescope selected",
             "message": "No telescope selected"
         }), 422
-    
+
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
     try:
         # Create telescope instance and get current coordinates
         t = Telescope(telescope_id)

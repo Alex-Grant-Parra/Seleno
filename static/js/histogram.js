@@ -106,14 +106,17 @@
 
             if (this.sourceImage && this.onImageLoad) {
                 this.sourceImage.removeEventListener('load', this.onImageLoad);
+                this.sourceImage.removeEventListener('liveframe', this.onImageLoad);
             }
 
             this.sourceImage = imageElement;
             this.onImageLoad = () => this.refresh();
 
             if (this.sourceImage) {
+                // A canvas (the live view player) announces each new frame with 'liveframe'
                 this.sourceImage.addEventListener('load', this.onImageLoad);
-                if (this.sourceImage.complete && this.sourceImage.naturalWidth > 0) {
+                this.sourceImage.addEventListener('liveframe', this.onImageLoad);
+                if (this.sourceReady()) {
                     this.refresh();
                 } else {
                     this.drawPlaceholder(this.emptyMessage);
@@ -130,11 +133,22 @@
             }
         }
 
+        sourceReady() {
+            const source = this.sourceImage;
+            if (!source) {
+                return false;
+            }
+            if (typeof HTMLCanvasElement !== 'undefined' && source instanceof HTMLCanvasElement) {
+                return source.width > 0 && source.height > 0;
+            }
+            return source.complete && source.naturalWidth > 0;
+        }
+
         refresh() {
             if (!this.canvas || !this.controlsRoot) {
                 return;
             }
-            if (!this.sourceImage || !this.sourceImage.complete || this.sourceImage.naturalWidth === 0) {
+            if (!this.sourceReady()) {
                 this.drawPlaceholder(this.emptyMessage);
                 return;
             }
