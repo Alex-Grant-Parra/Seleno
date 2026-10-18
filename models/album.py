@@ -144,10 +144,11 @@ class FeaturedTarget(db.Model):
     designation = db.Column(db.String(32), nullable=False, unique=True)
     name = db.Column(db.String(120), nullable=False)
     kind = db.Column(db.String(64), nullable=True)            # "emission nebula", "spiral galaxy"...
-    preset = db.Column(db.String(16), nullable=False)          # moon|planet|bright|faint
+    preset = db.Column(db.String(16), nullable=False)          # moon|planet|bright|faint|star
     size_arcmin = db.Column(db.Float, nullable=True)
     blurb = db.Column(db.Text, nullable=True)
     season = db.Column(db.String(32), nullable=True)
+    wiki = db.Column(db.String(255), nullable=True)            # Wikipedia article URL
     sort_order = db.Column(db.Integer, nullable=False, default=100)
     enabled = db.Column(db.Boolean, nullable=False, default=True)
 
@@ -185,20 +186,72 @@ FEATURED_SEED = [
     ("M35", "M35", "open cluster", "bright", 28, "A rich cluster in Gemini."),
     ("M64", "Black Eye Galaxy", "spiral galaxy", "faint", 10, "A dark dust band across a bright core."),
     ("M97", "Owl Nebula", "planetary nebula", "faint", 3.4, "A round, faint nebula with two dark 'eyes'."),
+    ("Sirius", "Sirius", "star", "star", None, "The brightest star in the night sky, flashing colours when low."),
+    ("Albireo", "Albireo", "double star", "star", 0.6, "A gold and a blue star side by side: the classic colour double."),
+    ("Mizar", "Mizar and Alcor", "multiple star", "star", 12, "A naked-eye pair in the Plough's handle; the telescope splits Mizar too."),
+    ("Betelgeuse", "Betelgeuse", "red supergiant", "star", None, "A huge orange-red star marking Orion's shoulder."),
+    ("Vega", "Vega", "star", "star", None, "A brilliant blue-white star high on summer evenings."),
+    ("M22", "M22", "globular cluster", "bright", 32, "A big, bright globular low in Sagittarius."),
+    ("M15", "M15", "globular cluster", "bright", 18, "A dense globular with a very bright core."),
+    ("M11", "Wild Duck Cluster", "open cluster", "bright", 14, "A rich cluster packed like a flock of birds."),
+    ("M7", "Ptolemy Cluster", "open cluster", "bright", 80, "A big, bright cluster: a southern summer target."),
+    ("M78", "M78", "reflection nebula", "faint", 8, "A small blue glow in Orion."),
+    ("NGC253", "Sculptor Galaxy", "spiral galaxy", "faint", 27, "A bright, dusty spiral seen nearly edge-on."),
+    ("NGC7293", "Helix Nebula", "planetary nebula", "faint", 16, "A large, faint 'eye' of gas: one of the nearest planetary nebulae."),
+    ("NGC6960", "Western Veil Nebula", "supernova remnant", "faint", 70, "Fine filaments of an old supernova, around 52 Cygni."),
+    ("NGC6992", "Eastern Veil Nebula", "supernova remnant", "faint", 60, "The brighter half of the Veil: twisted ropes of gas."),
 ]
 
 
+# Each featured target's Wikipedia article, by designation
+FEATURED_WIKI = {
+    "Moon": "Moon", "Jupiter": "Jupiter", "Saturn": "Saturn", "Mars": "Mars", "Venus": "Venus",
+    "M42": "Orion_Nebula", "M31": "Andromeda_Galaxy", "M45": "Pleiades", "M13": "Messier_13",
+    "M27": "Dumbbell_Nebula", "M57": "Ring_Nebula", "M51": "Whirlpool_Galaxy", "M81": "Messier_81",
+    "M82": "Messier_82", "M101": "Pinwheel_Galaxy", "M33": "Triangulum_Galaxy", "M8": "Lagoon_Nebula",
+    "M16": "Eagle_Nebula", "M17": "Omega_Nebula", "M20": "Trifid_Nebula", "M1": "Crab_Nebula",
+    "M104": "Sombrero_Galaxy", "NGC7000": "North_America_Nebula", "NGC869": "Double_Cluster",
+    "M3": "Messier_3", "M92": "Messier_92", "M44": "Beehive_Cluster", "M35": "Messier_35",
+    "M64": "Black_Eye_Galaxy", "M97": "Owl_Nebula",
+    "Sirius": "Sirius", "Albireo": "Albireo", "Mizar": "Mizar_and_Alcor", "Betelgeuse": "Betelgeuse",
+    "Vega": "Vega", "M22": "Messier_22", "M15": "Messier_15", "M11": "Wild_Duck_Cluster",
+    "M7": "Messier_7", "M78": "Messier_78", "NGC253": "Sculptor_Galaxy", "NGC7293": "Helix_Nebula",
+    "NGC6960": "Veil_Nebula", "NGC6992": "Veil_Nebula",
+}
+
+
+def wiki_url(designation):
+    article = FEATURED_WIKI.get(designation)
+    return f"https://en.wikipedia.org/wiki/{article}" if article else None
+
+
+def ensure_featured_columns():
+    """Columns added to featured_targets after it first shipped."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if 'featured_targets' not in inspector.get_table_names():
+        return
+    have = {c['name'] for c in inspector.get_columns('featured_targets')}
+    with db.engine.begin() as conn:
+        if 'wiki' not in have:
+            conn.execute(text("ALTER TABLE featured_targets ADD COLUMN wiki VARCHAR(255)"))
+
+
 def ensure_featured_targets():
-    """Insert any missing featured targets (idempotent)."""
-    existing = {row.designation for row in FeaturedTarget.query.with_entities(FeaturedTarget.designation)}
+    """Insert any missing featured targets, and fill in Wikipedia links that are
+    blank (idempotent)."""
+    ensure_featured_columns()
+    rows = {row.designation: row for row in FeaturedTarget.query.all()}
     added = 0
     for order, (designation, name, kind, preset, size, blurb) in enumerate(FEATURED_SEED):
-        if designation in existing:
+        row = rows.get(designation)
+        if row is not None:
+            if not row.wiki and wiki_url(designation):
+                row.wiki = wiki_url(designation)
             continue
         db.session.add(FeaturedTarget(designation=designation, name=name, kind=kind, preset=preset,
-                                      size_arcmin=size, blurb=blurb, sort_order=order))
+                                      size_arcmin=size, blurb=blurb, wiki=wiki_url(designation), sort_order=order))
         added += 1
-    if added:
-        db.session.commit()
+    db.session.commit()
     return added
 

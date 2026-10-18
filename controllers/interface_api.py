@@ -17,6 +17,8 @@ PLANETS = ("mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune")
 # A site to two decimals (about a kilometre) is plenty for the sky and keeps a
 # telescope's exact location to its owner
 SITE_DECIMALS = 2
+# A featured target is good tonight when it spends this long above 30 degrees in the dark
+GOOD_MINUTES = 60
 
 
 def _utcnow():
@@ -185,6 +187,7 @@ def targets_now():
             "preset": target.preset,
             "size_arcmin": target.size_arcmin,
             "blurb": target.blurb,
+            "wiki": target.wiki,
             "ra": round(coords[0], 4),
             "dec": round(coords[1], 4),
             "moving": key == "moon" or key in planets,
@@ -200,15 +203,17 @@ def targets_now():
                 "transit": _iso(info["transit"]),
                 "minutes_above": info["minutes_above"],
                 "moon_separation": info["moon_separation"],
+                "never_rises": bool(info["never_rises"]),
+                "good_tonight": bool(info["minutes_above"] >= GOOD_MINUTES),
                 "verdict": sky.verdict(info, {"moon": moon, "sun": {"alt": sky.sun_altitude(lat, lon, jd)}}),
             })
         out.append(entry)
     if site is not None:
-        # Up now and high first, then what rises later tonight, then the rest
+        # Good tonight first; within each, up now and high, then what rises later, then the rest
         def score(t):
             up_now = t["alt"] >= 20
             later = (t["best_alt"] or -90) >= 25
-            return (0 if up_now else 1 if later else 2, -(t["minutes_above"] or 0), -t["alt"])
+            return (not t["good_tonight"], 0 if up_now else 1 if later else 2, -(t["minutes_above"] or 0), -t["alt"])
         out.sort(key=score)
     return jsonify({
         "status": "success",

@@ -24,6 +24,10 @@
         faint: {
             label: 'Galaxy or faint nebula', exposure_s: 60, iso: 1600, kind: 'light', count: 60, darks: 20, bias: 30,
             countLabel: 'Photos', note: 'A minute per photo needs steady tracking: the test shot checks the stars are round.'
+        },
+        star: {
+            label: 'A bright star', exposure_s: 2, iso: 200, kind: 'light', count: 30, darks: 10, bias: 30,
+            countLabel: 'Photos', note: 'Bright stars fill up fast: short exposures keep their colour, and split close doubles.'
         }
     };
     const STEPS = ['target', 'focus', 'exposure', 'capture'];
@@ -143,6 +147,11 @@
 
     function describeTargetPlacement(t) {
         if (t.alt === undefined) return t.kind || '';
+        if (t.never_rises) return "Never rises from this telescope's site";
+        if (t.good_tonight === false) {
+            if (t.best_alt === null || t.best_alt < 30) return `Not good tonight: ${t.best_alt === null ? 'not up while it is dark' : `only reaches ${Math.max(0, Math.round(t.best_alt))}° while it is dark`}`;
+            return 'Not good tonight: high for under an hour while it is dark';
+        }
         if (t.alt >= 20) return `${Math.round(t.alt)}° now and ${t.rising ? 'rising' : 'sinking'}`;
         if (t.best_alt !== null && t.best_alt >= 25 && t.best_time) return `Up later: best ${Seleno.fmt.time(t.best_time)} at ${Math.round(t.best_alt)}°`;
         if (t.alt > 0) return `Low (${Math.round(t.alt)}°)`;
@@ -166,14 +175,18 @@
                 ? `Sorted by how well placed they are tonight${data.night && data.night.start ? ` (dark ${Seleno.fmt.time(data.night.start)} – ${Seleno.fmt.time(data.night.end)})` : ''}.`
                 : "The telescope's location isn't set, so the list can't say what's up. Its owner can set it on the telescope's settings page.";
             data.targets.forEach(t => {
-                const dim = t.alt !== undefined && t.alt < 20 && !(t.best_alt >= 25);
+                const dim = t.good_tonight === false;
                 const verdict = t.verdict || ['off', ''];
-                list.appendChild(el('button', { type: 'button', className: `ws-pick${dim ? ' dim' : ''}`, onclick: () => chooseTarget(t) }, [
-                    el('span', { className: 'ws-strong' }, [el('span', { className: `ws-dot ${verdict[0]}`, style: { marginRight: '6px' } }),
-                        t.designation === t.name ? t.name : `${t.designation} · ${t.name}`]),
-                    el('span', { className: 'ws-small ws-muted' }, `${t.kind || ''}${t.size_arcmin ? ` · ${t.size_arcmin >= 1 ? Math.round(t.size_arcmin) + '′' : '<1′'}` : ''}`),
-                    el('span', { className: 'ws-small' }, describeTargetPlacement(t)),
-                    t.blurb ? el('span', { className: 'ws-small ws-muted' }, t.blurb) : null
+                // A card rather than one button, so the Wikipedia link can sit beside the choice
+                list.appendChild(el('div', { className: `ws-pick${dim ? ' dim' : ''}` }, [
+                    el('button', { type: 'button', className: 'ws-pick-main', onclick: () => chooseTarget(t) }, [
+                        el('span', { className: 'ws-strong' }, [el('span', { className: `ws-dot ${verdict[0]}`, style: { marginRight: '6px' } }),
+                            t.designation === t.name ? t.name : `${t.designation} · ${t.name}`]),
+                        el('span', { className: 'ws-small ws-muted' }, `${t.kind || ''}${t.size_arcmin ? ` · ${t.size_arcmin >= 1 ? Math.round(t.size_arcmin) + '′' : '<1′'}` : ''}`),
+                        el('span', { className: 'ws-small' }, describeTargetPlacement(t)),
+                        t.blurb ? el('span', { className: 'ws-small ws-muted' }, t.blurb) : null
+                    ]),
+                    t.wiki ? el('a', { className: 'ws-small ws-pick-link', href: t.wiki, target: '_blank', rel: 'noopener' }, 'Read about it on Wikipedia ↗') : null
                 ]));
             });
         }).catch(error => { note.textContent = `Couldn't load targets: ${error.message}`; });

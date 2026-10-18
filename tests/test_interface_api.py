@@ -95,6 +95,9 @@ class InterfaceApiTests(unittest.TestCase):
         self.assertEqual(moon["preset"], "moon")
         self.assertIn("alt", moon)
         self.assertIn(moon["verdict"][0], ("ok", "warn", "bad"))
+        # Good tonight first, then the greyed-out rest
+        good = [t["good_tonight"] for t in body["targets"]]
+        self.assertEqual(good, sorted(good, reverse=True))
         self.assertEqual(ensure_featured_targets(), 0)      # seeding twice adds nothing
 
     def test_latest_captures(self):

@@ -839,7 +839,6 @@ input[type='range'].ws-range {
     border: 1px solid var(--line);
     border-radius: 10px;
     padding: 10px 12px;
-    cursor: pointer;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -849,8 +848,28 @@ input[type='range'].ws-range {
     border-color: var(--accent);
 }
 
+.ws-pick-main {
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+}
+
+.ws-pick-link {
+    align-self: flex-start;
+    margin-top: 4px;
+}
+
 .ws-pick.dim {
-    opacity: 0.55;
+    opacity: 0.5;
+    filter: grayscale(1);
 }
 
 /* --- album ---------------------------------------------------------------- */
