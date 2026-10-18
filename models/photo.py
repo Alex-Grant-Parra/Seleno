@@ -43,6 +43,15 @@ class Photo(db.Model):
     step = db.Column(db.Integer, nullable=True)
     frame = db.Column(db.Integer, nullable=True)
     pair_id = db.Column(db.String(64), nullable=True)   # joins a RAW to its JPEG
+    # Everything the telescope said about the frame (camera, temperature, plate solve...)
+    meta_json = db.Column(db.Text, nullable=True)
+
+    @property
+    def meta(self):
+        try:
+            return json.loads(self.meta_json) if self.meta_json else {}
+        except ValueError:
+            return {}
 
     def to_dict(self):
         return {
@@ -89,3 +98,16 @@ class TelescopeUpload(db.Model):
             return json.loads(self.metadata_json or '{}')
         except ValueError:
             return {}
+
+
+def ensure_photo_columns():
+    """Columns added to photos after it first shipped."""
+    from sqlalchemy import inspect, text
+    engine = db.engine
+    inspector = inspect(engine)
+    if 'photos' not in inspector.get_table_names():
+        return
+    have = {c['name'] for c in inspector.get_columns('photos')}
+    with engine.begin() as conn:
+        if 'meta_json' not in have:
+            conn.execute(text("ALTER TABLE photos ADD COLUMN meta_json TEXT"))

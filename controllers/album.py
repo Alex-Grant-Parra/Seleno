@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from flask import Blueprint, render_template, request, send_file, jsonify, abort
@@ -11,6 +12,7 @@ import logging
 from PIL import Image, ExifTags
 
 from app.db import db
+from app.album_index import forget_thumbnails
 
 album_bp = Blueprint("album", __name__, template_folder="../templates")
 
@@ -248,6 +250,25 @@ def get_user_photos_dir():
 
 CALIBRATION_FRAME_TYPES = ("dark", "flat", "bias")
 
+# Already compressed: stored as they are, so zipping a night of RAWs costs no CPU
+STORED_EXTENSIONS = {".jpg", ".jpeg", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".raf", ".orf", ".rw2",
+                     ".mp4", ".avi", ".mov", ".png", ".webp"}
+
+
+def _zip_response(entries, download_name):
+    """A zip of [(path, name in the zip)], built in a temporary file on disk (not in
+    memory: a night of RAWs runs to gigabytes) and streamed back."""
+    spool = tempfile.TemporaryFile(prefix="album-zip-")
+    with zipfile.ZipFile(spool, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+        for path, arcname in entries:
+            compress = zipfile.ZIP_STORED if os.path.splitext(path)[1].lower() in STORED_EXTENSIONS else zipfile.ZIP_DEFLATED
+            zf.write(path, arcname, compress_type=compress)
+    size = spool.tell()
+    spool.seek(0)
+    resp = send_file(spool, mimetype="application/zip", as_attachment=True, download_name=download_name)
+    resp.content_length = size
+    return resp
+
 
 def _photo_rows():
     # The user's photos table rows by filename (photos that arrived over the resumable uploads)
@@ -386,21 +407,19 @@ def album_plan_download(plan_id):
     record = CapturePlan.query.filter_by(id=plan_id, owner_id=int(current_user.get_id())).first()
     top = secure_filename(record.name if record else plan_id) or "plan"
 
-    mem_zip = io.BytesIO()
-    with zipfile.ZipFile(mem_zip, "w", zipfile.ZIP_STORED) as zf:
-        for row in rows:
-            path = _safe_photo_path(row.filename)
-            if not path:
-                continue
-            if row.frame_type in CALIBRATION_FRAME_TYPES:
-                folder = f"calibration/{row.frame_type}"
-            elif row.step is not None:
-                folder = f"step_{row.step + 1:02d}_{row.frame_type or 'frames'}"
-            else:
-                folder = "other"
-            zf.write(path, f"{top}/{folder}/{row.filename}")
-    mem_zip.seek(0)
-    return send_file(mem_zip, mimetype="application/zip", as_attachment=True, download_name=f"{top}.zip")
+    entries = []
+    for row in rows:
+        path = _safe_photo_path(row.filename)
+        if not path:
+            continue
+        if row.frame_type in CALIBRATION_FRAME_TYPES:
+            folder = f"calibration/{row.frame_type}"
+        elif row.step is not None:
+            folder = f"step_{row.step + 1:02d}_{row.frame_type or 'frames'}"
+        else:
+            folder = "other"
+        entries.append((path, f"{top}/{folder}/{row.filename}"))
+    return _zip_response(entries, f"{top}.zip")
 
 
 @album_bp.route("/album/photo/<filename>/metadata", methods=["GET", "POST"])
@@ -433,6 +452,11 @@ def _forget_photo(rows, filename):
     row = rows.pop(filename, None)
     if row is not None:
         db.session.delete(row)
+    from models.album import FrameMeta
+    FrameMeta.query.filter_by(owner_id=int(current_user.get_id()), filename=filename).delete()
+    user_dir = get_user_photos_dir()
+    if user_dir:
+        forget_thumbnails(user_dir, filename)
 
 
 @album_bp.route("/album/photo/delete", methods=["POST"])
@@ -509,11 +533,8 @@ def album_photo_delete():
 @album_bp.route("/album")
 @login_required
 def album():
-    sort = request.args.get("sort", "date")
-    files = get_jpeg_files()
-    if sort == "date":
-        files.sort(key=lambda x: x["datetime"], reverse=True)
-    return render_template("album.html", photos=files)
+    # The page loads its photos from /album/api/library
+    return render_template("album.html")
 
 @album_bp.route("/album/photos")
 @login_required
@@ -534,9 +555,17 @@ def album_photo(filename):
 @album_bp.route("/album/download", methods=["POST"])
 @login_required
 def album_download():
-    data = request.json
+    # JSON {"files": [...]}, or a form post with files_json (so the browser saves a big
+    # zip straight to disk instead of holding it in memory)
+    data = request.get_json(silent=True)
+    if data is None and request.form.get("files_json"):
+        try:
+            data = {"files": json.loads(request.form["files_json"]), "name": request.form.get("name")}
+        except ValueError:
+            abort(400)
+    data = data if isinstance(data, dict) else {}
     files = data.get("files", [])
-    if not files:
+    if not files or not isinstance(files, list):
         abort(400)
     user_dir = get_user_photos_dir()
     rows = _photo_rows()
@@ -553,19 +582,8 @@ def album_download():
             raw_path = _safe_photo_path(raw_name)
             if raw_path and raw_path not in abs_files:
                 abs_files.append(raw_path)
-    # Always zip 
-    mem_zip = io.BytesIO()
-    with zipfile.ZipFile(mem_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in abs_files:
-            zf.write(f, os.path.basename(f))
-    mem_zip.seek(0)
     if len(files) == 1:
         zip_name = f"{os.path.splitext(files[0])[0]}.zip"
     else:
-        zip_name = "photos.zip"
-    return send_file(
-        mem_zip,
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=zip_name
-    )
+        zip_name = f"{secure_filename(data.get('name') or '') or 'photos'}.zip"
+    return _zip_response([(f, os.path.basename(f)) for f in abs_files], zip_name)

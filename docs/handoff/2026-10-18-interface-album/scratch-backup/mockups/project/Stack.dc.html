@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stacking settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Sora:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#38bdf8}a:hover{color:#34d399}
+.app{font-family:'Manrope',sans-serif;color:#edf2ff;background:#05070d;min-height:980px;display:flex;flex-direction:column;position:relative}
+.nav{display:flex;align-items:center;gap:8px;padding:10px 28px;border-bottom:1px solid #22314a;background:#0b1120;flex-wrap:wrap}
+.brand{font-family:'Sora',sans-serif;font-weight:700;letter-spacing:.04em;margin-right:18px}
+.navlink{color:#9daccc;font-weight:600;font-size:14px;padding:6px 12px;border-radius:999px;text-decoration:none}
+.navlink.on{color:#edf2ff;background:rgba(52,211,153,.18)}
+.muted{color:#9daccc}
+.small{font-size:12.5px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:#111b2d;border:1px solid #22314a;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 8px}
+.ok{background:#34d399}.warn{background:#fbbf24}.off{background:#5b6b8a}
+.btn{font:inherit;font-weight:700;font-size:13.5px;border-radius:10px;padding:9px 14px;border:1px solid #22314a;background:#111b2d;color:#edf2ff;cursor:pointer;white-space:nowrap}
+.btn.primary{background:#34d399;border-color:#34d399;color:#05201a}
+.dialog{background:#0f1626;border:1px solid #22314a;border-radius:18px;box-shadow:0 26px 72px rgba(0,0,0,.6);width:100%;max-width:1180px;box-sizing:border-box}
+.group{border:1px solid #22314a;border-radius:12px;padding:12px 14px;background:#0b1222}
+.group h3{font-family:'Sora',sans-serif;font-size:13.5px;margin:0 0 10px}
+.field{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#9daccc;margin-bottom:8px}
+.sel,.inp{font:inherit;font-size:13px;font-weight:600;color:#edf2ff;background:#05070d;border:1px solid #22314a;border-radius:8px;padding:6px 8px}
+.frame{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:1px solid #22314a;background:#0b1222}
+.frame b{font-size:14px}
+.tick{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px}
+.seg{display:inline-flex;border:1px solid #22314a;border-radius:999px;padding:3px;background:#0f1626}
+.seg button{font:inherit;font-size:13px;font-weight:700;border:0;background:transparent;color:#9daccc;padding:6px 14px;border-radius:999px}
+.seg button.on{background:#34d399;color:#05201a}
+</style>
+</helmet>
+<div class="app">
+  <nav class="nav" aria-label="Site">
+    <span class="brand">SELENO</span>
+    <a class="navlink" href="#">Home</a>
+    <a class="navlink" href="#">Interface</a>
+    <a class="navlink" href="#">Star Map</a>
+    <a class="navlink" href="#">Book</a>
+    <a class="navlink on" href="#">Album</a>
+    <span style="flex:1"></span>
+    <div class="seg" role="group" aria-label="Album mode"><button type="button">Basic</button><button class="on" type="button">Advanced</button></div>
+  </nav>
+
+  <div style="flex:1;background:rgba(2,4,9,.7);display:flex;align-items:flex-start;justify-content:center;padding:28px">
+    <div class="dialog" role="dialog" aria-labelledby="stackTitle">
+      <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #22314a">
+        <h2 id="stackTitle" style="font-family:'Sora',sans-serif;font-size:18px;margin:0;flex:1">Stack M42 · 18 October</h2>
+        <label class="small muted" for="stackName">Name</label>
+        <input id="stackName" class="inp" value="M42 18 Oct" style="width:180px">
+        <button class="btn" type="button" aria-label="Close">Close</button>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:18px;padding:18px 20px">
+        <div style="flex:1 1 320px;display:flex;flex-direction:column;gap:8px">
+          <div class="small muted" style="font-weight:800;letter-spacing:.06em;text-transform:uppercase">Frames</div>
+          <div class="frame"><span class="dot ok"></span><div style="flex:1"><b>38 lights</b><div class="muted small">30 s · ISO 800 · RAW · 19 min total · 2 rejected for quality</div></div><button class="btn" type="button">Change</button></div>
+          <div class="frame"><span class="dot ok"></span><div style="flex:1"><b>20 darks</b><div class="muted small">Same night, same exposure and ISO</div></div><button class="btn" type="button">Change</button></div>
+          <div class="frame"><span class="dot ok"></span><div style="flex:1"><b>30 bias</b><div class="muted small">Same ISO</div></div><button class="btn" type="button">Change</button></div>
+          <div class="frame"><span class="dot off"></span><div style="flex:1"><b>No flats</b><div class="muted small">Flats remove vignetting and dust shadows. None from this night; 24 from 10 Oct match the camera.</div></div><button class="btn" type="button">Use them</button></div>
+          <div class="frame"><span class="dot off"></span><div style="flex:1"><b>No dark flats</b><div class="muted small">The bias frames stand in for them</div></div></div>
+          <div style="margin-top:6px;padding:12px 14px;border-radius:12px;background:#0b1222;border:1px solid #22314a">
+            <div class="small" style="font-weight:700;margin-bottom:6px">Estimate</div>
+            <div class="small muted">About 6 minutes on the server · 4.3 GB of temporary space · result 5616 × 3744, 32-bit</div>
+            <div class="small muted" style="margin-top:4px">Uses the RAW files, which are linear, so the darks and bias are subtracted exactly.</div>
+          </div>
+        </div>
+
+        <div style="flex:2 1 600px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+          <div class="group">
+            <h3>Calibration</h3>
+            <label class="field">Combine calibration frames<select class="sel"><option>Winsorized sigma clipping</option></select></label>
+            <label class="field">Dark exposure doesn't match<select class="sel"><option>Scale with the bias</option></select></label>
+            <label class="tick"><input type="checkbox" checked> Fix hot pixels found in the darks</label>
+            <label class="tick"><input type="checkbox" checked> Fix stray hot and cold pixels in each photo</label>
+            <label class="tick"><input type="checkbox" checked> Normalise flats per colour</label>
+          </div>
+          <div class="group">
+            <h3>Alignment</h3>
+            <label class="field">Reference photo<select class="sel"><option>Best (IMG_0412, FWHM 3.05)</option></select></label>
+            <label class="field">Transform<select class="sel"><option>Shift, rotate, scale</option></select></label>
+            <label class="field">Star detection<select class="sel"><option>5 σ (default)</option></select></label>
+            <label class="field">Interpolation<select class="sel"><option>Bicubic (sharper)</option></select></label>
+          </div>
+          <div class="group">
+            <h3>Combining</h3>
+            <label class="field">Method<select class="sel"><option>Winsorized sigma clipping</option></select></label>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">
+              <label class="field">κ low<input class="inp" value="3.0"></label>
+              <label class="field">κ high<input class="inp" value="3.0"></label>
+            </div>
+            <label class="field">Normalise frames<select class="sel"><option>Background and spread</option></select></label>
+            <label class="field">Weight frames<select class="sel"><option>By noise</option></select></label>
+          </div>
+          <div class="group">
+            <h3>Output</h3>
+            <label class="field">Debayer<select class="sel"><option>Bilinear, full size</option></select></label>
+            <label class="field">Colour<select class="sel"><option>Daylight white balance + camera matrix</option></select></label>
+            <label class="tick"><input type="checkbox" checked> Crop to the area every photo covers</label>
+            <label class="tick"><input type="checkbox"> Keep the master calibration frames</label>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid #22314a">
+        <span class="muted small" style="flex:1">Runs in the background. You can close this page; it shows up under Activity.</span>
+        <button class="btn" type="button">Save as default</button>
+        <button class="btn primary" type="button">Start stacking</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

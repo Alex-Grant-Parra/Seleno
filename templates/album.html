@@ -1,966 +1,454 @@
 {% extends "base.html" %}
 
-{% block title %}Album - Telescope Control{% endblock %}
+{% block title %}Album - SELENO{% endblock %}
+{% block body_class %}ws-page album-page{% endblock %}
 
 {% block extra_css %}
+<script>
+    (function () {
+        var mode = 'basic';
+        try { mode = localStorage.getItem('seleno_mode') === 'advanced' ? 'advanced' : 'basic'; } catch (e) {}
+        document.documentElement.setAttribute('data-ui-mode', mode);
+    })();
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='workspace.css') }}?v=20261018-ws">
 <style>
-    .album-page {
-        max-width: 1600px;
-        --album-bg: transparent;
-        --album-text: #0f172a;
-        --album-muted: #475569;
-        --album-border: rgba(148, 163, 184, 0.22);
-        --album-section-bg: rgba(255, 255, 255, 0.28);
-    }
-
-    body.night-mode .album-page {
-        --album-bg: transparent;
-        --album-text: #ffffff;
-        --album-muted: rgba(255, 255, 255, 0.8);
-        --album-border: rgba(255, 255, 255, 0.2);
-        --album-section-bg: rgba(255, 255, 255, 0.06);
-    }
-
-    .album-page,
-    .album-page h1,
-    .album-page h2,
-    .album-page h3,
-    .album-page h4,
-    .album-page label,
-    .album-page .photo-name,
-    .album-page .metadata-value {
-        color: var(--album-text);
-    }
-
-    .album-page .text-muted,
-    .album-page .metadata-label,
-    .album-page .preview-empty,
-    .album-page .album-toolbar .text-muted {
-        color: var(--album-muted) !important;
-    }
-
-    .album-shell {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .album-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
-        gap: 1rem;
-        align-items: start;
-    }
-
-    .album-gallery-panel {
-        padding: 0;
-        min-height: 72vh;
-        background: var(--album-bg);
-    }
-
-    .album-preview-panel {
-        position: sticky;
-        top: 1rem;
-        padding: 0;
-        min-height: 72vh;
-        background: var(--album-bg);
-    }
-
-    .album-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .album-toolbar .button-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-    }
-
-    .photo-card {
-        border: 1px solid var(--album-border);
-        cursor: pointer;
-        transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.02);
-        box-shadow: none;
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-    }
-
-    .photo-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
-    }
-
-    .photo-card.selected {
-        border-color: #2563eb !important;
-        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.18);
-    }
-
-    .photo-card img {
-        width: 100%;
-        aspect-ratio: 1 / 1;
-        object-fit: cover;
-        border-radius: 12px;
-        user-select: none;
-        -webkit-user-drag: none;
-    }
-
-    .preview-empty {
-        min-height: 64vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px dashed var(--album-border);
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.02);
-        text-align: center;
-        padding: 2rem;
-    }
-
-    .preview-grid {
-        display: grid;
-        grid-template-columns: 180px minmax(0, 1fr);
-        gap: 1rem;
-        align-items: start;
-    }
-
-    .preview-image-frame {
-        border-radius: 18px;
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--album-border);
-        min-height: 220px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.75rem;
-    }
-
-    .preview-image-frame img {
-        max-width: 100%;
-        max-height: 180px;
-        object-fit: contain;
-        border-radius: 12px;
-        box-shadow: none;
-    }
-
-    .metadata-card {
-        border-radius: 18px;
-        background: transparent;
-        border: 0;
-        padding: 0;
-        height: 100%;
-    }
-
-    .metadata-section + .metadata-section {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--album-border);
-    }
-
-    .metadata-section h3 {
-        font-size: 0.82rem;
-        font-weight: 700;
-        margin-bottom: 0.75rem;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-    }
-
-    .metadata-sections {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.85rem;
-        margin-top: 1rem;
-    }
-
-    .metadata-section {
-        background: var(--album-section-bg);
-        border: 1px solid var(--album-border);
-        border-radius: 14px;
-        padding: 0.8rem 0.9rem;
-    }
-
-    .metadata-section + .metadata-section {
-        margin-top: 0;
-        padding-top: 0.8rem;
-    }
-
-    .metadata-list {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.75rem 1rem;
-    }
-
-    .metadata-item {
-        display: grid;
-        gap: 0.15rem;
-    }
-
-    .metadata-label {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        font-weight: 700;
-    }
-
-    .metadata-value {
-        font-size: 0.92rem;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    .custom-field {
-        margin-top: 0.75rem;
-    }
-
-    .custom-field label {
-        font-weight: 700;
-        margin-bottom: 0.35rem;
-    }
-
-    .custom-field textarea {
-        min-height: 140px;
-        resize: vertical;
-    }
-
-    .photo-card .card-body {
-        padding: 0;
-    }
-
-    .photo-name {
-        font-size: 0.78rem;
-        line-height: 1.1;
-        display: -webkit-box;
-        line-clamp: 2;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-        max-height: 2.3em;
-    }
-
-    .album-histogram-panel {
-        margin-top: 1rem;
-        border: 1px solid var(--album-border);
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.04);
-        padding: 0.75rem;
-    }
-
-    .album-histogram-panel h3 {
-        font-size: 0.88rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 0.6rem;
-    }
-
-    .album-histogram-panel .form-label {
-        font-size: 0.72rem;
-        font-weight: 700;
-    }
-
-    .album-histogram-canvas {
-        width: 100%;
-        height: 145px;
-        border-radius: 8px;
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        background: #0f172a;
-    }
-
-    .album-histogram-stats {
-        color: var(--album-muted);
-        font-size: 0.76rem;
-        margin-top: 0.4rem;
-    }
-
-    @media (max-width: 1200px) {
-        .album-layout {
-            grid-template-columns: 1fr;
-        }
-
-        .album-preview-panel {
-            position: static;
-            min-height: auto;
-        }
-
-        .preview-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .metadata-sections,
-        .metadata-list {
-            grid-template-columns: 1fr;
-        }
-    }
+    .album-page .album-side { flex: 0 0 230px; }
+    .album-page .album-main { flex: 1 1 600px; }
+    .album-page .album-aside { flex: 0 0 340px; position: sticky; top: 70px; max-height: calc(100vh - 80px); overflow-y: auto; }
+    .album-page .ws-view[hidden] { display: none !important; }
+    .album-page .inspector-quality { padding: 6px 0; border-top: 1px solid var(--line); font-size: 13px; }
+    .album-page .inspector-name { font-weight: 700; overflow-wrap: anywhere; }
+    .album-page .exif-sections { font-size: 12px; }
+    .album-page .exif-sections h4 { font-size: 12px; margin: 8px 0 4px; color: var(--text-muted); }
+    .album-page .stack-columns { display: flex; flex-wrap: wrap; gap: 18px; }
+    .album-page .stack-columns > .stack-frames { flex: 1 1 320px; display: flex; flex-direction: column; gap: 8px; }
+    .album-page .stack-columns > .stack-settings { flex: 2 1 560px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+    .album-page .stack-estimate { margin-top: 6px; padding: 12px 14px; border-radius: 12px; background: var(--bg-soft); border: 1px solid var(--line); }
+    .album-page .stack-choices { display: flex; flex-direction: column; gap: 6px; }
+    .album-page .stack-choices label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+    .album-page .stack-choices label:has(input:checked) { border-color: var(--primary); background: color-mix(in oklab, var(--primary) 10%, transparent); }
+    .album-page .alt-groups { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+    .album-page .editor-head { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+    .album-page .editor-body { display: flex; flex-wrap: wrap; gap: 14px; padding: 14px 20px; }
+    .album-page .editor-body > .editor-stage-col { flex: 1 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+    .album-page .editor-body > .ws-panel { flex: 0 0 360px; }
+    .album-page .job-row { display: flex; align-items: center; gap: 12px; }
+    .album-page .job-row .ws-progress { flex: 1; margin: 0; }
+    .album-page .hist-wrap { position: relative; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid album-page py-4">
-    <div class="album-shell mx-auto">
-        <div class="album-toolbar">
-            <div>
-                <h1 class="mb-1">Photo Album</h1>
-                <div class="text-muted">Click a thumbnail to inspect and edit the embedded metadata.</div>
-            </div>
-            <div class="button-group d-flex flex-wrap gap-2 align-items-center">
-                <select id="frame-type-filter" class="form-select form-select-sm" style="width: auto;" title="Show one kind of frame">
-                    <option value="">All frames</option>
-                    <option value="light">Lights</option>
-                    <option value="bracket">Brackets</option>
-                    <option value="timelapse">Timelapse</option>
-                    <option value="snapshot">Snapshots</option>
-                    <option value="dark">Darks</option>
-                    <option value="flat">Flats</option>
-                    <option value="bias">Bias</option>
-                </select>
-                <div class="btn-group btn-group-sm" role="group" aria-label="Group photos">
-                    <button id="view-by-date" type="button" class="btn btn-outline-secondary active">By date</button>
-                    <button id="view-by-plan" type="button" class="btn btn-outline-secondary">By plan</button>
-                </div>
-                <button id="download-btn" class="btn btn-primary btn-sm" disabled>Download</button>
-                <button id="delete-selected-btn" class="btn btn-danger btn-sm" disabled>Delete</button>
-            </div>
-        </div>
-
-        <div class="album-layout">
-            <section class="album-gallery-panel">
-                <div id="gallery"></div>
-            </section>
-
-            <aside class="album-preview-panel">
-                <div id="preview-empty" class="preview-empty">
-                    <div>
-                        <h2 class="h4 mb-2">Select a photo</h2>
-                        <p class="mb-0">The image preview and its metadata will appear here. Target and notes can be edited and saved back into the JPEG.</p>
-                    </div>
-                </div>
-
-                <div id="preview-content" class="preview-grid d-none">
-                    <div class="preview-image-frame">
-                        <img id="preview-image" alt="Selected photo preview">
-                    </div>
-
-                    <div class="metadata-card">
-                        <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
-                            <div>
-                                <h2 id="preview-title" class="h5 mb-1">Photo metadata</h2>
-                                <div id="preview-subtitle" class="text-muted small"></div>
-                            </div>
-                            <button id="save-metadata-btn" class="btn btn-success btn-sm" disabled>Save</button>
-                        </div>
-
-                        <div class="custom-field">
-                            <label for="target-input">Target</label>
-                            <input id="target-input" class="form-control" type="text" placeholder="Enter target name">
-                        </div>
-
-                        <div class="custom-field">
-                            <label for="notes-input">Notes</label>
-                            <textarea id="notes-input" class="form-control" placeholder="Add notes about the image"></textarea>
-                        </div>
-
-                        <div id="metadata-sections" class="metadata-sections"></div>
-                        <div id="metadata-status" class="small text-muted mt-3"></div>
-
-                        <div class="album-histogram-panel">
-                            <h3 class="mb-2">Captured Photo Histogram</h3>
-                            <div class="histogram-settings" id="albumHistogramControls">
-                                <div class="row g-2 align-items-center mb-2">
-                                    <div class="col-7">
-                                        <label class="form-label mb-0">Channel</label>
-                                        <select class="form-select form-select-sm" data-hist="mode">
-                                            <option value="luminance" selected>Luminance</option>
-                                            <option value="rgb">RGB Overlay</option>
-                                            <option value="red">Red</option>
-                                            <option value="green">Green</option>
-                                            <option value="blue">Blue</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-5">
-                                        <label class="form-label mb-0">Bins <span data-hist="bins-value">128</span></label>
-                                        <input type="range" class="form-range" min="32" max="512" step="32" value="128" data-hist="bins">
-                                    </div>
-                                </div>
-                                <div class="row g-2 align-items-center mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label mb-0">Black Point <span data-hist="black-point-value">0%</span></label>
-                                        <input type="range" class="form-range" min="0" max="95" step="1" value="0" data-hist="black-point">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label mb-0">White Point <span data-hist="white-point-value">100%</span></label>
-                                        <input type="range" class="form-range" min="5" max="100" step="1" value="100" data-hist="white-point">
-                                    </div>
-                                </div>
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-6">
-                                        <label class="form-label mb-0">Sample Step <span data-hist="sample-step-value">2 px</span></label>
-                                        <input type="range" class="form-range" min="1" max="10" step="1" value="2" data-hist="sample-step">
-                                    </div>
-                                    <div class="col-6 d-flex gap-2 pt-3">
-                                        <div class="form-check form-check-inline mb-0">
-                                            <input class="form-check-input" type="checkbox" id="albumHistogramLogScale" data-hist="log-scale">
-                                            <label class="form-check-label" for="albumHistogramLogScale">Log</label>
-                                        </div>
-                                        <div class="form-check form-check-inline mb-0">
-                                            <input class="form-check-input" type="checkbox" id="albumHistogramSmooth" data-hist="smooth">
-                                            <label class="form-check-label" for="albumHistogramSmooth">Smooth</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <canvas id="albumHistogramCanvas" class="album-histogram-canvas" width="420" height="145"></canvas>
-                            <div id="albumHistogramStats" class="album-histogram-stats">No image loaded.</div>
-                        </div>
-                    </div>
-                </div>
-            </aside>
+<div class="ws-toolbar">
+    <h1 class="ws-title">Album</h1>
+    <div class="ws-tabs" role="tablist" aria-label="Album" style="margin:0;border:0">
+        <button class="ws-tab on" type="button" role="tab" aria-selected="true" data-view="photos">Photos</button>
+        <button class="ws-tab" type="button" role="tab" aria-selected="false" data-view="stacks">Stacked images <span class="ws-chip ws-hidden" id="stackCountChip" style="padding:1px 7px"></span></button>
+        <button class="ws-tab" type="button" role="tab" aria-selected="false" data-view="activity">Activity <span class="ws-chip ws-hidden" id="activityChip" style="padding:1px 7px"></span></button>
+    </div>
+    <div class="ws-toolbar-end">
+        <span class="ws-small ws-muted" id="libraryStatus"></span>
+        <div class="ws-seg" role="group" aria-label="Album mode" data-mode-toggle>
+            <button type="button" data-mode="basic">Basic</button>
+            <button type="button" data-mode="advanced">Advanced</button>
         </div>
     </div>
 </div>
 
-<div id="photoModal" class="photo-modal" style="display:none;">
-    <img id="photoModalImg" src="" alt="Zoomed Photo" class="photo-modal-img">
-</div>
+<!-- Photos -->
+<section class="ws-view" id="viewPhotos">
+    <div class="ws-subbar adv-only">
+        <span class="ws-muted ws-small ws-strong">Group by</span>
+        <div class="ws-seg sm" role="group" aria-label="Group by" id="groupBySeg">
+            <button type="button" data-group-by="night" class="on">Night</button>
+            <button type="button" data-group-by="target">Target</button>
+            <button type="button" data-group-by="plan">Plan</button>
+        </div>
+        <span class="ws-muted ws-small ws-strong" style="margin-left:8px">Show</span>
+        <span id="typeChips" class="ws-actions"></span>
+        <button type="button" class="ws-chip" id="hideRejectedChip" aria-pressed="false">Hide rejected</button>
+        <span class="ws-spacer"></span>
+        <div class="ws-seg sm" role="group" aria-label="Layout" id="layoutSeg">
+            <button type="button" data-layout="grid" class="on">Grid</button>
+            <button type="button" data-layout="table">Table</button>
+        </div>
+    </div>
+
+    <div class="ws-body">
+        <aside class="ws-col album-side">
+            <nav class="ws-side" id="groupNav" aria-label="Photo groups"></nav>
+        </aside>
+
+        <main class="ws-col album-main" id="photosMain">
+            <div class="ws-card ws-group-head" id="groupHead">
+                <div style="flex:1;min-width:260px">
+                    <div class="ws-group-title" id="groupTitle">Loading your photos…</div>
+                    <div class="ws-muted ws-small" id="groupSummary"></div>
+                </div>
+                <a class="ws-btn ws-hidden" id="groupPlanZip" href="#">Plan zip</a>
+                <button class="ws-btn" type="button" id="btnDownloadGroup">Download all</button>
+                <button class="ws-btn primary" type="button" id="btnStackGroup">Stack this night</button>
+            </div>
+
+            <!-- Advanced: quality over the group -->
+            <div class="ws-card adv-only" id="qualityCard">
+                <h3>Quality <span class="ws-muted ws-small" id="qualityTitle" style="font-weight:500"></span>
+                    <span class="ws-legend ws-aside">
+                        <span><i style="background:var(--ws-series-1)"></i>FWHM</span>
+                        <span><i style="background:var(--ws-series-2)"></i>eccentricity</span>
+                        <span><i style="background:var(--ws-series-3)"></i>background</span>
+                    </span>
+                </h3>
+                <svg class="ws-chart" id="qualityChart" role="img" aria-label="Frame quality over the group"></svg>
+                <div class="ws-actions ws-small" id="qualityControls" style="margin-top:6px">
+                    <span>Reject frames where FWHM is over</span><input class="ws-input num" id="limitFwhm" aria-label="FWHM limit" inputmode="decimal">
+                    <span>px, eccentricity over</span><input class="ws-input num" id="limitEcc" aria-label="Eccentricity limit" inputmode="decimal">
+                    <span>or stars under</span><input class="ws-input num" id="limitStars" aria-label="Star count limit" inputmode="numeric">
+                    <button class="ws-btn sm" type="button" id="btnRejectByLimits">Reject 0 frames</button>
+                    <button class="ws-btn sm ghost" type="button" id="btnSuggestLimits">Suggest: median + 3σ</button>
+                </div>
+                <div class="ws-note ws-hidden" id="qualityEmpty" style="margin-top:6px"></div>
+            </div>
+
+            <div id="groupContent"></div>
+        </main>
+
+        <aside class="ws-col album-aside" id="inspector" aria-label="Selected photo">
+            <div class="ws-card" id="inspectorEmpty">
+                <h3>Select a photo</h3>
+                <p class="ws-small ws-muted" style="margin:0">Click a photo to see it here with its details. Ctrl-click or Shift-click to select several; the bar at the bottom acts on them.</p>
+            </div>
+            <div id="inspectorBody" class="ws-hidden" style="display:flex;flex-direction:column;gap:var(--ws-gap)">
+                <div class="ws-card">
+                    <div class="ws-preview"><img id="inspectorImg" alt="Preview of the selected photo" crossorigin="anonymous"></div>
+                    <div class="ws-actions" style="justify-content:space-between">
+                        <span class="inspector-name" id="inspectorName"></span>
+                        <span class="ws-chip" id="inspectorQuality"><span class="ws-dot off"></span><span>Not measured</span></span>
+                    </div>
+                    <div class="ws-muted ws-small" id="inspectorSub" style="margin:4px 0 10px"></div>
+                    <div class="inspector-quality basic-only" id="inspectorSentence"></div>
+                    <div class="ws-actions adv-only" style="margin-bottom:8px">
+                        <button class="ws-btn sm" type="button" id="btnFlagPick" title="Keep this one (p)">Accept</button>
+                        <button class="ws-btn sm" type="button" id="btnFlagReject" title="Leave it out of stacks (x)">Reject</button>
+                        <button class="ws-btn sm ghost" type="button" id="btnFlagClear">Clear flag</button>
+                        <label class="ws-small ws-muted" style="display:flex;align-items:center;gap:6px;margin-left:auto">Type
+                            <select class="ws-select" id="inspectorType" style="padding:3px 6px"></select>
+                        </label>
+                    </div>
+                    <label class="ws-field" for="inspectorTarget">Target<input class="ws-input" id="inspectorTarget" placeholder="M42"></label>
+                    <label class="ws-field" for="inspectorNotes" style="margin-top:8px">Notes<textarea class="ws-textarea" id="inspectorNotes" placeholder="Seeing, haze, anything worth remembering"></textarea></label>
+                    <div class="ws-actions" style="margin-top:10px">
+                        <button class="ws-btn sm" type="button" id="btnSaveMeta" disabled>Save</button>
+                        <span class="ws-small ws-muted" id="metaStatus"></span>
+                    </div>
+                    <div class="ws-actions" style="margin-top:12px">
+                        <button class="ws-btn" type="button" id="btnEditPhoto">Edit this photo</button>
+                        <button class="ws-btn" type="button" id="btnViewFull">View full size</button>
+                        <button class="ws-btn" type="button" id="btnBlink" title="Flick through the selected photos, or this night's lights">Blink</button>
+                        <button class="ws-btn" type="button" id="btnDownloadOne">Download</button>
+                    </div>
+                </div>
+                <div class="ws-card adv-only">
+                    <h3>Details</h3>
+                    <dl class="ws-kv" id="inspectorKv"></dl>
+                </div>
+                <div class="ws-card adv-only">
+                    <h3>Measured <span class="ws-aside" id="inspectorMeasuredFrom"></span></h3>
+                    <dl class="ws-kv" id="inspectorMetrics"></dl>
+                </div>
+                <div class="ws-card adv-only">
+                    <h3>Histogram
+                        <span class="ws-aside" id="albumHistogramControls">
+                            <select class="ws-select" data-hist="mode" aria-label="Channel" style="padding:3px 6px">
+                                <option value="rgb" selected>RGB</option>
+                                <option value="luminance">Luminance</option>
+                                <option value="red">Red</option>
+                                <option value="green">Green</option>
+                                <option value="blue">Blue</option>
+                            </select>
+                            <label class="ws-small"><input type="checkbox" data-hist="log-scale"> Log</label>
+                        </span>
+                    </h3>
+                    <canvas id="albumHistogramCanvas" class="ws-hist" width="320" height="90"></canvas>
+                    <div id="albumHistogramStats" class="ws-small ws-muted" style="margin-top:4px">No image loaded.</div>
+                </div>
+                <div class="ws-card adv-only">
+                    <details id="exifDetails">
+                        <summary class="ws-small ws-strong">Everything in the file</summary>
+                        <div class="exif-sections" id="exifSections"></div>
+                    </details>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="ws-bulkbar ws-hidden" id="bulkBar" role="region" aria-label="Selected photos">
+        <b class="ws-small" id="bulkCount">0 selected</b>
+        <button class="ws-btn sm ghost" type="button" id="btnClearSelection">Clear</button>
+        <span class="ws-spacer"></span>
+        <div class="adv-only ws-actions">
+            <label class="ws-small ws-muted" for="bulkType">Set type</label>
+            <select class="ws-select" id="bulkType" style="padding:4px 6px"></select>
+            <button class="ws-btn sm" type="button" id="btnBulkAccept">Accept</button>
+            <button class="ws-btn sm" type="button" id="btnBulkMeasure">Measure quality</button>
+            <button class="ws-btn sm" type="button" id="btnBulkRaws">Ask the telescope for RAWs</button>
+        </div>
+        <button class="ws-btn sm" type="button" id="btnBulkReject"><span class="basic-only">Mark as bad</span><span class="adv-only">Reject</span></button>
+        <button class="ws-btn sm" type="button" id="btnBulkDownload">Download</button>
+        <button class="ws-btn sm" type="button" id="btnBulkDelete">Delete</button>
+        <button class="ws-btn sm primary" type="button" id="btnBulkStack"><span class="basic-only">Stack these</span><span class="adv-only">Stack…</span></button>
+    </div>
+</section>
+
+<!-- Stacked images -->
+<section class="ws-view" id="viewStacks" hidden>
+    <div class="ws-body" style="flex-direction:column;align-items:stretch">
+        <div class="ws-card">
+            <h3>Stacked images</h3>
+            <p class="ws-small ws-muted" style="margin:0">Stacks you've made, with their linear masters for editing again. Open one to edit it, or download the master to work on it in other software.</p>
+        </div>
+        <div class="ws-stack-cards" id="stackCards"></div>
+    </div>
+</section>
+
+<!-- Activity -->
+<section class="ws-view" id="viewActivity" hidden>
+    <div class="ws-body" style="flex-direction:column;align-items:stretch">
+        <div class="ws-card">
+            <h3>Running in this browser</h3>
+            <div id="jobList"><div class="ws-empty">Nothing running.</div></div>
+            <p class="ws-small ws-muted" style="margin:8px 0 0">Measuring and stacking run in this tab, on your computer. Keep the tab open until they finish; you can carry on using the album meanwhile.</p>
+        </div>
+        <div class="ws-card">
+            <h3>Finished</h3>
+            <div id="jobHistory"><div class="ws-empty">Nothing yet this visit.</div></div>
+        </div>
+    </div>
+</section>
+
+<!-- Editing a stack -->
+<section class="ws-view" id="viewEditor" hidden>
+    <div class="editor-head">
+        <button class="ws-btn sm ghost" type="button" data-view="stacks">‹ Stacked images</button>
+        <span class="ws-muted">/</span>
+        <span class="ws-strong" style="font-family:'Sora',sans-serif" id="editorName"></span>
+        <span class="ws-muted ws-small" id="editorInfo"></span>
+    </div>
+    <div class="editor-body">
+        <div class="editor-stage-col">
+            <div class="ws-actions">
+                <div class="ws-seg sm" role="group" aria-label="Compare" id="compareSeg">
+                    <button type="button" data-compare="after" class="on">After</button>
+                    <button type="button" data-compare="before">Before</button>
+                    <button type="button" data-compare="split">Split</button>
+                </div>
+                <div class="ws-seg sm" role="group" aria-label="Zoom" id="editorZoomSeg">
+                    <button type="button" data-zoom="fit" class="on">Fit</button>
+                    <button type="button" data-zoom="100">100%</button>
+                </div>
+                <label class="ws-tick ws-small adv-only"><input type="checkbox" id="showBgModel"> Show background model</label>
+                <span class="ws-spacer"></span>
+                <button class="ws-btn sm ghost" type="button" id="btnUndo" disabled>Undo</button>
+                <button class="ws-btn sm ghost" type="button" id="btnRedo" disabled>Redo</button>
+            </div>
+            <div class="ws-editor-stage" id="editorStage">
+                <img id="editorImg" alt="The stacked image">
+                <span class="ws-chip ws-hidden" id="editorReadout" style="position:absolute;left:12px;bottom:12px"></span>
+            </div>
+            <div class="ws-card adv-only" id="editorReport"></div>
+        </div>
+        <aside class="ws-panel" id="editorPanel">
+            <div class="ws-sec">
+                <div class="ws-note warn ws-hidden" id="editorEngineNote" style="margin-bottom:10px"></div>
+                <div class="ws-actions"><button class="ws-btn primary" type="button" style="flex:1" id="btnEditAuto">Auto</button><button class="ws-btn" type="button" style="flex:1" id="btnEditReset">Reset</button></div>
+            </div>
+            <div class="ws-panel-scroll"><fieldset id="editorControls">
+                <div class="ws-sec basic-only">
+                    <h3>Adjust</h3>
+                    <div class="ws-slider"><span>Brightness</span><input type="range" min="0.05" max="0.45" step="0.01" data-param="stretch.target" aria-label="Brightness"><output></output></div>
+                    <div class="ws-slider"><span>Contrast</span><input type="range" min="-0.5" max="0.6" step="0.01" data-param="contrast" aria-label="Contrast"><output></output></div>
+                    <div class="ws-slider"><span>Colour</span><input type="range" min="0" max="2.5" step="0.05" data-param="saturation" aria-label="Colour saturation"><output></output></div>
+                    <div class="ws-slider"><span>Smoothing</span><input type="range" min="0" max="1" step="0.05" data-param="basic.noise" aria-label="Noise reduction"><output></output></div>
+                    <div class="ws-slider"><span>Sharpening</span><input type="range" min="0.5" max="2.5" step="0.05" data-param="basic.sharpen" aria-label="Sharpening"><output></output></div>
+                    <label class="ws-tick"><input type="checkbox" data-param="background.enabled"> Remove gradients (light pollution, Moon glow)</label>
+                </div>
+                <div class="ws-sec adv-only">
+                    <h3>Crop</h3>
+                    <label class="ws-tick"><input type="checkbox" id="editCropCommon"> Crop to the area every frame covers</label>
+                </div>
+                <div class="ws-sec adv-only">
+                    <h3>Background
+                        <select class="ws-select" data-param="background.degree" aria-label="Background model" style="padding:3px 6px">
+                            <option value="0">Flat</option><option value="1">Degree 1</option><option value="2">Degree 2</option><option value="3">Degree 3</option><option value="4">Degree 4</option>
+                        </select>
+                    </h3>
+                    <label class="ws-tick"><input type="checkbox" data-param="background.enabled"> Remove gradients (light pollution, Moon glow)</label>
+                    <label class="ws-tick"><input type="checkbox" data-param="background.divide"> Divide (vignetting) rather than subtract</label>
+                    <div class="ws-slider"><span>Samples</span><input type="range" min="6" max="40" step="1" data-param="background.grid" aria-label="Background samples"><output></output></div>
+                </div>
+                <div class="ws-sec adv-only">
+                    <h3>Colour
+                        <select class="ws-select" data-param="colour.white" aria-label="White balance" style="padding:3px 6px">
+                            <option value="stars">White from the stars</option>
+                            <option value="average">White from the whole image</option>
+                            <option value="manual">Set by hand</option>
+                            <option value="none">Leave as stacked</option>
+                        </select>
+                    </h3>
+                    <label class="ws-tick"><input type="checkbox" data-param="colour.neutralise"> Neutral grey background</label>
+                    <div class="ws-slider"><span>Red</span><input type="range" min="0.3" max="3" step="0.01" data-param="colour.manual.0" aria-label="Red factor"><output></output></div>
+                    <div class="ws-slider"><span>Blue</span><input type="range" min="0.3" max="3" step="0.01" data-param="colour.manual.2" aria-label="Blue factor"><output></output></div>
+                    <div class="ws-small ws-muted" id="editorColourInfo"></div>
+                </div>
+                <div class="ws-sec adv-only">
+                    <h3>Stretch
+                        <select class="ws-select" data-param="stretch.mode" aria-label="Stretch" style="padding:3px 6px">
+                            <option value="auto">Auto (screen transfer)</option>
+                            <option value="manual">Manual levels</option>
+                            <option value="arcsinh">Arcsinh (keeps star colour)</option>
+                            <option value="none">None</option>
+                        </select>
+                    </h3>
+                    <div class="ws-slider"><span>Brightness</span><input type="range" min="0.02" max="0.6" step="0.01" data-param="stretch.target" aria-label="Target sky brightness"><output></output></div>
+                    <div class="ws-slider"><span>Black point</span><input type="range" min="-8" max="2" step="0.1" data-param="stretch.shadows" aria-label="Black point in sigma"><output></output></div>
+                    <label class="ws-tick"><input type="checkbox" data-param="stretch.linked"> Same stretch for every colour</label>
+                    <div class="ws-slider"><span>Levels black</span><input type="range" min="0" max="0.5" step="0.001" data-param="stretch.black" aria-label="Manual black level"><output></output></div>
+                    <div class="ws-slider"><span>Midtones</span><input type="range" min="0.001" max="0.999" step="0.001" data-param="stretch.mid" aria-label="Manual midtones"><output></output></div>
+                    <div class="ws-slider"><span>Levels white</span><input type="range" min="0.01" max="1" step="0.01" data-param="stretch.white" aria-label="Manual white level"><output></output></div>
+                    <div class="ws-slider"><span>Arcsinh</span><input type="range" min="1" max="500" step="1" data-param="stretch.asinh" aria-label="Arcsinh strength"><output></output></div>
+                    <div class="ws-slider"><span>Contrast</span><input type="range" min="-0.9" max="0.9" step="0.01" data-param="contrast" aria-label="Contrast"><output></output></div>
+                </div>
+                <div class="ws-sec adv-only">
+                    <h3>Detail</h3>
+                    <div class="ws-slider"><span>Saturation</span><input type="range" min="0" max="3" step="0.05" data-param="saturation" aria-label="Saturation"><output></output></div>
+                    <div class="ws-slider"><span>Noise (colour)</span><input type="range" min="0" max="1" step="0.05" data-param="noise.chroma" aria-label="Colour noise reduction"><output></output></div>
+                    <div class="ws-slider"><span>Noise (detail)</span><input type="range" min="0" max="1" step="0.05" data-param="noise.luma" aria-label="Detail noise reduction"><output></output></div>
+                    <div class="ws-slider"><span>Sharpen fine</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.0" aria-label="Sharpen fine detail"><output></output></div>
+                    <div class="ws-slider"><span>Sharpen small</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.1" aria-label="Sharpen small detail"><output></output></div>
+                    <div class="ws-slider"><span>Sharpen medium</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.2" aria-label="Sharpen medium detail"><output></output></div>
+                    <div class="ws-slider"><span>Sharpen large</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.3" aria-label="Sharpen large detail"><output></output></div>
+                </div>
+            </fieldset></div>
+            <div class="ws-sec" style="border-bottom:0;border-top:1px solid var(--line)">
+                <h3>Save</h3>
+                <div class="ws-actions">
+                    <button class="ws-btn primary" type="button" id="btnSaveJpegToAlbum">Save JPEG to album</button>
+                    <button class="ws-btn adv-only" type="button" id="btnExportTiff">TIFF 16-bit</button>
+                    <button class="ws-btn adv-only" type="button" id="btnExportPng">PNG</button>
+                    <a class="ws-btn adv-only" id="btnDownloadMaster" href="#">FITS (linear)</a>
+                    <a class="ws-btn basic-only" id="btnDownloadAuto" href="#">Download</a>
+                </div>
+                <div class="ws-small ws-muted" id="editorSaveStatus" style="margin-top:6px"></div>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<!-- Stacking -->
+<dialog class="ws-dialog" id="stackDialog" aria-labelledby="stackTitle">
+    <div class="ws-dialog-head">
+        <h2 id="stackTitle">Stack</h2>
+        <label class="ws-small ws-muted" for="stackName">Name</label>
+        <input id="stackName" class="ws-input" style="width:200px">
+        <button class="ws-btn" type="button" data-close>Close</button>
+    </div>
+    <div class="ws-dialog-body">
+        <div class="stack-columns">
+            <div class="stack-frames">
+                <div class="ws-small ws-muted ws-strong" style="letter-spacing:.06em;text-transform:uppercase">Frames</div>
+                <div id="stackFrameRows"></div>
+                <div class="stack-estimate">
+                    <div class="ws-small ws-strong" style="margin-bottom:6px">Estimate</div>
+                    <div class="ws-small ws-muted" id="stackEstimate"></div>
+                    <div class="ws-small ws-muted" id="stackSource" style="margin-top:4px"></div>
+                </div>
+            </div>
+            <div class="stack-settings">
+                <div class="ws-group basic-only" style="grid-column:1/-1">
+                    <h3>Which photos to use</h3>
+                    <div class="stack-choices" id="stackQualityChoices">
+                        <label><input type="radio" name="stackQuality" value="auto" checked><span><b>Leave out the worst (recommended)</b><br><span class="ws-small ws-muted">Blurred, trailed or cloudy photos are left out, and say why.</span></span></label>
+                        <label><input type="radio" name="stackQuality" value="best"><span><b>Only the sharpest half</b><br><span class="ws-small ws-muted">Sharper detail, at the cost of more noise.</span></span></label>
+                        <label><input type="radio" name="stackQuality" value="all"><span><b>Keep every photo</b><br><span class="ws-small ws-muted">Except the ones you marked as bad.</span></span></label>
+                    </div>
+                    <label class="ws-tick"><input type="checkbox" id="stackHalfSize"> Half size (faster, and kinder to slower computers)</label>
+                </div>
+                <div class="ws-group adv-only">
+                    <h3>Calibration</h3>
+                    <label class="ws-field">Combine calibration frames<select class="ws-select" data-setting="calibration_method"></select></label>
+                    <label class="ws-field">Dark exposure doesn't match<select class="ws-select" data-setting="dark_scaling"><option value="true">Scale with the bias</option><option value="false">Use as they are</option></select></label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="hot_pixels"> Fix hot pixels found in the darks</label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="cosmetic"> Fix stray hot and cold pixels in each photo</label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="flat_per_channel"> Normalise flats per colour</label>
+                </div>
+                <div class="ws-group adv-only">
+                    <h3>Alignment</h3>
+                    <label class="ws-field">Reference photo<select class="ws-select" data-setting="reference"></select></label>
+                    <label class="ws-field">Transform<select class="ws-select" data-setting="transform"><option value="similarity">Shift, rotate, scale</option><option value="affine">Affine (shear too)</option></select></label>
+                    <label class="ws-field">Star detection<select class="ws-select" data-setting="star_sigma"><option value="3">3 σ (faint stars)</option><option value="5">5 σ (default)</option><option value="8">8 σ (bright stars only)</option></select></label>
+                    <label class="ws-field">Interpolation<select class="ws-select" data-setting="interpolation"><option value="bicubic">Bicubic (sharper)</option><option value="bilinear">Bilinear (smoother)</option></select></label>
+                </div>
+                <div class="ws-group adv-only">
+                    <h3>Combining</h3>
+                    <label class="ws-field">Method<select class="ws-select" data-setting="method"></select></label>
+                    <div class="ws-grid2">
+                        <label class="ws-field">κ low<input class="ws-input" data-setting="kappa_low" inputmode="decimal"></label>
+                        <label class="ws-field">κ high<input class="ws-input" data-setting="kappa_high" inputmode="decimal"></label>
+                    </div>
+                    <label class="ws-field">Normalise frames<select class="ws-select" data-setting="normalise"><option value="true">Background and spread</option><option value="false">Don't normalise</option></select></label>
+                    <label class="ws-field">Weight frames<select class="ws-select" data-setting="weighting"><option value="noise">By noise</option><option value="none">Equally</option></select></label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="reject_auto"> Leave out frames far worse than the rest</label>
+                </div>
+                <div class="ws-group adv-only">
+                    <h3>Output</h3>
+                    <label class="ws-field">Debayer<select class="ws-select" data-setting="debayer"><option value="bilinear">Bilinear, full size</option><option value="superpixel">Super-pixel, half size</option></select></label>
+                    <label class="ws-field">Colour<select class="ws-select" data-setting="colour"><option value="camera">White balance + camera matrix</option><option value="wb">White balance only</option><option value="none">Camera colours as they are</option></select></label>
+                    <label class="ws-field">White balance<select class="ws-select" data-setting="wb"><option value="daylight">Daylight</option><option value="as_shot">As shot</option></select></label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="crop_common"> Crop to the area every photo covers</label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="keep_masters"> Keep the master calibration frames</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="ws-dialog-foot">
+        <span class="ws-muted ws-small" id="stackFootNote" style="flex:1">Runs in this browser tab: keep it open until it finishes. It shows under Activity.</span>
+        <button class="ws-btn" type="button" id="btnStackZip" title="All these frames in one zip, for other stacking software">Download the frames</button>
+        <button class="ws-btn adv-only" type="button" id="btnStackDefaults">Save as default</button>
+        <button class="ws-btn primary" type="button" id="btnStackStart">Start stacking</button>
+    </div>
+</dialog>
+
+<!-- Choosing frames for one row of the stack dialog -->
+<dialog class="ws-dialog narrow" id="altDialog" aria-labelledby="altTitle">
+    <div class="ws-dialog-head"><h2 id="altTitle">Choose frames</h2><button class="ws-btn" type="button" data-close>Close</button></div>
+    <div class="ws-dialog-body"><div class="alt-groups" id="altGroups"></div></div>
+</dialog>
+
+<!-- Full-size viewer and blink -->
+<dialog class="ws-viewer" id="viewer" aria-label="Photo viewer">
+    <div class="ws-viewer-bar">
+        <b id="viewerName" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></b>
+        <span class="ws-small" id="viewerInfo" style="color:#9daccc"></span>
+        <span class="ws-spacer"></span>
+        <button class="ws-btn sm" type="button" id="viewerPrev" title="Previous (←)">‹</button>
+        <button class="ws-btn sm" type="button" id="viewerPlay" title="Blink (space)">Blink</button>
+        <button class="ws-btn sm" type="button" id="viewerNext" title="Next (→)">›</button>
+        <div class="ws-seg sm" role="group" aria-label="Zoom" id="viewerZoomSeg">
+            <button type="button" data-zoom="fit" class="on">Fit</button>
+            <button type="button" data-zoom="1">100%</button>
+            <button type="button" data-zoom="2">200%</button>
+        </div>
+        <button class="ws-btn sm" type="button" id="viewerStretch" aria-pressed="false" title="Brighten faint detail on screen (s)">Auto stretch</button>
+        <button class="ws-btn sm" type="button" id="viewerReject" title="Reject (x)">Reject</button>
+        <button class="ws-btn sm" type="button" data-close title="Close (Esc)">Close</button>
+    </div>
+    <div class="ws-viewer-stage" id="viewerStage"><canvas id="viewerCanvas"></canvas></div>
+</dialog>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/histogram.js') }}?v=20260616-hist"></script>
-<script>
-    let photos = [];
-    let selectedNames = [];
-    let activePhoto = null;
-    let metadataCache = new Map();
-    let albumHistogram = null;
-
-    function initializeAlbumHistogram() {
-        if (typeof window.HistogramPanel !== 'function' || albumHistogram) {
-            return;
-        }
-
-        albumHistogram = new window.HistogramPanel({
-            canvasId: 'albumHistogramCanvas',
-            controlsRootId: 'albumHistogramControls',
-            statsId: 'albumHistogramStats',
-            emptyMessage: 'Select a photo to generate histogram.'
-        });
-
-        const previewImage = document.getElementById('preview-image');
-        if (previewImage) {
-            previewImage.crossOrigin = 'anonymous';
-            albumHistogram.setSourceImage(previewImage);
-        }
-    }
-
-    function ordinalSuffix(day) {
-        if (day > 3 && day < 21) return day + "th";
-        switch (day % 10) {
-            case 1: return day + "st";
-            case 2: return day + "nd";
-            case 3: return day + "rd";
-            default: return day + "th";
-        }
-    }
-
-    function formatDate(dateStr) {
-        if (!dateStr || dateStr.length !== 8) return dateStr || "Unknown";
-        const year = dateStr.slice(0, 4);
-        const month = parseInt(dateStr.slice(4, 6), 10) - 1;
-        const day = parseInt(dateStr.slice(6, 8), 10);
-        const d = new Date(year, month, day);
-        const monthName = d.toLocaleString('default', { month: 'long' });
-        return `${monthName} ${ordinalSuffix(day)} ${year}`;
-    }
-
-    function groupPhotosByDate(items) {
-        const groups = {};
-        items.forEach((photo, idx) => {
-            const date = photo.date || "Unknown";
-            if (!groups[date]) groups[date] = [];
-            groups[date].push({...photo, idx});
-        });
-        const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
-        return sortedDates.map(date => ({date, items: groups[date]}));
-    }
-
-    function setStatus(message, isError = false) {
-        const status = document.getElementById('metadata-status');
-        status.textContent = message || '';
-        status.classList.toggle('text-danger', !!isError);
-        status.classList.toggle('text-muted', !isError);
-    }
-
-    function updateToolbar() {
-        const downloadBtn = document.getElementById('download-btn');
-        const deleteBtn = document.getElementById('delete-selected-btn');
-        const hasSel = selectedNames.length > 0;
-        downloadBtn.disabled = !hasSel;
-        deleteBtn.disabled = !hasSel;
-    }
-
-    let viewMode = 'date';
-    let plans = [];
-
-    function photoCard(photo, subtitle) {
-        const col = document.createElement('div');
-        col.className = 'col-6 col-sm-4 col-md-3 col-xl-2';
-
-        const div = document.createElement('div');
-        div.className = 'photo-card card p-2 h-100' + (selectedNames.includes(photo.name) ? ' selected' : '');
-        div.dataset.photoName = photo.name;
-        div.style.cursor = 'pointer';
-        div.onclick = (event) => handlePhotoClick(photo, event.currentTarget, event);
-        div.ondblclick = () => showPhotoModal(photo.url);
-
-        const img = document.createElement('img');
-        img.src = photo.url;
-        img.alt = photo.name;
-        img.className = 'mb-2';
-        img.loading = 'lazy';
-        const body = document.createElement('div');
-        body.className = 'card-body p-0';
-        const name = document.createElement('div');
-        name.className = 'photo-name';
-        name.textContent = photo.name;
-        const date = document.createElement('div');
-        date.className = 'text-muted small';
-        date.textContent = subtitle !== undefined ? subtitle : (photo.date || '');
-        body.append(name, date);
-        div.append(img, body);
-        col.appendChild(div);
-        return col;
-    }
-
-    function renderGallery() {
-        if (viewMode === 'plan') {
-            renderPlans();
-            return;
-        }
-        const gallery = document.getElementById('gallery');
-        gallery.innerHTML = '';
-        const groups = groupPhotosByDate(photos);
-
-        if (!groups.length) {
-            gallery.innerHTML = '<p class="text-muted mt-3">No photos here yet.</p>';
-        }
-
-        groups.forEach(group => {
-            const heading = document.createElement('h4');
-            heading.textContent = formatDate(group.date);
-            heading.className = 'mt-3 mb-3';
-            gallery.appendChild(heading);
-
-            const row = document.createElement('div');
-            row.className = 'row g-3';
-
-            group.items.forEach(photo => {
-                const extra = [photo.frame_type, photo.label].filter(Boolean).join(' · ');
-                row.appendChild(photoCard(photo, extra ? `${photo.date} · ${extra}` : photo.date));
-            });
-
-            gallery.appendChild(row);
-        });
-
-        updateToolbar();
-    }
-
-    // Capture plans: steps in order, calibration frames apart, each plan downloadable as one zip
-    function stepHeading(step) {
-        const parts = [];
-        if (step.step !== null && step.step !== undefined) parts.push(`Step ${step.step + 1}`);
-        parts.push(step.type || step.frame_type || 'frames');
-        if (step.label) parts.push(step.label);
-        const counts = [`${step.jpeg.length} JPEG`];
-        if (step.raw) counts.push(`${step.raw} RAW`);
-        if (step.video) counts.push(`${step.video} video`);
-        return `${parts.join(' · ')} (${counts.join(', ')})`;
-    }
-
-    function renderStepGroup(container, step) {
-        const heading = document.createElement('h6');
-        heading.className = 'mt-3 mb-2 text-muted';
-        heading.textContent = stepHeading(step);
-        container.appendChild(heading);
-        const filter = document.getElementById('frame-type-filter').value;
-        const row = document.createElement('div');
-        row.className = 'row g-3';
-        step.jpeg.forEach(file => {
-            if (filter && step.frame_type !== filter) return;
-            row.appendChild(photoCard({ name: file.name, url: file.url, date: '' },
-                file.frame !== null && file.frame !== undefined ? `Frame ${file.frame + 1}` : ''));
-        });
-        container.appendChild(row);
-    }
-
-    function renderPlans() {
-        const gallery = document.getElementById('gallery');
-        gallery.innerHTML = '';
-        if (!plans.length) {
-            gallery.innerHTML = '<p class="text-muted mt-3">No photos from capture plans yet.</p>';
-            updateToolbar();
-            return;
-        }
-        plans.forEach(plan => {
-            const section = document.createElement('section');
-            section.className = 'mt-3 pb-3 border-bottom';
-            const header = document.createElement('div');
-            header.className = 'd-flex justify-content-between align-items-center flex-wrap gap-2';
-            const title = document.createElement('h4');
-            title.className = 'mb-0';
-            title.textContent = plan.name;
-            const meta = document.createElement('span');
-            meta.className = 'text-muted small ms-2';
-            const when = plan.started_at ? new Date(plan.started_at).toLocaleString() : '';
-            meta.textContent = [when, plan.state, `${plan.files} files`].filter(Boolean).join(' · ');
-            title.appendChild(meta);
-            const download = document.createElement('a');
-            download.className = 'btn btn-outline-primary btn-sm';
-            download.href = `/album/plan/${encodeURIComponent(plan.plan_id)}/download`;
-            download.textContent = 'Download plan (zip)';
-            header.append(title, download);
-            section.appendChild(header);
-
-            plan.steps.forEach(step => renderStepGroup(section, step));
-            if (plan.calibration.length) {
-                const calHeading = document.createElement('h5');
-                calHeading.className = 'mt-4 mb-1';
-                calHeading.textContent = 'Calibration frames';
-                section.appendChild(calHeading);
-                plan.calibration.forEach(step => renderStepGroup(section, step));
-            }
-            gallery.appendChild(section);
-        });
-        updateToolbar();
-    }
-
-    function fetchPlans() {
-        fetch('/album/plans')
-            .then(r => r.json())
-            .then(data => {
-                plans = data.plans || [];
-                renderGallery();
-            });
-    }
-
-    function setViewMode(mode) {
-        viewMode = mode;
-        document.getElementById('view-by-date').classList.toggle('active', mode === 'date');
-        document.getElementById('view-by-plan').classList.toggle('active', mode === 'plan');
-        if (mode === 'plan') fetchPlans();
-        else fetchPhotos();
-    }
-
-    document.getElementById('view-by-date').addEventListener('click', () => setViewMode('date'));
-    document.getElementById('view-by-plan').addEventListener('click', () => setViewMode('plan'));
-    document.getElementById('frame-type-filter').addEventListener('change', () => {
-        if (viewMode === 'plan') renderGallery();
-        else fetchPhotos();
-    });
-
-    function handlePhotoClick(photo, photoDiv, event) {
-        if (!photo) return;
-
-        if (event && event.shiftKey) {
-            if (selectedNames.includes(photo.name)) {
-                selectedNames = selectedNames.filter(name => name !== photo.name);
-                if (photoDiv) photoDiv.classList.remove('selected');
-            } else {
-                selectedNames.push(photo.name);
-                if (photoDiv) photoDiv.classList.add('selected');
-            }
-        } else {
-            selectedNames = [];
-            document.querySelectorAll('.photo-card.selected').forEach(card => card.classList.remove('selected'));
-        }
-
-        updateToolbar();
-        loadPhotoMetadata(photo);
-    }
-
-    function showPhotoModal(url) {
-        const modal = document.getElementById('photoModal');
-        const img = document.getElementById('photoModalImg');
-        modal.style.display = 'flex';
-        img.src = url;
-        img.classList.remove('zoomed');
-        void img.offsetWidth;
-        img.classList.add('zoomed');
-    }
-
-    function closePhotoModal() {
-        document.getElementById('photoModal').style.display = 'none';
-        document.getElementById('photoModalImg').src = '';
-    }
-
-    document.getElementById('photoModal').onclick = closePhotoModal;
-
-    function renderMetadataSections(photoMeta) {
-        const container = document.getElementById('metadata-sections');
-        container.innerHTML = '';
-
-        (photoMeta.sections || []).forEach(section => {
-            const sectionEl = document.createElement('div');
-            sectionEl.className = 'metadata-section';
-
-            const title = document.createElement('h3');
-            title.textContent = section.title;
-            sectionEl.appendChild(title);
-
-            const list = document.createElement('div');
-            list.className = 'metadata-list';
-
-            (section.items || []).forEach(item => {
-                const itemEl = document.createElement('div');
-                itemEl.className = 'metadata-item';
-
-                const label = document.createElement('div');
-                label.className = 'metadata-label';
-                label.textContent = item.label;
-
-                const value = document.createElement('div');
-                value.className = 'metadata-value';
-                value.textContent = item.value && String(item.value).trim() ? item.value : '—';
-
-                itemEl.appendChild(label);
-                itemEl.appendChild(value);
-                list.appendChild(itemEl);
-            });
-
-            sectionEl.appendChild(list);
-            container.appendChild(sectionEl);
-        });
-    }
-
-    function showEmptyPreview(message) {
-        document.getElementById('preview-empty').classList.remove('d-none');
-        document.getElementById('preview-content').classList.add('d-none');
-        setStatus(message || '');
-        document.getElementById('save-metadata-btn').disabled = true;
-        if (albumHistogram) {
-            albumHistogram.clear('Select a photo to generate histogram.');
-        }
-    }
-
-    function showPreview(photoMeta) {
-        document.getElementById('preview-empty').classList.add('d-none');
-        document.getElementById('preview-content').classList.remove('d-none');
-        document.getElementById('preview-image').src = photoMeta.url;
-        document.getElementById('preview-title').textContent = photoMeta.name;
-        document.getElementById('preview-subtitle').textContent = `${photoMeta.width} x ${photoMeta.height} | ${photoMeta.modified}`;
-        document.getElementById('target-input').value = photoMeta.target || '';
-        document.getElementById('notes-input').value = photoMeta.notes || '';
-        document.getElementById('save-metadata-btn').disabled = false;
-        renderMetadataSections(photoMeta);
-        setStatus('Metadata loaded.');
-        if (albumHistogram) {
-            albumHistogram.refresh();
-        }
-    }
-
-    function showStatusLoading() {
-        document.getElementById('preview-empty').classList.add('d-none');
-        document.getElementById('preview-content').classList.remove('d-none');
-        document.getElementById('preview-image').removeAttribute('src');
-        document.getElementById('preview-title').textContent = 'Loading metadata...';
-        document.getElementById('preview-subtitle').textContent = '';
-        document.getElementById('metadata-sections').innerHTML = '';
-        document.getElementById('save-metadata-btn').disabled = true;
-        setStatus('Loading photo metadata...');
-    }
-
-    function loadPhotoMetadata(photo) {
-        if (!photo) {
-            showEmptyPreview('No photo selected.');
-            return;
-        }
-
-        activePhoto = photo;
-        const cached = metadataCache.get(photo.name);
-        if (cached) {
-            showPreview(cached);
-            return;
-        }
-
-        showStatusLoading();
-        fetch(`/album/photo/${encodeURIComponent(photo.name)}/metadata`)
-            .then(resp => resp.json().then(body => ({status: resp.status, body})))
-            .then(({status, body}) => {
-                if (status !== 200 || body.status !== 'success') {
-                    throw new Error(body.message || 'Failed to load metadata');
-                }
-                metadataCache.set(photo.name, body.photo);
-                showPreview(body.photo);
-            })
-            .catch(err => {
-                console.error('Metadata load error', err);
-                setStatus('Failed to load metadata.', true);
-            });
-    }
-
-    function saveMetadata() {
-        if (!activePhoto) return;
-
-        const btn = document.getElementById('save-metadata-btn');
-        btn.disabled = true;
-        setStatus('Saving metadata...');
-
-        const payload = {
-            target: document.getElementById('target-input').value,
-            notes: document.getElementById('notes-input').value
-        };
-
-        fetch(`/album/photo/${encodeURIComponent(activePhoto.name)}/metadata`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        })
-        .then(resp => resp.json().then(body => ({status: resp.status, body})))
-        .then(({status, body}) => {
-            if (status !== 200 || body.status !== 'success') {
-                throw new Error(body.message || 'Failed to save metadata');
-            }
-            metadataCache.set(activePhoto.name, body.photo);
-            showPreview(body.photo);
-            renderGallery();
-            setStatus('Metadata saved to the image file.');
-        })
-        .catch(err => {
-            console.error('Metadata save error', err);
-            setStatus('Failed to save metadata.', true);
-        })
-        .finally(() => {
-            btn.disabled = false;
-        });
-    }
-
-    document.getElementById('save-metadata-btn').addEventListener('click', saveMetadata);
-
-    document.getElementById('download-btn').onclick = () => {
-        if (selectedNames.length === 0) return;
-        const files = selectedNames.slice();
-        fetch('/album/download', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({files})
-        })
-        .then(resp => {
-            if (!resp.ok) throw new Error('Download failed');
-            return resp.blob();
-        })
-        .then(blob => {
-            let filename = 'photos.zip';
-            if (files.length === 1) {
-                filename = files[0].replace(/\.[^.]+$/, '') + '.zip';
-            }
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                window.URL.revokeObjectURL(url);
-                a.remove();
-            }, 100);
-        });
-    };
-
-    document.getElementById('delete-selected-btn').addEventListener('click', function() {
-        if (selectedNames.length === 0) return;
-        const files = selectedNames.slice();
-        if (!confirm(`Delete ${files.length} photo(s)? This cannot be undone.`)) return;
-        const btn = this;
-        btn.disabled = true;
-        fetch('/album/photo/delete', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({files})
-        })
-        .then(r => r.json().then(body => ({status: r.status, body})))
-        .then(({status, body}) => {
-            if (status === 200 || status === 207) {
-                const deletedJpegs = (body.deleted || []).filter(n => n.toLowerCase().endsWith('.jpg') || n.toLowerCase().endsWith('.jpeg'));
-                photos = photos.filter(p => !deletedJpegs.includes(p.name));
-                selectedNames = [];
-                if (activePhoto && deletedJpegs.includes(activePhoto.name)) {
-                    activePhoto = null;
-                    showEmptyPreview('Select a photo to view metadata.');
-                }
-                if (viewMode === 'plan') fetchPlans();
-                else renderGallery();
-                updateToolbar();
-                let msg = 'Deleted: ' + (body.deleted || []).join(', ');
-                if (body.failed && body.failed.length) {
-                    msg += '\nFailed: ' + JSON.stringify(body.failed);
-                }
-                alert(msg);
-            } else {
-                alert('Delete failed: ' + (body.message || 'unknown'));
-                btn.disabled = false;
-            }
-        })
-        .catch(err => {
-            console.error('Delete error', err);
-            alert('Delete failed');
-            btn.disabled = false;
-        });
-    });
-
-    function fetchPhotos() {
-        const frameType = document.getElementById('frame-type-filter').value;
-        fetch('/album/photos' + (frameType ? `?frame_type=${encodeURIComponent(frameType)}` : ''))
-            .then(r => r.json())
-            .then(data => {
-                photos = data;
-                renderGallery();
-                showEmptyPreview('Select a photo to view metadata.');
-            });
-    }
-
-    initializeAlbumHistogram();
-    fetchPhotos();
-</script>
-
-<style>
-    .photo-modal {
-        position: fixed;
-        z-index: 2000;
-        left: 0;
-        top: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.72);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s;
-        cursor: pointer;
-    }
-
-    .photo-modal-img {
-        position: relative;
-        z-index: 2;
-        max-width: 90vw;
-        max-height: 80vh;
-        border-radius: 12px;
-        box-shadow: 0 0 32px #000a;
-        opacity: 0;
-        transform: scale(0.7);
-        transition: opacity 0.25s, transform 0.25s;
-        cursor: default;
-    }
-
-    .photo-modal-img.zoomed {
-        opacity: 1;
-        transform: scale(1);
-    }
-</style>
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/histogram.js') }}?v=20261018-ws"></script>
+<script type="module" src="{{ url_for('static', filename='js/album/main.js') }}?v=20261018-ws"></script>
 {% endblock %}

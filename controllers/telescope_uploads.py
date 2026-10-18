@@ -40,8 +40,8 @@ CHECKSUM_MISMATCH = 460
 PARTIAL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "instance", "uploads", "partial")
 KINDS = ("jpeg", "raw", "video")
 RAW_EXTENSIONS = {"cr2", "cr3", "nef", "nrw", "arw", "orf", "rw2", "dng", "raf", "pef", "srw"}
-VIDEO_EXTENSIONS = {"mp4", "avi", "mov"}
-FRAME_TYPES = ("light", "dark", "flat", "bias", "snapshot", "bracket", "timelapse", "video")
+VIDEO_EXTENSIONS = {"mp4", "avi", "mov", "ser"}
+FRAME_TYPES = ("light", "dark", "flat", "darkflat", "bias", "snapshot", "bracket", "timelapse", "video", "test")
 
 _locks_guard = threading.Lock()
 _upload_locks = {}
@@ -470,6 +470,7 @@ def _finish_upload(row):
         step=_as_int(meta.get("step")),
         frame=_as_int(meta.get("frame")),
         pair_id=str(meta["pair"])[:64] if meta.get("pair") else None,
+        meta_json=json.dumps(meta) if meta else None,
     )
     db.session.add(photo)
     db.session.flush()

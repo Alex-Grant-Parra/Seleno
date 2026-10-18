@@ -90,6 +90,7 @@ PLAN_SCHEMA = {
                 'interval_s': _number(0, 3600),
                 'dither_every': _integer(0, MAX_FRAMES),
                 'dither_arcmin': _number(0, 60),
+                'dither_settle_s': _number(0, 120),
             },
         },
         'bracket': {

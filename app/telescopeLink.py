@@ -122,6 +122,15 @@ class Telescope:
             return {"error": data.get("error") or "Command failed"}
         return data.get("result", data)
 
+    def has_capability(self, name):
+        # From the client's latest status message (client v0.9 sends "capabilities")
+        try:
+            from app.WebsocketServer import get_latest_status
+            _, status = get_latest_status(self.client_id)
+        except Exception:
+            return False
+        return name in ((status or {}).get("capabilities") or [])
+
     def call(self, command, *args, timeout=None):
         # Positional arguments, without trailing Nones so the client's defaults apply
         args = list(args)
@@ -161,10 +170,14 @@ class CameraController:
     def set_settings(self, args):
         return self.telescope.send_command("setCameraSetting", args)
 
-    def capture_photo(self, current_id, exposure_s=None, shutter=None):
-        # Bulb exposures take exposure_s; otherwise the shutter setting sets the wait
+    def capture_photo(self, current_id, exposure_s=None, shutter=None, frame_type=None):
+        # Bulb exposures take exposure_s; otherwise the shutter setting sets the wait.
+        # frame_type ("test" for test shots) only goes to clients that say they take it
         seconds = exposure_s if exposure_s else shutter_seconds(shutter)
         timeout = (seconds or 0) + CAPTURE_MARGIN_S
+        if frame_type and self.telescope.has_capability("capture_frame_type"):
+            return self.telescope.send_command("capturePhoto", [current_id, exposure_s], {"frame_type": frame_type},
+                                               timeout=timeout)
         return self.telescope.call("capturePhoto", current_id, exposure_s, timeout=timeout)
 
     def get_status(self):
@@ -249,7 +262,7 @@ class LiveViewController:
         return self.telescope.call("setCameraZoom", level, x, y)
 
     def set_options(self, **options):
-        # codec (auto, h264, jpeg), bitrate_kbps, gop_s
+        # codec (auto, h264, jpeg), bitrate_kbps, gop_s; jpeg_quality and max_fps (client v0.9)
         options = {key: value for key, value in options.items() if value is not None}
         return self.telescope.send_command("setLiveViewOptions", [], options)
 
@@ -276,7 +289,10 @@ class UploadController:
     def queue(self):
         return self.telescope.call("getUploadQueue")
 
-    def upload_pending(self, kind="raw"):
+    def upload_pending(self, kind="raw", files=None, pairs=None):
+        # files/pairs narrow it to some frames (client v0.9); without them, everything held
+        if files or pairs:
+            return self.telescope.send_command("uploadPending", [kind], {"files": files or [], "pairs": pairs or []})
         return self.telescope.call("uploadPending", kind)
 
     def retry_failed(self):

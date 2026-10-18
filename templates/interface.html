@@ -1,486 +1,503 @@
 {% extends "base.html" %}
 
-{% block title %}Interface - Telescope Control{% endblock %}
+{% block title %}Interface - SELENO{% endblock %}
+{% block body_class %}ws-page interface-page{% endblock %}
 
 {% block extra_css %}
+<script>
+    // Set the mode before the page draws, so it doesn't flash the other layout
+    (function () {
+        var mode = 'basic';
+        try { mode = localStorage.getItem('seleno_mode') === 'advanced' ? 'advanced' : 'basic'; } catch (e) {}
+        document.documentElement.setAttribute('data-ui-mode', mode);
+    })();
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='workspace.css') }}?v=20261018-ws">
 <style>
-    .histogram-panel-canvas {
-        width: 100%;
-        height: 140px;
-        border-radius: 8px;
-        border: 1px solid rgba(148, 163, 184, 0.45);
-        background: #0f172a;
-    }
-
-    .histogram-settings {
-        font-size: 0.78rem;
-    }
-
-    .histogram-settings .form-range {
-        margin-bottom: 0.2rem;
-    }
-
-    .histogram-statline {
-        color: #64748b;
-        font-size: 0.76rem;
-        margin-top: 0.4rem;
-    }
-
-    #liveViewCanvas {
-        max-width: 100%;
-        max-height: 100%;
-        background: #000;
-        cursor: crosshair;
-    }
-
-    .liveview-overlay {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        color: #cbd5e1;
-        background: rgba(15, 23, 42, 0.75);
-        padding: 0.4rem 0.9rem;
-        border-radius: 6px;
-        pointer-events: none;
-        font-size: 0.95rem;
-    }
-
-    .liveview-badge {
-        position: absolute;
-        left: 0.75rem;
-        bottom: 0.6rem;
-        font-size: 0.72rem;
-        color: #e2e8f0;
-        background: rgba(15, 23, 42, 0.6);
-        padding: 0.1rem 0.45rem;
-        border-radius: 4px;
-    }
-
-    .telescope-tabs .nav-link {
-        padding: 0.25rem 0.4rem;
-        font-size: 0.8rem;
-    }
-
-    .command-result {
-        font-size: 0.72rem;
-        max-height: 140px;
-        overflow: auto;
-        white-space: pre-wrap;
-        background: #f8fafc;
-        color: #0f172a;
-        border: 1px solid #e2e8f0;
-        border-radius: 4px;
-        padding: 0.35rem;
-        margin: 0.4rem 0 0;
-    }
-
-    .status-grid {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 0.1rem 0.6rem;
-        font-size: 0.78rem;
-        color: #334155;
-    }
-
-    .status-grid dt {
-        font-weight: 600;
-    }
-
-    .status-grid dd {
-        margin: 0;
-        overflow-wrap: anywhere;
-    }
-
-    .plan-step {
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        padding: 0.5rem 0.6rem;
-        margin-bottom: 0.5rem;
-        background: #fff;
-    }
-
-    .plan-step.dragging {
-        opacity: 0.5;
-    }
-
-    .plan-step .step-handle {
-        cursor: grab;
-        user-select: none;
-        color: #64748b;
-    }
-
-    .plan-step .form-control,
-    .plan-step .form-select {
-        font-size: 0.8rem;
-    }
+    .interface-page .ws-live-canvas { background: #000; }
+    .interface-page .ws-live-toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .interface-page .ws-live-toolbar .ws-select { padding: 5px 8px; }
+    .interface-page .focus-card { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+    .interface-page .focus-card .ws-spark { width: 320px; max-width: 100%; height: 64px; color: var(--accent); }
+    .interface-page .test-shot { display: flex; gap: 12px; margin-bottom: 6px; }
+    .interface-page .test-shot .ws-thumb { width: 120px; flex: 0 0 120px; }
+    .interface-page .search-result { margin-top: 8px; }
+    .interface-page .search-result table { width: 100%; font-size: 12px; }
+    .interface-page .search-result td { padding: 2px 4px; border-bottom: 1px solid var(--line); }
+    .interface-page .histogram-panel-canvas { width: 100%; height: 90px; border-radius: 8px; background: #050913; display: block; }
+    .interface-page .plan-step { border: 1px solid var(--line); border-radius: 8px; padding: 0.5rem 0.6rem; margin-bottom: 0.5rem; background: var(--bg-elevated); }
+    .interface-page .plan-step.dragging { opacity: 0.5; }
+    .interface-page .plan-step .step-handle { cursor: grab; user-select: none; color: var(--text-muted); }
+    .interface-page .plan-step .form-control, .interface-page .plan-step .form-select { font-size: 0.8rem; }
+    .interface-page .status-grid { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.6rem; font-size: 0.8rem; margin: 0; }
+    .interface-page .status-grid dt { font-weight: 600; color: var(--text-muted); }
+    .interface-page .status-grid dd { margin: 0; overflow-wrap: anywhere; }
+    .interface-page #motorStatus { min-height: 60px; max-height: 120px; overflow-y: auto; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+    .interface-page .ws-tabpanel[hidden] { display: none; }
+    .interface-page .device-info { font-size: 12.5px; }
+    .interface-page .live-hint { font-size: 12.5px; }
+    .interface-page .ws-live .ws-select { background: rgba(2, 4, 10, 0.78); color: #edf2ff; border-color: rgba(255,255,255,.16); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Main Panel and Take Photo Button Row -->
-    <div class="d-flex align-items-start" style="position: relative; height: 80vh;">
-        <!-- Main Panel -->
-        <div class="main-panel border rounded p-3 position-relative flex-grow-1" id="mainPanel" style="min-width: 0; width: 75vw; height: 100%;">
-            <button class="fullscreen-toggle btn btn-danger btn-sm position-absolute top-0 end-0 m-2" style="z-index: 2;" onclick="toggleFullscreen()">⛶</button>
-            <div class="d-flex justify-content-center align-items-center h-100 position-relative">
-                <canvas id="liveViewCanvas" width="1024" height="680" title="Click to zoom there"></canvas>
-                <div id="liveViewOverlay" class="liveview-overlay">Live view off</div>
-                <div id="liveViewBadge" class="liveview-badge d-none"></div>
+<div class="ws-toolbar" role="toolbar" aria-label="Telescope">
+    <label class="ws-muted ws-small basic-only" for="telescopeSelect">Telescope</label>
+    <select id="telescopeSelect" class="ws-select" aria-label="Telescope">
+        <option value="">Select a telescope…</option>
+    </select>
+    <span class="ws-chip" id="chipAccess" title="What you can do with this telescope"><span class="ws-dot off"></span><span>Choose a telescope</span></span>
+    <span class="ws-chip" id="chipMount"><span class="ws-dot off"></span><span>Mount —</span></span>
+    <span class="ws-chip" id="chipCamera"><span class="ws-dot off"></span><span>Camera —</span></span>
+    <span class="ws-chip adv-only" id="chipClock"><span class="ws-dot off"></span><span>Clock —</span></span>
+    <span class="ws-chip adv-only" id="chipDisk"><span class="ws-dot off"></span><span>Disk —</span></span>
+    <span class="ws-chip adv-only" id="chipUploads"><span class="ws-dot off"></span><span>Uploads —</span></span>
+    <span class="ws-chip" id="chipSky"><span class="ws-dot off"></span><span>Sky —</span></span>
+    <span class="ws-muted ws-small adv-only" id="statusAge"></span>
+    <div class="ws-toolbar-end">
+        <button class="ws-btn danger" type="button" id="estopBtn" title="Stop every motor now">
+            <span class="basic-only">Stop the mount</span><span class="adv-only">E-STOP</span>
+        </button>
+        <div class="ws-seg" role="group" aria-label="Interface mode" data-mode-toggle>
+            <button type="button" data-mode="basic">Basic</button>
+            <button type="button" data-mode="advanced">Advanced</button>
+        </div>
+    </div>
+</div>
+
+<div class="ws-body">
+    <!-- Left column -->
+    <div class="ws-col ws-col-left">
+        <!-- Basic: the session's steps and the target -->
+        <div class="ws-card basic-only">
+            <h3>Your session</h3>
+            <div class="ws-steps" id="sessionSteps">
+                <button type="button" class="ws-step" data-step="target"><span class="ws-badge">1</span><span><span class="ws-step-title">Choose a target</span><span class="ws-muted ws-small" data-step-note="target" style="display:block">Pick something that's up tonight</span></span></button>
+                <button type="button" class="ws-step" data-step="focus"><span class="ws-badge">2</span><span><span class="ws-step-title">Focus</span><span class="ws-muted ws-small" data-step-note="focus" style="display:block">Make the stars as small as they'll go</span></span></button>
+                <button type="button" class="ws-step" data-step="exposure"><span class="ws-badge">3</span><span><span class="ws-step-title">Check the exposure</span><span class="ws-muted ws-small" data-step-note="exposure" style="display:block">Take a test shot and read the checks</span></span></button>
+                <button type="button" class="ws-step" data-step="capture"><span class="ws-badge">4</span><span><span class="ws-step-title">Capture</span><span class="ws-muted ws-small" data-step-note="capture" style="display:block">Set how many photos, then start</span></span></button>
             </div>
         </div>
-    </div>
 
-    <!-- Draggable Camera Controls Panel -->
-    <div class="draggable-panel border rounded shadow p-3 bg-white position-absolute" id="cameraPanel" style="top: 100px; left: 20px; min-width: 260px;">
-        <div class="panel-header bg-dark text-white p-2 rounded-top" style="user-select: none;">Camera Controls</div>  <!-- non-selectable title -->
-        <div class="control-row d-flex justify-content-between align-items-center my-2">
-            <span>Shutter Speed</span>
-            <select id="shutterSpeedSelect" class="form-select form-select-sm" style="width: auto;" onchange="updateSetting('shutterSpeed', this.value); updateBulbVisibility()"></select>
-        </div>
-        <div class="control-row d-flex justify-content-between align-items-center my-2 d-none" id="bulbRow">
-            <span>Bulb (s)</span>
-            <input type="number" id="bulbSeconds" class="form-control form-control-sm" style="width: 6rem;" min="0.1" max="900" step="0.1" value="30">
-        </div>
-        <div class="control-row d-flex justify-content-between align-items-center my-2">
-            <span>ISO</span>
-            <select id="isoSelect" class="form-select form-select-sm" style="width: auto;" onchange="updateSetting('iso', this.value)"></select>
-        </div>
-        <div class="control-row d-flex justify-content-between align-items-center my-2">
-            <span>Aperture</span>
-            <select id="apertureSelect" class="form-select form-select-sm" style="width: auto;" onchange="updateSetting('aperture', this.value)"></select>
-        </div>
-        <div class="control-row d-flex justify-content-between align-items-center my-2">
-            <span>White Balance</span>
-            <select id="whiteBalance" class="form-select form-select-sm" style="width: auto;" onchange="updateSetting('whiteBalance', this.value)"></select>
-        </div>
-        <div class="control-row d-flex justify-content-between align-items-center my-2">
-            <span>Photo Format</span>
-            <select id="photoFormat" class="form-select form-select-sm" style="width: auto;" onchange="updateSetting('imageFormat', this.value)"></select>
-        </div>
-        <div class="control-row d-flex justify-content-between align-items-center my-2">
-            <span>Exposure Comp.</span>
-            <select id="exposureCompSelect" class="form-select form-select-sm" style="width: auto;" onchange="updateSetting('exposureCompensation', this.value)"></select>
-        </div>
-        <div class="control-row d-flex justify-content-between align-items-center my-1">
-            <span class="small text-muted" id="cameraStatusLine">Battery — · Card —</span>
-            <button class="btn btn-outline-secondary btn-sm py-0" onclick="refreshCameraStatus()" title="Battery and card">↻</button>
-        </div>
-        <button id="takePhotoBtn" class="btn btn-primary mt-3 w-100" style="height: 60px; font-size: 1.25rem;" onclick="takePhoto()">📷 Take Photo</button>
-    </div>
-
-    <!-- Draggable Telescope Controls Panel -->
-    <div class="draggable-panel border rounded shadow p-3 bg-white position-absolute" id="telescopePanel" style="top: 560px; left: 20px; width: 320px;">
-        <div class="panel-header bg-dark text-white p-2 rounded-top" style="user-select: none;">Telescope Controls</div>  <!-- non-selectable title -->
-        <ul class="nav nav-tabs telescope-tabs mt-2" role="tablist">
-            <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabGoto" type="button">Go to</button></li>
-            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabMount" type="button">Mount</button></li>
-            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabUploads" type="button" onclick="refreshUploadQueue()">Uploads</button></li>
-            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabCapture" type="button">Capture</button></li>
-            <li class="nav-item d-none" role="presentation" id="deviceTabItem"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabDevice" type="button">Device</button></li>
-        </ul>
-        <div class="tab-content pt-2">
-            <!-- Go to -->
-            <div class="tab-pane fade show active" id="tabGoto" role="tabpanel">
-                <div class="control-row my-2">
-                    <label for="searchObject">Search Object</label>
-                    <input type="text" class="form-control" id="searchObject" placeholder="Search for object">
-                    <button class="btn btn-primary mt-2" onclick="searchObject()">Search</button>
+        <div class="ws-card basic-only" id="basicTargetCard" data-step-card="target">
+            <h3>Target</h3>
+            <div id="basicTargetEmpty">
+                <p class="ws-muted ws-small">Choose what to photograph. The list shows what's well placed from this telescope tonight.</p>
+                <button class="ws-btn primary block" type="button" data-action="pick-target">Choose a target</button>
+            </div>
+            <div id="basicTargetInfo" class="ws-hidden">
+                <div class="ws-target-name" id="basicTargetName">—</div>
+                <div class="ws-muted ws-small" id="basicTargetDesc" style="margin-bottom:10px"></div>
+                <div class="ws-row"><span>Height now</span><span id="basicTargetAlt">—</span></div>
+                <div class="ws-row"><span>Highest</span><span id="basicTargetBest">—</span></div>
+                <div class="ws-row"><span>Above 30°</span><span id="basicTargetAbove">—</span></div>
+                <div class="ws-row"><span>Moon</span><span id="basicTargetMoon">—</span></div>
+                <div class="ws-chip" id="basicTargetVerdict" style="margin:10px 0 12px"><span class="ws-dot off"></span><span>—</span></div>
+                <div class="ws-actions">
+                    <button class="ws-btn" type="button" style="flex:1" data-action="pick-target">Change target</button>
+                    <button class="ws-btn" type="button" style="flex:1" id="btnGotoTarget">Go to it</button>
+                    <button class="ws-btn" type="button" style="flex:1" id="btnCentreTarget" title="Plate solve and nudge the mount until the target is centred">Centre it</button>
                 </div>
-                <div class="control-row my-2">
-                    <label for="planetSelect" class="form-label small mb-1">Moon or a planet</label>
-                    <div class="input-group input-group-sm">
-                        <select id="planetSelect" class="form-select">
+            </div>
+        </div>
+
+        <!-- Advanced: target, mount, device and uploads -->
+        <div class="ws-card adv-only">
+            <div class="ws-tabs" role="tablist" aria-label="Telescope controls">
+                <button class="ws-tab on" type="button" role="tab" aria-selected="true" aria-controls="tabTarget" id="tabBtnTarget">Target</button>
+                <button class="ws-tab" type="button" role="tab" aria-selected="false" aria-controls="tabMount" id="tabBtnMount">Mount</button>
+                <button class="ws-tab" type="button" role="tab" aria-selected="false" aria-controls="tabUploads" id="tabBtnUploads">Uploads</button>
+                <button class="ws-tab owner-only ws-hidden" type="button" role="tab" aria-selected="false" aria-controls="tabDevice" id="tabBtnDevice">Device</button>
+            </div>
+
+            <div class="ws-tabpanel" id="tabTarget" role="tabpanel" aria-labelledby="tabBtnTarget">
+                <label class="ws-field">Search the catalogue
+                    <span class="ws-actions" style="flex-wrap:nowrap">
+                        <input class="ws-input" id="searchObject" placeholder="M42, NGC 7000, Vega, HD 48915">
+                        <button class="ws-btn sm" type="button" id="btnSearch">Search</button>
+                    </span>
+                </label>
+                <div id="searchResult" class="search-result"></div>
+                <div class="ws-grid2" style="margin-top:8px">
+                    <label class="ws-field">RA (h m s or °)<input class="ws-input" id="manualRA" placeholder="05 35 17.3"></label>
+                    <label class="ws-field">Dec (° ′ ″)<input class="ws-input" id="manualDEC" placeholder="−05 23 28"></label>
+                </div>
+                <div class="ws-actions" style="margin-top:8px">
+                    <button class="ws-btn primary" type="button" style="flex:1" id="btnGotoCoords">Go to</button>
+                    <button class="ws-btn" type="button" id="btnGotoCentre">Go to + centre</button>
+                </div>
+                <label class="ws-field" style="margin-top:8px">Moon or planet
+                    <span class="ws-actions" style="flex-wrap:nowrap">
+                        <select id="planetSelect" class="ws-select block">
                             <option>Moon</option><option>Mercury</option><option>Venus</option><option>Mars</option>
                             <option>Jupiter</option><option>Saturn</option><option>Uranus</option><option>Neptune</option>
                         </select>
-                        <button class="btn btn-success" onclick="trackPlanet()">Go to</button>
-                    </div>
-                </div>
-                <div class="control-row my-2">
-                    <hr class="my-2">
-                    <div class="manual-coordinates">
-                        <label class="form-label text-muted small">Manual Coordinates</label>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <label for="manualRA" class="form-label small">RA (degrees)</label>
-                                <input type="number" class="form-control form-control-sm" id="manualRA" placeholder="101.28" step="0.0001" min="0" max="360" title="Right Ascension in decimal degrees (0-360)">
-                            </div>
-                            <div class="col-6">
-                                <label for="manualDEC" class="form-label small">DEC (degrees)</label>
-                                <input type="number" class="form-control form-control-sm" id="manualDEC" placeholder="-16.72" step="0.0001" min="-90" max="90" title="Declination in decimal degrees (-90 to +90)">
-                            </div>
-                        </div>
-                        <button class="btn btn-success btn-sm mt-2 w-100" onclick="trackManualCoordinates()">🎯 Track Coordinates</button>
-                    </div>
-                </div>
-                <div class="control-row my-2">
-                    <button class="btn btn-warning w-100" onclick="openAdvancedControlsModal()">Advanced (Manual)</button>
+                        <button class="ws-btn sm" type="button" id="btnGotoPlanet">Go to</button>
+                    </span>
+                </label>
+                <dl class="ws-kv" id="advSkyKv" style="margin-top:10px"><dt>Target</dt><dd>None yet</dd></dl>
+                <div class="ws-actions" style="margin-top:8px">
+                    <span class="ws-small ws-muted" id="trackingNow">Not tracking anything</span>
+                    <span class="ws-spacer"></span>
+                    <button class="ws-btn sm ws-hidden" type="button" id="stopTrackingBtn">Stop tracking</button>
                 </div>
             </div>
 
-            <!-- Mount -->
-            <div class="tab-pane fade" id="tabMount" role="tabpanel">
-                <button class="btn btn-danger w-100 mb-2" onclick="emergencyStopMount()">🛑 Emergency stop</button>
-                <div class="d-flex gap-1 mb-2">
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="telescopeAction('estop_status')">E-stop status</button>
-                    <button class="btn btn-outline-danger btn-sm flex-fill owner-only d-none" onclick="clearEstop()">Clear e-stop</button>
+            <div class="ws-tabpanel" id="tabMount" role="tabpanel" aria-labelledby="tabBtnMount" hidden>
+                <div class="ws-actions" style="margin-bottom:8px">
+                    <button class="ws-btn sm" type="button" data-command="park">Park</button>
+                    <button class="ws-btn sm" type="button" data-command="unpark">Unpark</button>
+                    <button class="ws-btn sm" type="button" data-command="set_park_here" data-confirm="Make the current position the park position?">Set park</button>
+                    <button class="ws-btn sm" type="button" id="btnStopTrackingMount">Stop tracking</button>
                 </div>
-                <div class="d-flex gap-1 mb-2">
-                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="telescopeAction('park')">Park</button>
-                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="telescopeAction('unpark')">Unpark</button>
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="confirmAction('Make the current position the park position?', 'set_park_here')">Set park here</button>
+                <div class="ws-grid2">
+                    <label class="ws-field">Tracking rate
+                        <select id="trackingRateSelect" class="ws-select">
+                            <option value="sidereal">Sidereal</option>
+                            <option value="lunar">Lunar</option>
+                            <option value="solar">Solar</option>
+                            <option value="king">King</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </label>
+                    <label class="ws-field">Solve from
+                        <select id="solveSource" class="ws-select" title="Image to plate solve">
+                            <option value="">Default</option>
+                            <option value="liveview">Live view</option>
+                            <option value="photo">Photo</option>
+                        </select>
+                    </label>
                 </div>
-                <label class="form-label small mb-1">Tracking rate</label>
-                <div class="input-group input-group-sm mb-2">
-                    <select id="trackingRateSelect" class="form-select" onchange="document.getElementById('customRateInput').classList.toggle('d-none', this.value !== 'custom')">
-                        <option value="sidereal">Sidereal</option>
-                        <option value="lunar">Lunar</option>
-                        <option value="solar">Solar</option>
-                        <option value="king">King</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                    <input type="number" id="customRateInput" class="form-control d-none" placeholder="″/s" step="0.01" title="Custom rate in arcseconds per second">
-                    <button class="btn btn-primary" onclick="setTrackingRate()">Set</button>
+                <div class="ws-actions" style="margin-top:6px">
+                    <input type="number" id="customRateInput" class="ws-input num ws-hidden" placeholder="″/s" step="0.01" title="Custom rate in arcseconds per second">
+                    <button class="ws-btn sm" type="button" id="btnSetRate">Set rate</button>
                 </div>
-                <label class="form-label small mb-1">Plate solving</label>
-                <div class="input-group input-group-sm mb-1">
-                    <select id="solveSource" class="form-select" title="Image to solve">
-                        <option value="">Default source</option>
-                        <option value="liveview">Live view</option>
-                        <option value="photo">Photo</option>
-                    </select>
-                    <button class="btn btn-outline-primary" onclick="telescopeAction('solve_and_sync', {source: solveSource()})">Solve &amp; sync</button>
-                    <button class="btn btn-outline-primary" onclick="telescopeAction('centre_target', {source: solveSource()})">Centre</button>
+                <div class="ws-actions" style="margin-top:8px">
+                    <button class="ws-btn sm" type="button" id="btnSolveSync">Solve &amp; sync</button>
+                    <button class="ws-btn sm" type="button" id="btnCentre">Centre</button>
                 </div>
-                <div class="input-group input-group-sm mb-2">
-                    <span class="input-group-text">Polar align</span>
-                    <input type="number" id="polarStepDeg" class="form-control" placeholder="step °" min="1" max="90" step="1">
-                    <button class="btn btn-outline-primary" onclick="telescopeAction('polar_align', {step_deg: document.getElementById('polarStepDeg').value, source: solveSource()})">Start</button>
+                <div class="ws-actions" style="margin-top:8px">
+                    <label class="ws-small ws-muted" for="polarStepDeg">Polar align, step</label>
+                    <input type="number" id="polarStepDeg" class="ws-input num" placeholder="°" min="1" max="90" step="1">
+                    <button class="ws-btn sm" type="button" id="btnPolar">Polar align</button>
                 </div>
-                <div class="input-group input-group-sm mb-2">
-                    <span class="input-group-text">Dither</span>
-                    <input type="number" id="ditherArcmin" class="form-control" placeholder="arcmin" min="0" max="60" step="0.5">
-                    <button class="btn btn-outline-primary" onclick="telescopeAction('dither', {arcmin: document.getElementById('ditherArcmin').value})">Dither</button>
+                <div class="ws-actions" style="margin-top:8px">
+                    <label class="ws-small ws-muted" for="ditherArcmin">Dither</label>
+                    <input type="number" id="ditherArcmin" class="ws-input num" placeholder="′" min="0" max="60" step="0.5" value="2">
+                    <button class="ws-btn sm" type="button" id="btnDither">Dither</button>
                 </div>
-                <div class="d-flex gap-1">
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="telescopeAction('get_alignment')">Alignment</button>
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="telescopeAction('mount_status')">Mount state</button>
-                    <button class="btn btn-outline-warning btn-sm flex-fill" onclick="confirmAction('Clear the alignment?', 'clear_alignment')">Clear alignment</button>
+                <div class="ws-actions" style="margin-top:8px">
+                    <button class="ws-btn sm" type="button" data-command="get_alignment">Alignment</button>
+                    <button class="ws-btn sm" type="button" data-command="mount_status">Mount state</button>
+                    <button class="ws-btn sm" type="button" data-command="clear_alignment" data-confirm="Clear the alignment?">Clear alignment</button>
                 </div>
-                <div id="jobStatusLine" class="small text-muted mt-2"></div>
+                <div class="ws-actions" style="margin-top:8px">
+                    <button class="ws-btn sm" type="button" data-command="estop_status">E-stop status</button>
+                    <button class="ws-btn sm owner-only ws-hidden" type="button" id="btnClearEstop">Clear e-stop</button>
+                    <button class="ws-btn sm" type="button" id="btnMotorControls">Motor controls…</button>
+                </div>
+                <div id="jobStatusLine" class="ws-small ws-muted" style="margin-top:8px"></div>
+                <div id="lastSolveLine" class="ws-small ws-muted" style="margin-top:4px"></div>
             </div>
 
-            <!-- Uploads -->
-            <div class="tab-pane fade" id="tabUploads" role="tabpanel">
-                <div id="uploadQueueSummary" class="small text-muted mb-2">Queue not loaded.</div>
-                <div class="d-grid gap-1">
-                    <button class="btn btn-outline-secondary btn-sm" onclick="refreshUploadQueue()">↻ Refresh queue</button>
-                    <button class="btn btn-outline-primary btn-sm" onclick="telescopeAction('upload_pending', {kind: 'raw'}).then(refreshUploadQueue)">Send held RAWs</button>
-                    <button class="btn btn-outline-primary btn-sm" onclick="telescopeAction('retry_failed_uploads').then(refreshUploadQueue)">Retry failed uploads</button>
-                    <button class="btn btn-outline-primary btn-sm" onclick="telescopeAction('upload_offline_photos').then(refreshUploadQueue)">Upload photos taken offline</button>
+            <div class="ws-tabpanel" id="tabUploads" role="tabpanel" aria-labelledby="tabBtnUploads" hidden>
+                <div id="uploadQueueSummary" class="ws-small ws-muted" style="white-space:pre-line;margin-bottom:8px">Queue not loaded.</div>
+                <div class="ws-actions">
+                    <button class="ws-btn sm" type="button" id="btnRefreshUploads">Refresh</button>
+                    <button class="ws-btn sm" type="button" data-command="upload_pending" data-params='{"kind":"raw"}' data-after="uploads">Send held RAWs</button>
+                    <button class="ws-btn sm" type="button" data-command="retry_failed_uploads" data-after="uploads">Retry failed</button>
+                    <button class="ws-btn sm" type="button" data-command="upload_offline_photos" data-after="uploads">Upload photos taken offline</button>
                 </div>
             </div>
 
-            <!-- Capture -->
-            <div class="tab-pane fade" id="tabCapture" role="tabpanel">
-                <p class="small text-muted mb-2">A capture plan runs a list of steps on the telescope: go-tos, brackets, lights, darks, video. It keeps going if the connection drops.</p>
-                <button class="btn btn-primary btn-sm w-100 mb-2" onclick="window.CapturePlanBuilder && window.CapturePlanBuilder.open()">Open plan builder</button>
-                <div id="planHistory" class="small"></div>
-            </div>
-
-            <!-- Device (owner or admin) -->
-            <div class="tab-pane fade" id="tabDevice" role="tabpanel">
-                <div class="d-flex gap-1 mb-2">
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="telescopeAction('client_status')">Pi status</button>
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="telescopeAction('esp_info')">Controller</button>
-                    <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="telescopeAction('esp_driver_status')">Drivers</button>
+            <div class="ws-tabpanel" id="tabDevice" role="tabpanel" aria-labelledby="tabBtnDevice" hidden>
+                <dl class="ws-kv device-info" id="telescopeInfo">
+                    <dt>Name</dt><dd id="telescopeName">—</dd>
+                    <dt>IP</dt><dd id="telescopeIp">—</dd>
+                    <dt>Type</dt><dd id="telescopeType">—</dd>
+                    <dt>Last seen</dt><dd id="telescopeLastSeen">—</dd>
+                </dl>
+                <div class="ws-actions" style="margin-top:8px">
+                    <button class="ws-btn sm" type="button" data-command="client_status">Pi status</button>
+                    <button class="ws-btn sm" type="button" data-command="esp_info">Controller</button>
+                    <button class="ws-btn sm" type="button" data-command="esp_driver_status">Drivers</button>
+                    <button class="ws-btn sm" type="button" data-command="set_clock" data-confirm="Set the Pi clock to the server's time?">Set clock</button>
                 </div>
-                <button class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="confirmAction('Set the Pi clock to the server\'s time?', 'set_clock')">Set clock to server time</button>
-                <label class="form-label small mb-1">Horizon</label>
-                <div class="input-group input-group-sm mb-1">
-                    <input type="number" id="horizonMinAlt" class="form-control" placeholder="min alt °" min="-10" max="90" step="0.5">
-                    <input type="text" id="horizonProfile" class="form-control" placeholder="profile">
+                <div class="ws-grid2" style="margin-top:8px">
+                    <label class="ws-field">Lowest altitude (°)<input type="number" id="horizonMinAlt" class="ws-input" min="-10" max="90" step="0.5"></label>
+                    <label class="ws-field">Horizon profile<input type="text" id="horizonProfile" class="ws-input"></label>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="form-check mb-0">
-                        <input class="form-check-input" type="checkbox" id="horizonStopWhenSet">
-                        <label class="form-check-label small" for="horizonStopWhenSet">Stop tracking when the target sets</label>
-                    </div>
-                    <button class="btn btn-primary btn-sm" onclick="setHorizon()">Set</button>
+                <label class="ws-tick"><input type="checkbox" id="horizonStopWhenSet"> Stop tracking when the target sets</label>
+                <div class="ws-actions">
+                    <button class="ws-btn sm" type="button" id="btnSetHorizon">Set horizon</button>
+                    <span class="ws-spacer"></span>
+                    <button class="ws-btn sm" type="button" data-command="update_client" data-confirm="Update the Pi software now? It restarts afterwards.">Update Pi</button>
+                    <button class="ws-btn sm" type="button" data-command="update_firmware" data-confirm="Update the controller firmware now? The mount stops while it flashes.">Update controller</button>
                 </div>
-                <div class="d-flex gap-1">
-                    <button class="btn btn-outline-danger btn-sm flex-fill" onclick="confirmAction('Update the Pi software now? It restarts afterwards.', 'update_client')">Update Pi</button>
-                    <button class="btn btn-outline-danger btn-sm flex-fill" onclick="confirmAction('Update the controller firmware now? The mount stops while it flashes.', 'update_firmware')">Update controller</button>
-                </div>
-                <p class="small text-muted mt-2 mb-0">Updates only run if the Pi's own config allows them.</p>
+                <p class="ws-small ws-muted" style="margin:8px 0 0">Updates only run if the Pi's own config allows them.</p>
             </div>
         </div>
-        <pre id="telescopeResult" class="command-result d-none"></pre>
+
+        <div class="ws-card adv-only">
+            <h3>Telescope status <span class="ws-aside" id="statusAgeCard"></span></h3>
+            <dl id="telescopeStatusGrid" class="ws-kv"><dt>—</dt><dd>Select a telescope</dd></dl>
+        </div>
     </div>
 
-    <!-- Draggable Live View Controls Panel -->
-    <div class="draggable-panel border rounded shadow p-3 bg-white position-absolute" id="liveViewPanel" style="top: 100px; left: 80vw; min-width: 260px;">
-        <div class="panel-header bg-dark text-white p-2 rounded-top" style="user-select: none;">Live View Controls</div>
-        <div class="control-row my-2 d-flex justify-content-between align-items-center">
-            <span>Live View</span>
-            <button id="liveViewToggleBtn" class="btn btn-outline-primary" onclick="toggleLiveView()">Start</button>
-        </div>
-        <div class="control-row my-2 d-flex justify-content-between align-items-center">
-            <span>Quality</span>
-            <select id="liveViewQuality" class="form-select form-select-sm" style="width: auto;" onchange="telescopeAction('set_liveview_quality', {quality: this.value})">
+    <!-- Middle: live view -->
+    <div class="ws-col ws-col-main">
+        <div class="ws-live-toolbar adv-only">
+            <button id="liveViewToggleBtn" class="ws-btn primary" type="button">Live view on</button>
+            <select id="liveViewCodec" class="ws-select" aria-label="Codec" title="Codec">
+                <option value="auto" selected>Auto codec</option>
+                <option value="h264">H.264</option>
+                <option value="jpeg">JPEG</option>
+            </select>
+            <select id="liveViewQuality" class="ws-select" aria-label="Quality" title="Quality">
                 <option value="low">Low</option>
                 <option value="medium" selected>Medium</option>
                 <option value="high">High</option>
             </select>
-        </div>
-        <div class="control-row my-2 d-flex justify-content-between align-items-center">
-            <span>Codec</span>
-            <select id="liveViewCodec" class="form-select form-select-sm" style="width: auto;" onchange="telescopeAction('set_liveview_options', {codec: this.value})">
-                <option value="auto" selected>Auto</option>
-                <option value="h264">H.264</option>
-                <option value="jpeg">JPEG</option>
+            <select id="overlaySelect" class="ws-select" aria-label="Overlay" title="Overlay">
+                <option value="none">No overlay</option>
+                <option value="cross">Crosshair</option>
+                <option value="circle" selected>Crosshair + circle</option>
+                <option value="grid">Thirds grid</option>
+                <option value="stars">Measured stars</option>
             </select>
-        </div>
-        <div class="control-row my-2 d-flex justify-content-between align-items-center">
-            <div class="form-check mb-0">
-                <input class="form-check-input" type="checkbox" id="liveViewFocus" onchange="telescopeAction('set_liveview_focus', {on: this.checked})">
-                <label class="form-check-label" for="liveViewFocus">Focus help</label>
-            </div>
-            <select id="liveViewZoom" class="form-select form-select-sm" style="width: auto;" onchange="setZoomLevel(this.value)" title="Zoom; click the picture to zoom there">
-                <option value="1" selected>1×</option>
-                <option value="5">5×</option>
-                <option value="10">10×</option>
+            <label class="ws-small ws-muted" style="display:flex;align-items:center;gap:6px" title="Brightens the picture on your screen only">Display stretch
+                <input type="range" class="ws-range" id="displayStretch" min="0" max="100" value="0" style="width:100px" aria-label="Display stretch">
+            </label>
+            <label class="ws-tick ws-small"><input type="checkbox" id="liveViewFocus"> Focus peaking</label>
+            <span class="ws-spacer"></span>
+            <button class="ws-btn" type="button" id="btnSnapshot" title="Save the current live view frame to the album">Snapshot</button>
+            <select id="recordingKind" class="ws-select" aria-label="Recording kind">
+                <option value="video">Video</option>
+                <option value="timelapse">Timelapse</option>
             </select>
+            <input type="number" id="recordingInterval" class="ws-input num ws-hidden" placeholder="every s" min="0.1" step="0.1" value="5" aria-label="Timelapse interval">
+            <button class="ws-btn" type="button" id="btnRecord">Record</button>
+            <button class="ws-btn" type="button" id="btnStopRecord" title="Stop recording">■</button>
         </div>
-        <button class="btn btn-outline-primary btn-sm w-100 my-1" onclick="telescopeAction('liveview_snapshot')">📸 Snapshot (live view frame)</button>
-        <div class="control-row my-2">
-            <div class="input-group input-group-sm">
-                <select id="recordingKind" class="form-select" onchange="document.getElementById('recordingInterval').classList.toggle('d-none', this.value !== 'timelapse')">
-                    <option value="video">Video</option>
-                    <option value="timelapse">Timelapse</option>
-                </select>
-                <input type="number" id="recordingInterval" class="form-control d-none" placeholder="every s" min="0.1" step="0.1" value="5">
-                <button class="btn btn-danger" onclick="startRecording()">● Rec</button>
-                <button class="btn btn-outline-secondary" onclick="telescopeAction('stop_recording').then(refreshRecordingStatus)">■</button>
+
+        <div class="ws-live" id="liveFrame">
+            <canvas id="liveViewCanvas" class="ws-live-canvas" width="1024" height="680" title="Click to zoom there"></canvas>
+            <div class="ws-live-overlay" aria-hidden="true"><svg id="liveOverlay"></svg></div>
+            <div class="ws-live-message" id="liveMessage">Live view off</div>
+            <div class="ws-live-corner tl">
+                <span class="ws-chip" id="liveStateChip"><span class="ws-dot off"></span><span>Off</span></span>
+                <div class="ws-seg sm overlay" role="group" aria-label="Zoom" id="zoomSeg">
+                    <button type="button" data-zoom="1" class="on">1×</button>
+                    <button type="button" data-zoom="5">5×</button>
+                    <button type="button" data-zoom="10">10×</button>
+                </div>
             </div>
-            <div id="recordingStatus" class="small text-muted mt-1"></div>
+            <div class="ws-live-corner tr">
+                <button class="ws-btn sm overlay basic-only" type="button" id="btnLiveToggleBasic">Start live view</button>
+                <button class="ws-btn sm overlay" type="button" id="btnFullscreen">Full screen</button>
+            </div>
+            <div class="ws-live-corner bl">
+                <span class="ws-chip basic-only live-hint" id="liveHint">Click a star to zoom in on it</span>
+                <span class="ws-chip adv-only ws-hidden" id="liveStatsChip"></span>
+            </div>
+            <div class="ws-live-corner br">
+                <span class="ws-chip adv-only ws-mono ws-hidden" id="cursorChip"></span>
+            </div>
         </div>
-        <div class="d-flex justify-content-between align-items-center">
-            <span id="liveViewStats" class="small text-muted"></span>
-            <button class="btn btn-outline-secondary btn-sm py-0" onclick="refreshLiveViewStats()">Stats</button>
+        <div id="recordingStatus" class="ws-small ws-muted adv-only"></div>
+
+        <!-- Basic: the focus helper -->
+        <div class="ws-card focus-card basic-only" data-step-card="focus">
+            <div>
+                <div class="ws-muted ws-small">Star size (HFR)</div>
+                <div class="ws-big" id="focusHfrBig">—</div>
+            </div>
+            <svg class="ws-spark" id="focusSpark" role="img" aria-label="Star size over the last minutes"></svg>
+            <div style="flex:1;min-width:220px">
+                <div class="ws-strong" id="focusAdvice">Start live view and zoom in on a star.</div>
+                <div class="ws-muted ws-small" id="focusAdviceSub">Turn the focuser slowly. Smaller is sharper; the green dot marks the best point.</div>
+            </div>
+            <button class="ws-btn primary" type="button" id="btnFocusGood">Focus is good</button>
+        </div>
+
+        <!-- Advanced: the plan and the log -->
+        <div class="ws-actions adv-only" style="align-items:stretch;gap:var(--ws-gap)">
+            <div class="ws-card" style="flex:1 1 320px" id="planCard">
+                <h3>Capture plan <span class="ws-chip ws-hidden" id="planState"><span class="ws-dot ok"></span><span></span></span></h3>
+                <div id="planIdle" class="ws-small ws-muted">No plan running. A plan runs a list of steps on the telescope (go-tos, lights, darks, video) and carries on if the connection drops.</div>
+                <div id="planBox" class="ws-hidden">
+                    <div class="ws-small ws-strong" id="planTitle">Capture plan</div>
+                    <div class="ws-progress"><div id="planProgressBar"></div></div>
+                    <div class="ws-small ws-muted" id="planProgress" style="white-space:pre-line"></div>
+                    <div class="ws-note warn ws-hidden" id="planCoverPrompt" style="margin-top:8px">Fit the scope cover for the dark or bias frames, then press <b>Cover fitted</b>.</div>
+                </div>
+                <div class="ws-actions" style="margin-top:8px">
+                    <button class="ws-btn sm primary ws-hidden" type="button" id="planCoverBtn">Cover fitted</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planPauseBtn">Pause</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planResumeBtn">Resume</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planSkipBtn">Skip step</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planStopBtn">Stop</button>
+                    <button class="ws-btn sm" type="button" id="btnOpenBuilder">Open builder</button>
+                </div>
+                <details style="margin-top:8px">
+                    <summary class="ws-small ws-muted">Recent plans on this telescope</summary>
+                    <div id="planHistory" class="ws-small" style="margin-top:6px"></div>
+                </details>
+            </div>
+            <div class="ws-card" style="flex:1 1 320px">
+                <h3>Log <button class="ws-btn sm ghost" type="button" id="btnClearLog" style="margin-left:auto">Clear</button></h3>
+                <div class="ws-log" id="commandLog" aria-live="polite"></div>
+            </div>
         </div>
     </div>
 
-    <!-- Draggable Live Histogram Panel -->
-    <div class="draggable-panel border rounded shadow p-3 bg-white position-absolute" id="liveHistogramPanel" style="top: 470px; left: 80vw; min-width: 320px;">
-        <div class="panel-header bg-dark text-white p-2 rounded-top" style="user-select: none;">Live Histogram</div>
-        <canvas id="liveHistogramCanvas" class="histogram-panel-canvas" width="320" height="140"></canvas>
-        <div class="histogram-settings mt-2" id="liveHistogramControls">
-            <div class="row g-2 align-items-center mb-2">
-                <div class="col-7">
-                    <label class="form-label mb-0 small">Channel</label>
-                    <select class="form-select form-select-sm" data-hist="mode">
+    <!-- Right column -->
+    <div class="ws-col ws-col-right">
+        <!-- Basic: exposure, the last test shot and capture -->
+        <div class="ws-card basic-only" data-step-card="exposure">
+            <h3>Exposure</h3>
+            <div class="ws-muted ws-small" style="margin-bottom:8px">What are you photographing?</div>
+            <div class="ws-presets" id="presetButtons">
+                <button class="ws-btn" type="button" data-preset="moon">The Moon</button>
+                <button class="ws-btn" type="button" data-preset="planet">A planet</button>
+                <button class="ws-btn" type="button" data-preset="bright">Bright nebula or cluster</button>
+                <button class="ws-btn" type="button" data-preset="faint">Galaxy or faint nebula</button>
+            </div>
+            <div class="ws-row" style="margin:10px 0"><span>Settings</span><span id="presetSettingsLine">Choose one above</span></div>
+            <div class="ws-small ws-muted" id="presetNote" style="margin-bottom:10px"></div>
+            <button class="ws-btn primary block" type="button" id="btnTestShot" disabled>Take a test shot</button>
+        </div>
+
+        <div class="ws-card basic-only">
+            <h3>Last test shot <span class="ws-aside" id="testShotTime"></span></h3>
+            <div id="testShotEmpty" class="ws-small ws-muted">Take a test shot and it shows up here with plain checks: are the stars round, is it in focus, is the exposure right.</div>
+            <div id="testShotBody" class="ws-hidden">
+                <div class="test-shot">
+                    <a id="testShotLink" href="#" target="_blank" rel="noopener"><img class="ws-thumb" id="testShotThumb" alt="The last test shot"></a>
+                    <div class="ws-small"><div class="ws-strong" id="testShotVerdict"></div><div class="ws-muted" id="testShotVerdictSub"></div></div>
+                </div>
+                <div id="testShotChecks"></div>
+            </div>
+        </div>
+
+        <div class="ws-card basic-only" data-step-card="capture">
+            <h3>Capture</h3>
+            <div id="captureForm">
+                <div class="ws-row"><label for="capCount" id="capCountLabel">Photos</label><span><input id="capCount" class="ws-input num" type="number" min="1" max="2000" value="40"> <span id="capExposureLabel">× 30 s</span></span></div>
+                <label class="ws-row ws-tick" id="capDarksRow"><span>Take darks afterwards (<span id="capDarkCount">20</span>)</span><input type="checkbox" id="capDarks" checked></label>
+                <label class="ws-row ws-tick" id="capBiasRow"><span>Take bias frames (<span id="capBiasCount">30</span>)</span><input type="checkbox" id="capBias" checked></label>
+                <label class="ws-row ws-tick" id="capDitherRow"><span>Nudge the mount between photos</span><input type="checkbox" id="capDither" checked></label>
+                <div class="ws-small ws-muted" id="capEstimate" style="margin:8px 0 10px">Choose a target and an exposure first.</div>
+                <button class="ws-btn primary block" type="button" id="btnStartCapture" disabled>Start capturing</button>
+                <button class="ws-btn ghost block ws-small" type="button" id="btnCaptureBuilder" style="margin-top:6px">Build a custom plan instead…</button>
+            </div>
+            <div id="captureRunning" class="ws-hidden">
+                <div class="ws-small ws-strong" id="basicPlanTitle"></div>
+                <div class="ws-progress"><div id="basicPlanBar"></div></div>
+                <div class="ws-small ws-muted" id="basicPlanProgress" style="white-space:pre-line"></div>
+                <div class="ws-note warn ws-hidden" id="basicCoverPrompt" style="margin-top:8px">Fit the scope cover now: the darks and bias need the telescope covered. Then press <b>Cover fitted</b>.</div>
+                <div class="ws-actions" style="margin-top:8px">
+                    <button class="ws-btn primary ws-hidden" type="button" id="basicCoverBtn">Cover fitted</button>
+                    <button class="ws-btn" type="button" id="basicPauseBtn">Pause</button>
+                    <button class="ws-btn ws-hidden" type="button" id="basicResumeBtn">Resume</button>
+                    <button class="ws-btn" type="button" id="basicStopBtn">Stop</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced: camera, focus, histogram, last frame -->
+        <div class="ws-card adv-only">
+            <h3>Camera <span class="ws-aside" id="cameraStatusLine">Battery — · Card —</span></h3>
+            <div class="ws-grid2">
+                <label class="ws-field">Shutter<select id="shutterSpeedSelect" class="ws-select"></select></label>
+                <label class="ws-field" id="bulbRow">Bulb seconds<input type="number" id="bulbSeconds" class="ws-input" min="0.1" max="900" step="0.1" value="30"></label>
+                <label class="ws-field">ISO<select id="isoSelect" class="ws-select"></select></label>
+                <label class="ws-field">Aperture<select id="apertureSelect" class="ws-select"></select></label>
+                <label class="ws-field">White balance<select id="whiteBalance" class="ws-select"></select></label>
+                <label class="ws-field">Format<select id="photoFormat" class="ws-select"></select></label>
+                <label class="ws-field">Exposure comp.<select id="exposureCompSelect" class="ws-select"></select></label>
+                <div class="ws-field" style="justify-content:flex-end"><button class="ws-btn sm" type="button" id="btnCameraRefresh" title="Battery and card">Refresh</button></div>
+            </div>
+            <div class="ws-actions" style="margin-top:10px">
+                <button class="ws-btn primary" type="button" style="flex:1" id="takePhotoBtn">Take photo</button>
+                <button class="ws-btn" type="button" id="btnAdvTestShot" title="Take a photo and check it">Test shot</button>
+            </div>
+        </div>
+
+        <div class="ws-card adv-only">
+            <h3>Focus <span class="ws-aside" id="focusAdvAside">live view off</span></h3>
+            <svg class="ws-spark" id="focusSparkAdv" role="img" aria-label="Half-flux radius over time" style="color:var(--accent)"></svg>
+            <dl class="ws-kv" id="focusKv">
+                <dt>HFR now / best</dt><dd id="focusKvHfr">—</dd>
+                <dt>FWHM</dt><dd id="focusKvFwhm">—</dd>
+                <dt>Brightest star peak</dt><dd id="focusKvPeak">—</dd>
+            </dl>
+            <div class="ws-actions" style="margin-top:6px"><button class="ws-btn sm ghost" type="button" id="btnFocusReset">Reset graph</button></div>
+        </div>
+
+        <div class="ws-card adv-only">
+            <h3>Histogram
+                <span class="ws-aside" id="liveHistogramControls">
+                    <select class="ws-select" data-hist="mode" aria-label="Channel" style="padding:3px 6px">
                         <option value="luminance" selected>Luminance</option>
-                        <option value="rgb">RGB Overlay</option>
+                        <option value="rgb">RGB</option>
                         <option value="red">Red</option>
                         <option value="green">Green</option>
                         <option value="blue">Blue</option>
                     </select>
-                </div>
-                <div class="col-5">
-                    <label class="form-label mb-0 small">Bins <span data-hist="bins-value">128</span></label>
-                    <input type="range" class="form-range" min="32" max="512" step="32" value="128" data-hist="bins">
-                </div>
-            </div>
-            <div class="row g-2 align-items-center mb-2">
-                <div class="col-6">
-                    <label class="form-label mb-0 small">Black Point <span data-hist="black-point-value">0%</span></label>
-                    <input type="range" class="form-range" min="0" max="95" step="1" value="0" data-hist="black-point">
-                </div>
-                <div class="col-6">
-                    <label class="form-label mb-0 small">White Point <span data-hist="white-point-value">100%</span></label>
-                    <input type="range" class="form-range" min="5" max="100" step="1" value="100" data-hist="white-point">
-                </div>
-            </div>
-            <div class="row g-2 align-items-center">
-                <div class="col-6">
-                    <label class="form-label mb-0 small">Sample Step <span data-hist="sample-step-value">2 px</span></label>
-                    <input type="range" class="form-range" min="1" max="10" step="1" value="2" data-hist="sample-step">
-                </div>
-                <div class="col-6 d-flex gap-2 pt-3">
-                    <div class="form-check form-check-inline mb-0">
-                        <input class="form-check-input" type="checkbox" id="liveHistogramLogScale" data-hist="log-scale">
-                        <label class="form-check-label" for="liveHistogramLogScale">Log</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input class="form-check-input" type="checkbox" id="liveHistogramSmooth" data-hist="smooth">
-                        <label class="form-check-label" for="liveHistogramSmooth">Smooth</label>
-                    </div>
-                </div>
-            </div>
+                    <label class="ws-small"><input type="checkbox" data-hist="log-scale"> Log</label>
+                </span>
+            </h3>
+            <canvas id="liveHistogramCanvas" class="histogram-panel-canvas" width="320" height="90"></canvas>
+            <div id="liveHistogramStats" class="ws-small ws-muted" style="margin-top:4px">No image loaded.</div>
+            <div id="liveClipStats" class="ws-small ws-muted"></div>
         </div>
-        <div id="liveHistogramStats" class="histogram-statline">No image loaded.</div>
-    </div>
 
-    <!-- Draggable Tracking Info Panel -->
-    <div class="draggable-panel border rounded shadow p-3 bg-white position-absolute" id="telescopeSelectionPanel" style="top: 840px; left: 80vw; min-width: 280px; max-width: 340px;">
-        <div class="panel-header bg-dark text-white p-2 rounded-top" style="user-select: none;">Tracking Info</div>
-        <div class="control-row my-2">
-            <label for="telescopeSelect">Connected Telescopes</label>
-            <select id="telescopeSelect" class="form-select" onchange="selectTelescope()">
-                <option value="">Select a telescope...</option>
-            </select>
-        </div>
-        <div class="control-row my-2" id="telescopeInfo" style="display: none;">
-            <div class="small text-muted">
-                <div><strong>Name:</strong> <span id="telescopeName"></span></div>
-                <div><strong>IP:</strong> <span id="telescopeIp"></span></div>
-                <div><strong>Type:</strong> <span id="telescopeType"></span></div>
-                <div><strong>Last seen:</strong> <span id="telescopeLastSeen"></span></div>
-            </div>
-        </div>
-        <div class="control-row my-2">
-            <button class="btn btn-info btn-sm w-100" onclick="refreshTelescopes()">🔄 Refresh</button>
-        </div>
-        <div class="control-row my-2 border-top pt-2" id="trackingPanel">
-            <div class="panel-header bg-primary text-white p-2 rounded-top" style="user-select: none;">🎯 Tracking Status</div>
-            <div class="control-row my-2">
-                <div id="trackingStatusContent" class="text-white small" style="min-height: 80px; line-height: 1.6;">
-                    <em>No object being tracked</em>
+        <div class="ws-card adv-only">
+            <h3>Last frame <span class="ws-aside"><a href="/album" id="lastFrameLink">Album</a></span></h3>
+            <div id="lastFrameEmpty" class="ws-small ws-muted">Nothing from this telescope yet.</div>
+            <div id="lastFrameBody" class="ws-hidden">
+                <div class="test-shot">
+                    <img class="ws-thumb" id="lastFrameThumb" alt="The newest frame">
+                    <div class="ws-small"><div class="ws-strong" id="lastFrameName"></div><div class="ws-muted" id="lastFrameSub"></div></div>
                 </div>
-            </div>
-            <button class="btn btn-sm btn-outline-danger w-100" id="stopTrackingBtn" style="display: none;" onclick="stopTracking()">⏹️ Stop Tracking</button>
-        </div>
-        <div class="control-row my-2 border-top pt-2">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <strong class="small">Telescope status</strong>
-                <span id="statusAge" class="small text-muted"></span>
-            </div>
-            <dl id="telescopeStatusGrid" class="status-grid mb-0"><dt>—</dt><dd>Select a telescope</dd></dl>
-        </div>
-        <div class="control-row my-2 border-top pt-2 d-none" id="planBox">
-            <div class="d-flex justify-content-between align-items-center">
-                <strong class="small" id="planTitle">Capture plan</strong>
-                <span class="badge bg-secondary" id="planState"></span>
-            </div>
-            <div class="small text-muted my-1" id="planProgress"></div>
-            <div class="alert alert-warning small py-1 px-2 my-1 d-none" id="planCoverPrompt">
-                Fit the scope cover for the dark or bias frames, then press <strong>Cover fitted</strong>.
-            </div>
-            <div class="d-flex flex-wrap gap-1">
-                <button class="btn btn-warning btn-sm d-none" id="planCoverBtn" onclick="planControl('resume')">Cover fitted</button>
-                <button class="btn btn-outline-secondary btn-sm" id="planPauseBtn" onclick="planControl('pause')">Pause</button>
-                <button class="btn btn-outline-secondary btn-sm d-none" id="planResumeBtn" onclick="planControl('resume')">Resume</button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="planControl('skip')">Skip step</button>
-                <button class="btn btn-outline-danger btn-sm" onclick="if (confirm('Stop the capture plan?')) planControl('stop')">Stop</button>
+                <dl class="ws-kv" id="lastFrameKv"></dl>
+                <div id="lastFrameChecks" style="margin-top:6px"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Capture Plan Builder Modal -->
+<!-- Basic: tonight's frames -->
+<div class="ws-strip basic-only" id="tonightStrip">
+    <span class="ws-muted ws-small ws-strong">Tonight</span>
+    <span class="ws-muted ws-small" id="tonightEmpty">Photos appear here as they arrive.</span>
+    <span id="tonightThumbs" style="display:flex;gap:10px"></span>
+    <a href="/album" class="ws-small ws-strong" id="tonightLink" style="white-space:nowrap">Open tonight's photos in the album</a>
+</div>
+
+<!-- Choosing a target (Basic) -->
+<div class="modal fade" id="targetPickerModal" tabindex="-1" aria-labelledby="targetPickerLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="targetPickerLabel">Choose a target</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="ws-actions" style="margin-bottom:12px;flex-wrap:nowrap">
+                    <input class="ws-input" id="pickerSearch" placeholder="Or search: M27, NGC 891, Vega…" aria-label="Search for a target">
+                    <button class="ws-btn" type="button" id="pickerSearchBtn">Search</button>
+                </div>
+                <div id="pickerSearchResult"></div>
+                <div class="ws-small ws-muted" id="pickerNote" style="margin-bottom:8px">Loading what's up tonight…</div>
+                <div class="ws-picker" id="targetList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Capture Plan Builder Modal (capture-plan.js) -->
 <div class="modal fade" id="captureModal" tabindex="-1" aria-labelledby="captureModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -557,147 +574,106 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="advancedControlsModalLabel">🔧 Advanced Motor Controls</h5>
+                <h5 class="modal-title" id="advancedControlsModalLabel">Motor controls</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
-                    <!-- Left Column: Basic Controls -->
                     <div class="col-md-6">
-                        <h6 class="text-primary mb-3">🎛️ Basic Controls</h6>
-
-                        <!-- Motor Selection -->
-                        <div class="control-group mb-3">
-                            <label for="motorSelect" class="form-label">Select Motor</label>
+                        <h6 class="mb-3">Basic controls</h6>
+                        <div class="mb-3">
+                            <label for="motorSelect" class="form-label">Motor</label>
                             <select class="form-select form-select-sm" id="motorSelect" onchange="updateSelectedMotor()">
-                                <option value="motor1" selected>Motor 1 (Default)</option>
+                                <option value="motor1" selected>Motor 1 (default)</option>
                             </select>
                         </div>
-
-                        <!-- Motor Enable/Disable -->
-                        <div class="control-group mb-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-medium">Motor Enable</span>
-                                <button id="motorEnableBtn" class="btn btn-outline-success btn-sm" onclick="toggleMotorEnable()">Enable</button>
-                            </div>
+                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="fw-medium">Motor enable</span>
+                            <button id="motorEnableBtn" class="btn btn-outline-success btn-sm" onclick="toggleMotorEnable()">Enable</button>
                         </div>
-
-                        <!-- Direction Control -->
-                        <div class="control-group mb-3">
+                        <div class="mb-3">
                             <label class="form-label">Direction</label>
                             <div class="btn-group w-100" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(true)">⬆️ Forward</button>
-                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(false)">⬇️ Reverse</button>
+                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(true, this)">Forward</button>
+                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(false, this)">Reverse</button>
                             </div>
                         </div>
-
-                        <!-- Speed Control -->
-                        <div class="control-group mb-3">
-                            <label for="speedControl" class="form-label">Speed (steps/sec)</label>
+                        <div class="mb-3">
+                            <label for="speedControl" class="form-label">Speed (steps/s)</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="speedControl" min="0" max="10000" step="0.1" value="100">
                                 <button class="btn btn-info" onclick="setSpeed()">Set</button>
                             </div>
                         </div>
-
-                        <!-- Movement Controls -->
-                        <div class="control-group mb-3">
+                        <div class="mb-3">
                             <label class="form-label">Movement</label>
                             <div class="row g-2">
-                                <div class="col-6">
-                                    <button class="btn btn-success w-100" onclick="startMotor()">▶️ Start</button>
-                                </div>
-                                <div class="col-6">
-                                    <button class="btn btn-danger w-100" onclick="stopMotor()">⏹️ Stop</button>
-                                </div>
+                                <div class="col-6"><button class="btn btn-success w-100" onclick="startMotor()">Start</button></div>
+                                <div class="col-6"><button class="btn btn-danger w-100" onclick="stopMotor()">Stop</button></div>
                             </div>
                         </div>
-
-                        <!-- Step Movement -->
-                        <div class="control-group mb-3">
-                            <label for="stepsControl" class="form-label">Move Steps</label>
+                        <div class="mb-3">
+                            <label for="stepsControl" class="form-label">Move steps</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="stepsControl" min="1" max="100000" step="1" value="200">
                                 <button class="btn btn-primary" onclick="moveSteps()">Move</button>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Right Column: Advanced Settings -->
                     <div class="col-md-6">
-                        <h6 class="text-warning mb-3">⚙️ Advanced Settings</h6>
-
-                        <!-- Microsteps -->
-                        <div class="control-group mb-3">
+                        <h6 class="mb-3">Settings</h6>
+                        <div class="mb-3">
                             <label for="microstepsControl" class="form-label">Microsteps</label>
                             <select class="form-select form-select-sm" id="microstepsControl" onchange="setMicrosteps()">
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="4">4</option>
-                                <option value="8">8</option>
-                                <option value="16" selected>16</option>
-                                <option value="32">32</option>
+                                <option value="1">1</option><option value="2">2</option><option value="4">4</option>
+                                <option value="8">8</option><option value="16" selected>16</option><option value="32">32</option>
                             </select>
                         </div>
-
-                        <!-- Current Control -->
-                        <div class="control-group mb-3">
+                        <div class="mb-3">
                             <label for="currentControl" class="form-label">Current (mA)</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="currentControl" min="0" max="2000" step="50" value="800">
                                 <button class="btn btn-info" onclick="setCurrent()">Set</button>
                             </div>
                         </div>
-
-                        <!-- Acceleration Control -->
-                        <div class="control-group mb-3">
-                            <label for="accelControl" class="form-label">Acceleration (steps/sec²)</label>
+                        <div class="mb-3">
+                            <label for="accelControl" class="form-label">Acceleration (steps/s²)</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="accelControl" min="0" max="10000" step="0.1" value="500">
                                 <button class="btn btn-info" onclick="setAcceleration()">Set</button>
                             </div>
                         </div>
-
-                        <!-- Motor Mode -->
-                        <div class="control-group mb-3">
-                            <label for="modeControl" class="form-label">Motor Mode</label>
+                        <div class="mb-3">
+                            <label for="modeControl" class="form-label">Motor mode</label>
                             <select class="form-select form-select-sm" id="modeControl" onchange="setMode()">
-                                <option value="stealth" selected>Stealth (Quiet)</option>
-                                <option value="spread">Spread (Performance)</option>
+                                <option value="stealth" selected>Stealth (quiet)</option>
+                                <option value="spread">Spread (performance)</option>
                             </select>
                         </div>
-
-                        <!-- Quick Actions -->
-                        <div class="control-group mb-3">
-                            <label class="form-label">Quick Actions</label>
-                            <div class="d-grid gap-2">
-                                <button class="btn btn-info btn-sm" onclick="getMotorStatus()">📊 Get Status</button>
-                                <button class="btn btn-outline-info btn-sm" onclick="getAllMotorStatus()">📊 All Motors Status</button>
-                            </div>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-info btn-sm" onclick="getMotorStatus()">Status</button>
+                            <button class="btn btn-outline-info btn-sm" onclick="getAllMotorStatus()">All motors' status</button>
                         </div>
                     </div>
                 </div>
-
-                <!-- Status Display (Full Width) -->
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <h6 class="text-info mb-2">📋 Status & Logs</h6>
-                        <div id="motorStatus" class="status-display p-2 border rounded bg-light text-dark" style="min-height: 60px; max-height: 120px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.8rem;">
-                            Ready to execute motor commands...
-                        </div>
-                    </div>
-                </div>
+                <h6 class="mt-3 mb-2">Status and log</h6>
+                <div id="motorStatus" class="p-2 border rounded">Ready for motor commands…</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-danger" onclick="emergencyStop()">🚨 Emergency Stop</button>
+                <button type="button" class="btn btn-danger" onclick="emergencyStop()">Stop all motors</button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script src="{{ url_for('static', filename='js/histogram.js') }}?v=20261018-lv"></script>
-<script src="{{ url_for('static', filename='js/liveview-player.js') }}?v=20261018-lv"></script>
-<script src="{{ url_for('static', filename='js/interface.js') }}?v=20261018-lv"></script>
-<script src="{{ url_for('static', filename='js/capture-plan.js') }}?v=20261018-lv"></script>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/workspace.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/histogram.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/liveview-player.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/focus-meter.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/interface.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/interface-guide.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/capture-plan.js') }}?v=20261018-ws"></script>
 {% endblock %}

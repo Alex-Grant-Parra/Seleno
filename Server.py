@@ -359,6 +359,7 @@ from models.client_release import ClientReleaseSubmission  # Import to register 
 from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import to register SumUp payment tables
 from models.photo import Photo, TelescopeUpload  # Import to register photo and resumable upload tables
 from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
+from models.album import FrameMeta, StackResult, FeaturedTarget  # Import to register album index, stacks and featured targets
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -510,6 +511,22 @@ with app.app_context():
             pass
     except Exception as e:
         print(f"[WARNING] Could not ensure booking columns on telescopes: {e}")
+
+    # Columns added to photos after it shipped (the client's full frame metadata)
+    try:
+        from models.photo import ensure_photo_columns
+        ensure_photo_columns()
+    except Exception as e:
+        print(f"[WARNING] Could not ensure photo columns: {e}")
+
+    # Basic mode's suggested targets (inserted when missing)
+    try:
+        from models.album import ensure_featured_targets
+        added = ensure_featured_targets()
+        if added:
+            print(f"Added {added} featured target(s)")
+    except Exception as e:
+        print(f"[WARNING] Could not seed featured targets: {e}")
 
     # Ensure SumUp payment table indexes exist for transaction lookup paths
     try:

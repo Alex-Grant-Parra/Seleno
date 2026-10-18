@@ -1,0 +1,38 @@
+{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"setTrackingRate","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"setTrackingRate","ip":"127.0.0.1"}
+.{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"espEstopStatus","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"espEstopStatus","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"espEstopStatus","ip":"127.0.0.1"}
+.{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"getCameraChoices","ip":"127.0.0.1"}
+..{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"espClearEstop","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"internal","client_id":"access-scope","command":"updateClient","ip":"127.0.0.1"}
+...{"event":"send_command_allowed","auth_source":"internal","client_id":"fixfirst-scope","command":"setCameraSetting","ip":"127.0.0.1"}
+.{"event":"send_command_allowed","auth_source":"internal","client_id":"fixfirst-scope","command":"capturePhoto","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"internal","client_id":"fixfirst-scope","command":"capturePhoto","ip":"127.0.0.1"}
+.
+[TRACKING] Sending Moon to telescope fixfirst-scope by name
+
+{"event":"send_command_allowed","auth_source":"internal","client_id":"fixfirst-scope","command":"trackObject","ip":"127.0.0.1"}
+..{"event":"send_command_allowed","auth_source":"internal","client_id":"fixfirst-scope","command":"capturePhoto","ip":"127.0.0.1"}
+
+[TRACKING] Sending Vega coordinates to telescope fixfirst-scope
+[TRACKING] RA: 279.2°, DEC: 38.8°, Mag: 0
+
+{"event":"send_command_allowed","auth_source":"internal","client_id":"fixfirst-scope","command":"trackCoordinates","ip":"127.0.0.1"}
+[TRACKING] Telescope refused Vega: Target is below the horizon
+.{"event":"send_command_allowed","auth_source":"internal","client_id":"sendcommandauth-scope","command":"boom","ip":"127.0.0.1"}
+.{"event":"send_command_allowed","auth_source":"internal","client_id":"sendcommandauth-scope","command":"ping","ip":"127.0.0.1"}
+.{"event":"send_command_denied","client_id":"sendcommandauth-scope","command":"ping","reason":"forbidden","ip":"1.2.3.4"}
+.{"event":"send_command_allowed","auth_source":"internal","client_id":"nobody","command":"ping","ip":"127.0.0.1"}
+.{"event":"send_command_allowed","auth_source":"internal","client_id":"sendcommandauth-scope","command":"ping","ip":"127.0.0.1"}
+.{"event":"send_command_allowed","auth_source":"db","client_id":"sendcommandauth-scope","command":"ping","ip":"127.0.0.1"}
+{"event":"send_command_denied","client_id":"sendcommandauth-scope","command":"ping","reason":"token_scope","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"db","client_id":"sendcommandauth-scope","command":"ping","ip":"127.0.0.1"}
+.{"event":"send_command_denied","client_id":"sendcommandauth-scope","command":"ping","reason":"forbidden","ip":"127.0.0.1"}
+{"event":"send_command_denied","client_id":"sendcommandauth-scope","command":"ping","reason":"forbidden","ip":"127.0.0.1"}
+...
+----------------------------------------------------------------------
+Ran 21 tests in 1.054s
+
+OK
+[Status] Dropped 71707 byte status message from big-one (limit 65536)

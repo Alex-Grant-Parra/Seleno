@@ -38,7 +38,8 @@ ws_event_loop = None  # Store reference to WebSocket thread's event loop
 # Latest status message pushed by each telescope: client_id -> (received_at, message)
 latest_status = {}
 MAX_STATUS_BYTES = 64 * 1024
-STATUS_PARTS = ('tracking', 'camera', 'liveview', 'recording', 'photos', 'uploads', 'clock', 'disk', 'esp32', 'plan')
+STATUS_PARTS = ('tracking', 'camera', 'liveview', 'recording', 'photos', 'uploads', 'clock', 'disk', 'esp32', 'plan',
+                'site', 'solve')
 _status_last_seen_write = {}
 
 # Command timeouts in seconds. Each layer waits a little longer than the one inside it:
@@ -636,6 +637,11 @@ def _clean_status(data):
     # Keep known parts that are objects or plain values; a malformed part becomes an error part
     cleaned = {}
     for key, value in data.items():
+        if key == 'capabilities':
+            # What this client version can do: a list of short names (client v0.9)
+            if isinstance(value, list):
+                cleaned[key] = [str(v)[:64] for v in value[:64] if isinstance(v, str)]
+            continue
         if key in STATUS_PARTS:
             if value is None or isinstance(value, (dict, str, int, float, bool)):
                 cleaned[key] = value

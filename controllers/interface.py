@@ -296,9 +296,14 @@ def take_photo():
         else:
             exposure_s = None
 
+        frame_type = data.get("frame_type")
+        if frame_type not in (None, "", "test", "light", "snapshot"):
+            return jsonify({"status": "error", "message": "frame_type must be test, light or snapshot"}), 400
+
         current_id = current_user.get_id()
         t = Telescope(telescope_id)
-        result = t.camera.capture_photo(current_id, exposure_s=exposure_s, shutter=data.get("shutter"))
+        result = t.camera.capture_photo(current_id, exposure_s=exposure_s, shutter=data.get("shutter"),
+                                        frame_type=frame_type or None)
         return _command_reply(result, "Photo taken")
     except Exception:
         logger.exception("Failed to take photo")
@@ -550,7 +555,22 @@ def telescope_status():
         "viewers": viewer_counts.count(telescope_id),
         "plan": plan.to_dict() if plan else None,
         "access": _access_flags(telescope_id),
+        **_booking_window(row),
     })
+
+
+def _booking_window(row):
+    # The user's booking that covers now, and when the next booking starts: how long
+    # a capture can run
+    from flask_login import current_user
+    from app.telescope_access import approved_booking, next_booking_start
+
+    iso = lambda value: value.isoformat() + "Z" if value else None
+    booking = approved_booking(row, user_id=current_user.id)
+    return {
+        "booking": {"start": iso(booking.start_utc), "end": iso(booking.end_utc)} if booking else None,
+        "next_booking_start": iso(next_booking_start(row)),
+    }
 
 
 class _BadParam(ValueError):
@@ -629,7 +649,9 @@ TELESCOPE_ACTIONS = {
     "set_liveview_options": (CONTROL, False, lambda t, p, uid: t.liveview.set_options(
         codec=_param(p, "codec", choices=LIVEVIEW_CODECS),
         bitrate_kbps=_param(p, "bitrate_kbps", int, minimum=100, maximum=20000),
-        gop_s=_param(p, "gop_s", float, minimum=0.5, maximum=10))),
+        gop_s=_param(p, "gop_s", float, minimum=0.5, maximum=10),
+        jpeg_quality=_param(p, "jpeg_quality", int, minimum=50, maximum=98),
+        max_fps=_param(p, "max_fps", float, minimum=0.2, maximum=30))),
     "liveview_snapshot": (CONTROL, False, lambda t, p, uid: t.liveview.snapshot(uid)),
     "start_recording": (CONTROL, False, lambda t, p, uid: t.liveview.start_recording(
         _param(p, "kind", required=True, choices=RECORDING_KINDS), _param(p, "interval_s", float, minimum=0.1, maximum=3600))),

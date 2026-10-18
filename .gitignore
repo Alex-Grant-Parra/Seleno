@@ -40,3 +40,5 @@ astrophysics/V3_Helios/tests/
 docs/improvements notes.md
 
 alerts.txt
+# End-to-end test screenshots
+tests/e2e/out/
