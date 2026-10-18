@@ -24,7 +24,7 @@
     check('pickerHasM42', $$q('#targetList .ws-pick').some(b => b.textContent.includes('M42')));
     check('pickerHasPlanets', $$q('#targetList .ws-pick').some(b => b.textContent.includes('Jupiter')));
     await shot('basic-picker');
-    $$q('#targetList .ws-pick').find(b => b.textContent.includes('M42')).click();
+    $$q('#targetList .ws-pick').find(b => b.textContent.includes('M42')).querySelector('.ws-pick-main').click();
     check('targetSet', await until(() => currentTarget && currentTarget.designation === 'M42'));
     check('targetCard', await until(() => txt('basicTargetName') === 'M42' && txt('basicTargetAlt') !== '—'),
         [txt('basicTargetName'), txt('basicTargetDesc'), txt('basicTargetAlt'), txt('basicTargetBest'), txt('basicTargetMoon')]);

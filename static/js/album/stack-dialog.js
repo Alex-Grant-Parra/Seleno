@@ -6,6 +6,7 @@ import { engine } from './engine.js';
 import { startJob } from './jobs.js';
 import { saveStackResult } from './stacks.js';
 import * as Q from './quality.js';
+import { listProjects, updateProject } from '../processing/projects.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (...args) => Seleno.el(...args);
@@ -212,12 +213,20 @@ function frameEntry(f) {
     };
 }
 
+function projectChoice() {
+    const value = $('stackProject').value;
+    if (!value) return null;
+    if (value === 'new') return { name: $('stackName').value.trim() || ctx.defaultName };
+    return { id: value };
+}
+
 function buildSpec() {
     const calibration = selectedCalibration();
     return {
         name: $('stackName').value.trim() || ctx.defaultName,
         target: ctx.target,
         source: ctx.source,
+        project: projectChoice(),
         frames: {
             light: ctx.lights.map(frameEntry),
             dark: calibration.dark.map(frameEntry),
@@ -253,7 +262,9 @@ function renderEstimate() {
     const missing = lights.filter(f => f.kind === 'jpeg' && !f.raw).length;
     const source = $('stackSource');
     source.innerHTML = '';
-    if (ctx.source === 'raw' && !missing) {
+    if (ctx.quick) {
+        source.textContent = 'Quick mode: stacks the JPEGs, so only small files are downloaded. For the best result (exact calibration), untick it to use the RAWs.';
+    } else if (ctx.source === 'raw' && !missing) {
         source.textContent = 'Uses the RAW files, which are linear, so the darks and bias subtract exactly.';
     } else if (missing) {
         source.append(`${missing} of the lights have no RAW here yet (it's still on the telescope), so this stacks the JPEGs. JPEGs stack fine, but calibrating them is only approximate. `);
@@ -303,21 +314,51 @@ async function start() {
         return;
     }
     $('stackDialog').close();
+    const onSaved = ctx && ctx.onSaved;
     const controller = new AbortController();
     const job = startJob(`Stacking ${spec.name}`, { kind: 'stack', controller });
+    Seleno.toast(`Stacking ${spec.name} in this tab. Keep it open until it finishes; it shows under Activity.`, 'ok', 6000);
+    await runAndSave(spec, job, controller, onSaved);
+}
+
+// Run a stack (or lucky imaging), save the result, and tidy up
+export async function runAndSave(spec, job, controller, onSaved, run = null) {
+    let result = null;
     try {
-        const result = await engine.stack(spec, {
+        result = await (run ? run() : engine.stack(spec, {
             signal: controller.signal,
             onProgress: ({ fraction, message }) => job.update(fraction, message)
-        });
+        }));
         job.finish(`${result.frames_used} of ${result.frames_total} frames stacked`);
         const saved = await saveStackResult(result);
-        if (ctx && ctx.onSaved) ctx.onSaved(saved);
-        Seleno.toast(`${spec.name} is stacked and saved under Stacked images.`, 'ok', 7000);
+        if (result.project) await updateProject(result.project.id, { stack_id: saved.id }).catch(() => {});
+        if (result.measured && Object.keys(result.measured).length) {
+            Seleno.api('/album/api/metrics', { json: { metrics: albumMetrics(result.measured, result.report.source) } }).catch(() => {});
+        }
+        if (onSaved) onSaved(saved);
+        const where = result.project ? ` and added to the project ${result.project.name}` : '';
+        Seleno.toast(`${result.name} is stacked${where}, and saved under Stacked images.`, 'ok', 7000);
+        return saved;
     } catch (error) {
         job.fail(error);
         if (error.name !== 'AbortError') Seleno.toast(`Stacking failed: ${error.message}`, 'bad', 8000);
+        return null;
+    } finally {
+        if (result && result.dispose) await result.dispose().catch(() => {});
     }
+}
+
+// The stacker's per-frame numbers (measured on the calibrated frames) as album metrics
+function albumMetrics(measured, source) {
+    const out = {};
+    Object.entries(measured).forEach(([name, m]) => {
+        if (!m) return;
+        out[name] = {
+            stars: m.stars, fwhm: m.fwhm, hfr: m.hfr, ecc: m.ecc, snr: m.snr, saturated_stars: m.saturated_stars,
+            noise: m.noise, noise_pct: m.noise !== null ? Math.round(m.noise * 1e6) / 1e4 : null, source
+        };
+    });
+    return out;
 }
 
 function wire() {
@@ -344,6 +385,60 @@ function wire() {
         postDownload(files, spec.name);
     });
     $('btnStackStart').addEventListener('click', start);
+    $('stackQuickJpeg').addEventListener('change', () => {
+        if (!ctx) return;
+        ctx.quick = $('stackQuickJpeg').checked;
+        ctx.source = ctx.quick ? 'jpeg' : ctx.rawSource;
+        refresh();
+    });
+    $('stackProject').addEventListener('change', describeProject);
+}
+
+let projects = [];
+
+function describeProject() {
+    const note = $('stackProjectNote');
+    const value = $('stackProject').value;
+    const p = projects.find(x => x.id === value);
+    note.classList.toggle('ws-hidden', !value);
+    if (value === 'new') note.textContent = "Starts a project with these frames. Its alignment and combining settings stay fixed from now on, so later nights line up.";
+    else if (p) note.textContent = `${p.frames_total} frames so far${p.exposure_total_s ? `, ${Seleno.fmt.duration(p.exposure_total_s)}` : ''}, ${p.width} × ${p.height}. These frames are lined up with its reference and added to its totals; frames already in it are skipped. Its settings (${p.settings.debayer === 'superpixel' ? 'half size' : 'full size'}, ${p.settings.method || 'winsorized'}) are used.`;
+}
+
+async function fillProjects(target) {
+    const select = $('stackProject');
+    [...select.querySelectorAll('option[data-project]')].forEach(o => o.remove());
+    select.value = '';
+    try {
+        projects = await listProjects();
+    } catch (error) {
+        projects = [];
+    }
+    projects.forEach(p => select.appendChild(el('option', { value: p.id, 'data-project': '1' }, `${p.name}${p.target ? ` (${p.target})` : ''}`)));
+    // A project for the same target is the likely choice, but adding is never automatic
+    describeProject();
+}
+
+// Calibration frames for a set of lights, chosen as the dialog does by default (same
+// night, matching exposure, ISO and camera): {dark, flat, darkflat, bias} entries
+export function calibrationFor(lights, library, source = 'raw') {
+    const kept = lights.filter(f => f.flag !== 'reject');
+    const ref = {
+        exposure: Q.mostCommon(kept.map(f => f.exposure_s)),
+        iso: Q.mostCommon(kept.map(f => f.iso)),
+        camera: Q.mostCommon(kept.map(f => f.camera)),
+        night: Q.mostCommon(kept.map(Q.nightKey)) || 'unknown'
+    };
+    const saved = ctx;
+    ctx = { source };
+    const out = {};
+    ['dark', 'flat', 'darkflat', 'bias'].forEach(type => {
+        const group = candidates(type, library, ref)[0];
+        out[type] = group && group.night === ref.night ? group.frames.map(frameEntry) : [];
+    });
+    out.light = kept.map(frameEntry);
+    ctx = saved;
+    return out;
 }
 
 // lights: the frames to stack (non-lights are ignored); library: every frame, for
@@ -368,13 +463,21 @@ export function openStackDialog({ lights, library, title, onSaved }) {
         choice[type] = options[type].length && options[type][0].night === ref.night ? options[type][0] : null;
     });
     const hasRaw = kept.length && kept.every(f => f.raw || f.kind === 'raw');
+    const weak = engine.available && engine.machine().weak;
     const defaultName = `${target || 'Stack'} ${ref.night !== 'unknown' ? Q.nightLabel(ref.night).replace(/^Tonight, /, '') : ''}`.trim();
     ctx = {
         lights: kept, rejected, bad: kept.filter(f => (quality.get(f.name) || {}).level === 'bad').length,
         ref, target, options, choice, defaultName, onSaved,
         source: hasRaw ? 'raw' : 'jpeg',
+        rawSource: hasRaw ? 'raw' : 'jpeg',
+        quick: false,
         settings: storedDefaults()
     };
+    // Half size by default on phones and machines with little memory (Basic mode)
+    if (weak && Seleno.mode() === 'basic' && !localStorage.getItem(DEFAULTS_KEY)) ctx.settings.debayer = 'superpixel';
+    $('stackQuickJpegRow').classList.toggle('ws-hidden', !(hasRaw && kept.every(f => f.kind === 'jpeg')));
+    $('stackQuickJpeg').checked = false;
+    fillProjects(target);
     $('stackTitle').textContent = title || `Stack ${defaultName}`;
     $('stackName').value = defaultName;
 
@@ -388,7 +491,7 @@ export function openStackDialog({ lights, library, title, onSaved }) {
 
     const note = $('stackFootNote');
     note.textContent = engine.available
-        ? 'Runs in this browser tab: keep it open until it finishes. It shows under Activity.'
+        ? `${engine.note} It shows under Activity.`
         : `${engine.reason} Your choices here are ready for it. Meanwhile "Download the frames" gets them all in one zip for Siril or DeepSkyStacker.`;
     $('btnStackStart').disabled = !engine.available || !kept.length;
     refresh();

@@ -12,7 +12,7 @@ from PIL import Image
 
 
 def star_field(width, height, seed=1, fwhm=2.6, ecc=0.0, angle_deg=30.0, stars=260, sky=0.10,
-               gradient=0.04, noise=0.006, nebula=True, brightness=1.0):
+               gradient=0.04, noise=0.006, nebula=True, brightness=1.0, field=None, shift=(0.0, 0.0)):
     """A linear star field (H, W, 3) float32 in 0..1."""
     rng = np.random.default_rng(seed)
     yy, xx = np.mgrid[0:height, 0:width].astype(np.float32)
@@ -23,9 +23,10 @@ def star_field(width, height, seed=1, fwhm=2.6, ecc=0.0, angle_deg=30.0, stars=2
         r2 = ((xx - cx) / (width * 0.18)) ** 2 + ((yy - cy) / (height * 0.15)) ** 2
         glow = np.exp(-r2) * 0.08 * brightness
         img += glow[..., None] * np.array([1.0, 0.35, 0.55], dtype=np.float32)
-    rng2 = np.random.default_rng(seed + 1000)   # star positions don't depend on the frame
-    xs = rng2.uniform(8, width - 8, stars)
-    ys = rng2.uniform(8, height - 8, stars)
+    # The sky: the same stars in every frame of a field (field=...), dithered by shift
+    rng2 = np.random.default_rng((seed if field is None else field) + 1000)
+    xs = rng2.uniform(8, width - 8, stars) + shift[0]
+    ys = rng2.uniform(8, height - 8, stars) + shift[1]
     flux = (rng2.pareto(1.6, stars) + 0.25) * 0.05 * brightness
     colours = rng2.uniform(0.8, 1.2, (stars, 3)).astype(np.float32)
     sigma = fwhm / 2.3548
@@ -122,6 +123,31 @@ def small_video(path):
         return path
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=10",
                     "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p", path], check=True)
+    return path
+
+
+def ser_planet(path, frames=60, width=200, height=150, seed=7):
+    """A SER video of a banded planet: 8-bit RGB, each frame blurred by a different
+    amount of "seeing" and drifting a little (for lucky imaging)."""
+    rng = np.random.default_rng(seed)
+    header = bytearray(178)
+    header[0:14] = b"LUCAM-RECORDER"
+    struct.pack_into("<iiiiiii", header, 14, 0, 100, 0, width, height, 8, frames)
+    out = [bytes(header)]
+    yy, xx = np.mgrid[0:height, 0:width].astype(np.float32)
+    for i in range(frames):
+        cx, cy = width / 2 + rng.uniform(-4, 4), height / 2 + rng.uniform(-4, 4)
+        r = np.hypot(xx - cx, yy - cy)
+        disc = (r < 36).astype(np.float32) * (0.55 + 0.25 * np.sin((yy - cy) * 0.5))
+        blur = 1 if i % 4 == 0 else int(rng.integers(3, 7))
+        k = np.ones(blur, np.float32) / blur
+        img = np.apply_along_axis(lambda v: np.convolve(v, k, "same"), 1, disc)
+        img = np.apply_along_axis(lambda v: np.convolve(v, k, "same"), 0, img)
+        img = np.clip(img + rng.normal(0, 0.01, img.shape), 0, 1)
+        rgb = np.stack([img, img * 0.9, img * 0.75], -1)
+        out.append((rgb * 255 + 0.5).astype(np.uint8).tobytes())
+    with open(path, "wb") as f:
+        f.write(b"".join(out))
     return path
 
 

@@ -1,35 +1,40 @@
-// The processing engine plugs in here: decoding RAWs, measuring stars, aligning and
-// stacking frames, and developing the result, all in the browser (in Web Workers),
-// so the server's CPU and memory are never the limit. app/processing/ (Python) is the
-// tested reference it is ported from.
+// The processing engine's hook for the album: decoding RAWs, measuring stars, aligning
+// and stacking frames (and lucky imaging), multi-night projects, and developing the
+// result, all in this browser tab (in Web Workers), so the server's CPU and memory are
+// never the limit. The engine is static/js/processing/ (see client.js there);
+// app/processing/ (Python) is the reference it was ported from.
 //
-// Until the engine is written, `available` is false and the album offers everything
-// that works without it: browsing, flags and types, the quality chart for numbers
-// already measured, the viewer and blink, downloads, and saved stacks.
-//
-// What the album calls, once the engine provides it:
+// What the album calls:
 //
 //   engine.measure(frames, {onProgress, signal})
-//       frames: library entries ({name, url, raw_url, kind, ...}). Resolves to
-//       {name: metrics} with the keys controllers/album_api.py stores (stars, fwhm,
-//       hfr, ecc, snr, background, noise, background_pct, background_display,
-//       noise_pct, clipped_pct, saturated_stars, width, height, source).
+//       frames: library entries. Resolves to {name: metrics} with the keys
+//       controllers/album_api.py stores, or {name: {error}}.
 //
 //   engine.stack(spec, {onProgress, signal})
-//       spec: what stack-dialog.js builds ({name, target, frames: {light, dark, flat,
-//       darkflat, bias: [entries]}, settings}). onProgress({fraction, message}).
-//       Resolves to a result for stacks.saveStackResult(): {name, target, kind, width,
-//       height, linear, frames_used, frames_total, total_exposure_s, settings,
-//       report, preview: {width, height, data: Uint16Array of float16 RGB},
-//       auto: Blob (JPEG), thumb: Blob (JPEG), master: Blob (FITS) or null}.
+//       spec: what stack-dialog.js builds; spec.mode 'lucky' for lucky imaging,
+//       spec.project {id} or {name} to add the night to a project. Resolves to a
+//       result for stacks.saveStackResult(); call result.dispose() once it's saved.
 //
-//   engine.develop(stack, canvas)
-//       Resolves to a session: {render(params), defaults(), auto(), export(params,
-//       format) -> Blob, close()}; params as app/processing/develop.py's.
+//   engine.rebuildProject(id, batches, {onProgress, signal})
+//       Re-stacks a project from scratch, resuming from its last checkpoint.
+//
+//   engine.develop(stack or {entry}, stageElement)
+//       Resolves to a session: {render(params), defaults(), auto(), compare(mode),
+//       showBackground(on), export(params, format) -> Blob, close()}.
+
+import * as client from '../processing/client.js';
+
+const supported = client.support();
 
 export const engine = {
-    available: false,
-    reason: "This runs in your browser, and the in-browser processing isn't built yet."
+    available: supported.ok,
+    reason: supported.ok ? '' : supported.reason,
+    note: 'Runs in this browser tab: closing the tab (or the computer sleeping) stops it.',
+    machine: () => client.machineInfo(),
+    measure: (frames, options) => client.measure(frames, options),
+    stack: (spec, options) => client.stack(spec, options),
+    rebuildProject: (id, batches, options) => client.rebuildProject(id, batches, options),
+    develop: (target, stage) => client.develop(target, stage)
 };
 
 export function requireEngine(feature) {

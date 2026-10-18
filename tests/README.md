@@ -8,7 +8,7 @@ database in a temporary folder, and fake telescopes in place of real sockets.
 
 ```bash
 cd tests
-../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api
+../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api
 ```
 
 | File | Covers |
@@ -18,6 +18,17 @@ cd tests
 | `test_liveview.py` | the live-view relay |
 | `test_album_api.py` | the album's library index, thumbnails, flags, metrics, stacks, downloads |
 | `test_interface_api.py` | `app/sky.py`, the sky, targets and latest-captures endpoints, capability checks |
+| `test_projects_api.py` | multi-night projects: chunked uploads of the totals, commits, rebuild checkpoints |
+
+## The processing engine (Node, about 10 s)
+
+The in-browser engine (`static/js/processing/`) is tested in Node against the Python
+reference (`app/processing/`) and on synthetic frames. See `processing/README.md`.
+
+```bash
+venv/bin/python tests/processing/oracle.py /tmp/oracle <dir with scipy>   # once: Python's answers
+ORACLE=/tmp/oracle node --test tests/processing/*.test.mjs
+```
 
 ## End-to-end, in headless Chrome (about a minute)
 
@@ -31,7 +42,13 @@ screenshots.
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py                 # interface and album
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py --dark          # in the dark theme
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py --width=390 narrow narrow_album
+E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py engine          # real stacking in the browser (about 30 s)
 ```
+
+The `engine` scenario stacks the fixture night in Web Workers (with OPFS), measures
+photos, opens the live editor, starts a project, and lucky-images a SER video. With
+`E2E_CR2=<a Canon CR2>` it also reads a real RAW (the CC0 sample in
+`processing/README.md`).
 
 Chrome needs WebCodecs H.264, so use Google Chrome rather than Chromium. If none is
 installed, unpack one without installing it:

@@ -90,3 +90,28 @@ change, so this file stays current.
   dependencies or leftovers from other tooling. Re-run the scan against a
   clean environment built only from `utility/requirements.txt` if you need
   an exact minimal list.
+
+## Data bundled in the browser processing engine
+
+`static/js/processing/canon-colordata.js` contains two tables extracted from
+[LibRaw](https://www.libraw.org/) (copyright LibRaw LLC; it builds on dcraw by
+Dave Coffin), which is distributed under your choice of the GNU Lesser General
+Public License 2.1 or the Common Development and Distribution License 1.0:
+
+- the Canon EOS rows of `adobe_coeff` in `src/tables/colordata.cpp`: each
+  model's black and white levels and its camera-from-XYZ colour matrix. LibRaw
+  notes that these matrices come from Adobe DNG Converter.
+- the `canon[][11]` sensor-size table in `src/metadata/identify.cpp`: each
+  sensor's margins (where the visible image and the masked black columns are).
+
+Only these numbers are copied, not LibRaw's code; the CR2 reader in
+`static/js/processing/cr2.js` was written for this project, following the
+published structure of the format. The tables are regenerated with
+`tests/processing/tools/extract_canon.mjs` (see `tests/processing/README.md`);
+if they are updated, keep this notice. The LGPL 2.1 and CDDL 1.0 texts are at
+<https://github.com/LibRaw/LibRaw/blob/master/LICENSE.LGPL> and
+<https://github.com/LibRaw/LibRaw/blob/master/LICENSE.CDDL>.
+
+The engine's tests compare against the CC0 sample
+`Canon/EOS 5D Mark II/08.canon.raw.cr2` from <https://raw.pixls.us/> (not
+included in the repository).

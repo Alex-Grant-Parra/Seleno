@@ -550,7 +550,8 @@ def album_photo(filename):
     path = _safe_photo_path(filename)
     if not path:
         abort(404)
-    return send_file(path)
+    # Ranges: the browser reads SER videos (and big files) a piece at a time
+    return send_file(path, conditional=True)
 
 @album_bp.route("/album/download", methods=["POST"])
 @login_required

@@ -136,7 +136,7 @@
     check('stackFlatsOffered', frameRows.includes('3 from'), frameRows);
     check('stackEstimate', txt('stackEstimate').startsWith('About'), txt('stackEstimate'));
     check('stackSource', txt('stackSource').includes('JPEGs'), txt('stackSource'));
-    check('stackWaitsForEngine', $q('#btnStackStart').disabled && txt('stackFootNote').includes("isn't built yet"), txt('stackFootNote'));
+    check('stackReady', !$q('#btnStackStart').disabled && txt('stackFootNote').includes('closing the tab'), txt('stackFootNote'));
     await shot('stack-basic');
     Seleno.setMode('advanced');
     await sleep(200);
@@ -155,7 +155,7 @@
     check('editorHash', location.hash.startsWith('#edit='), location.hash);
     check('editorInfo', txt('editorInfo').includes('4 darks'), txt('editorInfo'));
     check('editorReport', txt('editorReport').includes('Left out'), txt('editorReport').slice(0, 100));
-    check('editorWaits', $q('#editorControls').disabled && visible($q('#editorEngineNote')), txt('editorEngineNote'));
+    check('editorLive', await until(() => $q('#editorCanvas') && $q('#editorCanvas').width > 0 && !$q('#editorControls').disabled, 10000), txt('editorSaveStatus'));
     check('editorSliders', $q('[data-param="stretch.target"]').value === '0.2', $q('[data-param="stretch.target"]').value);
     await shot('editor');
     $q('#btnSaveJpegToAlbum').click();

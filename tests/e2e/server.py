@@ -110,7 +110,8 @@ def build_fixtures():
             fwhm = 5.0          # blurred (wind, or focus slipped)
         if i == 8:
             ecc = 0.75          # trailed
-        field = fixtures.star_field(900, 600, seed=100 + i, fwhm=fwhm, ecc=ecc, stars=stars)
+        field = fixtures.star_field(900, 600, seed=100 + i, fwhm=fwhm, ecc=ecc, stars=stars, field=100,
+                                    shift=(3.0 * (i % 4) - 4.5, 3.0 * (i // 4) - 3.0))
         name = f"IMG_{401 + i:04d}.JPG"
         captured = NIGHT_UTC + timedelta(minutes=i)
         add_photo(owner.id, scope, name, fixtures.jpeg_bytes(fixtures.to_srgb8(field), exif={272: "Canon EOS 5D Mark II", 270: "M42"}),
@@ -148,6 +149,11 @@ def build_fixtures():
     with open(os.path.join(folder, "IMG_0900.CR2"), "wb") as f:
         f.write(fixtures.fake_raw(fixtures.jpeg_bytes(fixtures.to_srgb8(fixtures.star_field(600, 400, seed=9)))))
     shutil.copy(fixtures.small_video(os.path.join(DATA, "jupiter.mp4")), os.path.join(folder, "jupiter.mp4"))
+    fixtures.ser_planet(os.path.join(folder, "saturn.ser"))
+    # A real Canon CR2 for the browser's RAW reader, when one is given (E2E_CR2: the CC0
+    # 5D Mark II sample from raw.pixls.us; it's 27 MB, so it isn't in the repo)
+    if os.environ.get("E2E_CR2") and os.path.isfile(os.environ["E2E_CR2"]):
+        shutil.copy(os.environ["E2E_CR2"], os.path.join(folder, "IMG_5000.CR2"))
 
     # The browser measures quality; here the numbers are put in as if it had
     from app.album_index import refresh_index

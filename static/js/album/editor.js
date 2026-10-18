@@ -128,6 +128,7 @@ function changed(record = true) {
     syncControls();
     if (session) session.render(params);
     clearTimeout(saveTimer);
+    if (stack.photo) return;          // a single photo: nothing saved on the server until exported
     saveTimer = setTimeout(() => {
         updateStack(stack.id, { edit: params }).catch(error => { $('editorSaveStatus').textContent = `Couldn't save the settings: ${error.message}`; });
     }, 1500);
@@ -265,11 +266,12 @@ function wire() {
     $('btnExportPng').addEventListener('click', () => exportAs('png'));
     document.querySelectorAll('#editorZoomSeg button').forEach(btn => btn.addEventListener('click', () => {
         document.querySelectorAll('#editorZoomSeg button').forEach(b => b.classList.toggle('on', b === btn));
-        const img = $('editorImg');
         const stage = $('editorStage');
         const actual = btn.dataset.zoom === '100';
-        img.style.maxWidth = actual ? 'none' : '';
-        img.style.maxHeight = actual ? 'none' : '';
+        [$('editorImg'), $('editorCanvas')].filter(Boolean).forEach(node => {
+            node.style.maxWidth = actual ? 'none' : '';
+            node.style.maxHeight = actual ? 'none' : '';
+        });
         stage.style.overflow = actual ? 'auto' : 'hidden';
         stage.style.alignItems = actual ? 'flex-start' : 'center';
         stage.style.justifyContent = actual ? 'flex-start' : 'center';
@@ -280,6 +282,7 @@ function wire() {
         session.compare(btn.dataset.compare);
     }));
     $('showBgModel').addEventListener('change', (e) => { if (session && session.showBackground) session.showBackground(e.target.checked); });
+    $('editorStage').addEventListener('develop-error', (e) => { $('editorSaveStatus').textContent = `Couldn't render: ${e.detail && e.detail.message}`; });
     document.addEventListener('keydown', (e) => {
         if ($('viewEditor').hidden || !(e.ctrlKey || e.metaKey) || e.target.closest('input, textarea')) return;
         if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); $('btnUndo').click(); }
@@ -309,20 +312,66 @@ export async function openEditor(stackId) {
     $('editorSaveStatus').textContent = '';
 
     const note = $('editorEngineNote');
-    if (engine.available && stack.linear) {
-        session = await engine.develop(stack, $('editorStage'));
-        img.classList.add('ws-hidden');
-        session.render(params);
+    if (engine.available && (stack.linear || stack.kind === 'planetary')) {
+        try {
+            session = await engine.develop(stack, $('editorStage'));
+            img.classList.add('ws-hidden');
+            session.render(params);
+        } catch (error) {
+            session = null;
+            $('editorSaveStatus').textContent = `Showing the automatic result: ${error.message}`;
+        }
     }
+    finishOpening(note, img);
+}
+
+function finishOpening(note, img) {
     const live = !!session;
     $('editorControls').disabled = !live;
     $('btnEditAuto').disabled = !live;
     $('btnEditReset').disabled = !live;
     document.querySelectorAll('#compareSeg button').forEach(b => { b.disabled = !live; });
     note.classList.toggle('ws-hidden', live);
-    note.textContent = stack.linear
-        ? `Showing the automatic result. Adjusting it needs the in-browser processing, which isn't built yet; saving and downloading work now.`
-        : 'Showing the result as it was saved.';
+    note.textContent = engine.available ? 'Showing the result as it was saved.' : `Showing the automatic result. Adjusting it needs the in-browser processing: ${engine.reason} Saving and downloading work.`;
     img.classList.toggle('ws-hidden', live);
     syncControls();
+}
+
+// Edit one photo: decoded (RAW: debayered and coloured, linear) and developed in this tab
+export async function openPhotoEditor(frame) {
+    wire();
+    if (session) {
+        session.close();
+        session = null;
+    }
+    const useRaw = !!frame.raw_url && /\.cr2$/i.test(frame.raw || '') || frame.kind === 'raw';
+    stack = {
+        photo: true, id: null, name: frame.name.replace(/\.[^.]+$/, ''), target: frame.target || null,
+        kind: 'single', linear: true, report: null, settings: {}, created_at: frame.captured_at
+    };
+    params = autoParams();
+    params.background.enabled = false;
+    history = [];
+    future = [];
+    $('editorName').textContent = frame.name;
+    $('editorInfo').textContent = `${useRaw ? 'RAW' : 'JPEG'}${frame.width ? ` · ${frame.width} × ${frame.height}` : ''}`;
+    const img = $('editorImg');
+    img.src = frame.preview || frame.url;
+    img.alt = frame.name;
+    renderReport({ report: {}, settings: {} });
+    $('editorReport').classList.add('ws-hidden');
+    $('btnDownloadMaster').classList.add('ws-hidden');
+    $('btnDownloadAuto').href = `${frame.url}`;
+    $('editorSaveStatus').textContent = 'Opening the photo…';
+    const entry = { name: frame.name, url: useRaw ? frame.raw_url || frame.url : frame.url, kind: useRaw ? 'raw' : 'jpeg', jpeg_url: frame.kind === 'jpeg' ? frame.url : null };
+    try {
+        session = await engine.develop({ entry }, $('editorStage'));
+        img.classList.add('ws-hidden');
+        session.render(params);
+        $('editorSaveStatus').textContent = '';
+    } catch (error) {
+        session = null;
+        $('editorSaveStatus').textContent = `Couldn't open it for editing: ${error.message}`;
+    }
+    finishOpening($('editorEngineNote'), img);
 }

@@ -1,75 +1,133 @@
-# Handoff: interface and album redesign (updated 18 Oct 2026, second session)
+# Handoff: interface and album redesign (updated 18 Oct 2026, third session)
 
 ## Read this first
 
-- **The pages are rebuilt, the in-browser processing engine is not.** The interface page
-  (Basic and Advanced) and the album (library, inspector, viewer and blink, quality chart,
-  flags and types, stack dialog, saved stacks, editor, activity) are done, tested end to end
-  in headless Chrome, and match the mockups. Everything that needs pixels processed in the
-  browser (decoding RAWs, measuring stars, aligning, stacking, developing) waits on the
-  **JS processing engine**, which Alex asked to leave for a later session. The pages call
-  it through one hook, `static/js/album/engine.js`; see "Next: the engine" below.
+- **The in-browser processing engine is built** (`static/js/processing/`, third session)
+  and wired into the album: measuring quality, stacking (with calibration, quality
+  rejection and three combine modes), multi-night projects with resumable rebuilds,
+  lucky imaging (videos, SER, photo bursts), and the live editor with full-size export.
+  Tested in Node against the Python reference and end to end in headless Chrome. See
+  "The engine" below.
+- **Not committed.** The pages and APIs from the first two sessions are committed
+  (`184e321`, `a2e5004`); everything from the third session is in the working tree.
+- **On the live server's next restart:** one new table, `projects`. Nothing else
+  migrates; no new Python packages. Album photos are now served with range support
+  (`send_file(..., conditional=True)`), which SER reading needs.
+- **Waiting on Alex:** item 9 of the engine brief (per-frame measurement on the Pi, sent
+  in the upload metadata) is not in `docs/client-requests-v0.9.md`; Alex asked to be
+  asked first.
 - **Mockups:** <https://claude.ai/artifact/ECb8nkLLfTNahpRazeQ24c> (source in
-  `scratch-backup/mockups/project/`). Alex approved them.
-- **Stacking runs in the browser, in JS**, not on the server (Alex's decision; the VPS can't
-  stack for every user). `app/processing/` (Python) is the tested reference to port.
-- **Nothing from this session is committed.** The v0.8 server work from the session before
-  is committed (`38cd426 match clientside`).
-- **For the Pi team:** `docs/client-requests-v0.9.md`. The server is already ready for every
-  item in it.
+  `scratch-backup/mockups/project/`).
 - `HANDOFF.docx` in this folder is the first session's version; this file replaces it.
 
 ## What Alex asked for
 
 > Completely redo the album and interface pages, with a focus on taking proper, accurate astrophotography photos. The interface should be about getting the data; the album about processing and viewing it, including stacking. Have a basic and an advanced mode, chosen with a toggle in the top right. Keep most of the existing features; feel free to add more. If anything should be added to the telescope nodes (the Pi clients), write it up in a file so it can be passed on, and be clear about what's wanted.
 
-## Repo state (all uncommitted)
+## The engine (third session)
 
-New:
+Everything runs in the user's browser tab, in Web Workers; the server only stores and
+serves. Closing the tab (or the computer sleeping) stops a job; the stack dialog, the
+lucky imaging dialog and the Activity tab say so, and the page warns before closing
+while something runs. `app/processing/` (Python) stays as the tested reference.
 
-| Path | What |
+### Modules (`static/js/processing/`, ES modules)
+
+| File | What |
 |---|---|
-| `app/sky.py` | Low-precision Sun and Moon, twilight, night window, target altitude, transit, hours above 30°, verdicts. Checked against the site's planetary model (within 0.4°, all precession) and London twilight tables (minutes). |
-| `app/album_index.py` | Indexes every file in `camera_photos/<uid>/` into `frame_meta` (EXIF cached, re-read only when a file changes); pairs JPEG and RAW by name or upload `pair_id`; a small TIFF reader for RAW EXIF and the embedded preview (skipping the lossless-JPEG sensor data); cached thumbnails in `.thumbs/` (Pillow `draft`, about 65 ms for a 21 MP JPEG; ffmpeg for videos). |
-| `models/album.py` | `frame_meta` (per-file index, user flags/type/rating, target and notes, browser-measured metrics), `stacks` (saved results), `featured_targets` (Basic mode's suggestions, seeded at startup, coordinates from the catalogue). |
-| `controllers/album_api.py` | `GET /album/api/library`, `GET /album/thumb/<f>?size=sm\|md`, `POST /album/api/frames` (flag, rating, type, target, notes; JPEGs keep target and notes in EXIF as before), `POST /album/api/metrics`, `POST /album/api/request_raws`, stacks (`POST /album/api/stacks`, `PUT .../file/<name>`, chunked `PUT .../master?offset=`, `POST .../finish`, `GET/PATCH/DELETE /album/api/stacks/<id>`, `GET /album/stacks/<id>/<file>` with ranges), `POST /album/api/save_image`. |
-| `controllers/interface_api.py` | `GET /interface/api/sky` (Sun, twilight, Moon, target), `GET /interface/api/targets` (featured targets ranked for tonight), `GET /interface/api/latest_captures`. Site from the telescope row, then the latest status, then uploads; rounded to ~1 km. |
-| `static/workspace.css`, `static/js/workspace.js` | Shared full-width layout, components (`ws-`), the Basic/Advanced toggle (`localStorage['seleno_mode']`, `data-ui-mode` on `<html>` and `<body>`, `.basic-only`/`.adv-only`), helpers (`Seleno.api`, `fmt`, `toast`, `sparkline`, RA/Dec parsing). |
-| `static/js/interface-guide.js` | Basic mode: the four steps, target picker, exposure presets, test shot with plain checks (the wording of `analysis.checks`), one-card capture plan with estimate against the booking and the target's altitude, tonight's strip. |
-| `static/js/focus-meter.js` | Live star size (HFR) from the live-view canvas: a small estimator for focusing, separate from the engine. |
-| `static/js/album/*.js` | The album as ES modules: `main.js` (library, groups, grid/table, inspector, bulk actions, views), `quality.js` (grouping, quality judgement, chart), `viewer.js`, `stack-dialog.js`, `stacks.js` (saved stacks, the chunked uploader), `editor.js`, `jobs.js` (Activity), `engine.js` (the hook). |
-| `tests/` | The harness and the previous session's tests moved here, new API tests, and `tests/e2e/` (stub server with synthetic star fields and a fake telescope streaming an H.264 focus sweep; Chrome runner; scenarios). See `tests/README.md`. |
-| `docs/client-requests-v0.9.md` | The Pi write-up. |
+| `cr2.js`, `canon-colordata.js` | Canon CR2 reader: TIFF IFDs, lossless JPEG (SOF3) with Canon's slices, the visible area from LibRaw's Canon size table (SensorInfo as a fallback), black from the masked columns, white and matrix from LibRaw's table, daylight WB from the matrix, as-shot WB from ColorData. Bit-exact with rawpy on the CC0 5D Mark II sample. |
+| `decode.js` | File to frame: CR2 (others fall back to their JPEG), JPEG through `createImageBitmap` without colour conversion, sRGB to linear. |
+| `image.js`, `stars.js`, `register.js`, `integrate.js`, `develop.js`, `calibrate.js`, `colour.js` | Ports of `frames.py`, `stars.py`, `register.py`, `integrate.py`, `develop.py` and stack.py's calibration, matching Python on the oracle data. |
+| `warp.js`, `half.js`, `fits.js`, `tiff.js` | Keys bicubic (a = -0.5, weights from a 1/1024 px table) or bilinear warping, NaN outside; float16; FITS (bottom-up, strip-wise); 16-bit TIFF. |
+| `frame-ops.js`, `tasks.js`, `worker.js`, `pool.js` | Per-frame steps; the tasks a worker runs; the worker; the pool (sized from `hardwareConcurrency` and `deviceMemory`, about 500 MB a worker at full size), plus an inline pool for Node. ArrayBuffers move by transfer. |
+| `store.js`, `fetch-cache.js` | OPFS job folders (sync access handles in workers, `getFile().slice()` to read, stale folders cleaned after a day) or memory; RAWs kept in Cache Storage between re-stacks (8 GB cap, oldest out). |
+| `combine.js` | The swappable combine stage: `memory` (aligned float16 frames in the tab), `disk` (in OPFS), `stream` (running weighted sums, values checked against rejection limits from a reference stack of the first 24 frames; fixed memory, split into row shards across workers). `chooseMode()` picks from frame count and size against memory and storage. `ResultSink` writes `master.fits` strip by strip, the preview, coverage and the common-area crop. |
+| `stack.js` | The pipeline (`stack.run`): masters, measuring pass (calibrated frames cached in OPFS for the second pass when there's room), reference and quality rejection (plus `keep_best`), alignment, warp pass, combine, outputs and report. Also a night of a project (`ctx.project`). |
+| `lucky.js`, `lucky-tasks.js`, `ser.js` | Lucky imaging in one pass: frames scored and cropped in workers, only the best crops kept, phase-correlated to the sharpest and averaged. Sources: `<video>` with `requestVideoFrameCallback` (seek stepping without it), SER by range requests, photo bursts. |
+| `projects.js`, `client.js`, `session.js`, `develop-tasks.js` | Project totals to and from the server; the engine as the album calls it; the editor's session (live render, before/after/split, background model, export JPEG/PNG/TIFF at full size from the master by range requests). |
 
-Changed: `templates/interface.html` and `static/js/interface.js` (rewritten; every old
-control kept; the plan builder's IDs and globals kept), `templates/album.html` (rewritten;
-all old routes kept), `controllers/album.py` (zips spool to a temp file instead of RAM,
-store already-compressed files, accept a form post; deleting clears index rows and
-thumbnails), `controllers/interface.py` (`telescope_status` returns the booking window;
-`take_photo` takes `frame_type`; live-view options `jpeg_quality`, `max_fps`),
-`app/telescopeLink.py` (`has_capability`, `upload_pending` filters, `capture_photo`
-`frame_type`), `app/WebsocketServer.py` (status keeps `site`, `solve`, `capabilities`),
-`models/photo.py` (`meta_json`, added by `ensure_photo_columns()` at startup),
-`controllers/telescope_uploads.py` (stores the full meta, accepts `test`, `darkflat`,
-`.ser`), `app/capture_plans.py` (`dither_settle_s`), `Server.py` (startup hooks).
+### Album wiring
 
-**On the live server's next restart:** three new tables (`frame_meta`, `stacks`,
-`featured_targets`), one new column (`photos.meta_json`), and 30 featured targets seeded.
-Nothing else migrates. No new Python packages.
+`static/js/album/engine.js` exposes `measure`, `stack`, `rebuildProject` and `develop`.
+**Measure quality** (bulk bar) and the stacker's own measurements post to
+`/album/api/metrics`. The **stack dialog** gained "Add to a project" (Advanced), a quick
+JPEG mode when every light has a JPEG, and half size by default in Basic on weak
+machines. **Edit this photo** opens the editor on one frame. **Lucky imaging** appears
+for videos (inspector) and photo bursts (bulk bar). Stacked images has a **Projects**
+card (open the result, re-stack from scratch or carry on, abandon, delete).
 
-### Tests (all passing)
+### Projects (multi-night)
 
-- `cd tests && ../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api`: 56 tests, about 10 s.
-- `tests/e2e/run.py` (interface, album; also `--dark` and `--width=390 narrow narrow_album`):
-  both scenarios pass with no page or console errors, light and dark. The interface run
-  covers live H.264 decoding, the focus meter over the sweep (HFR 1.9 to 3.2 px and the
-  advice), a test shot the fake telescope uploads, starting a plan, every Advanced panel,
-  and the plan builder. The album run covers grouping, quality reasons, notes following the
-  right photo, flags, the viewer, stretch and blink, the chart and limits, sorting and type
-  filters, setting types, the stack dialog's calibration matching, the editor, saving to the
-  album, and a 40 MB stack through the real chunked uploader.
+`models/album.py` `Project`, `controllers/projects_api.py`. The totals (`sum.fits`,
+`wsum.fits`, `coverage.fits`, `limits.fits`: 13 float32 planes, about 1.1 GB at full size,
+a quarter at half size) are uploaded in resumable chunks to `staging/`, then a commit
+renames them into `current/` (a night) or `rebuild/` (a checkpoint), so a broken upload
+never replaces good totals. The project keeps its reference stars, level and spread, so
+every night lines up and normalises the same way; its alignment and combining settings
+are fixed. It remembers every frame it has considered, so a frame left out once isn't
+re-judged and added later. A rebuild goes a night at a time (with that night's
+calibration) and checkpoints after each.
 
-## Decisions this session
+Endpoints: `GET/POST /album/api/projects`, `GET/PATCH/DELETE /album/api/projects/<id>`,
+`PUT /album/api/projects/<id>/upload/<file>?offset=`, `POST .../commit` (mode `night`,
+`checkpoint` or `rebuilt`), `DELETE .../rebuild`, `GET /album/projects/<id>/<current|rebuild>/<file>` (ranges).
+
+### Decisions and departures from the Python reference
+
+- **Alignment is stricter than `register.py`:** a match must account for at least 15%
+  of the comparable stars, not just six. With six, frames of an unrelated dense field
+  "aligned" by chance in testing (5 of 10). Worth porting back to Python if it stays.
+- **Streaming limits are stored as float16**, so a value right on a limit can go either
+  way: fewer than 0.1% of pixels differ from memory mode.
+- **Phase correlation pads to powers of two** (Python transforms at the image size):
+  the shifts agree to about 0.2 px on the test data.
+- **Bicubic is Keys (a = -0.5)**, not scipy's cubic spline; **JPEG luminance** for
+  measuring is Rec. 709 luma of linear values, not PIL's "L".
+- WebGPU, multi-point alignment for lucky imaging, and `keep_masters` are not built.
+  The combine stage and the warp are where a WebGPU backend would go.
+
+### Verification
+
+- Node (`tests/processing/`, about 10 s): 19 tests. Core maths against the Python oracle
+  (stats, background, filters, star positions and sizes to 0.1%, registration including a
+  meridian flip, every integration method with and without weights to 2e-6, debayer,
+  colour matrix, develop); the pipeline on synthetic Bayer frames (all 30 hot pixels
+  fixed, vignetting flattened, blurred frame left out with its reason, trail clipped,
+  noise down with frame count, memory = disk bit for bit, stream within float16 of
+  them); a two-night project equal to one stack (mean difference under 2e-5); lucky
+  imaging choosing exactly the sharp frames.
+- Python: 57 tests pass (`test_projects_api.py` new).
+- Headless Chrome (`tests/e2e/run.py interface album engine`): all pass, no page or
+  console errors. The engine scenario measures (FWHM 2.6-2.7 px against a true 2.7),
+  stacks the fixture night through the dialog in about 5 s (10 of 12 frames, the two
+  soft ones left out with reasons), opens the live editor, re-renders, exports, starts a
+  project and checks a second run skips everything, lucky-images a SER video (keeps
+  exactly the 15 sharp frames of 60), and reads the real CR2 (5634 x 3752).
+- Fixed along the way: the interface scenario clicked the target picker's outer `div`
+  since `a2e5004` (now the button), and the e2e star fields were a different sky in
+  every frame (now one field, dithered).
+
+### Speed and memory (measured on this VPS: one virtualised Haswell core)
+
+Per 21 MP CR2 frame through the whole per-frame pipeline: 7.7 s at full size (decode
+0.8, cosmetic 1.1, measure 1.6, debayer and colour 1.1, bicubic warp 3.2) with a 615 MB
+peak in Node (about 570 MB of it the frame's data, a little over the 500 MB aim), and
+4.6 s at half size (322 MB). Your Ryzen 5 7600 should be roughly two to three times
+faster per core, so about 1 s a frame overall with 5 workers, in line with the brief's
+estimates. That's an extrapolation: measure it there (the stack report has `stats.seconds`
+and the combine mode).
+
+### Next
+
+1. Try a real night of CR2s on Alex's machine and note the timings, memory and any
+   frames that fail; tune `workersFor()` and the strip sizes from that.
+2. Ask Alex about item 9 (Pi-side measurement); add it to `docs/client-requests-v0.9.md` if yes.
+3. WebGPU backend for warp and combine behind the same interface; multi-point alignment
+   for lucky imaging.
+4. Port the stricter match rule back to `register.py`.
+5. List the new endpoints in `templates/routes.txt` and `docs/wiki/Key-Endpoints.md`.
+
+## Decisions from the second session
 
 - **RAW in the browser: our own CR2 reader, not `libraw-wasm`.** Every `libraw-wasm` build
   (1.1.2 to 1.6.0) is a threaded Emscripten build: it needs `SharedArrayBuffer`, so the album
@@ -93,45 +151,6 @@ Nothing else migrates. No new Python packages.
   for data in `Data.db`; only the designations and blurbs are seeded from code.
 - **New client features are negotiated:** the Pi lists `capabilities` in its status; the
   server sends new arguments only to clients that list them, so v0.8 Pis keep working.
-
-## Next: the engine (static/js/processing/, ES modules, run in Web Workers)
-
-The pages are wired to `static/js/album/engine.js`; set `engine.available = true` and
-provide the three calls documented there (`measure`, `stack`, `develop`). What calls them:
-
-- **Measure quality** (album bulk bar): `engine.measure(frames)` → `POST /album/api/metrics`
-  (keys already accepted server-side). The quality chart, dots, reasons, limits and the
-  interface's test-shot checks (`metrics` in `latest_captures`) light up from those numbers.
-- **Start stacking** (stack dialog): `engine.stack(spec)` with the spec `stack-dialog.js`
-  builds (frames by type, with `url` pointing at the RAW when stacking RAW, and the settings
-  of `stack.py`'s `DEFAULT_SETTINGS` plus `flat_per_channel` and `keep_best`). The result goes
-  to `stacks.saveStackResult` (tested) and shows under Stacked images.
-- **Editor**: `engine.develop(stack, stageElement)` returns a session that renders
-  `develop.py`'s params (already modelled in `editor.js`) and exports JPEG/PNG/TIFF.
-- **Edit this photo** and Basic's single-photo edit: same session on one frame.
-
-Suggested modules: `cr2.js` (+ the Canon table), `jpeg.js` (createImageBitmap/OffscreenCanvas,
-sRGB→linear LUT), `fits.js`, `half.js` (float16), `image.js` (robust stats by quickselect,
-background map, separable blurs, debayer), `stars.js`, `register.js` (triangles, RANSAC,
-2-D similarity in closed form, affine, phase correlation), `integrate.js`, `calibrate.js`,
-`develop.js`, `stack.js` (pipeline over OPFS), `worker.js`, `client.js`. Test the maths in
-Node against `app/processing` on the synthetic data from `scratch-backup/proc/synth.py`.
-
-Notes for the port:
-
-- **Combining in JS:** per pixel, sort the N values (insertion sort under ~32, else a
-  shell or quick sort), then apply `integrate.py`'s rule on index ranges: identical results,
-  about 400 operations a pixel for N = 40. Split strips across 2–4 workers.
-- **Storage:** OPFS with sync access handles in workers for writing aligned float16
-  frames (one file per frame); read strips back with `File.slice().arrayBuffer()` (no
-  exclusive lock). Cache each downloaded RAW (or its calibrated mosaic) in OPFS between
-  the measuring and warping passes. Fall back to memory (super-pixel only) without OPFS.
-- **Warping:** Keys cubic (a = −0.5) or bilinear; `scale_transform(m, 2, 0.5)` from the
-  half-size star coordinates, as in `stack.py`.
-- **Default to super-pixel (half size) in Basic** on machines with
-  `navigator.deviceMemory < 8`; the Basic dialog has the checkbox already.
-- **Lucky imaging:** SER videos are easy to read in JS (item 9 of the Pi write-up); MP4 needs
-  WebCodecs plus a demuxer, or `<video>` frame grabbing.
 
 ## Smaller follow-ups
 

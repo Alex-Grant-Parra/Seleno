@@ -134,6 +134,64 @@ class StackResult(db.Model):
         return out
 
 
+class Project(db.Model):
+    """A long integration built up over many nights. The browser keeps running totals
+    (weighted sums, weights, coverage and the rejection limits) and the server stores
+    them as FITS in camera_photos/<owner_id>/.projects/<id>/: the committed
+    generation in current/, an upload in progress in staging/, and a from-scratch
+    rebuild's checkpoint in rebuild/ (so it can resume)."""
+    __tablename__ = 'projects'
+
+    id = db.Column(db.String(32), primary_key=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    name = db.Column(db.String(255), nullable=False)
+    target = db.Column(db.String(255), nullable=True)
+    source = db.Column(db.String(8), nullable=False, default='raw')        # raw|jpeg
+    width = db.Column(db.Integer, nullable=True)
+    height = db.Column(db.Integer, nullable=True)
+    settings_json = db.Column(db.Text, nullable=True)       # fixed for the project's life
+    reference_json = db.Column(db.Text, nullable=True)      # reference frame: name, stars, level and spread
+    frames_json = db.Column(db.Text, nullable=True)         # names of the frames in the totals
+    seen_json = db.Column(db.Text, nullable=True)           # every frame considered (in, or left out), never re-judged
+    nights_json = db.Column(db.Text, nullable=True)         # [{night, frames, exposure_s, added_at}]
+    frames_total = db.Column(db.Integer, nullable=False, default=0)
+    exposure_total_s = db.Column(db.Float, nullable=False, default=0.0)
+    generation = db.Column(db.Integer, nullable=False, default=0)          # 0: no totals yet
+    rebuild_json = db.Column(db.Text, nullable=True)        # {done: [names], total, settings} while rebuilding
+    stack_id = db.Column(db.String(32), nullable=True)      # the latest result, saved as a stack
+    bytes_total = db.Column(db.BigInteger, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self, full=False):
+        base = f"/album/projects/{self.id}"
+        out = {
+            'id': self.id,
+            'name': self.name,
+            'target': self.target,
+            'source': self.source,
+            'width': self.width,
+            'height': self.height,
+            'frames_total': self.frames_total,
+            'exposure_total_s': self.exposure_total_s,
+            'generation': self.generation,
+            'nights': _loads(self.nights_json, []),
+            'rebuilding': _loads(self.rebuild_json),
+            'stack_id': self.stack_id,
+            'bytes_total': self.bytes_total,
+            'files_url': f"{base}/current",
+            'rebuild_url': f"{base}/rebuild",
+            'created_at': _iso(self.created_at),
+            'updated_at': _iso(self.updated_at),
+        }
+        out['settings'] = _loads(self.settings_json, {})
+        if full:
+            out.update(reference=_loads(self.reference_json), frames=_loads(self.frames_json, []),
+                       seen=_loads(self.seen_json, []))
+        return out
+
+
 class FeaturedTarget(db.Model):
     """Objects Basic mode offers as targets, with what kind of exposure suits them.
     Coordinates come from the catalogue (or, for the Moon and planets, are worked out

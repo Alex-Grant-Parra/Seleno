@@ -144,6 +144,7 @@
                     </div>
                     <div class="ws-actions" style="margin-top:12px">
                         <button class="ws-btn" type="button" id="btnEditPhoto">Edit this photo</button>
+                        <button class="ws-btn primary ws-hidden" type="button" id="btnLucky" title="Stack the sharpest frames of a planet or Moon video">Lucky imaging</button>
                         <button class="ws-btn" type="button" id="btnViewFull">View full size</button>
                         <button class="ws-btn" type="button" id="btnBlink" title="Flick through the selected photos, or this night's lights">Blink</button>
                         <button class="ws-btn" type="button" id="btnDownloadOne">Download</button>
@@ -192,6 +193,7 @@
             <select class="ws-select" id="bulkType" style="padding:4px 6px"></select>
             <button class="ws-btn sm" type="button" id="btnBulkAccept">Accept</button>
             <button class="ws-btn sm" type="button" id="btnBulkMeasure">Measure quality</button>
+            <button class="ws-btn sm" type="button" id="btnBulkLucky" title="Stack the sharpest of a burst of Moon or planet photos">Lucky imaging</button>
             <button class="ws-btn sm" type="button" id="btnBulkRaws">Ask the telescope for RAWs</button>
         </div>
         <button class="ws-btn sm" type="button" id="btnBulkReject"><span class="basic-only">Mark as bad</span><span class="adv-only">Reject</span></button>
@@ -209,6 +211,11 @@
             <p class="ws-small ws-muted" style="margin:0">Stacks you've made, with their linear masters for editing again. Open one to edit it, or download the master to work on it in other software.</p>
         </div>
         <div class="ws-stack-cards" id="stackCards"></div>
+        <div class="ws-card adv-only" id="projectsCard">
+            <h3>Projects</h3>
+            <p class="ws-small ws-muted" style="margin:0 0 8px">Long integrations built up night by night. Each night's frames are added to running totals kept on the server, so a project can grow to hundreds of hours. Choose a project in the stack dialog to add to it.</p>
+            <div id="projectList"><div class="ws-empty">No projects yet.</div></div>
+        </div>
     </div>
 </section>
 
@@ -374,6 +381,13 @@
                     </div>
                     <label class="ws-tick"><input type="checkbox" id="stackHalfSize"> Half size (faster, and kinder to slower computers)</label>
                 </div>
+                <div class="ws-group" style="grid-column:1/-1" id="stackWhere">
+                    <label class="ws-tick ws-hidden" id="stackQuickJpegRow"><input type="checkbox" id="stackQuickJpeg"> Quick: stack the JPEGs instead of the RAWs (nothing big to download; calibration is only approximate)</label>
+                    <label class="ws-field adv-only" for="stackProject">Add to a project (a long integration over many nights)
+                        <select class="ws-select" id="stackProject"><option value="">No, a stack on its own</option><option value="new">A new project, named as above</option></select>
+                    </label>
+                    <div class="ws-small ws-muted adv-only ws-hidden" id="stackProjectNote"></div>
+                </div>
                 <div class="ws-group adv-only">
                     <h3>Calibration</h3>
                     <label class="ws-field">Combine calibration frames<select class="ws-select" data-setting="calibration_method"></select></label>
@@ -419,6 +433,27 @@
     </div>
 </dialog>
 
+<!-- Lucky imaging -->
+<dialog class="ws-dialog narrow" id="luckyDialog" aria-labelledby="luckyTitle">
+    <div class="ws-dialog-head">
+        <h2 id="luckyTitle">Lucky imaging</h2>
+        <button class="ws-btn" type="button" data-close>Close</button>
+    </div>
+    <div class="ws-dialog-body">
+        <p class="ws-small ws-muted" style="margin-top:0" id="luckySource"></p>
+        <label class="ws-field" for="luckyName">Name<input class="ws-input" id="luckyName"></label>
+        <label class="ws-field" for="luckyKeep">Keep the sharpest <output id="luckyKeepOut">25%</output>
+            <input type="range" id="luckyKeep" min="5" max="75" step="5" value="25">
+        </label>
+        <label class="ws-field adv-only" for="luckyRoi">Area<select class="ws-select" id="luckyRoi"><option value="auto">Around the planet (found automatically)</option><option value="full">The whole frame (the Moon)</option></select></label>
+        <p class="ws-small ws-muted">Runs in this browser tab. For a video, keep the tab in view: browsers stop playing video in hidden tabs.</p>
+    </div>
+    <div class="ws-dialog-foot">
+        <span class="ws-spacer"></span>
+        <button class="ws-btn primary" type="button" id="btnLuckyStart">Start</button>
+    </div>
+</dialog>
+
 <!-- Choosing frames for one row of the stack dialog -->
 <dialog class="ws-dialog narrow" id="altDialog" aria-labelledby="altTitle">
     <div class="ws-dialog-head"><h2 id="altTitle">Choose frames</h2><button class="ws-btn" type="button" data-close>Close</button></div>
@@ -450,5 +485,5 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/workspace.js') }}?v=20261018-ws"></script>
 <script src="{{ url_for('static', filename='js/histogram.js') }}?v=20261018-ws"></script>
-<script type="module" src="{{ url_for('static', filename='js/album/main.js') }}?v=20261018-ws"></script>
+<script type="module" src="{{ url_for('static', filename='js/album/main.js') }}?v=20261018-engine"></script>
 {% endblock %}

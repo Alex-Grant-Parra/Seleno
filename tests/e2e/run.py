@@ -5,7 +5,9 @@
 Each scenario is a script in this folder (scenario_<name>.js) that drives a page and
 returns {checks: {...}, failures: [...]}. A scenario calls `await shot('name')` to
 save a screenshot to E2E_OUT (default tests/e2e/out); --dark runs in the dark theme.
-Exits non-zero on any failure or page error. Takes about a minute."""
+Exits non-zero on any failure or page error. Takes about a minute; the engine
+scenario (real stacking in the browser) takes a few more. E2E_CR2=<a Canon CR2> adds
+a real RAW for it to read."""
 import asyncio
 import base64
 import json
@@ -29,7 +31,9 @@ SCENARIOS = {
     "album": "/e2e-login?next=/album",
     "narrow": "/e2e-login?next=/interface/",
     "narrow_album": "/e2e-login?next=/album",
+    "engine": "/e2e-login?next=/album",
 }
+TIMEOUTS = {"engine": 480}
 WIDTH = 1500
 
 PRELUDE = r"""
@@ -123,7 +127,7 @@ async def run_scenario(page, name, base_url):
     await asyncio.wait_for(page.loaded.wait(), 30)
     await page.evaluate(PRELUDE)
     script = open(os.path.join(HERE, f"scenario_{name}.js")).read()
-    task = asyncio.ensure_future(page.evaluate(script, timeout=240))
+    task = asyncio.ensure_future(page.evaluate(script, timeout=TIMEOUTS.get(name, 240)))
     shots = []
     while not task.done():
         try:

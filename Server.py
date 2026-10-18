@@ -359,7 +359,7 @@ from models.client_release import ClientReleaseSubmission  # Import to register 
 from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import to register SumUp payment tables
 from models.photo import Photo, TelescopeUpload  # Import to register photo and resumable upload tables
 from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
-from models.album import FrameMeta, StackResult, FeaturedTarget  # Import to register album index, stacks and featured targets
+from models.album import FrameMeta, StackResult, FeaturedTarget, Project  # Import to register album index, stacks, featured targets and projects
 
 @login_manager.user_loader
 def load_user(user_id):

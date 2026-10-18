@@ -8,8 +8,10 @@ import * as Q from './quality.js';
 import { openViewer } from './viewer.js';
 import { openStackDialog } from './stack-dialog.js';
 import { loadStacks, renderStackCards, deleteStack, updateStack } from './stacks.js';
-import { onJobsChange, renderJobs, runningCount } from './jobs.js';
-import { openEditor } from './editor.js';
+import { onJobsChange, renderJobs, runningCount, startJob } from './jobs.js';
+import { openEditor, openPhotoEditor } from './editor.js';
+import { openLuckyDialog } from './lucky-dialog.js';
+import { renderProjects } from './projects-view.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (...args) => Seleno.el(...args);
@@ -406,7 +408,7 @@ function renderQuality(frames) {
     if (drawn < 2) {
         empty.textContent = lights.length
             ? (engine.available ? 'Select photos and choose Measure quality to chart their star sizes and roundness.'
-                : "Star size, roundness and sky level show here once the photos are measured. Measuring runs in the browser, and that part isn't built yet.")
+                : `Star size, roundness and sky level show here once the photos are measured. ${engine.reason}`)
             : 'No lights in this group.';
     }
     const over = Q.overLimits(frames, limits);
@@ -601,6 +603,7 @@ function renderInspector() {
     const typeSelect = $('inspectorType');
     typeSelect.value = frame.frame_type && Q.SETTABLE_TYPES.includes(frame.frame_type) ? frame.frame_type : '';
     $('btnEditPhoto').classList.toggle('ws-hidden', frame.kind === 'video');
+    $('btnLucky').classList.toggle('ws-hidden', frame.kind !== 'video');
     $('btnEditPhoto').classList.toggle('primary', engine.available);
     $('btnViewFull').disabled = frame.kind === 'video';
 
@@ -747,6 +750,41 @@ async function requestRaws(frames) {
     }
 }
 
+// Star counts, sizes and sky levels for the album, measured in this tab
+async function measureFrames(frames) {
+    if (!requireEngine('Measuring quality')) return;
+    const list = frames.filter(f => f.kind !== 'video');
+    if (!list.length) return;
+    const controller = new AbortController();
+    const job = startJob(`Measuring ${list.length} ${list.length === 1 ? 'photo' : 'photos'}`, { kind: 'measure', controller });
+    try {
+        const out = await engine.measure(list.map(f => ({ name: f.name, url: f.url, raw_url: f.raw_url, kind: f.kind })), {
+            signal: controller.signal,
+            onProgress: ({ fraction, message }) => job.update(fraction, message)
+        });
+        const good = Object.fromEntries(Object.entries(out).filter(([, m]) => m && !m.error));
+        const failed = Object.entries(out).filter(([, m]) => !m || m.error);
+        if (Object.keys(good).length) await Seleno.api('/album/api/metrics', { json: { metrics: good } });
+        job.finish(`${Object.keys(good).length} measured${failed.length ? `, ${failed.length} couldn't be` : ''}`);
+        if (failed.length) Seleno.toast(`Couldn't measure ${failed[0][0]}${failed.length > 1 ? ` and ${failed.length - 1} more` : ''}: ${failed[0][1] && failed[0][1].error}`, 'warn', 7000);
+        await loadLibrary();
+        renderPhotos();
+    } catch (error) {
+        job.fail(error);
+        if (error.name !== 'AbortError') Seleno.toast(`Measuring failed: ${error.message}`, 'bad');
+    }
+}
+
+function luckyFrames(frames) {
+    openLuckyDialog({
+        frames,
+        onSaved: async () => {
+            state.stacks = await loadStacks();
+            setStackCount(state.stacks.filter(s => s.state === 'ready').length);
+        }
+    });
+}
+
 function stackFrames(frames, title) {
     openStackDialog({
         lights: frames,
@@ -782,14 +820,15 @@ async function showView(view, options = {}) {
         tab.setAttribute('aria-selected', on ? 'true' : 'false');
     });
     if (!options.keepHash) {
-        const hash = view === 'photos' ? '' : view === 'editor' ? `#edit=${options.id}` : `#${view}`;
+        const hash = view === 'photos' ? '' : view === 'editor' ? (options.photo ? '' : `#edit=${options.id}`) : `#${view}`;
         if (location.hash !== hash) history.replaceState(null, '', location.pathname + location.search + hash);
     }
     if (view === 'stacks') await refreshStacks();
     if (view === 'activity') renderJobs($('jobList'), $('jobHistory'));
     if (view === 'editor') {
         try {
-            await openEditor(options.id);
+            if (options.photo) await openPhotoEditor(options.photo);
+            else await openEditor(options.id);
         } catch (error) {
             Seleno.toast(`Couldn't open that stack: ${error.message}`, 'bad');
             showView('stacks');
@@ -818,6 +857,11 @@ async function refreshStacks() {
             await updateStack(stack.id, { name });
             refreshStacks();
         }
+    });
+    renderProjects($('projectList'), {
+        library: state.frames,
+        onOpenStack: (id) => showView('editor', { id }),
+        onSaved: () => refreshStacks()
     });
 }
 
@@ -907,7 +951,14 @@ function wire() {
         viewFrames(list, Math.max(0, list.findIndex(f => f.name === state.current)), true);
     });
     $('btnDownloadOne').addEventListener('click', () => postDownload([state.current], state.current));
-    $('btnEditPhoto').addEventListener('click', () => requireEngine('Editing a photo'));
+    $('btnEditPhoto').addEventListener('click', () => {
+        const f = state.byName.get(state.current);
+        if (f && requireEngine('Editing a photo')) showView('editor', { photo: f });
+    });
+    $('btnLucky').addEventListener('click', () => {
+        const f = state.byName.get(state.current);
+        if (f) luckyFrames([f]);
+    });
     $('exifDetails').addEventListener('toggle', loadExif);
 
     // Bulk bar
@@ -920,7 +971,14 @@ function wire() {
     });
     $('btnBulkAccept').addEventListener('click', () => setFlag(selectedFrames(), 'pick'));
     $('btnBulkReject').addEventListener('click', () => setFlag(selectedFrames(), 'reject'));
-    $('btnBulkMeasure').addEventListener('click', () => requireEngine('Measuring quality'));
+    $('btnBulkMeasure').addEventListener('click', () => measureFrames(selectedFrames()));
+    $('btnBulkLucky').addEventListener('click', () => {
+        const list = selectedFrames();
+        const videos = list.filter(f => f.kind === 'video');
+        if (videos.length === 1 && list.length === 1) luckyFrames(videos);
+        else if (list.filter(f => f.kind !== 'video').length >= 2) luckyFrames(list.filter(f => f.kind !== 'video'));
+        else Seleno.toast('Choose one video, or two or more photos of the Moon or a planet.', 'warn');
+    });
     $('btnBulkRaws').addEventListener('click', () => requestRaws(selectedFrames()));
     $('btnBulkDownload').addEventListener('click', () => postDownload([...state.selection], `${state.selection.size} photos`));
     $('btnBulkDelete').addEventListener('click', () => deleteFrames(selectedFrames()));

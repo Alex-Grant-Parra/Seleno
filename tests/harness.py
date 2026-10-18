@@ -42,7 +42,7 @@ from models.tables import Telescope as TelescopeRow
 from models.booking import TelescopeBooking
 from models.photo import Photo, TelescopeUpload
 from models.capture_plan import CapturePlan, SavedCapturePlan
-from models.album import FrameMeta, StackResult, FeaturedTarget
+from models.album import FrameMeta, StackResult, FeaturedTarget, Project
 import models.logging  # noqa: F401  (websocket security log table)
 
 
@@ -67,6 +67,7 @@ import controllers.star_map as star_map_mod
 import controllers.capture as capture_mod
 import controllers.album_api as album_api_mod
 import controllers.interface_api as interface_api_mod
+import controllers.projects_api as projects_api_mod
 
 PHOTOS = os.path.join(TMP, "camera_photos")
 upload_mod.BASE_UPLOAD_FOLDER = PHOTOS
@@ -76,7 +77,7 @@ album_mod.CAMERA_PHOTOS_BASE_DIR = PHOTOS
 
 for bp in (interface_mod.interface_bp, star_map_mod.star_map_bp, album_mod.album_bp,
            capture_mod.capture_bp, tus_mod.telescope_uploads_bp, upload_mod.upload_bp,
-           album_api_mod.album_api_bp, interface_api_mod.interface_api_bp):
+           album_api_mod.album_api_bp, interface_api_mod.interface_api_bp, projects_api_mod.projects_api_bp):
     app.register_blueprint(bp)
 
 from app import WebsocketServer as wss
