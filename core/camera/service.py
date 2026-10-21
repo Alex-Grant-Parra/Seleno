@@ -94,6 +94,7 @@ class CameraService:
 		self.model = ""
 		self.previewing = False
 		self._names: Dict[str, Optional[str]] = {}  # setting -> this camera's name for it
+		self._recent: Dict[str, Tuple[float, Dict[str, Any]]] = {}  # setting -> (when read, value)
 		self._saved_poweroff: Optional[Tuple[str, Any]] = None
 		self._preview_backoff = _Backoff()
 		self._detect_backoff = _Backoff(first=DETECT_IDLE_S, most=10.0)
@@ -204,14 +205,22 @@ class CameraService:
 		self._names[setting] = name
 		return name
 
-	def get_setting(self, setting: str) -> Dict[str, Any]:
+	def get_setting(self, setting: str, max_age_s: float = 0.0) -> Dict[str, Any]:
+		"""A setting's value and choices; max_age_s > 0 takes one read that
+		recently instead (set_setting forgets it)."""
 		self._require()
+		recent = self._recent.get(setting)
+		if max_age_s > 0 and recent and time.monotonic() - recent[0] < max_age_s:
+			return recent[1]
 		name = self.setting_name(setting) or setting
-		return self.call(lambda b: b.get_config(name), exclusive=self.backend.name == "cli")
+		info = self.call(lambda b: b.get_config(name), exclusive=self.backend.name == "cli")
+		self._recent[setting] = (time.monotonic(), info)
+		return info
 
 	def set_setting(self, setting: str, value: Any) -> None:
 		self._require()
 		name = self.setting_name(setting) or setting
+		self._recent.pop(setting, None)
 		self.call(lambda b: b.set_config(name, value), exclusive=self.backend.name == "cli")
 		log.info("Camera %s set to %s", name, value)
 
@@ -219,6 +228,7 @@ class CameraService:
 		"""Take a photo into folder as base.<ext> (two files for RAW +
 		JPEG). Returns the file names."""
 		self._require()
+		self._recent.pop("shutterspeed", None)  # a bulb exposure changes it
 		timeout = 120.0 + (bulb_s or 0.0)
 		names = self.call(lambda b: b.capture(folder, base, bulb_s), exclusive=True, timeout=timeout)
 		self.stats["captures"] += 1
@@ -246,6 +256,7 @@ class CameraService:
 		self.connected = connected
 		if not connected:
 			self._names.clear()
+			self._recent.clear()
 			self.previewing = False
 		log.info("Camera %s%s", "connected: " if connected else "disconnected", self.model if connected else "")
 		for listener in list(self.listeners):

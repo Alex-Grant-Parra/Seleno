@@ -14,7 +14,9 @@ photos stay on the Pi unless a photo owner id is set and they're sent with
 Sequences: a run can be lights, darks, flats or bias frames, with an
 exposure (bulb, in seconds) or the camera's own setting, a pause between
 frames, and dithering (a small random shift of the pointing every few
-frames, so stacking averages out fixed noise).
+frames, so stacking averages out fixed noise), with a settle after each
+dither so the next frame isn't trailed. Flats can find their own exposure
+(exposure_s "auto", utils/flats.py).
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ import shutil
 import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from utils.log import get_logger
 
@@ -154,6 +156,70 @@ def pointing() -> Dict[str, Any]:
 _pointing = pointing  # the old name
 
 
+def utc_stamp(when: Optional[datetime] = None) -> str:
+	"""UTC, ISO 8601 with milliseconds: 2026-10-18T21:09:12.345Z."""
+	if when is None:
+		from utils import clock
+
+		when = clock.now()
+	return when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{when.microsecond // 1000:03d}Z"
+
+
+def _focal_mm() -> Optional[float]:
+	try:
+		from utils.config_state import get_section
+
+		value = float(get_section("camera").get("focal_mm") or 0)
+	except (TypeError, ValueError):
+		return None
+	return value if value > 0 else None
+
+
+def frame_meta(frame_type: str = "light", exposure_s: Optional[float] = None,
+		captured: Optional[str] = None) -> Dict[str, Any]:
+	"""What's known about a frame, for its record and its upload: where
+	the telescope pointed (pointing()), frame_type, captured (UTC with
+	ms), exposure_s, iso, camera, temperature_c and focal_mm. Each is left
+	out when unknown. Called just before the shutter, so `captured` is
+	when the exposure began."""
+	info = pointing()
+	info["frame_type"] = frame_type
+	info["captured"] = captured or utc_stamp()
+	if exposure_s:
+		info["exposure_s"] = float(exposure_s)
+	try:
+		from core.camera.service import get_camera_service
+		from utils.handlers import camera_info
+
+		service = get_camera_service()
+		if service.model:
+			info["camera"] = service.model
+		if not exposure_s:
+			from core.camera.backends import parse_shutter
+
+			seconds = parse_shutter(service.get_setting("shutterspeed", max_age_s=60).get("value"))
+			if seconds:
+				info["exposure_s"] = seconds
+		iso = str(service.get_setting("iso", max_age_s=60).get("value") or "")
+		if iso.isdigit():
+			info["iso"] = int(iso)
+		temperature = camera_info().get("temperature_c")
+		if temperature is not None:
+			info["temperature_c"] = temperature
+	except Exception as exc:
+		log.debug("Frame details: %s", exc)
+	focal = _focal_mm()
+	if focal:
+		info["focal_mm"] = focal
+	return info
+
+
+def pair_id(paths: List[str]) -> str:
+	"""The id one capture's files share (its RAW and its JPEG): the name
+	without the extension."""
+	return os.path.splitext(os.path.basename(paths[0]))[0] if paths else ""
+
+
 def record(folder: str, names: List[str], info: Dict[str, Any]) -> None:
 	"""Add a line to the folder's photos.jsonl."""
 	entry = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"), "files": names, **info}
@@ -196,16 +262,14 @@ def capture_to(folder: str, base: str, exposure_s: Optional[float] = None) -> Li
 def take_photo(kind: str = "light", exposure_s: Optional[float] = None) -> List[str]:
 	"""Capture one photo (the camera may give a RAW and a JPEG) into tonight's
 	folder; returns the saved paths. Raises RuntimeError with a short reason."""
-	info = pointing()
+	info = frame_meta(kind, exposure_s)
 	folder = night_folder()
 	if kind != "light":
 		folder = os.path.join(folder, kind + "s")
 	label = kind if kind != "light" else str(info.get("target") or "seleno")
 	base = f"{_slug(label)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 	paths = capture_to(folder, base, exposure_s)
-	info = dict(info, kind=kind)
-	if exposure_s:
-		info["exposure_s"] = exposure_s
+	info = dict(info, kind=kind, pair=pair_id(paths))
 	record(folder, [os.path.basename(p) for p in paths], info)
 	log.info("Saved %s", ", ".join(paths))
 	return paths
@@ -215,20 +279,27 @@ def take_photo(kind: str = "light", exposure_s: Optional[float] = None) -> List[
 class SequencePlan:
 	kind: str = "light"            # light, dark, flat or bias
 	count: int = 1
-	exposure_s: Optional[float] = None   # None: the camera's shutter setting
+	# None: the camera's shutter setting; "auto" (flats): found by test shots
+	exposure_s: Union[float, str, None] = None
 	interval_s: float = 0.0        # pause between frames
 	dither_every: int = 0          # frames between dithers (0: never)
 	dither_arcmin: float = 2.0
+	dither_settle_s: float = 5.0   # wait after each dither
 
 	def check(self) -> Optional[str]:
 		if self.kind not in FRAME_KINDS:
 			return f"kind is one of {', '.join(FRAME_KINDS)}"
 		if not 1 <= self.count <= 999:
 			return "count is 1 to 999"
-		if self.exposure_s is not None and not 0 < self.exposure_s <= 3600:
-			return "exposure is up to 3600 s"
+		if self.exposure_s == "auto":
+			if self.kind != "flat":
+				return "only flats can have an automatic exposure"
+		elif self.exposure_s is not None and (isinstance(self.exposure_s, str) or not 0 < self.exposure_s <= 3600):
+			return "exposure is up to 3600 s (or auto, for flats)"
 		if self.interval_s < 0 or self.dither_every < 0 or not 0 < self.dither_arcmin <= 30:
 			return "interval and dither must be positive (dither up to 30 arcmin)"
+		if not 0 <= self.dither_settle_s <= 120:
+			return "dither settle is 0 to 120 s"
 		return None
 
 
@@ -243,6 +314,7 @@ class PhotoRun:
 		self.plan: Optional[SequencePlan] = None
 		self.saved = 0
 		self.error = ""
+		self._flats = None  # utils/flats.AutoFlats, for exposure_s "auto"
 
 	@property
 	def running(self) -> bool:
@@ -257,6 +329,7 @@ class PhotoRun:
 				return problem
 			count = plan.count
 		self.plan = plan
+		self._flats = None
 		self._stop.clear()
 		self.saved = 0
 		self.error = ""
@@ -284,6 +357,13 @@ class PhotoRun:
 		plan = self.plan
 		if plan is None:
 			return self._capture()
+		if plan.exposure_s == "auto":
+			if self._flats is None:
+				from utils.flats import AutoFlats
+
+				self.progress = "finding the exposure"
+				self._flats = AutoFlats(lambda bulb: take_photo(plan.kind, bulb))
+			return self._flats.next_frame()
 		return take_photo(plan.kind, plan.exposure_s)
 
 	def _dither(self, n: int) -> None:
@@ -293,14 +373,22 @@ class PhotoRun:
 		try:
 			from core.hardware import tracking
 
-			if tracking.is_sidereal_tracking():
-				tracking.dither(plan.dither_arcmin)
+			if not tracking.is_sidereal_tracking():
+				return
+			tracking.dither(plan.dither_arcmin)  # back once it's tracking again
 		except Exception as exc:
 			log.warning("Dither failed: %s", exc)
+			return
+		if plan.dither_settle_s > 0:
+			self.progress = f"settling after the dither ({plan.dither_settle_s:g} s)"
+			self._stop.wait(plan.dither_settle_s)
 
 	def status(self) -> Dict[str, Any]:
-		return {"running": self.running, "progress": self.progress, "saved": self.saved, "error": self.error,
+		out = {"running": self.running, "progress": self.progress, "saved": self.saved, "error": self.error,
 			"plan": asdict(self.plan) if self.plan else None}
+		if self._flats is not None:
+			out["flats"] = self._flats.status()
+		return out
 
 	def _run(self, count: int, notify: Callable[[str], None]) -> None:
 		saved = 0
@@ -329,5 +417,7 @@ class PhotoRun:
 			if count > 1:
 				notify(f"Saved {saved} of {count} photos")
 		finally:
+			if self._flats is not None:
+				self._flats.finish()
 			self.progress = ""
 			self._leds(lambda leds: leds.set_command_busy(False))

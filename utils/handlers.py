@@ -9,6 +9,7 @@ today keep their names and arguments; the rest are new (README.md lists
 them all).
 """
 import os
+import re
 import threading
 import time
 from datetime import datetime
@@ -111,30 +112,43 @@ def setCameraSetting(label, value):
 
 # --- photos -----------------------------------------------------------------------------
 
+# Frame types capturePhoto takes (the server sends test, light and snapshot).
+CAPTURE_FRAME_TYPES = ("light", "test", "snapshot", "dark", "flat", "bias")
+
+
 @requires_camera("capture photo")
-def capturePhoto(currentid, exposure_s=None):
+def capturePhoto(currentid, exposure_s=None, frame_type="light"):
     """Take a photo for the account currentid and queue it for upload.
     exposure_s: a bulb exposure in seconds (else the shutter setting).
+    frame_type: light, test (its JPEG uploads ahead of everything queued),
+    snapshot, dark, flat or bias; it goes in the upload's meta.
     Returns once the camera has saved it; the upload carries on."""
+    frame_type = str(frame_type or "light").lower()
+    if frame_type not in CAPTURE_FRAME_TYPES:
+        return {"error": f"frame_type is one of {', '.join(CAPTURE_FRAME_TYPES)}"}
     leds = get_led_manager()
     leds.set_command_busy(True)
     leds.flash_capture_started()
     try:
         owner = str(currentid or "").strip()
-        info = photos.pointing()
-        base = f"{owner or 'photo'}_photo_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        exposure = float(exposure_s) if exposure_s else None
+        info = photos.frame_meta(frame_type, exposure)
+        base = f"{owner or 'photo'}_{'test' if frame_type == 'test' else 'photo'}_" \
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         try:
-            paths = photos.capture_to(photos.SERVER_DIR, base, float(exposure_s) if exposure_s else None)
+            paths = photos.capture_to(photos.SERVER_DIR, base, exposure)
         except RuntimeError as exc:
             leds.set_error(True, critical=False)
             return {"error": str(exc)}
         names = [os.path.basename(p) for p in paths]
+        info["pair"] = photos.pair_id(paths)
         photos.record(photos.SERVER_DIR, names, dict(info, owner=owner))
-        problems = get_upload_queue().add_many(paths, owner, info)
+        problems = get_upload_queue().add_many(paths, owner, info, priority=frame_type == "test")
         queued = sum(1 for p in problems if p is None)
         problem = next((p for p in problems if p), None)
         leds.flash_command_complete(True)
-        result: Dict[str, Any] = {"status": "captured", "files": names, "queued": queued}
+        result: Dict[str, Any] = {"status": "captured", "files": names, "queued": queued,
+            "frame_type": frame_type, "pair": info["pair"]}
         if problem:
             result["note"] = problem
         return result
@@ -142,15 +156,22 @@ def capturePhoto(currentid, exposure_s=None):
         leds.set_command_busy(False)
 
 
-def startPhotoSequence(kind="light", count=10, exposure_s=None, interval_s=0.0, dither_every=0, dither_arcmin=2.0):
+def startPhotoSequence(kind="light", count=10, exposure_s=None, interval_s=0.0, dither_every=0, dither_arcmin=2.0,
+        dither_settle_s=5.0):
     """A run of frames on the Pi (saved locally, like panel photos):
-    kind light, dark, flat or bias."""
+    kind light, dark, flat or bias. exposure_s "auto" for flats: found by
+    test shots (utils/flats.py). dither_settle_s: wait after each dither
+    (0-120 s)."""
     from utils.panel_ui import get_panel_ui
 
     if not get_camera_service().is_available():
         return {"error": "Camera not connected"}
-    plan = photos.SequencePlan(str(kind), int(count), float(exposure_s) if exposure_s else None,
-        float(interval_s or 0), int(dither_every or 0), float(dither_arcmin or 2.0))
+    try:
+        exposure = "auto" if str(exposure_s).lower() == "auto" else (float(exposure_s) if exposure_s else None)
+        plan = photos.SequencePlan(str(kind), int(count), exposure, float(interval_s or 0), int(dither_every or 0),
+            float(dither_arcmin or 2.0), 5.0 if dither_settle_s is None else float(dither_settle_s))
+    except (TypeError, ValueError):
+        return {"error": "Bad sequence values"}
     ui = get_panel_ui()
     message = ui.photo_run.start(plan.count, ui.toast, plan=plan)
     return {"status": message, **ui.photo_run.status()}
@@ -172,9 +193,18 @@ def getUploadQueue():
     return get_upload_queue().status()
 
 
-def uploadPending(kind="raw"):
-    """Send the files held back (RAWs with upload.raw = on_request)."""
-    return {"released": get_upload_queue().release(str(kind))}
+def uploadPending(kind="raw", files=None, pairs=None):
+    """Send the files held back (RAWs with upload.raw = on_request). With
+    files (the uploaded JPEG names) or pairs (their pair ids): just those
+    captures' files, ahead of the rest; the other held files stay held.
+    Replies {"queued": n, "missing": [the ones no longer on the Pi]}."""
+    queue = get_upload_queue()
+    if files is None and pairs is None:
+        released = queue.release(str(kind))
+        return {"released": released, "queued": released, "missing": []}
+    if not isinstance(files or [], list) or not isinstance(pairs or [], list):
+        return {"error": "files and pairs are lists"}
+    return queue.release_matching(str(kind), [str(f) for f in files or []], [str(p) for p in pairs or []])
 
 
 def retryFailedUploads():
@@ -222,13 +252,17 @@ def getLiveViewStats():
 
 
 _LIVEVIEW_OPTIONS = {"quality": str, "max_fps": float, "still_fps": float, "keyframe_s": float,
-    "adaptive": bool, "idle_stop_min": float, "viewer_grace_s": float}
+    "adaptive": bool, "idle_stop_min": float, "viewer_grace_s": float,
+    "jpeg_quality": lambda v: int(v) if v not in (None, "", 0, "0") else None, "codec": str}
+_LIVEVIEW_RANGES = {"max_fps": (0.2, 30.0), "jpeg_quality": (50, 98)}
+LIVEVIEW_CODECS = ("auto", "jpeg")  # H.264 (proto 2) isn't built yet
 
 
 def setLiveViewOptions(**options):
     """Change live view settings (saved): quality (original, high, medium,
-    low), max_fps, still_fps, keyframe_s, adaptive, idle_stop_min,
-    viewer_grace_s."""
+    low), max_fps (0.2-30), still_fps, keyframe_s, adaptive, idle_stop_min,
+    viewer_grace_s, jpeg_quality (50-98: full-size frames at that quality,
+    for focusing; null or 0 back to the preset) and codec (auto or jpeg)."""
     changes: Dict[str, Any] = {}
     for key, value in options.items():
         if key not in _LIVEVIEW_OPTIONS:
@@ -237,8 +271,15 @@ def setLiveViewOptions(**options):
             changes[key] = _LIVEVIEW_OPTIONS[key](value)
         except (TypeError, ValueError):
             return {"error": f"Bad value for {key}"}
+        low, high = _LIVEVIEW_RANGES.get(key, (None, None))
+        if low is not None and changes[key] is not None and not low <= changes[key] <= high:
+            return {"error": f"{key} is {low:g} to {high:g}"}
     if "quality" in changes and changes["quality"] not in PRESETS:
         return {"error": f"quality is one of {', '.join(PRESETS)}"}
+    if "codec" in changes:
+        changes["codec"] = changes["codec"].lower()
+        if changes["codec"] not in LIVEVIEW_CODECS:
+            return {"error": f"codec is one of {', '.join(LIVEVIEW_CODECS)} (this client sends JPEG only)"}
     if changes:
         save_section("liveview", changes)
         get_live_stream().reload_settings()
@@ -282,20 +323,28 @@ def liveViewSnapshot(currentid=None):
     result: Dict[str, Any] = {"file": os.path.basename(path)}
     owner = str(currentid or "").strip()
     if owner.isdigit():
-        problem = get_upload_queue().add(path, owner, photos.pointing())
+        meta = dict(photos.pointing(), frame_type="snapshot", source="liveview",
+            captured=photos.utc_stamp(), pair=photos.pair_id([path]))
+        problem = get_upload_queue().add(path, owner, meta)
         result["queued"] = problem is None
     return result
 
 
-def startRecording(kind="video", interval_s=10.0):
+def startRecording(kind="video", interval_s=10.0, quality="standard", currentid=None, crop_width=None,
+        crop_height=None):
     """Record live view on the Pi: kind "video" (every frame, for stacking
-    the Moon and planets) or "timelapse" (a frame every interval_s)."""
+    the Moon and planets) or "timelapse" (a frame every interval_s).
+    quality "lossless" (video): uncompressed SER of a crop round the planet
+    (crop_width x crop_height, default 640 x 480), for lucky imaging.
+    currentid: upload the files under that account when it stops."""
     from core.camera.recorder import get_recorder
 
     if not get_camera_service().is_available():
         return {"error": "Camera not connected"}
     try:
-        return {"status": get_recorder().start(str(kind), float(interval_s))}
+        crop = (int(crop_width), int(crop_height)) if crop_width and crop_height else None
+        return {"status": get_recorder().start(str(kind), float(interval_s), quality=str(quality or "standard"),
+            owner=str(currentid or ""), crop_size=crop)}
     except (ValueError, RuntimeError) as exc:
         return {"error": str(exc)}
 
@@ -315,21 +364,54 @@ def getRecordingStatus():
 _camera_info_cache: Dict[str, Any] = {"at": 0.0, "value": {}}
 
 
+def _number(text: Any) -> Optional[float]:
+    """75 from "75%", 18.5 from "18.5 C"; None without a number."""
+    if isinstance(text, (int, float)):
+        return float(text)
+    match = re.search(r"-?\d+(?:\.\d+)?", str(text or ""))
+    if match:
+        return float(match.group())
+    return 100.0 if str(text).strip().lower() == "full" else None
+
+
 def camera_info(max_age_s: float = 60.0) -> Dict[str, Any]:
-    """Battery and card space (asked of the camera at most once a minute)."""
+    """Battery, card space and temperature (asked of the camera at most
+    once a minute; not while the gphoto2 command runs live view, which
+    would have to stop for it)."""
     service = get_camera_service()
     if not service.is_available():
         return {}
     now = time.monotonic()
-    if now - _camera_info_cache["at"] < max_age_s:
-        return _camera_info_cache["value"]
+    cached = _camera_info_cache["value"]
+    if now - _camera_info_cache["at"] < max_age_s or (cached and service.previewing
+            and service.backend.name == "cli"):
+        return cached
     info: Dict[str, Any] = {"battery": service.battery()}
     try:
         info["card"] = service.storage()
     except CameraError:
         info["card"] = None
+    try:
+        info["temperature_c"] = _number(service.get_setting("temperature").get("value")) \
+            if service.setting_name("temperature") else None
+    except CameraError:
+        info["temperature_c"] = None
     _camera_info_cache.update(at=now, value=info)
     return info
+
+
+def camera_readings() -> Dict[str, Any]:
+    """camera_info as numbers, for the status message: battery (percent),
+    card_free_bytes, temperature_c (None when the camera doesn't say)."""
+    info = camera_info()
+    if not info:
+        return {}
+    battery = _number(info.get("battery"))
+    card = info.get("card") or {}
+    free_mb = card.get("free_mb")
+    return {"battery": int(battery) if battery is not None else None,
+        "card_free_bytes": int(free_mb * 1024 * 1024) if free_mb is not None else None,
+        "temperature_c": info.get("temperature_c")}
 
 
 def getCameraStatus():

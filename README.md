@@ -85,6 +85,8 @@ put back afterwards.
 - a snapshot saves the current frame at once, without the shutter;
 - video records every frame into an MJPEG AVI, for stacking Moon and planet
   frames in AutoStakkert or PIPP;
+- lossless video (`quality: "lossless"`) records a crop round the planet,
+  uncompressed, as SER (`core/camera/ser.py`), for lucky imaging;
 - timelapse records one frame every few seconds.
 
 ### Photos
@@ -93,14 +95,20 @@ put back afterwards.
   for upload (`utils/uploads.py`).
 - **How the queue works:**
   - it survives restarts and retries with growing waits;
-  - JPEGs go first; RAWs follow the `upload.raw` setting (`after_jpeg`,
-    `on_request` or `never`);
-  - each file goes on its own, with a description of where the telescope
-    pointed.
+  - a test shot's JPEG goes ahead of everything; then JPEGs, videos, and
+    RAWs following the `upload.raw` setting (`after_jpeg`, `on_request` or
+    `never`); `uploadPending("raw", files=..., pairs=...)` sends just some
+    held RAWs, first;
+  - each file goes on its own, with its meta: where the telescope pointed
+    (J2000), `frame_type`, `captured` (UTC with ms), `exposure_s`, `iso`,
+    `camera`, `temperature_c` and `focal_mm` when known, and `pair` (the id
+    a capture's RAW and JPEG share).
 - **Panel photos** (Camera tab) go to `photos/offline/<night>/`, logged in
   `photos.jsonl`. A run can be lights, darks, flats or bias frames. It can
-  use bulb exposures and dither between frames, and darks and bias ask for
-  the cover first.
+  use bulb exposures and dither between frames (settling `dither_settle_s`
+  after each), and darks and bias ask for the cover first. Flats can find
+  their own exposure (`exposure_s: "auto"`, `utils/flats.py`): test shots
+  until the histogram peak is half full, adjusted between flats.
 - **Uploading offline photos:** set the photo owner (your account id) in
   Setup, then use "Upload offline" in the Camera tab.
 - **Low disk space:** photos and recordings stop when the Pi has under
@@ -191,12 +199,12 @@ take their defaults, and most can be set from the panel.
 | `mount` | `ra_axis_limits`, `dec_axis_limits`, `pole_crossing`, `hemisphere` (`auto`/`north`/`south`), `park_axes`, `backlash_steps` |
 | `horizon` | `min_alt_deg`, `profile` (`[[az, alt], ...]`), `stop_when_set` |
 | `tracking` | `rate` (`sidereal`/`lunar`/`solar`/`king`/`custom`), `custom_arcsec_per_s`, `auto_rate`, `refraction` |
-| `liveview` | `quality`, `max_fps`, `still_fps`, `keyframe_s`, `adaptive`, `idle_stop_min`, `viewer_grace_s` |
-| `camera` | `backend` (`auto`/`libgphoto2`/`cli`/`fake`), `keep_awake` |
+| `liveview` | `quality`, `max_fps`, `still_fps`, `keyframe_s`, `adaptive`, `idle_stop_min`, `viewer_grace_s`, `jpeg_quality` (50-98, full-size frames for focusing; null: the preset), `codec` (`auto`/`jpeg`) |
+| `camera` | `backend` (`auto`/`libgphoto2`/`cli`/`fake`), `keep_awake`, `focal_mm` (sent with photos; 0 = unknown) |
 | `upload` | `raw` (`after_jpeg`/`on_request`/`never`), `retry_max_s` |
 | `photos` | `local_dir`, `owner_id`, `shots`, `kind`, `exposure_s`, `dither` |
 | `local_page` | `enabled`, `port` |
-| `server` | `raw_motor_commands` (`guarded`/`off`/`unrestricted`), `status_push_s` (0 = off), `allow_remote_update`, `allow_firmware_update` (both off by default) |
+| `server` | `raw_motor_commands` (`guarded`/`off`/`unrestricted`), `status_push_s` (default 30; 0 = only on connecting), `allow_remote_update`, `allow_firmware_update` (both off by default) |
 | `solver` | `path`, `fov_deg` (0 = learn it), `search_radius_deg`, `timeout_s`, `centre_tolerance_arcmin`, `drift_check_min` |
 | `gps` | `enabled` |
 
@@ -216,10 +224,10 @@ went.
 
 | Group | Functions |
 |---|---|
-| Already used by ASTRA | `trackCoordinates(name, ra, dec, mag)`, `stopTracking()`, `getCurrentCoordinates()`, `getCameraChoices()` (now also `current` values and more settings), `setCameraSetting(label, value)`, `capturePhoto(currentid, exposure_s=None)`, `startLiveView(quality=None)`, `stopLiveView()`, `espEnable`, `espSetDirection`, `espSetSpeed`, `espStart`, `espMoveSteps`, `espStop`, `espSetMicrosteps`, `espSetCurrent`, `espSetMode`, `espSetAccel`, `espStatus`, `espStatusAll` |
-| Live view | `liveViewViewers(count)`, `getLiveViewStats()`, `setLiveViewOptions(**options)`, `setLiveViewQuality(quality)`, `setLiveViewFocus(on)`, `setCameraZoom(level, x, y)`, `liveViewSnapshot(currentid=None)`, `startRecording(kind, interval_s)`, `stopRecording()`, `getRecordingStatus()` |
-| Camera and photos | `getCameraStatus()`, `startPhotoSequence(kind, count, exposure_s, interval_s, dither_every, dither_arcmin)`, `stopPhotoSequence()`, `getPhotoSequenceStatus()`, `getUploadQueue()`, `uploadPending(kind)`, `retryFailedUploads()`, `uploadOfflinePhotos(currentid)` |
-| Pointing and tracking | `trackObject(name)` (Moon, planets, named stars), `park()`, `unpark()`, `setParkHere()`, `setTrackingRate(rate, custom_arcsec_per_s)`, `dither(arcmin)`, `getAlignment()`, `clearAlignment()`, `solveAndSync(source)`, `centreTarget(source)`, `polarAlign(step_deg, source)`, `getMountStatus()`, `getJobStatus(name)`, `setClock(utc)`, `setHorizon(min_alt_deg, profile, stop_when_set)`, `getPlanets()` |
+| Already used by ASTRA | `trackCoordinates(name, ra, dec, mag)`, `stopTracking()`, `getCurrentCoordinates()`, `getCameraChoices()` (now also `current` values and more settings), `setCameraSetting(label, value)`, `capturePhoto(currentid, exposure_s=None, frame_type="light")` (`test`: its JPEG uploads first), `startLiveView(quality=None)`, `stopLiveView()`, `espEnable`, `espSetDirection`, `espSetSpeed`, `espStart`, `espMoveSteps`, `espStop`, `espSetMicrosteps`, `espSetCurrent`, `espSetMode`, `espSetAccel`, `espStatus`, `espStatusAll` |
+| Live view | `liveViewViewers(count)`, `getLiveViewStats()`, `setLiveViewOptions(**options)`, `setLiveViewQuality(quality)`, `setLiveViewFocus(on)`, `setCameraZoom(level, x, y)`, `liveViewSnapshot(currentid=None)`, `startRecording(kind, interval_s, quality, currentid, crop_width, crop_height)`, `stopRecording()`, `getRecordingStatus()` |
+| Camera and photos | `getCameraStatus()`, `startPhotoSequence(kind, count, exposure_s, interval_s, dither_every, dither_arcmin, dither_settle_s)`, `stopPhotoSequence()`, `getPhotoSequenceStatus()`, `getUploadQueue()`, `uploadPending(kind, files=None, pairs=None)`, `retryFailedUploads()`, `uploadOfflinePhotos(currentid)` |
+| Pointing and tracking | `trackObject(name)` (Moon, planets, named stars), `park()`, `unpark()`, `setParkHere()`, `setTrackingRate(rate, custom_arcsec_per_s)`, `dither(arcmin)`, `getAlignment()`, `clearAlignment()`, `solveAndSync(source)`, `centreTarget(source)` (waits for a slew to finish), `polarAlign(step_deg, source)`, `getMountStatus()`, `getJobStatus(name)`, `setClock(utc)`, `setHorizon(min_alt_deg, profile, stop_when_set)`, `getPlanets()` |
 | ESP32 extras | `espSetAuto`, `espDriverStatus`, `espEstop`, `espClearEstop`, `espEstopStatus`, `espInfo`, `espPanelStatus`, `espImuRead`, `espTurnDegrees` |
 | The client | `echo`, `getClientStatus()`, `updateClient()`, `updateFirmware()` (the last two only when allowed in config) |
 
@@ -227,9 +235,11 @@ went.
 - **Viewer counts.** Call `liveViewViewers(n)` when people start or stop
   watching `/liveview/<client>`, so the stream can pause with nobody
   watching. Until then it streams whenever live view is on.
-- **Status messages.** With `server.status_push_s` set, the client sends a
-  `{"type": "status", ...}` message without an id that often. ASTRA
-  currently only logs messages without an id, so this is off by default.
+- **Status messages.** The client sends a `{"type": "status", ...}` message
+  without an id on connecting and every `server.status_push_s` seconds. It
+  carries `capabilities` (`capture_frame_type`, `upload_pending_filter`,
+  `liveview_jpeg_options`), `site`, the last plate `solve`, and the camera's
+  `battery` (percent), `card_free_bytes` and `temperature_c`.
 
 ## Tests
 
