@@ -32,8 +32,8 @@ function wire() {
         };
         dialog.close();
         const controller = new AbortController();
-        const job = startJob(`Lucky imaging ${spec.name}`, { kind: 'stack', controller });
-        Seleno.toast('Lucky imaging runs in this tab. For a video, keep the tab in view until it finishes.', 'ok', 6000);
+        const job = startJob(_('Lucky imaging {name}', { name: spec.name }), { kind: 'stack', controller });
+        Seleno.toast(_('Lucky imaging runs in this tab. For a video, keep the tab in view until it finishes.'), 'ok', 6000);
         await runAndSave(spec, job, controller, onSaved);
     });
 }
@@ -41,16 +41,16 @@ function wire() {
 // frames: one video (MP4, WebM, SER...) or several photos of the Moon or a planet
 export function openLuckyDialog({ frames, onSaved }) {
     if (!engine.available) {
-        Seleno.toast(`Lucky imaging: ${engine.reason}`, 'warn', 6500);
+        Seleno.toast(_('Lucky imaging: {reason}', { reason: engine.reason }), 'warn', 6500);
         return;
     }
     wire();
     const video = frames.length === 1 && frames[0].kind === 'video';
     const target = frames.map(f => f.target).find(Boolean) || '';
-    current = { frames, target, onSaved, defaultName: `${target || (video ? frames[0].name.replace(/\.[^.]+$/, '') : 'Lucky imaging')}` };
+    current = { frames, target, onSaved, defaultName: `${target || (video ? frames[0].name.replace(/\.[^.]+$/, '') : _('Lucky imaging'))}` };
     $('luckyName').value = current.defaultName;
     $('luckySource').textContent = video
-        ? `${frames[0].name}: every frame is scored for sharpness, the sharpest are lined up and averaged.`
-        : `${frames.length} photos: the sharpest are lined up and averaged. This suits short exposures of the Moon or a planet, not star fields (use Stack for those).`;
+        ? _('{name}: every frame is scored for sharpness, the sharpest are lined up and averaged.', { name: frames[0].name })
+        : _('{frames} photos: the sharpest are lined up and averaged. This suits short exposures of the Moon or a planet, not star fields (use Stack for those).', { frames: frames.length });
     $('luckyDialog').showModal();
 }

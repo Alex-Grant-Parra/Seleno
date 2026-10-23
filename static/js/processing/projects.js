@@ -6,12 +6,20 @@
 
 import { decodeStrip, FitsAssembler, parseFitsHeader, stripPlacement } from './fits.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 const CHUNK = 32 * 1024 * 1024;
 export const TOTALS = { sum: 3, wsum: 3, coverage: 1, limits: 6 };
 
 async function range(url, start, end, signal) {
     const r = await fetch(url, { headers: { Range: `bytes=${start}-${end - 1}` }, credentials: 'same-origin', signal });
-    if (!r.ok) throw new Error(`Couldn't read the project's totals (${r.status})`);
+    if (!r.ok) throw new Error(_('Couldn\'t read the project\'s totals ({status})', { status: r.status }));
     const buf = new Uint8Array(await r.arrayBuffer());
     return r.status === 206 ? buf : buf.subarray(start, end);
 }
@@ -36,7 +44,7 @@ export async function loadTotals(project, area = 'current', { signal = null } = 
         hasLimits,
         frames: files.sum.header.NFRAMES || 0,
         async rows(y0, y1) {
-            const planes = async (name, n, first = 0) => Promise.all(Array.from({ length: n }, (_, c) => read(name, first + c, y0, y1)));
+            const planes = async (name, n, first = 0) => Promise.all(Array.from({ length: n }, (_unused, c) => read(name, first + c, y0, y1)));
             const cov = await read('coverage', 0, y0, y1);
             return {
                 sum: await planes('sum', 3),
@@ -106,7 +114,7 @@ async function uploadFile(projectId, name, blob, { signal, onBytes }) {
             offset = body.received;
             continue;
         }
-        if (!response.ok) throw new Error(body.message || `Upload failed (${response.status})`);
+        if (!response.ok) throw new Error(body.message || _('Upload failed ({status})', { status: response.status }));
         if (onBytes) onBytes(body.received - offset);
         offset = body.received;
         retries = 0;

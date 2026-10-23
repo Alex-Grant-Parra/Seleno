@@ -60,7 +60,7 @@ function loadImage(url) {
         const img = new Image();
         img.decoding = 'async';
         img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Couldn't load ${url}`));
+        img.onerror = () => reject(new Error(_('Couldn\'t load {url}', { url })));
         img.src = url;
     });
 }
@@ -158,10 +158,10 @@ async function show(i) {
         `${index + 1} of ${list.length}`,
         frame.captured_at ? Seleno.fmt.dateTime(frame.captured_at) : '',
         Seleno.fmt.exposure(frame.exposure_s) !== '—' ? Seleno.fmt.exposure(frame.exposure_s) : '',
-        frame.iso ? `ISO ${frame.iso}` : '',
+        frame.iso ? _('ISO {iso}', { iso: frame.iso }) : '',
         quality && quality.reason ? quality.reason : ''
     ].filter(Boolean).join(' · ');
-    $('viewerReject').textContent = frame.flag === 'reject' ? 'Rejected' : 'Reject';
+    $('viewerReject').textContent = frame.flag === 'reject' ? _('Rejected') : _('Reject');
     $('viewerReject').classList.toggle('danger', frame.flag === 'reject');
     const quick = await preview(frame);
     if (list[index] !== frame) return;
@@ -179,7 +179,7 @@ function setPlaying(on) {
     if (on && list.length < 2) return;
     clearInterval(playing);
     playing = on ? setInterval(() => show(index + 1), BLINK_MS) : null;
-    $('viewerPlay').textContent = on ? 'Pause' : 'Blink';
+    $('viewerPlay').textContent = on ? _('Pause') : _('Blink');
     if (!on) show(index);
 }
 
@@ -260,7 +260,7 @@ async function rejectCurrent() {
     const frame = list[index];
     if (!frame || !options.onReject) return;
     await options.onReject(frame);
-    $('viewerReject').textContent = frame.flag === 'reject' ? 'Rejected' : 'Reject';
+    $('viewerReject').textContent = frame.flag === 'reject' ? _('Rejected') : _('Reject');
     $('viewerReject').classList.toggle('danger', frame.flag === 'reject');
 }
 

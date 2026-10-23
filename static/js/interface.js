@@ -48,9 +48,9 @@ function shortResult(value) {
 
 function checkAuthResponse(response) {
     if (response.status === 401) {
-        Seleno.toast('You need to log in again to control the telescope.', 'bad');
+        Seleno.toast(_('You need to log in again to control the telescope.'), 'bad');
         window.location.href = '/auth/login';
-        throw new Error('Not authenticated');
+        throw new Error(_('Not authenticated'));
     }
     return response;
 }
@@ -60,8 +60,8 @@ function checkAuthResponse(response) {
 // polled until they finish.
 function telescopeAction(action, params = {}, options = {}) {
     if (!selectedTelescopeId) {
-        Seleno.toast('Select a telescope first.', 'warn');
-        return Promise.reject(new Error('No telescope selected'));
+        Seleno.toast(_('Select a telescope first.'), 'warn');
+        return Promise.reject(new Error(_('No telescope selected')));
     }
     return fetch('/interface/command', {
         method: 'POST',
@@ -73,8 +73,8 @@ function telescopeAction(action, params = {}, options = {}) {
         .then(data => {
             if (data.status !== 'success') {
                 logLine(`✗ ${action}: ${data.message || 'failed'}`, 'bad');
-                if (!options.quiet) Seleno.toast(`${action.replace(/_/g, ' ')}: ${data.message || 'failed'}`, 'bad');
-                throw new Error(data.message || `${action} failed`);
+                if (!options.quiet) Seleno.toast(`${action.replace(/_/g, ' ')}: ${data.message || _('failed')}`, 'bad');
+                throw new Error(data.message || _('{action} failed', { action }));
             }
             if (!options.quiet) logLine(`✓ ${action}${data.result !== undefined ? ' ' + shortResult(data.result) : ''}`, 'ok');
             if (data.job) pollJob(data.job);
@@ -89,7 +89,7 @@ function confirmAction(question, action, params = {}) {
     return Promise.resolve();
 }
 
-const JOB_LABELS = { park: 'Parking', dither: 'Dithering', solve: 'Plate solving', centre: 'Centring', polar: 'Polar alignment' };
+const JOB_LABELS = { park: _('Parking'), dither: _('Dithering'), solve: _('Plate solving'), centre: _('Centring'), polar: _('Polar alignment') };
 const runningJobs = new Set();
 
 // Poll getJobStatus every 2 s until the job stops, then show its result or error
@@ -110,19 +110,19 @@ function pollJob(name) {
                 }
                 runningJobs.delete(name);
                 if (status.error) {
-                    if (line) line.textContent = `${label} failed: ${status.error}`;
-                    logLine(`✗ ${label} failed: ${status.error}`, 'bad');
-                    Seleno.toast(`${label} failed: ${status.error}`, 'bad');
+                    if (line) line.textContent = _('{label} failed: {error}', { label, error: status.error });
+                    logLine(_('✗ {label} failed: {error}', { label, error: status.error }), 'bad');
+                    Seleno.toast(_('{label} failed: {error}', { label, error: status.error }), 'bad');
                 } else {
-                    if (line) line.textContent = `${label} done.`;
-                    logLine(`✓ ${label} done ${shortResult(status.result)}`, 'ok');
+                    if (line) line.textContent = _('{label} done.', { label });
+                    logLine(_('✓ {label} done {status}', { label, status: shortResult(status.result) }), 'ok');
                     if (name === 'solve' || name === 'centre') renderSolve(status.result);
                 }
                 emit('seleno:job', { name, status });
             })
             .catch(() => {
                 runningJobs.delete(name);
-                if (line) line.textContent = `${label}: lost track of the job.`;
+                if (line) line.textContent = _('{label}: lost track of the job.', { label });
             });
     };
     if (line) line.textContent = `${label}…`;
@@ -139,10 +139,10 @@ function renderSolve(result) {
     const fw = result.field_w_deg ?? result.width_deg;
     const fh = result.field_h_deg ?? result.height_deg;
     if (fw !== undefined && fh !== undefined) parts.push(`${Number(fw).toFixed(2)}° × ${Number(fh).toFixed(2)}°`);
-    if (result.rotation_deg !== undefined) parts.push(`rot ${Number(result.rotation_deg).toFixed(1)}°`);
+    if (result.rotation_deg !== undefined) parts.push(_('rot {rotationDeg}°', { rotationDeg: Number(result.rotation_deg).toFixed(1) }));
     const off = result.offset_arcmin ?? result.error_arcmin;
-    if (off !== undefined) parts.push(`off by ${Number(off).toFixed(1)}′`);
-    line.textContent = parts.length ? `Last solve ${Seleno.fmt.time(new Date())} · ${parts.join(' · ')}` : '';
+    if (off !== undefined) parts.push(_('off by {off}′', { off: Number(off).toFixed(1) }));
+    line.textContent = parts.length ? _('Last solve {time} · {parts}', { time: Seleno.fmt.time(new Date()), parts: parts.join(' · ') }) : '';
 }
 
 // --- choosing a telescope ---------------------------------------------------------
@@ -165,12 +165,12 @@ function setAdvancedControlsEnabled(enabled) {
 }
 
 function formatLastSeen(lastSeen) {
-    if (!lastSeen) return 'Unknown';
+    if (!lastSeen) return _('Unknown');
     const diff = Math.max(0, Date.now() / 1000 - lastSeen);
-    if (diff < 60) return `${Math.floor(diff)} s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
-    return `${Math.floor(diff / 86400)} days ago`;
+    if (diff < 60) return _('{n} s ago', { n: Math.floor(diff) });
+    if (diff < 3600) return _('{n} min ago', { n: Math.floor(diff / 60) });
+    if (diff < 86400) return _('{n} h ago', { n: Math.floor(diff / 3600) });
+    return _('{n} days ago', { n: Math.floor(diff / 86400) });
 }
 
 function loadTelescopes() {
@@ -188,10 +188,10 @@ function loadTelescopes() {
 function populateTelescopeDropdown(telescopes) {
     const select = $('telescopeSelect');
     select.innerHTML = '';
-    select.appendChild(Seleno.el('option', { value: '' }, 'Select a telescope…'));
+    select.appendChild(Seleno.el('option', { value: '' }, _('Select a telescope…')));
     telescopes.forEach(telescope => {
         const id = telescope.telescope_id || 'Unknown';
-        const option = Seleno.el('option', { value: id }, `${id} · ${telescope.online ? 'online' : 'offline'}`);
+        const option = Seleno.el('option', { value: id }, `${id} · ${telescope.online ? _('online') : _('offline')}`);
         if (id === selectedTelescopeId) option.selected = true;
         select.appendChild(option);
     });
@@ -221,7 +221,7 @@ function selectTelescope() {
         .then(response => response.json())
         .then(data => {
             if (data.status !== 'success') {
-                Seleno.toast(`Couldn't select the telescope: ${data.message}`, 'bad');
+                Seleno.toast(_('Couldn\'t select the telescope: {message}', { message: data.message }), 'bad');
                 return;
             }
             const changed = selectedTelescopeId !== value;
@@ -233,7 +233,7 @@ function selectTelescope() {
             }
             onTelescopeSelected(data.access);
         })
-        .catch(() => Seleno.toast("Couldn't select the telescope", 'bad'));
+        .catch(() => Seleno.toast(_("Couldn't select the telescope"), 'bad'));
 }
 
 function loadSelectedTelescope() {
@@ -266,7 +266,7 @@ function onTelescopeSelected(access) {
     setControlsEnabled(true);
     showTelescopeInfo(selectedTelescopeId);
     if (!telescopeAccess.control) {
-        logLine('You can see this telescope, but controlling it needs ownership or a booking that covers now.', 'warn');
+        logLine(_('You can see this telescope, but controlling it needs ownership or a booking that covers now.'), 'warn');
     }
     populateCameraChoices();
     pollTelescopeStatus();
@@ -295,18 +295,18 @@ function setChip(id, level, text, title) {
 
 function renderAccessChip() {
     if (!selectedTelescopeId) {
-        setChip('chipAccess', 'off', 'Choose a telescope');
+        setChip('chipAccess', 'off', _('Choose a telescope'));
         return;
     }
     const booking = latestStatus && latestStatus.booking;
     if (booking && booking.end) {
-        setChip('chipAccess', 'ok', `Your booking until ${Seleno.fmt.time(booking.end)}`);
+        setChip('chipAccess', 'ok', _('Your booking until {end}', { end: Seleno.fmt.time(booking.end) }));
     } else if (telescopeAccess.owner) {
-        setChip('chipAccess', 'ok', 'Owner');
+        setChip('chipAccess', 'ok', _('Owner'));
     } else if (telescopeAccess.control) {
-        setChip('chipAccess', 'ok', 'You can control it');
+        setChip('chipAccess', 'ok', _('You can control it'));
     } else {
-        setChip('chipAccess', 'warn', 'Viewing only', 'Controlling it needs ownership or a booking that covers now');
+        setChip('chipAccess', 'warn', _('Viewing only'), _('Controlling it needs ownership or a booking that covers now'));
     }
 }
 
@@ -326,105 +326,106 @@ function describeStatus(status, viewers) {
     const add = (label, value) => rows.push([label, value]);
     const tracking = statusPart(status, 'tracking');
     if (tracking) {
-        if (tracking.error) add('Mount', `⚠ ${tracking.error}`);
+        if (tracking.error) add(_('Mount'), `⚠ ${tracking.error}`);
         else {
-            let text = tracking.parked ? 'Parked' : (tracking.state || '—');
-            if (tracking.target) text += ` · ${tracking.target}`;
-            if (tracking.rate) text += ` · ${tracking.rate}`;
-            add('Mount', text);
+            let text = tracking.parked ? _('Parked') : (stateLabel(tracking.state) || '—');
+            const target = targetName(tracking.target);
+            if (target) text += ` · ${target}`;
+            if (tracking.rate) text += ` · ${stateLabel(tracking.rate)}`;
+            add(_('Mount'), text);
         }
     }
     const camera = statusPart(status, 'camera');
     if (camera) {
-        add('Camera', camera.error ? `⚠ ${camera.error}` : `${camera.connected ? (camera.model || 'Connected') : 'Not connected'}`);
-        if (!camera.error && camera.temperature_c !== undefined) add('Sensor', `${Number(camera.temperature_c).toFixed(1)} °C`);
+        add(_('Camera'), camera.error ? `⚠ ${camera.error}` : `${camera.connected ? (camera.model || _('Connected')) : _('Not connected')}`);
+        if (!camera.error && camera.temperature_c !== undefined) add(_('Sensor'), `${Number(camera.temperature_c).toFixed(1)} °C`);
     }
     const lv = statusPart(status, 'liveview');
     if (lv) {
-        if (lv.error) add('Live view', `⚠ ${lv.error}`);
+        if (lv.error) add(_('Live view'), `⚠ ${lv.error}`);
         else {
-            let text = lv.enabled ? (lv.paused ? 'Paused (no viewers)' : 'On') : 'Off';
+            let text = lv.enabled ? (lv.paused ? _('Paused (no viewers)') : _('On')) : _('Off');
             if (lv.enabled && lv.fps !== undefined) text += ` · ${Number(lv.fps).toFixed(1)} fps`;
             if (lv.enabled && lv.kbps !== undefined) text += ` · ${Math.round(lv.kbps)} kbps`;
-            add('Live view', text);
+            add(_('Live view'), text);
         }
     }
-    add('Watching', String(viewers ?? 0));
+    add(_('Watching'), String(viewers ?? 0));
     const recording = statusPart(status, 'recording');
-    if (recording && recording.recording) add('Recording', `${recording.kind || ''} · ${recording.frames || 0} frames`);
+    if (recording && recording.recording) add(_('Recording'), _('{kind} · {frames} frames', { kind: recording.kind || '', frames: recording.frames || 0 }));
     const uploads = statusPart(status, 'uploads');
     if (uploads) {
-        add('Uploads', uploads.error ? `⚠ ${uploads.error}` :
-            `${uploads.waiting ?? 0} waiting · ${uploads.failed ?? 0} failed${uploads.last_error ? ' · ' + uploads.last_error : ''}`);
+        add(_('Uploads'), uploads.error ? `⚠ ${uploads.error}` :
+            _('{waiting} waiting · {failed} failed{lastError}', { waiting: uploads.waiting ?? 0, failed: uploads.failed ?? 0, lastError: uploads.last_error ? ' · ' + uploads.last_error : '' }));
     }
     const clock = statusPart(status, 'clock');
-    if (clock) add('Clock', clock.error ? `⚠ ${clock.error}` : `${clock.trusted ? 'Trusted' : 'Not trusted'}${clock.source ? ' · ' + clock.source : ''}${clock.offset_s !== undefined ? ' · ' + Number(clock.offset_s).toFixed(2) + ' s' : ''}`);
+    if (clock) add(_('Clock'), clock.error ? `⚠ ${clock.error}` : `${clock.trusted ? _('Trusted') : _('Not trusted')}${clock.source ? ' · ' + clock.source : ''}${clock.offset_s !== undefined ? ' · ' + Number(clock.offset_s).toFixed(2) + ' s' : ''}`);
     const disk = status ? status.disk : undefined;
-    if (disk !== undefined) add('Disk', typeof disk === 'number' ? `${formatBytes(disk)} free` : (disk.error ? `⚠ ${disk.error}` : `${formatBytes(disk.free_bytes ?? disk.free)} free`));
+    if (disk !== undefined) add(_('Disk'), typeof disk === 'number' ? _('{size} free', { size: formatBytes(disk) }) : (disk.error ? `⚠ ${disk.error}` : _('{size} free', { size: formatBytes(disk.free_bytes ?? disk.free) })));
     const esp = statusPart(status, 'esp32');
-    if (esp) add('Controller', esp.error ? `⚠ ${esp.error}` : `${esp.connected ? 'Connected' : 'Not connected'}${esp.estop ? ' · E-STOP' : ''}`);
+    if (esp) add(_('Controller'), esp.error ? `⚠ ${esp.error}` : `${esp.connected ? _('Connected') : _('Not connected')}${esp.estop ? _(' · E-STOP') : ''}`);
     return rows;
 }
 
 function renderChips(data) {
     const status = data.telescope_status;
     if (!status) {
-        setChip('chipMount', 'off', 'No status from the telescope yet');
-        setChip('chipCamera', 'off', 'Camera —');
+        setChip('chipMount', 'off', _('No status from the telescope yet'));
+        setChip('chipCamera', 'off', _('Camera —'));
         return;
     }
     const tracking = statusPart(status, 'tracking');
     const esp = statusPart(status, 'esp32');
     if (esp && esp.estop) {
-        setChip('chipMount', 'bad', 'Emergency stop is on');
+        setChip('chipMount', 'bad', _('Emergency stop is on'));
     } else if (!tracking || tracking.error) {
-        setChip('chipMount', tracking ? 'bad' : 'off', tracking ? `Mount: ${tracking.error}` : 'Mount —');
+        setChip('chipMount', tracking ? 'bad' : 'off', tracking ? _('Mount: {error}', { error: tracking.error }) : _('Mount —'));
     } else if (tracking.parked) {
-        setChip('chipMount', 'warn', 'Mount parked');
+        setChip('chipMount', 'warn', _('Mount parked'));
     } else {
         const state = tracking.state || 'idle';
         const level = /track/i.test(state) ? 'ok' : /slew/i.test(state) ? 'warn' : 'off';
-        const extra = Seleno.mode() === 'advanced' ? [tracking.rate, tracking.target].filter(Boolean).join(' · ') : '';
-        setChip('chipMount', level, `Mount ${state}${extra ? ' · ' + extra : ''}`);
+        const extra = Seleno.mode() === 'advanced' ? [stateLabel(tracking.rate), targetName(tracking.target)].filter(Boolean).join(' · ') : '';
+        setChip('chipMount', level, _('Mount {state}{extra}', { state: stateLabel(state), extra: extra ? ' · ' + extra : '' }));
     }
     const camera = statusPart(status, 'camera');
     const battery = camera && (camera.battery ?? camera.battery_pct);
     if (!camera || camera.error) {
-        setChip('chipCamera', camera ? 'bad' : 'off', camera ? `Camera: ${camera.error}` : 'Camera —');
+        setChip('chipCamera', camera ? 'bad' : 'off', camera ? _('Camera: {error}', { error: camera.error }) : _('Camera —'));
     } else if (!camera.connected) {
-        setChip('chipCamera', 'bad', 'Camera not connected');
+        setChip('chipCamera', 'bad', _('Camera not connected'));
     } else {
-        const model = Seleno.mode() === 'advanced' ? (camera.model || 'Camera') : 'Camera ready';
+        const model = Seleno.mode() === 'advanced' ? (camera.model || _('Camera')) : _('Camera ready');
         const batteryText = battery !== undefined && battery !== null ? ` · ${String(battery).replace(/%?$/, '%')}` : '';
         setChip('chipCamera', 'ok', `${model}${batteryText}`);
     }
     const clock = statusPart(status, 'clock');
     if (clock && !clock.error) {
-        setChip('chipClock', clock.trusted ? 'ok' : 'warn', `Clock ${clock.source || ''}${clock.offset_s !== undefined ? ' ' + (clock.offset_s >= 0 ? '+' : '') + Number(clock.offset_s).toFixed(2) + ' s' : ''}`.trim());
+        setChip('chipClock', clock.trusted ? 'ok' : 'warn', _('Clock {source}{offsetS}', { source: clock.source || '', offsetS: clock.offset_s !== undefined ? ' ' + (clock.offset_s >= 0 ? '+' : '') + Number(clock.offset_s).toFixed(2) + ' s' : '' }).trim());
     }
     const disk = status.disk;
     if (disk !== undefined && disk !== null) {
         const free = typeof disk === 'number' ? disk : (disk.free_bytes ?? disk.free);
-        if (free !== undefined) setChip('chipDisk', free < 2 * 1024 ** 3 ? 'warn' : 'ok', `Disk ${formatBytes(free)} free`);
+        if (free !== undefined) setChip('chipDisk', free < 2 * 1024 ** 3 ? 'warn' : 'ok', _('Disk {free} free', { free: formatBytes(free) }));
     }
     const uploads = statusPart(status, 'uploads');
     if (uploads && !uploads.error) {
         const waiting = uploads.waiting ?? 0;
         const held = uploads.waiting_raw ?? uploads.held;
         setChip('chipUploads', uploads.failed ? 'bad' : waiting ? 'warn' : 'ok',
-            `Uploads ${waiting} waiting${held ? ` · ${held} RAWs held` : ''}${uploads.failed ? ` · ${uploads.failed} failed` : ''}`);
+            _('Uploads {waiting} waiting{held}{failed}', { waiting, held: held ? _(' · {held} RAWs held', { held }) : '', failed: uploads.failed ? _(' · {failed} failed', { failed: uploads.failed }) : '' }));
     }
 }
 
 function renderTelescopeStatus(data) {
     latestStatus = data;
     const grid = $('telescopeStatusGrid');
-    const ageText = data.age_s !== null && data.age_s !== undefined ? `updated ${Math.round(data.age_s)} s ago` : '';
+    const ageText = data.age_s !== null && data.age_s !== undefined ? _('updated {n} s ago', { n: Math.round(data.age_s) }) : '';
     $('statusAge').textContent = ageText;
     $('statusAgeCard').textContent = ageText;
     grid.innerHTML = '';
     if (!data.telescope_status) {
-        grid.append(Seleno.el('dt', {}, '—'), Seleno.el('dd', {}, 'No status from the telescope yet'));
+        grid.append(Seleno.el('dt', {}, '—'), Seleno.el('dd', {}, _('No status from the telescope yet')));
     } else {
         describeStatus(data.telescope_status, data.viewers).forEach(([label, value]) => {
             grid.append(Seleno.el('dt', {}, label), Seleno.el('dd', {}, value));
@@ -455,7 +456,7 @@ function pollTelescopeStatus() {
             if (!ok || body.status !== 'success') {
                 const grid = $('telescopeStatusGrid');
                 grid.innerHTML = '';
-                grid.append(Seleno.el('dt', {}, '—'), Seleno.el('dd', {}, body.message || 'Status unavailable'));
+                grid.append(Seleno.el('dt', {}, '—'), Seleno.el('dd', {}, body.message || _('Status unavailable')));
                 return;
             }
             if (body.access) applyTelescopeAccess(body.access);
@@ -473,22 +474,22 @@ function planProgressText(plan) {
     const parts = [];
     let fraction = null;
     if (stepIndex !== null && steps[stepIndex]) {
-        let text = `Step ${stepIndex + 1} of ${steps.length}: ${steps[stepIndex].type}`;
+        let text = _('Step {stepIndex} of {steps}: {type}', { stepIndex: stepIndex + 1, steps: steps.length, type: steps[stepIndex].type });
         const count = steps[stepIndex].count;
-        if (status.frame !== undefined) text += ` · frame ${status.frame + 1}${count ? ' of ' + count : ''}`;
+        if (status.frame !== undefined) text += (count ? _(' · frame {frame} of {count}', { frame: status.frame + 1, count }) : _(' · frame {frame}', { frame: status.frame + 1 }));
         parts.push(text);
         fraction = (stepIndex + (count && status.frame !== undefined ? (status.frame + 1) / count : 0)) / steps.length;
     }
     const tail = [];
     if (status.time_left_s !== undefined) {
-        tail.push(`${Seleno.fmt.duration(status.time_left_s)} left`);
-        tail.push(`ends ${Seleno.fmt.time(Date.now() + status.time_left_s * 1000)}`);
+        tail.push(_('{duration} left', { duration: Seleno.fmt.duration(status.time_left_s) }));
+        tail.push(_('ends {time}', { time: Seleno.fmt.time(Date.now() + status.time_left_s * 1000) }));
     }
     const booking = latestStatus && latestStatus.booking;
-    if (booking && booking.end) tail.push(`booking ends ${Seleno.fmt.time(booking.end)}`);
+    if (booking && booking.end) tail.push(_('booking ends {time}', { time: Seleno.fmt.time(booking.end) }));
     if (tail.length) parts.push(tail.join(' · '));
     if (Array.isArray(status.messages) && status.messages.length) parts.push(status.messages[status.messages.length - 1]);
-    return { text: parts.join('\n') || 'Starting…', fraction };
+    return { text: parts.join('\n') || _('Starting…'), fraction };
 }
 
 function renderPlan(plan) {
@@ -503,7 +504,7 @@ function renderPlan(plan) {
         const status = plan.last_status || {};
         const state = status.state || plan.state;
         $('planTitle').textContent = plan.name;
-        $('planState').querySelector('span:last-child').textContent = state;
+        $('planState').querySelector('span:last-child').textContent = stateLabel(state);
         $('planState').querySelector('.ws-dot').className = `ws-dot ${state === 'running' ? 'ok' : state === 'waiting' || state === 'paused' ? 'warn' : 'off'}`;
         const progress = planProgressText(plan);
         $('planProgress').textContent = progress.text;
@@ -529,7 +530,7 @@ function planControl(action) {
         .then(response => response.json())
         .then(data => {
             if (data.status !== 'success') {
-                Seleno.toast(`Couldn't ${action} the plan: ${data.message || 'unknown error'}`, 'bad');
+                Seleno.toast(planFailText(action, data.message || _('unknown error')), 'bad');
                 return;
             }
             logLine(`✓ plan ${action}`, 'ok');
@@ -537,7 +538,16 @@ function planControl(action) {
             pollTelescopeStatus();
             loadPlanHistory();
         })
-        .catch(error => Seleno.toast(`Couldn't ${action} the plan: ${error}`, 'bad'));
+        .catch(error => Seleno.toast(planFailText(action, error), 'bad'));
+}
+
+function planFailText(action, error) {
+    const v = { error };
+    if (action === 'pause') return _("Couldn't pause the plan: {error}", v);
+    if (action === 'resume') return _("Couldn't resume the plan: {error}", v);
+    if (action === 'skip') return _("Couldn't skip the step: {error}", v);
+    if (action === 'stop') return _("Couldn't stop the plan: {error}", v);
+    return _("Couldn't change the plan: {error}", v);
 }
 
 function loadPlanHistory() {
@@ -549,7 +559,7 @@ function loadPlanHistory() {
             if (data.status !== 'success') return;
             box.innerHTML = '';
             if (!data.plans.length) {
-                box.textContent = 'No plans run on this telescope yet.';
+                box.textContent = _('No plans run on this telescope yet.');
                 return;
             }
             data.plans.slice(0, 8).forEach(plan => {
@@ -580,7 +590,7 @@ function populateCameraChoices() {
         .then(response => response.json())
         .then(data => {
             if (data && data.status === 'error') {
-                logLine(`Camera settings unavailable: ${data.message}`, 'warn');
+                logLine(_('Camera settings unavailable: {message}', { message: data.message }), 'warn');
                 return null;
             }
             window.cameraChoices = data;
@@ -603,7 +613,7 @@ function populateCameraChoices() {
 // Change one camera setting. Resolves true when the camera took it.
 function updateSetting(field, value, options = {}) {
     if (!selectedTelescopeId) {
-        Seleno.toast('Select a telescope first.', 'warn');
+        Seleno.toast(_('Select a telescope first.'), 'warn');
         return Promise.resolve(false);
     }
     if (value === undefined || value === null || value === '') return Promise.resolve(false);
@@ -616,7 +626,7 @@ function updateSetting(field, value, options = {}) {
         .then(data => {
             if (data.status !== 'success') {
                 logLine(`✗ ${field} ${value}: ${data.message || 'not changed'}`, 'bad');
-                if (!options.quiet) Seleno.toast(`Camera setting not changed: ${data.message || 'unknown error'}`, 'bad');
+                if (!options.quiet) Seleno.toast(_('Camera setting not changed: {message}', { message: data.message || _('unknown error') }), 'bad');
                 return false;
             }
             logLine(`✓ set ${field} ${value}`, 'ok');
@@ -644,8 +654,8 @@ function updateBulbVisibility() {
 // Take a photo. exposure_s is for bulb shutters. Resolves to the reply, or rejects.
 function takePhoto(options = {}) {
     if (!selectedTelescopeId) {
-        Seleno.toast('Select a telescope first.', 'warn');
-        return Promise.reject(new Error('No telescope selected'));
+        Seleno.toast(_('Select a telescope first.'), 'warn');
+        return Promise.reject(new Error(_('No telescope selected')));
     }
     const shutter = options.shutter !== undefined ? options.shutter : $('shutterSpeedSelect').value;
     const body = { telescope_id: selectedTelescopeId, shutter };
@@ -654,7 +664,7 @@ function takePhoto(options = {}) {
     if (exposure === undefined && isBulbShutter(shutter)) exposure = parseFloat($('bulbSeconds').value);
     if (isBulbShutter(shutter)) {
         if (isNaN(exposure) || exposure <= 0 || exposure > 900) {
-            Seleno.toast('Enter a bulb exposure between 0 and 900 seconds.', 'warn');
+            Seleno.toast(_('Enter a bulb exposure between 0 and 900 seconds.'), 'warn');
             return Promise.reject(new Error('Bad exposure'));
         }
         body.exposure_s = exposure;
@@ -669,7 +679,7 @@ function takePhoto(options = {}) {
         .then(data => {
             if (data.status !== 'success') {
                 logLine(`✗ capturePhoto: ${data.message || 'failed'}`, 'bad');
-                throw new Error(data.message || 'The photo failed');
+                throw new Error(data.message || _('The photo failed'));
             }
             logLine(`✓ capturePhoto ${shortResult(data.result)}`, 'ok');
             setTimeout(pollLatestCaptures, 4000);
@@ -683,8 +693,8 @@ function refreshCameraStatus() {
             if (!status) return;
             const battery = status.battery ?? status.batteryLevel ?? '—';
             const card = status.card_free ?? status.cardFree ?? status.card ?? '—';
-            const cardText = typeof card === 'number' ? formatBytes(card) + ' free' : card;
-            $('cameraStatusLine').textContent = `Battery ${battery} · Card ${cardText}`;
+            const cardText = typeof card === 'number' ? _('{size} free', { size: formatBytes(card) }) : card;
+            $('cameraStatusLine').textContent = _('Battery {battery} · Card {cardText}', { battery, cardText });
         })
         .catch(() => {});
 }
@@ -717,18 +727,18 @@ function initializeLiveView() {
         onState: (state, detail) => {
             if (state === 'playing') {
                 setLiveMessage('');
-                setLiveState('live', 'Live');
+                setLiveState('live', _('Live'));
                 const chip = $('liveStatsChip');
                 if (chip.textContent === '') chip.textContent = detail || '';
                 return;
             }
             const messages = {
-                connecting: 'Connecting…',
-                waiting: 'Waiting for the telescope…',
-                offline: 'Live view off',
-                error: detail || 'Live view unavailable'
+                connecting: _('Connecting…'),
+                waiting: _('Waiting for the telescope…'),
+                offline: _('Live view off'),
+                error: detail || _('Live view unavailable')
             };
-            setLiveState(state === 'error' ? 'bad' : 'off', state === 'connecting' || state === 'waiting' ? 'Connecting' : 'Off');
+            setLiveState(state === 'error' ? 'bad' : 'off', state === 'connecting' || state === 'waiting' ? _('Connecting') : _('Off'));
             // Keep the last frame showing while the camera restarts
             setLiveMessage(messages[state] || '');
         }
@@ -784,30 +794,30 @@ function initializeLiveHistogram() {
         canvasId: 'liveHistogramCanvas',
         controlsRootId: 'liveHistogramControls',
         statsId: 'liveHistogramStats',
-        emptyMessage: 'Waiting for live view…'
+        emptyMessage: _('Waiting for live view…')
     });
     liveHistogram.setSourceImage($('liveViewCanvas'));
 }
 
 function setLiveViewButtons(active) {
     const adv = $('liveViewToggleBtn');
-    adv.textContent = active ? 'Live view off' : 'Live view on';
+    adv.textContent = active ? _p('button', 'Live view off') : _('Live view on');
     adv.classList.toggle('primary', !active);
-    $('btnLiveToggleBasic').textContent = active ? 'Stop live view' : 'Start live view';
+    $('btnLiveToggleBasic').textContent = active ? _('Stop live view') : _('Start live view');
     $('liveStatsChip').classList.toggle('ws-hidden', !active);
-    $('focusAdvAside').textContent = active ? 'live' : 'live view off';
+    $('focusAdvAside').textContent = active ? _('live') : _('live view off');
     if (!active) {
-        setLiveState('off', 'Off');
-        setLiveMessage('Live view off');
+        setLiveState('off', _('Off'));
+        setLiveMessage(_('Live view off'));
     }
 }
 
 function startLiveView() {
     if (!selectedTelescopeId) {
-        Seleno.toast('Select a telescope first.', 'warn');
+        Seleno.toast(_('Select a telescope first.'), 'warn');
         return Promise.resolve(false);
     }
-    setLiveMessage('Starting live view…');
+    setLiveMessage(_('Starting live view…'));
     return fetch('/interface/start_live_view', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -817,7 +827,7 @@ function startLiveView() {
         .then(response => response.json())
         .then(data => {
             if (data.status !== 'success') {
-                setLiveMessage(`Couldn't start live view: ${data.message}`);
+                setLiveMessage(_('Couldn\'t start live view: {message}', { message: data.message }));
                 logLine(`✗ start_live_view: ${data.message}`, 'bad');
                 return false;
             }
@@ -828,7 +838,7 @@ function startLiveView() {
             return true;
         })
         .catch(error => {
-            setLiveMessage('Live view unavailable');
+            setLiveMessage(_('Live view unavailable'));
             return false;
         });
 }
@@ -842,7 +852,7 @@ function stopLiveView() {
         .then(response => response.json())
         .then(data => {
             if (data.status !== 'success') {
-                Seleno.toast(`Couldn't stop live view: ${data.message}`, 'bad');
+                Seleno.toast(_('Couldn\'t stop live view: {message}', { message: data.message }), 'bad');
                 return;
             }
             logLine('✓ stop_live_view', 'ok');
@@ -873,7 +883,7 @@ function setZoomLevel(level, at) {
 function toggleFullscreen() {
     const frame = $('liveFrame');
     if (!document.fullscreenElement) {
-        frame.requestFullscreen().catch(error => Seleno.toast(`Full screen isn't available: ${error.message}`, 'warn'));
+        frame.requestFullscreen().catch(error => Seleno.toast(_('Full screen isn\'t available: {message}', { message: error.message }), 'warn'));
     } else {
         document.exitFullscreen();
     }
@@ -952,7 +962,7 @@ function onFocusMeasured(result) {
         if (focusHistory.length > FOCUS_HISTORY_MAX) focusHistory.shift();
     }
     const clip = $('liveClipStats');
-    if (clip) clip.textContent = `Sky at ${Math.round(result.background * 100)}% · clipped ${result.clippedPct.toFixed(2)}% · ${result.stars.length} stars measured`;
+    if (clip) clip.textContent = _('Sky at {background}% · clipped {clippedPct}% · {stars} stars measured', { background: Math.round(result.background * 100), clippedPct: result.clippedPct.toFixed(2), stars: result.stars.length });
     renderFocus();
     drawOverlay();
     emit('seleno:focus', { result, history: focusHistory });
@@ -972,7 +982,7 @@ function renderFocus() {
     const now = focusHistory.length ? focusHistory[focusHistory.length - 1] : null;
     $('focusKvHfr').textContent = now ? `${now.hfr.toFixed(2)} / ${values[best].toFixed(2)} px` : '—';
     $('focusKvFwhm').textContent = now && now.fwhm ? `${now.fwhm.toFixed(2)} px` : '—';
-    $('focusKvPeak').textContent = now && now.peak !== null ? `${Math.round(now.peak * 100)}%${now.peak >= 0.98 ? ' (clipped)' : ''}` : '—';
+    $('focusKvPeak').textContent = now && now.peak !== null ? `${Math.round(now.peak * 100)}%${now.peak >= 0.98 ? _(' (clipped)') : ''}` : '—';
 }
 
 function startRecording() {
@@ -992,12 +1002,12 @@ function renderRecording(status) {
     const line = $('recordingStatus');
     if (!line || !status) return;
     if (status.error && !status.recording) {
-        line.textContent = `Last recording error: ${status.error}`;
+        line.textContent = _('Last recording error: {error}', { error: status.error });
     } else if (status.recording) {
         const seconds = status.seconds !== undefined ? ` · ${Math.round(status.seconds)} s` : '';
-        line.textContent = `● Recording ${status.kind || ''}: ${status.frames || 0} frames${seconds}`;
+        line.textContent = _('● Recording {kind}: {frames} frames{seconds}', { kind: status.kind || '', frames: status.frames || 0, seconds });
     } else {
-        line.textContent = status.path ? `Saved ${status.path}` : '';
+        line.textContent = status.path ? _('Saved {path}', { path: status.path }) : '';
     }
     $('btnRecord').classList.toggle('danger', !!status.recording);
 }
@@ -1013,7 +1023,7 @@ function refreshLiveViewStats() {
             if (stats.fps !== undefined) parts.push(`${Number(stats.fps).toFixed(1)} fps`);
             const kbps = stats.kbps ?? stats.bitrate_kbps;
             if (kbps !== undefined) parts.push(`${(kbps / 1000).toFixed(1)} Mbps`);
-            if (latestStatus && latestStatus.viewers !== undefined) parts.push(`${latestStatus.viewers} watching`);
+            if (latestStatus && latestStatus.viewers !== undefined) parts.push(_('{n} watching', { n: latestStatus.viewers }));
             $('liveStatsChip').textContent = parts.join(' · ');
         })
         .catch(() => {});
@@ -1052,9 +1062,22 @@ function refreshSky() {
             return data;
         })
         .catch(error => {
-            if (error.status !== 404) logLine(`Sky: ${error.message}`, 'warn');
+            if (error.status !== 404) logLine(_('Sky: {message}', { message: error.message }), 'warn');
             return null;
         });
+}
+
+
+// The server names the sun's state in English; show it in the page's language
+function twilightLabel(state) {
+    const labels = {
+        'day': _('Day'),
+        'civil twilight': _('Civil twilight'),
+        'nautical twilight': _('Nautical twilight'),
+        'astronomical twilight': _('Astronomical twilight'),
+        'astronomical night': _('Astronomical night'),
+    };
+    return labels[state] || state;
 }
 
 function renderSky(data) {
@@ -1062,8 +1085,8 @@ function renderSky(data) {
     kv.innerHTML = '';
     const add = (label, value) => kv.append(Seleno.el('dt', {}, label), Seleno.el('dd', {}, value));
     if (!data || !data.site) {
-        setChip('chipSky', 'off', 'Site unknown', data && data.message);
-        add('Sky', data && data.message ? data.message : '—');
+        setChip('chipSky', 'off', _('Site unknown'), data && data.message);
+        add(_('Sky'), data && data.message ? data.message : '—');
         return;
     }
     const night = data.night || {};
@@ -1071,23 +1094,23 @@ function renderSky(data) {
     const nightEnd = night.end ? Seleno.fmt.time(night.end) : null;
     const nightStart = night.start ? Seleno.fmt.time(night.start) : null;
     let skyText;
-    if (data.dark) skyText = nightEnd ? `Dark sky · night until ${nightEnd}` : 'Dark sky';
-    else if (nightStart) skyText = `${data.sun.state[0].toUpperCase()}${data.sun.state.slice(1)} · dark from ${nightStart}`;
-    else skyText = 'No full darkness tonight';
-    if (Seleno.mode() === 'advanced') skyText = `Sun ${sunAlt.toFixed(0)}° · ${data.sun.state}`;
+    if (data.dark) skyText = nightEnd ? _('Dark sky · night until {nightEnd}', { nightEnd }) : _('Dark sky');
+    else if (nightStart) skyText = _('{state} · dark from {nightStart}', { state: twilightLabel(data.sun.state), nightStart });
+    else skyText = _('No full darkness tonight');
+    if (Seleno.mode() === 'advanced') skyText = _('Sun {sunAlt}° · {state}', { sunAlt: sunAlt.toFixed(0), state: twilightLabel(data.sun.state) });
     setChip('chipSky', data.dark ? 'ok' : sunAlt < -6 ? 'warn' : 'bad', skyText);
 
     const target = data.target;
     if (target) {
-        add('Target', target.name || '—');
-        add('Alt / Az', `${target.alt.toFixed(1)}° / ${target.az.toFixed(1)}°`);
-        add('Transit', target.transit ? `${Seleno.fmt.time(target.transit)} · ${target.transit_alt.toFixed(1)}°` : '—');
-        add('Above 30°', target.above_from ? `${Seleno.fmt.time(target.above_from)} – ${Seleno.fmt.time(target.above_to)}` : 'Not tonight');
-        add('Moon', `${Math.round(data.moon.illumination * 100)}% · ${target.moon_separation.toFixed(0)}° away`);
+        add(_('Target'), target.name || '—');
+        add(_('Alt / Az'), `${target.alt.toFixed(1)}° / ${target.az.toFixed(1)}°`);
+        add(_('Transit'), target.transit ? `${Seleno.fmt.time(target.transit)} · ${target.transit_alt.toFixed(1)}°` : '—');
+        add(_('Above 30°'), target.above_from ? `${Seleno.fmt.time(target.above_from)} – ${Seleno.fmt.time(target.above_to)}` : _('Not tonight'));
+        add(_('Moon'), _('{illumination}% · {moonSeparation}° away', { illumination: Math.round(data.moon.illumination * 100), moonSeparation: target.moon_separation.toFixed(0) }));
     } else {
-        add('Moon', `${Math.round(data.moon.illumination * 100)}% lit · ${data.moon.alt > 0 ? `up, ${data.moon.alt.toFixed(0)}°` : 'below the horizon'}`);
+        add(_('Moon'), _('{illumination}% lit · {alt}', { illumination: Math.round(data.moon.illumination * 100), alt: data.moon.alt > 0 ? _('up, {alt}°', { alt: data.moon.alt.toFixed(0) }) : _('below the horizon') }));
     }
-    add('Astro dark', nightStart && nightEnd ? `${nightStart} – ${nightEnd}` : 'None tonight');
+    add(_('Astro dark'), nightStart && nightEnd ? `${nightStart} – ${nightEnd}` : _('None tonight'));
 }
 
 function extractCommonName(commonNames) {
@@ -1113,7 +1136,7 @@ function searchCatalogue(text) {
 }
 
 function searchResultTarget(star) {
-    const name = star.name || star.Name || 'Unknown';
+    const name = star.name || star.Name || _('Unknown');
     const moving = ['sun', 'moon', 'mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto'].includes(String(name).toLowerCase());
     return {
         name,
@@ -1130,7 +1153,7 @@ function searchResultTarget(star) {
 function renderSearchResult(box, star, onPick) {
     box.innerHTML = '';
     const target = searchResultTarget(star);
-    const details = Seleno.el('details', {}, [Seleno.el('summary', { className: 'ws-small ws-muted' }, 'Everything the catalogue says')]);
+    const details = Seleno.el('details', {}, [Seleno.el('summary', { className: 'ws-small ws-muted' }, _('Everything the catalogue says'))]);
     const table = Seleno.el('table');
     Object.entries(star).forEach(([key, value]) => {
         if (value === null || value === undefined || value === '') return;
@@ -1140,7 +1163,7 @@ function renderSearchResult(box, star, onPick) {
     details.appendChild(table);
     box.appendChild(Seleno.el('div', { className: 'ws-card', style: { padding: '10px 12px' } }, [
         Seleno.el('div', { className: 'ws-strong' }, `${target.name}${target.common ? ' · ' + target.common : ''}`),
-        Seleno.el('div', { className: 'ws-small ws-muted' }, `RA ${Seleno.fmt.ra(target.ra)} · Dec ${Seleno.fmt.dec(target.dec)}${target.mag !== undefined && target.mag !== null ? ' · mag ' + Number(target.mag).toFixed(1) : ''}`),
+        Seleno.el('div', { className: 'ws-small ws-muted' }, _('RA {ra} · Dec {dec}{mag}', { ra: Seleno.fmt.ra(target.ra), dec: Seleno.fmt.dec(target.dec), mag: target.mag !== undefined && target.mag !== null ? ' · mag ' + Number(target.mag).toFixed(1) : '' })),
         Seleno.el('div', { className: 'ws-actions', style: { margin: '8px 0 4px' } }, onPick(target)),
         details
     ]));
@@ -1150,29 +1173,30 @@ function searchObject() {
     const text = $('searchObject').value.trim();
     const box = $('searchResult');
     if (!text) return;
-    box.textContent = 'Searching…';
+    box.textContent = _('Searching…');
     searchCatalogue(text).then(star => {
         if (!star) {
-            box.textContent = `Nothing called “${text}” in the catalogue.`;
+            box.textContent = _('Nothing called “{text}” in the catalogue.', { text });
             return;
         }
         renderSearchResult(box, star, target => [
-            Seleno.el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => goToTarget(target) }, 'Go to'),
-            Seleno.el('button', { className: 'ws-btn sm', type: 'button', onclick: () => goToTarget(target, { centre: true }) }, 'Go to + centre'),
+            Seleno.el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => goToTarget(target) }, _('Go to')),
+            Seleno.el('button', { className: 'ws-btn sm', type: 'button', onclick: () => goToTarget(target, { centre: true }) }, _('Go to + centre')),
             Seleno.el('button', { className: 'ws-btn sm', type: 'button', onclick: () => {
                 $('manualRA').value = Seleno.fmt.ra(target.ra);
                 $('manualDEC').value = Seleno.fmt.dec(target.dec);
                 setCurrentTarget(target);
-            } }, 'Use as target')
+            } }, _('Use as target'))
         ]);
-    }).catch(() => { box.textContent = 'The search failed.'; });
+    }).catch(() => { box.textContent = _('The search failed.'); });
 }
 
 // Send the mount to a target. Moon and planets go by name (the Pi works out where
 // they are from its own site); everything else by coordinates.
 function goToTarget(target, options = {}) {
     if (!target) return Promise.resolve(false);
-    const go = target.moving ? trackPlanet(target.name) : trackObject(target);
+    // track_name: featured targets' English name (name may be translated)
+    const go = target.moving ? trackPlanet(target.track_name || target.name) : trackObject(target);
     return go.then(ok => {
         if (!ok) return false;
         setCurrentTarget(target);
@@ -1182,15 +1206,16 @@ function goToTarget(target, options = {}) {
 }
 
 function trackObject(star) {
-    const name = star.name || star.Name || 'Target';
+    const name = star.track_name || star.name || star.Name || 'Target';  // sent to the telescope
+    const shown = star.name || name;
     const ra = star.ra ?? star.RA;
     const dec = star.dec ?? star.DEC;
     const mag = star.mag ?? star['V-Mag'] ?? null;
     if (ra === undefined || ra === null || dec === undefined || dec === null || isNaN(ra) || isNaN(dec)) {
-        Seleno.toast('That target has no coordinates to go to.', 'bad');
+        Seleno.toast(_('That target has no coordinates to go to.'), 'bad');
         return Promise.resolve(false);
     }
-    logLine(`… go to ${name} (RA ${Number(ra).toFixed(3)}°, Dec ${Number(dec).toFixed(3)}°)`);
+    logLine(_('… go to {name} (RA {ra}°, Dec {dec}°)', { name: shown, ra: Number(ra).toFixed(3), dec: Number(dec).toFixed(3) }));
     return fetch('/track_star', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1199,17 +1224,17 @@ function trackObject(star) {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'tracking') {
-                logLine(`✓ tracking ${name}`, 'ok');
-                updateTrackingPanel({ name, ra, dec, mag });
+                logLine(_('✓ tracking {name}', { name: shown }), 'ok');
+                updateTrackingPanel({ name: shown, ra, dec, mag });
                 return true;
             }
-            const message = data.message || data.error || 'The go-to failed';
-            logLine(`✗ go to ${name}: ${message}`, 'bad');
+            const message = data.message || data.error || _('The go-to failed');
+            logLine(_('✗ go to {name}: {message}', { name: shown, message }), 'bad');
             Seleno.toast(message, 'bad');
             return false;
         })
         .catch(error => {
-            Seleno.toast(`The go-to failed: ${error}`, 'bad');
+            Seleno.toast(_('The go-to failed: {error}', { error }), 'bad');
             return false;
         });
 }
@@ -1227,7 +1252,7 @@ function trackManualCoordinates(centre) {
     const ra = Seleno.parseRA($('manualRA').value);
     const dec = Seleno.parseDec($('manualDEC').value);
     if (ra === null || dec === null) {
-        Seleno.toast('Enter RA as h m s (or degrees) and Dec as ° ′ ″.', 'warn');
+        Seleno.toast(_('Enter RA as h m s (or degrees) and Dec as ° ′ ″.'), 'warn');
         return;
     }
     const target = { name: `RA ${Seleno.fmt.ra(ra)} Dec ${Seleno.fmt.dec(dec)}`, ra, dec, mag: null };
@@ -1238,11 +1263,11 @@ function updateTrackingPanel(tracking) {
     const line = $('trackingNow');
     const stop = $('stopTrackingBtn');
     if (tracking && tracking.name) {
-        line.textContent = `Tracking ${tracking.name}`;
+        line.textContent = _('Tracking {name}', { name: tracking.name });
         stop.classList.remove('ws-hidden');
         try { sessionStorage.setItem('currentTracking', JSON.stringify(tracking)); } catch (error) { /* ignore */ }
     } else {
-        line.textContent = 'Not tracking anything';
+        line.textContent = _('Not tracking anything');
         stop.classList.add('ws-hidden');
         try { sessionStorage.removeItem('currentTracking'); } catch (error) { /* ignore */ }
     }
@@ -1255,9 +1280,9 @@ function stopTracking() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'stopped') {
-                logLine('✓ stopped tracking', 'ok');
+                logLine(_('✓ stopped tracking'), 'ok');
             } else {
-                logLine(`✗ stop tracking: ${data.message || 'failed'}`, 'bad');
+                logLine(_('✗ stop tracking: {message}', { message: data.message || _('failed') }), 'bad');
             }
             updateTrackingPanel(null);
         })
@@ -1282,6 +1307,37 @@ function loadTrackingStatus() {
         .catch(() => {});
 }
 
+// Planet names stay English as values (the Pi expects them); only the label is translated
+// Words the telescope and server send as plain English values (mount state, tracking
+// rate, plan state, frame type). The value stays as it is; only what's shown changes.
+function stateLabel(word) {
+    if (!word || typeof word !== 'string') return word;
+    const labels = {
+        idle: _('idle'), tracking: _('tracking'), slewing: _('slewing'), parked: _('parked'), parking: _('parking'),
+        stopped: _('stopped'), homing: _('homing'), error: _('error'),
+        sidereal: _('sidereal'), lunar: _('lunar'), solar: _('solar'), king: _('king'), custom: _('custom'),
+        running: _('running'), waiting: _('waiting'), paused: _('paused'), done: _('done'), failed: _('failed'),
+        starting: _('starting'), queued: _('queued'),
+        light: _('light'), dark: _('dark'), flat: _('flat'), bias: _('bias'), test: _('test shot'),
+        snapshot: _('snapshot'), video: _('video'),
+    };
+    return labels[word.toLowerCase()] || word;
+}
+
+// The Pi may send the target as {name, ra, dec, ...} rather than a name
+function targetName(target) {
+    if (target && typeof target === 'object') return target.name || target.designation || '';
+    return target || '';
+}
+
+function planetLabel(name) {
+    const labels = {
+        Sun: _('Sun'), Moon: _('Moon'), Mercury: _('Mercury'), Venus: _('Venus'), Mars: _('Mars'),
+        Jupiter: _('Jupiter'), Saturn: _('Saturn'), Uranus: _('Uranus'), Neptune: _('Neptune'), Pluto: _('Pluto'),
+    };
+    return labels[name] || name;
+}
+
 function loadPlanets() {
     // The planet list from the Pi, with altitudes, when it offers one
     telescopeAction('get_planets', {}, { quiet: true })
@@ -1293,8 +1349,9 @@ function loadPlanets() {
             names.forEach(entry => {
                 const name = typeof entry === 'string' ? entry : entry.name;
                 if (!name) return;
+                const label = planetLabel(name);
                 select.appendChild(Seleno.el('option', { value: name },
-                    typeof entry === 'object' && entry.alt_deg !== undefined ? `${name} · ${Number(entry.alt_deg).toFixed(0)}°` : name));
+                    typeof entry === 'object' && entry.alt_deg !== undefined ? `${label} · ${Number(entry.alt_deg).toFixed(0)}°` : label));
             });
         })
         .catch(() => {});
@@ -1305,14 +1362,14 @@ function loadPlanets() {
 function emergencyStopMount() {
     telescopeAction('estop')
         .then(() => {
-            logLine('E-STOP sent', 'bad');
-            Seleno.toast('Emergency stop sent: every motor is stopping.', 'bad', 7000);
+            logLine(_('E-STOP sent'), 'bad');
+            Seleno.toast(_('Emergency stop sent: every motor is stopping.'), 'bad', 7000);
         })
         .catch(() => {});
 }
 
 function clearEstop() {
-    confirmAction('Clear the emergency stop? Make sure nothing is in the way of the mount.', 'clear_estop');
+    confirmAction(_('Clear the emergency stop? Make sure nothing is in the way of the mount.'), 'clear_estop');
 }
 
 function solveSource() {
@@ -1325,7 +1382,7 @@ function setTrackingRate() {
     if (rate === 'custom') {
         const custom = parseFloat($('customRateInput').value);
         if (isNaN(custom)) {
-            Seleno.toast('Enter a custom rate in arcseconds per second.', 'warn');
+            Seleno.toast(_('Enter a custom rate in arcseconds per second.'), 'warn');
             return;
         }
         params.custom_arcsec_per_s = custom;
@@ -1354,14 +1411,14 @@ function renderUploads(uploads) {
     const box = $('uploadQueueSummary');
     if (!box || !uploads) return;
     if (uploads.error && Object.keys(uploads).length === 1) {
-        box.textContent = `Uploads: ${uploads.error}`;
+        box.textContent = _('Uploads: {error}', { error: uploads.error });
         return;
     }
     const waiting = uploads.waiting ?? (Array.isArray(uploads.queue) ? uploads.queue.length : undefined);
-    let text = [`Waiting ${waiting ?? '—'}`, `RAWs held ${uploads.waiting_raw ?? uploads.held ?? '—'}`,
-        `Failed ${uploads.failed ?? '—'}`, `Sent ${uploads.sent ?? '—'}`].join(' · ');
-    if (uploads.current) text += `\nSending ${typeof uploads.current === 'string' ? uploads.current : (uploads.current.filename || '')}`;
-    if (uploads.last_error) text += `\nLast error: ${uploads.last_error}`;
+    let text = [_('Waiting {waiting}', { waiting: waiting ?? '—' }), _('RAWs held {held}', { held: uploads.waiting_raw ?? uploads.held ?? '—' }),
+        _('Failed {failed}', { failed: uploads.failed ?? '—' }), _('Sent {sent}', { sent: uploads.sent ?? '—' })].join(' · ');
+    if (uploads.current) text += _('\nSending {filename}', { filename: typeof uploads.current === 'string' ? uploads.current : (uploads.current.filename || '') });
+    if (uploads.last_error) text += _('\nLast error: {lastError}', { lastError: uploads.last_error });
     box.textContent = text;
 }
 
@@ -1387,7 +1444,7 @@ function renderLastFrame(frame) {
     if (!frame) return;
     $('lastFrameThumb').src = frame.thumb;
     $('lastFrameName').textContent = frame.name;
-    $('lastFrameSub').textContent = [frame.frame_type, frame.exposure_s ? Seleno.fmt.exposure(frame.exposure_s) : '', frame.iso ? `ISO ${frame.iso}` : '',
+    $('lastFrameSub').textContent = [stateLabel(frame.frame_type), frame.exposure_s ? Seleno.fmt.exposure(frame.exposure_s) : '', frame.iso ? _('ISO {iso}', { iso: frame.iso }) : '',
         frame.uploaded_at ? Seleno.fmt.time(frame.uploaded_at) : ''].filter(Boolean).join(' · ');
     $('lastFrameLink').href = `/album?frame=${encodeURIComponent(frame.name)}`;
     const kv = $('lastFrameKv');
@@ -1395,18 +1452,18 @@ function renderLastFrame(frame) {
     const m = frame.metrics;
     const add = (label, value) => kv.append(Seleno.el('dt', {}, label), Seleno.el('dd', {}, value));
     if (m) {
-        add('Stars', String(m.stars ?? '—'));
-        add('FWHM / HFR', `${Seleno.fmt.num(m.fwhm)} / ${Seleno.fmt.num(m.hfr)} px`);
-        add('Eccentricity', Seleno.fmt.num(m.ecc));
-        add('Background / noise', `${Seleno.fmt.num(m.background_pct, 1)}% / ${Seleno.fmt.num(m.noise_pct, 2)}%`);
-        add('Clipped', `${Seleno.fmt.num(m.clipped_pct, 2)}%`);
+        add(_('Stars'), String(m.stars ?? '—'));
+        add(_('FWHM / HFR'), `${Seleno.fmt.num(m.fwhm)} / ${Seleno.fmt.num(m.hfr)} px`);
+        add(_('Eccentricity'), Seleno.fmt.num(m.ecc));
+        add(_('Background / noise'), `${Seleno.fmt.num(m.background_pct, 1)}% / ${Seleno.fmt.num(m.noise_pct, 2)}%`);
+        add(_('Clipped'), `${Seleno.fmt.num(m.clipped_pct, 2)}%`);
     } else if (frame.pixel_stats) {
-        add('Sky level', `${Math.round(frame.pixel_stats.background * 100)}%`);
-        add('Clipped', `${frame.pixel_stats.clippedPct.toFixed(2)}%`);
+        add(_('Sky level'), `${Math.round(frame.pixel_stats.background * 100)}%`);
+        add(_('Clipped'), `${frame.pixel_stats.clippedPct.toFixed(2)}%`);
     } else {
-        add('Measured', 'Not yet');
+        add(_('Measured'), _('Not yet'));
     }
-    add('RAW', frame.has_raw ? 'Uploaded' : 'On the telescope');
+    add('RAW', frame.has_raw ? _('Uploaded') : _('On the telescope'));
 }
 
 // --- motor controls (the modal) --------------------------------------------------------
@@ -1415,12 +1472,12 @@ let motorEnabled = false;
 
 function openAdvancedControlsModal() {
     if (!selectedTelescopeId) {
-        Seleno.toast('Select a telescope first.', 'warn');
+        Seleno.toast(_('Select a telescope first.'), 'warn');
         return;
     }
     bootstrap.Modal.getOrCreateInstance($('advancedControlsModal')).show();
     loadAvailableMotors();
-    updateMotorStatusDisplay('Motor controls open, ready for commands', 'info');
+    updateMotorStatusDisplay(_('Motor controls open, ready for commands'), 'info');
     updateMotorEnableButton();
 }
 
@@ -1437,7 +1494,7 @@ function loadAvailableMotors() {
             const select = $('motorSelect');
             select.innerHTML = '';
             data.motors.forEach(id => {
-                const label = id === 'motor1' ? 'Motor 1 (azimuth)' : id === 'motor2' ? 'Motor 2 (altitude)' : id.charAt(0).toUpperCase() + id.slice(1);
+                const label = id === 'motor1' ? _('Motor 1 (azimuth)') : id === 'motor2' ? _('Motor 2 (altitude)') : id.charAt(0).toUpperCase() + id.slice(1);
                 const option = Seleno.el('option', { value: id }, label);
                 if (id === selectedMotorId) option.selected = true;
                 select.appendChild(option);
@@ -1448,29 +1505,29 @@ function loadAvailableMotors() {
 
 function updateSelectedMotor() {
     selectedMotorId = $('motorSelect').value;
-    updateMotorStatusDisplay(`Switched to ${selectedMotorId}`, 'info');
+    updateMotorStatusDisplay(_('Switched to {selectedMotorId}', { selectedMotorId }), 'info');
     getMotorStatus();
 }
 
 function emergencyStop() {
-    if (confirm('Stop all motor movement now?')) {
-        sendMotorCommand('stop').then(() => updateMotorStatusDisplay('EMERGENCY STOP SENT', 'error')).catch(() => {});
+    if (confirm(_('Stop all motor movement now?'))) {
+        sendMotorCommand('stop').then(() => updateMotorStatusDisplay(_('EMERGENCY STOP SENT'), 'error')).catch(() => {});
     }
 }
 
 function updateMotorEnableButton() {
     const btn = $('motorEnableBtn');
     if (!btn) return;
-    btn.textContent = motorEnabled ? 'Disable' : 'Enable';
+    btn.textContent = motorEnabled ? _('Disable') : _('Enable');
     btn.className = motorEnabled ? 'btn btn-outline-danger btn-sm' : 'btn btn-outline-success btn-sm';
 }
 
 function sendMotorCommand(command, args = null) {
     if (!selectedTelescopeId) {
-        Seleno.toast('Select a telescope first.', 'warn');
-        return Promise.reject(new Error('No telescope selected'));
+        Seleno.toast(_('Select a telescope first.'), 'warn');
+        return Promise.reject(new Error(_('No telescope selected')));
     }
-    updateMotorStatusDisplay(`Running ${command} on ${selectedMotorId}…`, 'info');
+    updateMotorStatusDisplay(_('Running {command} on {selectedMotorId}…', { command, selectedMotorId }), 'info');
     return fetch('/interface/motor_command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1478,13 +1535,13 @@ function sendMotorCommand(command, args = null) {
     })
         .then(response => response.json())
         .then(data => {
-            if (data.status !== 'success') throw new Error(data.message || 'Motor command failed');
-            updateMotorStatusDisplay(`${command} done on ${selectedMotorId}`, 'success');
+            if (data.status !== 'success') throw new Error(data.message || _('Motor command failed'));
+            updateMotorStatusDisplay(_('{command} done on {motor}', { command, motor: selectedMotorId }), 'success');
             logLine(`✓ motor ${command} ${selectedMotorId}`, 'ok');
             return data.result;
         })
         .catch(error => {
-            updateMotorStatusDisplay(`${command} failed on ${selectedMotorId}: ${error.message}`, 'error');
+            updateMotorStatusDisplay(_('{command} failed on {motor}: {error}', { command, motor: selectedMotorId, error: error.message }), 'error');
             throw error;
         });
 }
@@ -1515,25 +1572,25 @@ function setDirection(forward, button) {
 function readNumber(id, label, { min = 0, integer = false } = {}) {
     const value = integer ? parseInt($(id).value, 10) : parseFloat($(id).value);
     if (isNaN(value) || value < min) {
-        Seleno.toast(`Enter a valid ${label}.`, 'warn');
+        Seleno.toast(_('Enter a valid value for {label}.', { label }), 'warn');
         return null;
     }
     return value;
 }
 
 function setSpeed() {
-    const speed = readNumber('speedControl', 'speed');
+    const speed = readNumber('speedControl', _('speed'));
     if (speed !== null) sendMotorCommand('set_speed', [speed]).catch(() => {});
 }
 
 function startMotor() {
     if (!motorEnabled) {
-        Seleno.toast('Enable the motor first.', 'warn');
+        Seleno.toast(_('Enable the motor first.'), 'warn');
         return;
     }
-    const speed = readNumber('speedControl', 'speed');
+    const speed = readNumber('speedControl', _('speed'));
     if (speed === null) return;
-    if (speed > 1000 && !confirm(`${speed} steps/s is fast. Carry on?`)) return;
+    if (speed > 1000 && !confirm(_('{speed} steps/s is fast. Carry on?', { speed }))) return;
     sendMotorCommand('start', [speed]).catch(() => {});
 }
 
@@ -1543,13 +1600,13 @@ function stopMotor() {
 
 function moveSteps() {
     if (!motorEnabled) {
-        Seleno.toast('Enable the motor first.', 'warn');
+        Seleno.toast(_('Enable the motor first.'), 'warn');
         return;
     }
-    const steps = readNumber('stepsControl', 'number of steps', { min: 1, integer: true });
-    const speed = readNumber('speedControl', 'speed', { min: 0.0001 });
+    const steps = readNumber('stepsControl', _('number of steps'), { min: 1, integer: true });
+    const speed = readNumber('speedControl', _('speed'), { min: 0.0001 });
     if (steps === null || speed === null) return;
-    if (steps > 10000 && !confirm(`Move ${steps} steps? That's a large movement.`)) return;
+    if (steps > 10000 && !confirm(_('Move {steps} steps? That\'s a large movement.', { steps }))) return;
     sendMotorCommand('move_steps', [steps, speed]).catch(() => {});
 }
 
@@ -1558,12 +1615,12 @@ function setMicrosteps() {
 }
 
 function setCurrent() {
-    const current = readNumber('currentControl', 'current', { integer: true });
+    const current = readNumber('currentControl', _('current'), { integer: true });
     if (current !== null) sendMotorCommand('set_current', [current]).catch(() => {});
 }
 
 function setAcceleration() {
-    const accel = readNumber('accelControl', 'acceleration');
+    const accel = readNumber('accelControl', _('acceleration'));
     if (accel !== null) sendMotorCommand('set_accel', [accel]).catch(() => {});
 }
 
@@ -1576,7 +1633,7 @@ function getMotorStatus() {
         .then(result => {
             const box = $('motorStatus');
             if (!result || typeof result !== 'object') return;
-            box.replaceChildren(Seleno.el('strong', {}, `Motor status (${selectedMotorId}):`), Seleno.el('br'));
+            box.replaceChildren(Seleno.el('strong', {}, _('Motor status ({selectedMotorId}):', { selectedMotorId })), Seleno.el('br'));
             Object.entries(result).forEach(([key, value]) => {
                 box.append(Seleno.el('span', { className: 'text-muted' }, `${key}:`), ` ${JSON.stringify(value)}`, Seleno.el('br'));
             });
@@ -1595,7 +1652,7 @@ function getAllMotorStatus() {
         .then(data => {
             if (data.status !== 'success' || !data.result) return;
             const box = $('motorStatus');
-            box.replaceChildren(Seleno.el('strong', {}, 'All motors:'));
+            box.replaceChildren(Seleno.el('strong', {}, _('All motors:')));
             Object.entries(data.result).forEach(([motor, status]) => {
                 const block = Seleno.el('div', { className: 'mb-2' }, [Seleno.el('strong', {}, `${motor}:`)]);
                 Object.entries(status || {}).forEach(([key, value]) => {
@@ -1690,8 +1747,8 @@ function wireInterface() {
     $('takePhotoBtn').addEventListener('click', () => {
         const btn = $('takePhotoBtn');
         btn.disabled = true;
-        takePhoto().then(() => Seleno.toast('Photo taken. It shows up here and in the album once it uploads.', 'ok'))
-            .catch(error => { if (error.message !== 'Bad exposure') Seleno.toast(`The photo failed: ${error.message}`, 'bad'); })
+        takePhoto().then(() => Seleno.toast(_('Photo taken. It shows up here and in the album once it uploads.'), 'ok'))
+            .catch(error => { if (error.message !== 'Bad exposure') Seleno.toast(_('The photo failed: {message}', { message: error.message }), 'bad'); })
             .finally(() => { btn.disabled = false; });
     });
 
@@ -1701,7 +1758,7 @@ function wireInterface() {
     $('planPauseBtn').addEventListener('click', () => planControl('pause'));
     $('planResumeBtn').addEventListener('click', () => planControl('resume'));
     $('planSkipBtn').addEventListener('click', () => planControl('skip'));
-    $('planStopBtn').addEventListener('click', () => { if (confirm('Stop the capture plan?')) planControl('stop'); });
+    $('planStopBtn').addEventListener('click', () => { if (confirm(_('Stop the capture plan?'))) planControl('stop'); });
     $('btnClearLog').addEventListener('click', () => { $('commandLog').innerHTML = ''; });
 
     document.addEventListener('seleno:mode', () => {

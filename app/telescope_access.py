@@ -11,6 +11,7 @@ from flask import jsonify, request, session
 from flask_login import current_user
 
 from app.db import db
+from flask_babel import gettext as _
 
 # TelescopeBooking.status once the owner has approved the booking
 APPROVED_BOOKING_STATE = 'reserved'
@@ -102,20 +103,20 @@ def user_can_control(user, telescope_row, level=CONTROL, at=None):
 def telescope_access_error(telescope_id, level=CONTROL):
     """None when the current user may act on `telescope_id`, else a JSON error response."""
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in to control telescope"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in to control telescope")}), 401
     if getattr(current_user, 'is_limited', False):
-        return jsonify({"status": "error", "message": "Limited accounts cannot control telescopes."}), 403
+        return jsonify({"status": "error", "message": _("Limited accounts cannot control telescopes.")}), 403
     if not telescope_id:
-        return jsonify({"status": "error", "message": "No telescope selected"}), 400
+        return jsonify({"status": "error", "message": _("No telescope selected")}), 400
 
     row = get_telescope_row(telescope_id)
     if row is None:
-        return jsonify({"status": "error", "message": "Telescope not found"}), 404
+        return jsonify({"status": "error", "message": _("Telescope not found")}), 404
 
     if not user_can_control(current_user, row, level):
         if level == OWNER:
-            message = "Only the telescope's owner or an admin can do that."
+            message = _("Only the telescope's owner or an admin can do that.")
         else:
-            message = "You need to own this telescope or hold a booking that covers now."
+            message = _("You need to own this telescope or hold a booking that covers now.")
         return jsonify({"status": "error", "message": message}), 403
     return None

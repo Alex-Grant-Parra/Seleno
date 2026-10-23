@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Interface - SELENO{% endblock %}
+{% block title %}{{ _('Interface - SELENO') }}{% endblock %}
 {% block body_class %}ws-page interface-page{% endblock %}
 
 {% block extra_css %}
@@ -41,26 +41,26 @@
 {% endblock %}
 
 {% block content %}
-<div class="ws-toolbar" role="toolbar" aria-label="Telescope">
-    <label class="ws-muted ws-small basic-only" for="telescopeSelect">Telescope</label>
-    <select id="telescopeSelect" class="ws-select" aria-label="Telescope">
-        <option value="">Select a telescope…</option>
+<div class="ws-toolbar" role="toolbar" aria-label="{{ _('Telescope') }}">
+    <label class="ws-muted ws-small basic-only" for="telescopeSelect">{{ _('Telescope') }}</label>
+    <select id="telescopeSelect" class="ws-select" aria-label="{{ _('Telescope') }}">
+        <option value="">{{ _('Select a telescope…') }}</option>
     </select>
-    <span class="ws-chip" id="chipAccess" title="What you can do with this telescope"><span class="ws-dot off"></span><span>Choose a telescope</span></span>
-    <span class="ws-chip" id="chipMount"><span class="ws-dot off"></span><span>Mount —</span></span>
-    <span class="ws-chip" id="chipCamera"><span class="ws-dot off"></span><span>Camera —</span></span>
-    <span class="ws-chip adv-only" id="chipClock"><span class="ws-dot off"></span><span>Clock —</span></span>
-    <span class="ws-chip adv-only" id="chipDisk"><span class="ws-dot off"></span><span>Disk —</span></span>
-    <span class="ws-chip adv-only" id="chipUploads"><span class="ws-dot off"></span><span>Uploads —</span></span>
-    <span class="ws-chip" id="chipSky"><span class="ws-dot off"></span><span>Sky —</span></span>
+    <span class="ws-chip" id="chipAccess" title="{{ _('What you can do with this telescope') }}"><span class="ws-dot off"></span><span>{{ _('Choose a telescope') }}</span></span>
+    <span class="ws-chip" id="chipMount"><span class="ws-dot off"></span><span>{{ _('Mount —') }}</span></span>
+    <span class="ws-chip" id="chipCamera"><span class="ws-dot off"></span><span>{{ _('Camera —') }}</span></span>
+    <span class="ws-chip adv-only" id="chipClock"><span class="ws-dot off"></span><span>{{ _('Clock —') }}</span></span>
+    <span class="ws-chip adv-only" id="chipDisk"><span class="ws-dot off"></span><span>{{ _('Disk —') }}</span></span>
+    <span class="ws-chip adv-only" id="chipUploads"><span class="ws-dot off"></span><span>{{ _('Uploads —') }}</span></span>
+    <span class="ws-chip" id="chipSky"><span class="ws-dot off"></span><span>{{ _('Sky —') }}</span></span>
     <span class="ws-muted ws-small adv-only" id="statusAge"></span>
     <div class="ws-toolbar-end">
-        <button class="ws-btn danger" type="button" id="estopBtn" title="Stop every motor now">
-            <span class="basic-only">Stop the mount</span><span class="adv-only">E-STOP</span>
+        <button class="ws-btn danger" type="button" id="estopBtn" title="{{ _('Stop every motor now') }}">
+            <span class="basic-only">{{ _('Stop the mount') }}</span><span class="adv-only">{{ _('E-STOP') }}</span>
         </button>
-        <div class="ws-seg" role="group" aria-label="Interface mode" data-mode-toggle>
-            <button type="button" data-mode="basic">Basic</button>
-            <button type="button" data-mode="advanced">Advanced</button>
+        <div class="ws-seg" role="group" aria-label="{{ _('Interface mode') }}" data-mode-toggle>
+            <button type="button" data-mode="basic">{{ _('Basic') }}</button>
+            <button type="button" data-mode="advanced">{{ _('Advanced') }}</button>
         </div>
     </div>
 </div>
@@ -70,234 +70,234 @@
     <div class="ws-col ws-col-left">
         <!-- Basic: the session's steps and the target -->
         <div class="ws-card basic-only">
-            <h3>Your session</h3>
+            <h3>{{ _('Your session') }}</h3>
             <div class="ws-steps" id="sessionSteps">
-                <button type="button" class="ws-step" data-step="target"><span class="ws-badge">1</span><span><span class="ws-step-title">Choose a target</span><span class="ws-muted ws-small" data-step-note="target" style="display:block">Pick something that's up tonight</span></span></button>
-                <button type="button" class="ws-step" data-step="focus"><span class="ws-badge">2</span><span><span class="ws-step-title">Focus</span><span class="ws-muted ws-small" data-step-note="focus" style="display:block">Make the stars as small as they'll go</span></span></button>
-                <button type="button" class="ws-step" data-step="exposure"><span class="ws-badge">3</span><span><span class="ws-step-title">Check the exposure</span><span class="ws-muted ws-small" data-step-note="exposure" style="display:block">Take a test shot and read the checks</span></span></button>
-                <button type="button" class="ws-step" data-step="capture"><span class="ws-badge">4</span><span><span class="ws-step-title">Capture</span><span class="ws-muted ws-small" data-step-note="capture" style="display:block">Set how many photos, then start</span></span></button>
+                <button type="button" class="ws-step" data-step="target"><span class="ws-badge">1</span><span><span class="ws-step-title">{{ _('Choose a target') }}</span><span class="ws-muted ws-small" data-step-note="target" style="display:block">{{ _("Pick something that's up tonight") }}</span></span></button>
+                <button type="button" class="ws-step" data-step="focus"><span class="ws-badge">2</span><span><span class="ws-step-title">{{ _('Focus') }}</span><span class="ws-muted ws-small" data-step-note="focus" style="display:block">{{ _("Make the stars as small as they'll go") }}</span></span></button>
+                <button type="button" class="ws-step" data-step="exposure"><span class="ws-badge">3</span><span><span class="ws-step-title">{{ _('Check the exposure') }}</span><span class="ws-muted ws-small" data-step-note="exposure" style="display:block">{{ _('Take a test shot and read the checks') }}</span></span></button>
+                <button type="button" class="ws-step" data-step="capture"><span class="ws-badge">4</span><span><span class="ws-step-title">{{ _('Capture') }}</span><span class="ws-muted ws-small" data-step-note="capture" style="display:block">{{ _('Set how many photos, then start') }}</span></span></button>
             </div>
         </div>
 
         <div class="ws-card basic-only" id="basicTargetCard" data-step-card="target">
-            <h3>Target</h3>
+            <h3>{{ _('Target') }}</h3>
             <div id="basicTargetEmpty">
-                <p class="ws-muted ws-small">Choose what to photograph. The list shows what's well placed from this telescope tonight.</p>
-                <button class="ws-btn primary block" type="button" data-action="pick-target">Choose a target</button>
+                <p class="ws-muted ws-small">{{ _("Choose what to photograph. The list shows what's well placed from this telescope tonight.") }}</p>
+                <button class="ws-btn primary block" type="button" data-action="pick-target">{{ _('Choose a target') }}</button>
             </div>
             <div id="basicTargetInfo" class="ws-hidden">
                 <div class="ws-target-name" id="basicTargetName">—</div>
                 <div class="ws-muted ws-small" id="basicTargetDesc" style="margin-bottom:10px"></div>
-                <div class="ws-row"><span>Height now</span><span id="basicTargetAlt">—</span></div>
-                <div class="ws-row"><span>Highest</span><span id="basicTargetBest">—</span></div>
-                <div class="ws-row"><span>Above 30°</span><span id="basicTargetAbove">—</span></div>
-                <div class="ws-row"><span>Moon</span><span id="basicTargetMoon">—</span></div>
+                <div class="ws-row"><span>{{ _('Height now') }}</span><span id="basicTargetAlt">—</span></div>
+                <div class="ws-row"><span>{{ _('Highest') }}</span><span id="basicTargetBest">—</span></div>
+                <div class="ws-row"><span>{{ _('Above 30°') }}</span><span id="basicTargetAbove">—</span></div>
+                <div class="ws-row"><span>{{ _('Moon') }}</span><span id="basicTargetMoon">—</span></div>
                 <div class="ws-chip" id="basicTargetVerdict" style="margin:10px 0 12px"><span class="ws-dot off"></span><span>—</span></div>
                 <div class="ws-actions">
-                    <button class="ws-btn" type="button" style="flex:1" data-action="pick-target">Change target</button>
-                    <button class="ws-btn" type="button" style="flex:1" id="btnGotoTarget">Go to it</button>
-                    <button class="ws-btn" type="button" style="flex:1" id="btnCentreTarget" title="Plate solve and nudge the mount until the target is centred">Centre it</button>
+                    <button class="ws-btn" type="button" style="flex:1" data-action="pick-target">{{ _('Change target') }}</button>
+                    <button class="ws-btn" type="button" style="flex:1" id="btnGotoTarget">{{ _('Go to it') }}</button>
+                    <button class="ws-btn" type="button" style="flex:1" id="btnCentreTarget" title="{{ _('Plate solve and nudge the mount until the target is centred') }}">{{ _('Centre it') }}</button>
                 </div>
             </div>
         </div>
 
         <!-- Advanced: target, mount, device and uploads -->
         <div class="ws-card adv-only">
-            <div class="ws-tabs" role="tablist" aria-label="Telescope controls">
-                <button class="ws-tab on" type="button" role="tab" aria-selected="true" aria-controls="tabTarget" id="tabBtnTarget">Target</button>
-                <button class="ws-tab" type="button" role="tab" aria-selected="false" aria-controls="tabMount" id="tabBtnMount">Mount</button>
-                <button class="ws-tab" type="button" role="tab" aria-selected="false" aria-controls="tabUploads" id="tabBtnUploads">Uploads</button>
-                <button class="ws-tab owner-only ws-hidden" type="button" role="tab" aria-selected="false" aria-controls="tabDevice" id="tabBtnDevice">Device</button>
+            <div class="ws-tabs" role="tablist" aria-label="{{ _('Telescope controls') }}">
+                <button class="ws-tab on" type="button" role="tab" aria-selected="true" aria-controls="tabTarget" id="tabBtnTarget">{{ _('Target') }}</button>
+                <button class="ws-tab" type="button" role="tab" aria-selected="false" aria-controls="tabMount" id="tabBtnMount">{{ _('Mount') }}</button>
+                <button class="ws-tab" type="button" role="tab" aria-selected="false" aria-controls="tabUploads" id="tabBtnUploads">{{ _('Uploads') }}</button>
+                <button class="ws-tab owner-only ws-hidden" type="button" role="tab" aria-selected="false" aria-controls="tabDevice" id="tabBtnDevice">{{ _('Device') }}</button>
             </div>
 
             <div class="ws-tabpanel" id="tabTarget" role="tabpanel" aria-labelledby="tabBtnTarget">
-                <label class="ws-field">Search the catalogue
+                <label class="ws-field">{{ _('Search the catalogue') }}
                     <span class="ws-actions" style="flex-wrap:nowrap">
                         <input class="ws-input" id="searchObject" placeholder="M42, NGC 7000, Vega, HD 48915">
-                        <button class="ws-btn sm" type="button" id="btnSearch">Search</button>
+                        <button class="ws-btn sm" type="button" id="btnSearch">{{ _('Search') }}</button>
                     </span>
                 </label>
                 <div id="searchResult" class="search-result"></div>
                 <div class="ws-grid2" style="margin-top:8px">
-                    <label class="ws-field">RA (h m s or °)<input class="ws-input" id="manualRA" placeholder="05 35 17.3"></label>
-                    <label class="ws-field">Dec (° ′ ″)<input class="ws-input" id="manualDEC" placeholder="−05 23 28"></label>
+                    <label class="ws-field">{{ _('RA (h m s or °)') }}<input class="ws-input" id="manualRA" placeholder="05 35 17.3"></label>
+                    <label class="ws-field">{{ _('Dec (° ′ ″)') }}<input class="ws-input" id="manualDEC" placeholder="−05 23 28"></label>
                 </div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <button class="ws-btn primary" type="button" style="flex:1" id="btnGotoCoords">Go to</button>
-                    <button class="ws-btn" type="button" id="btnGotoCentre">Go to + centre</button>
+                    <button class="ws-btn primary" type="button" style="flex:1" id="btnGotoCoords">{{ _('Go to') }}</button>
+                    <button class="ws-btn" type="button" id="btnGotoCentre">{{ _('Go to + centre') }}</button>
                 </div>
-                <label class="ws-field" style="margin-top:8px">Moon or planet
+                <label class="ws-field" style="margin-top:8px">{{ _('Moon or planet') }}
                     <span class="ws-actions" style="flex-wrap:nowrap">
                         <select id="planetSelect" class="ws-select block">
-                            <option>Moon</option><option>Mercury</option><option>Venus</option><option>Mars</option>
-                            <option>Jupiter</option><option>Saturn</option><option>Uranus</option><option>Neptune</option>
+                            <option value="Moon">{{ _('Moon') }}</option><option value="Mercury">{{ _('Mercury') }}</option><option value="Venus">{{ _('Venus') }}</option><option value="Mars">{{ _('Mars') }}</option>
+                            <option value="Jupiter">{{ _('Jupiter') }}</option><option value="Saturn">{{ _('Saturn') }}</option><option value="Uranus">{{ _('Uranus') }}</option><option value="Neptune">{{ _('Neptune') }}</option>
                         </select>
-                        <button class="ws-btn sm" type="button" id="btnGotoPlanet">Go to</button>
+                        <button class="ws-btn sm" type="button" id="btnGotoPlanet">{{ _('Go to') }}</button>
                     </span>
                 </label>
-                <dl class="ws-kv" id="advSkyKv" style="margin-top:10px"><dt>Target</dt><dd>None yet</dd></dl>
+                <dl class="ws-kv" id="advSkyKv" style="margin-top:10px"><dt>{{ _('Target') }}</dt><dd>{{ _('None yet') }}</dd></dl>
                 <div class="ws-actions" style="margin-top:8px">
-                    <span class="ws-small ws-muted" id="trackingNow">Not tracking anything</span>
+                    <span class="ws-small ws-muted" id="trackingNow">{{ _('Not tracking anything') }}</span>
                     <span class="ws-spacer"></span>
-                    <button class="ws-btn sm ws-hidden" type="button" id="stopTrackingBtn">Stop tracking</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="stopTrackingBtn">{{ _('Stop tracking') }}</button>
                 </div>
             </div>
 
             <div class="ws-tabpanel" id="tabMount" role="tabpanel" aria-labelledby="tabBtnMount" hidden>
                 <div class="ws-actions" style="margin-bottom:8px">
-                    <button class="ws-btn sm" type="button" data-command="park">Park</button>
-                    <button class="ws-btn sm" type="button" data-command="unpark">Unpark</button>
-                    <button class="ws-btn sm" type="button" data-command="set_park_here" data-confirm="Make the current position the park position?">Set park</button>
-                    <button class="ws-btn sm" type="button" id="btnStopTrackingMount">Stop tracking</button>
+                    <button class="ws-btn sm" type="button" data-command="park">{{ _('Park') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="unpark">{{ _('Unpark') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="set_park_here" data-confirm="{{ _('Make the current position the park position?') }}">{{ _('Set park') }}</button>
+                    <button class="ws-btn sm" type="button" id="btnStopTrackingMount">{{ _('Stop tracking') }}</button>
                 </div>
                 <div class="ws-grid2">
-                    <label class="ws-field">Tracking rate
+                    <label class="ws-field">{{ _('Tracking rate') }}
                         <select id="trackingRateSelect" class="ws-select">
-                            <option value="sidereal">Sidereal</option>
-                            <option value="lunar">Lunar</option>
-                            <option value="solar">Solar</option>
-                            <option value="king">King</option>
-                            <option value="custom">Custom</option>
+                            <option value="sidereal">{{ _('Sidereal') }}</option>
+                            <option value="lunar">{{ _('Lunar') }}</option>
+                            <option value="solar">{{ _('Solar') }}</option>
+                            <option value="king">{{ _('King') }}</option>
+                            <option value="custom">{{ _('Custom') }}</option>
                         </select>
                     </label>
-                    <label class="ws-field">Solve from
-                        <select id="solveSource" class="ws-select" title="Image to plate solve">
-                            <option value="">Default</option>
-                            <option value="liveview">Live view</option>
-                            <option value="photo">Photo</option>
+                    <label class="ws-field">{{ _('Solve from') }}
+                        <select id="solveSource" class="ws-select" title="{{ _('Image to plate solve') }}">
+                            <option value="">{{ _('Default') }}</option>
+                            <option value="liveview">{{ _('Live view') }}</option>
+                            <option value="photo">{{ _('Photo') }}</option>
                         </select>
                     </label>
                 </div>
                 <div class="ws-actions" style="margin-top:6px">
-                    <input type="number" id="customRateInput" class="ws-input num ws-hidden" placeholder="″/s" step="0.01" title="Custom rate in arcseconds per second">
-                    <button class="ws-btn sm" type="button" id="btnSetRate">Set rate</button>
+                    <input type="number" id="customRateInput" class="ws-input num ws-hidden" placeholder="″/s" step="0.01" title="{{ _('Custom rate in arcseconds per second') }}">
+                    <button class="ws-btn sm" type="button" id="btnSetRate">{{ _('Set rate') }}</button>
                 </div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <button class="ws-btn sm" type="button" id="btnSolveSync">Solve &amp; sync</button>
-                    <button class="ws-btn sm" type="button" id="btnCentre">Centre</button>
+                    <button class="ws-btn sm" type="button" id="btnSolveSync">{{ _('Solve & sync') }}</button>
+                    <button class="ws-btn sm" type="button" id="btnCentre">{{ _('Centre') }}</button>
                 </div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <label class="ws-small ws-muted" for="polarStepDeg">Polar align, step</label>
+                    <label class="ws-small ws-muted" for="polarStepDeg">{{ _('Polar align, step') }}</label>
                     <input type="number" id="polarStepDeg" class="ws-input num" placeholder="°" min="1" max="90" step="1">
-                    <button class="ws-btn sm" type="button" id="btnPolar">Polar align</button>
+                    <button class="ws-btn sm" type="button" id="btnPolar">{{ _('Polar align') }}</button>
                 </div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <label class="ws-small ws-muted" for="ditherArcmin">Dither</label>
+                    <label class="ws-small ws-muted" for="ditherArcmin">{{ _('Dither') }}</label>
                     <input type="number" id="ditherArcmin" class="ws-input num" placeholder="′" min="0" max="60" step="0.5" value="2">
-                    <button class="ws-btn sm" type="button" id="btnDither">Dither</button>
+                    <button class="ws-btn sm" type="button" id="btnDither">{{ _('Dither') }}</button>
                 </div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <button class="ws-btn sm" type="button" data-command="get_alignment">Alignment</button>
-                    <button class="ws-btn sm" type="button" data-command="mount_status">Mount state</button>
-                    <button class="ws-btn sm" type="button" data-command="clear_alignment" data-confirm="Clear the alignment?">Clear alignment</button>
+                    <button class="ws-btn sm" type="button" data-command="get_alignment">{{ _('Alignment') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="mount_status">{{ _('Mount state') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="clear_alignment" data-confirm="{{ _('Clear the alignment?') }}">{{ _('Clear alignment') }}</button>
                 </div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <button class="ws-btn sm" type="button" data-command="estop_status">E-stop status</button>
-                    <button class="ws-btn sm owner-only ws-hidden" type="button" id="btnClearEstop">Clear e-stop</button>
-                    <button class="ws-btn sm" type="button" id="btnMotorControls">Motor controls…</button>
+                    <button class="ws-btn sm" type="button" data-command="estop_status">{{ _('E-stop status') }}</button>
+                    <button class="ws-btn sm owner-only ws-hidden" type="button" id="btnClearEstop">{{ _('Clear e-stop') }}</button>
+                    <button class="ws-btn sm" type="button" id="btnMotorControls">{{ _('Motor controls…') }}</button>
                 </div>
                 <div id="jobStatusLine" class="ws-small ws-muted" style="margin-top:8px"></div>
                 <div id="lastSolveLine" class="ws-small ws-muted" style="margin-top:4px"></div>
             </div>
 
             <div class="ws-tabpanel" id="tabUploads" role="tabpanel" aria-labelledby="tabBtnUploads" hidden>
-                <div id="uploadQueueSummary" class="ws-small ws-muted" style="white-space:pre-line;margin-bottom:8px">Queue not loaded.</div>
+                <div id="uploadQueueSummary" class="ws-small ws-muted" style="white-space:pre-line;margin-bottom:8px">{{ _('Queue not loaded.') }}</div>
                 <div class="ws-actions">
-                    <button class="ws-btn sm" type="button" id="btnRefreshUploads">Refresh</button>
-                    <button class="ws-btn sm" type="button" data-command="upload_pending" data-params='{"kind":"raw"}' data-after="uploads">Send held RAWs</button>
-                    <button class="ws-btn sm" type="button" data-command="retry_failed_uploads" data-after="uploads">Retry failed</button>
-                    <button class="ws-btn sm" type="button" data-command="upload_offline_photos" data-after="uploads">Upload photos taken offline</button>
+                    <button class="ws-btn sm" type="button" id="btnRefreshUploads">{{ _('Refresh') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="upload_pending" data-params='{"kind":"raw"}' data-after="uploads">{{ _('Send held RAWs') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="retry_failed_uploads" data-after="uploads">{{ _('Retry failed') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="upload_offline_photos" data-after="uploads">{{ _('Upload photos taken offline') }}</button>
                 </div>
             </div>
 
             <div class="ws-tabpanel" id="tabDevice" role="tabpanel" aria-labelledby="tabBtnDevice" hidden>
                 <dl class="ws-kv device-info" id="telescopeInfo">
-                    <dt>Name</dt><dd id="telescopeName">—</dd>
+                    <dt>{{ _('Name') }}</dt><dd id="telescopeName">—</dd>
                     <dt>IP</dt><dd id="telescopeIp">—</dd>
-                    <dt>Type</dt><dd id="telescopeType">—</dd>
-                    <dt>Last seen</dt><dd id="telescopeLastSeen">—</dd>
+                    <dt>{{ _('Type') }}</dt><dd id="telescopeType">—</dd>
+                    <dt>{{ _('Last seen') }}</dt><dd id="telescopeLastSeen">—</dd>
                 </dl>
                 <div class="ws-actions" style="margin-top:8px">
-                    <button class="ws-btn sm" type="button" data-command="client_status">Pi status</button>
-                    <button class="ws-btn sm" type="button" data-command="esp_info">Controller</button>
-                    <button class="ws-btn sm" type="button" data-command="esp_driver_status">Drivers</button>
-                    <button class="ws-btn sm" type="button" data-command="set_clock" data-confirm="Set the Pi clock to the server's time?">Set clock</button>
+                    <button class="ws-btn sm" type="button" data-command="client_status">{{ _('Pi status') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="esp_info">{{ _('Controller') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="esp_driver_status">{{ _('Drivers') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="set_clock" data-confirm="{{ _("Set the Pi clock to the server's time?") }}">{{ _('Set clock') }}</button>
                 </div>
                 <div class="ws-grid2" style="margin-top:8px">
-                    <label class="ws-field">Lowest altitude (°)<input type="number" id="horizonMinAlt" class="ws-input" min="-10" max="90" step="0.5"></label>
-                    <label class="ws-field">Horizon profile<input type="text" id="horizonProfile" class="ws-input"></label>
+                    <label class="ws-field">{{ _('Lowest altitude (°)') }}<input type="number" id="horizonMinAlt" class="ws-input" min="-10" max="90" step="0.5"></label>
+                    <label class="ws-field">{{ _('Horizon profile') }}<input type="text" id="horizonProfile" class="ws-input"></label>
                 </div>
-                <label class="ws-tick"><input type="checkbox" id="horizonStopWhenSet"> Stop tracking when the target sets</label>
+                <label class="ws-tick"><input type="checkbox" id="horizonStopWhenSet"> {{ _('Stop tracking when the target sets') }}</label>
                 <div class="ws-actions">
-                    <button class="ws-btn sm" type="button" id="btnSetHorizon">Set horizon</button>
+                    <button class="ws-btn sm" type="button" id="btnSetHorizon">{{ _('Set horizon') }}</button>
                     <span class="ws-spacer"></span>
-                    <button class="ws-btn sm" type="button" data-command="update_client" data-confirm="Update the Pi software now? It restarts afterwards.">Update Pi</button>
-                    <button class="ws-btn sm" type="button" data-command="update_firmware" data-confirm="Update the controller firmware now? The mount stops while it flashes.">Update controller</button>
+                    <button class="ws-btn sm" type="button" data-command="update_client" data-confirm="{{ _('Update the Pi software now? It restarts afterwards.') }}">{{ _('Update Pi') }}</button>
+                    <button class="ws-btn sm" type="button" data-command="update_firmware" data-confirm="{{ _('Update the controller firmware now? The mount stops while it flashes.') }}">{{ _('Update controller') }}</button>
                 </div>
-                <p class="ws-small ws-muted" style="margin:8px 0 0">Updates only run if the Pi's own config allows them.</p>
+                <p class="ws-small ws-muted" style="margin:8px 0 0">{{ _("Updates only run if the Pi's own config allows them.") }}</p>
             </div>
         </div>
 
         <div class="ws-card adv-only">
-            <h3>Telescope status <span class="ws-aside" id="statusAgeCard"></span></h3>
-            <dl id="telescopeStatusGrid" class="ws-kv"><dt>—</dt><dd>Select a telescope</dd></dl>
+            <h3>{{ _('Telescope status') }} <span class="ws-aside" id="statusAgeCard"></span></h3>
+            <dl id="telescopeStatusGrid" class="ws-kv"><dt>—</dt><dd>{{ _('Select a telescope') }}</dd></dl>
         </div>
     </div>
 
     <!-- Middle: live view -->
     <div class="ws-col ws-col-main">
         <div class="ws-live-toolbar adv-only">
-            <button id="liveViewToggleBtn" class="ws-btn primary" type="button">Live view on</button>
-            <select id="liveViewCodec" class="ws-select" aria-label="Codec" title="Codec">
-                <option value="auto" selected>Auto codec</option>
+            <button id="liveViewToggleBtn" class="ws-btn primary" type="button">{{ _('Live view on') }}</button>
+            <select id="liveViewCodec" class="ws-select" aria-label="{{ _('Codec') }}" title="{{ _('Codec') }}">
+                <option value="auto" selected>{{ _('Auto codec') }}</option>
                 <option value="h264">H.264</option>
                 <option value="jpeg">JPEG</option>
             </select>
-            <select id="liveViewQuality" class="ws-select" aria-label="Quality" title="Quality">
-                <option value="low">Low</option>
-                <option value="medium" selected>Medium</option>
-                <option value="high">High</option>
+            <select id="liveViewQuality" class="ws-select" aria-label="{{ _('Quality') }}" title="{{ _('Quality') }}">
+                <option value="low">{{ _('Low') }}</option>
+                <option value="medium" selected>{{ _('Medium') }}</option>
+                <option value="high">{{ _('High') }}</option>
             </select>
-            <select id="overlaySelect" class="ws-select" aria-label="Overlay" title="Overlay">
-                <option value="none">No overlay</option>
-                <option value="cross">Crosshair</option>
-                <option value="circle" selected>Crosshair + circle</option>
-                <option value="grid">Thirds grid</option>
-                <option value="stars">Measured stars</option>
+            <select id="overlaySelect" class="ws-select" aria-label="{{ _('Overlay') }}" title="{{ _('Overlay') }}">
+                <option value="none">{{ _('No overlay') }}</option>
+                <option value="cross">{{ _('Crosshair') }}</option>
+                <option value="circle" selected>{{ _('Crosshair + circle') }}</option>
+                <option value="grid">{{ _('Thirds grid') }}</option>
+                <option value="stars">{{ _('Measured stars') }}</option>
             </select>
-            <label class="ws-small ws-muted" style="display:flex;align-items:center;gap:6px" title="Brightens the picture on your screen only">Display stretch
-                <input type="range" class="ws-range" id="displayStretch" min="0" max="100" value="0" style="width:100px" aria-label="Display stretch">
+            <label class="ws-small ws-muted" style="display:flex;align-items:center;gap:6px" title="{{ _('Brightens the picture on your screen only') }}">{{ _('Display stretch') }}
+                <input type="range" class="ws-range" id="displayStretch" min="0" max="100" value="0" style="width:100px" aria-label="{{ _('Display stretch') }}">
             </label>
-            <label class="ws-tick ws-small"><input type="checkbox" id="liveViewFocus"> Focus peaking</label>
+            <label class="ws-tick ws-small"><input type="checkbox" id="liveViewFocus"> {{ _('Focus peaking') }}</label>
             <span class="ws-spacer"></span>
-            <button class="ws-btn" type="button" id="btnSnapshot" title="Save the current live view frame to the album">Snapshot</button>
-            <select id="recordingKind" class="ws-select" aria-label="Recording kind">
-                <option value="video">Video</option>
-                <option value="timelapse">Timelapse</option>
+            <button class="ws-btn" type="button" id="btnSnapshot" title="{{ _('Save the current live view frame to the album') }}">{{ _('Snapshot') }}</button>
+            <select id="recordingKind" class="ws-select" aria-label="{{ _('Recording kind') }}">
+                <option value="video">{{ _('Video') }}</option>
+                <option value="timelapse">{{ _('Timelapse') }}</option>
             </select>
-            <input type="number" id="recordingInterval" class="ws-input num ws-hidden" placeholder="every s" min="0.1" step="0.1" value="5" aria-label="Timelapse interval">
-            <button class="ws-btn" type="button" id="btnRecord">Record</button>
-            <button class="ws-btn" type="button" id="btnStopRecord" title="Stop recording">■</button>
+            <input type="number" id="recordingInterval" class="ws-input num ws-hidden" placeholder="{{ _('every s') }}" min="0.1" step="0.1" value="5" aria-label="{{ _('Timelapse interval') }}">
+            <button class="ws-btn" type="button" id="btnRecord">{{ _('Record') }}</button>
+            <button class="ws-btn" type="button" id="btnStopRecord" title="{{ _('Stop recording') }}">■</button>
         </div>
 
         <div class="ws-live" id="liveFrame">
-            <canvas id="liveViewCanvas" class="ws-live-canvas" width="1024" height="680" title="Click to zoom there"></canvas>
+            <canvas id="liveViewCanvas" class="ws-live-canvas" width="1024" height="680" title="{{ _('Click to zoom there') }}"></canvas>
             <div class="ws-live-overlay" aria-hidden="true"><svg id="liveOverlay"></svg></div>
-            <div class="ws-live-message" id="liveMessage">Live view off</div>
+            <div class="ws-live-message" id="liveMessage">{{ _('Live view off') }}</div>
             <div class="ws-live-corner tl">
-                <span class="ws-chip" id="liveStateChip"><span class="ws-dot off"></span><span>Off</span></span>
-                <div class="ws-seg sm overlay" role="group" aria-label="Zoom" id="zoomSeg">
+                <span class="ws-chip" id="liveStateChip"><span class="ws-dot off"></span><span>{{ _('Off') }}</span></span>
+                <div class="ws-seg sm overlay" role="group" aria-label="{{ _('Zoom') }}" id="zoomSeg">
                     <button type="button" data-zoom="1" class="on">1×</button>
                     <button type="button" data-zoom="5">5×</button>
                     <button type="button" data-zoom="10">10×</button>
                 </div>
             </div>
             <div class="ws-live-corner tr">
-                <button class="ws-btn sm overlay basic-only" type="button" id="btnLiveToggleBasic">Start live view</button>
-                <button class="ws-btn sm overlay" type="button" id="btnFullscreen">Full screen</button>
+                <button class="ws-btn sm overlay basic-only" type="button" id="btnLiveToggleBasic">{{ _('Start live view') }}</button>
+                <button class="ws-btn sm overlay" type="button" id="btnFullscreen">{{ _('Full screen') }}</button>
             </div>
             <div class="ws-live-corner bl">
-                <span class="ws-chip basic-only live-hint" id="liveHint">Click a star to zoom in on it</span>
+                <span class="ws-chip basic-only live-hint" id="liveHint">{{ _('Click a star to zoom in on it') }}</span>
                 <span class="ws-chip adv-only ws-hidden" id="liveStatsChip"></span>
             </div>
             <div class="ws-live-corner br">
@@ -309,43 +309,43 @@
         <!-- Basic: the focus helper -->
         <div class="ws-card focus-card basic-only" data-step-card="focus">
             <div>
-                <div class="ws-muted ws-small">Star size (HFR)</div>
+                <div class="ws-muted ws-small">{{ _('Star size (HFR)') }}</div>
                 <div class="ws-big" id="focusHfrBig">—</div>
             </div>
-            <svg class="ws-spark" id="focusSpark" role="img" aria-label="Star size over the last minutes"></svg>
+            <svg class="ws-spark" id="focusSpark" role="img" aria-label="{{ _('Star size over the last minutes') }}"></svg>
             <div style="flex:1;min-width:220px">
-                <div class="ws-strong" id="focusAdvice">Start live view and zoom in on a star.</div>
-                <div class="ws-muted ws-small" id="focusAdviceSub">Turn the focuser slowly. Smaller is sharper; the green dot marks the best point.</div>
+                <div class="ws-strong" id="focusAdvice">{{ _('Start live view and zoom in on a star.') }}</div>
+                <div class="ws-muted ws-small" id="focusAdviceSub">{{ _('Turn the focuser slowly. Smaller is sharper; the green dot marks the best point.') }}</div>
             </div>
-            <button class="ws-btn primary" type="button" id="btnFocusGood">Focus is good</button>
+            <button class="ws-btn primary" type="button" id="btnFocusGood">{{ _('Focus is good') }}</button>
         </div>
 
         <!-- Advanced: the plan and the log -->
         <div class="ws-actions adv-only" style="align-items:stretch;gap:var(--ws-gap)">
             <div class="ws-card" style="flex:1 1 320px" id="planCard">
-                <h3>Capture plan <span class="ws-chip ws-hidden" id="planState"><span class="ws-dot ok"></span><span></span></span></h3>
-                <div id="planIdle" class="ws-small ws-muted">No plan running. A plan runs a list of steps on the telescope (go-tos, lights, darks, video) and carries on if the connection drops.</div>
+                <h3>{{ _('Capture plan') }} <span class="ws-chip ws-hidden" id="planState"><span class="ws-dot ok"></span><span></span></span></h3>
+                <div id="planIdle" class="ws-small ws-muted">{{ _('No plan running. A plan runs a list of steps on the telescope (go-tos, lights, darks, video) and carries on if the connection drops.') }}</div>
                 <div id="planBox" class="ws-hidden">
-                    <div class="ws-small ws-strong" id="planTitle">Capture plan</div>
+                    <div class="ws-small ws-strong" id="planTitle">{{ _('Capture plan') }}</div>
                     <div class="ws-progress"><div id="planProgressBar"></div></div>
                     <div class="ws-small ws-muted" id="planProgress" style="white-space:pre-line"></div>
-                    <div class="ws-note warn ws-hidden" id="planCoverPrompt" style="margin-top:8px">Fit the scope cover for the dark or bias frames, then press <b>Cover fitted</b>.</div>
+                    <div class="ws-note warn ws-hidden" id="planCoverPrompt" style="margin-top:8px">{{ _('Fit the scope cover for the dark or bias frames, then press <b>Cover fitted</b>.') }}</div>
                 </div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <button class="ws-btn sm primary ws-hidden" type="button" id="planCoverBtn">Cover fitted</button>
-                    <button class="ws-btn sm ws-hidden" type="button" id="planPauseBtn">Pause</button>
-                    <button class="ws-btn sm ws-hidden" type="button" id="planResumeBtn">Resume</button>
-                    <button class="ws-btn sm ws-hidden" type="button" id="planSkipBtn">Skip step</button>
-                    <button class="ws-btn sm ws-hidden" type="button" id="planStopBtn">Stop</button>
-                    <button class="ws-btn sm" type="button" id="btnOpenBuilder">Open builder</button>
+                    <button class="ws-btn sm primary ws-hidden" type="button" id="planCoverBtn">{{ _('Cover fitted') }}</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planPauseBtn">{{ _('Pause') }}</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planResumeBtn">{{ _('Resume') }}</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planSkipBtn">{{ _('Skip step') }}</button>
+                    <button class="ws-btn sm ws-hidden" type="button" id="planStopBtn">{{ _('Stop') }}</button>
+                    <button class="ws-btn sm" type="button" id="btnOpenBuilder">{{ _('Open builder') }}</button>
                 </div>
                 <details style="margin-top:8px">
-                    <summary class="ws-small ws-muted">Recent plans on this telescope</summary>
+                    <summary class="ws-small ws-muted">{{ _('Recent plans on this telescope') }}</summary>
                     <div id="planHistory" class="ws-small" style="margin-top:6px"></div>
                 </details>
             </div>
             <div class="ws-card" style="flex:1 1 320px">
-                <h3>Log <button class="ws-btn sm ghost" type="button" id="btnClearLog" style="margin-left:auto">Clear</button></h3>
+                <h3>{{ _('Log') }} <button class="ws-btn sm ghost" type="button" id="btnClearLog" style="margin-left:auto">{{ _('Clear') }}</button></h3>
                 <div class="ws-log" id="commandLog" aria-live="polite"></div>
             </div>
         </div>
@@ -355,26 +355,26 @@
     <div class="ws-col ws-col-right">
         <!-- Basic: exposure, the last test shot and capture -->
         <div class="ws-card basic-only" data-step-card="exposure">
-            <h3>Exposure</h3>
-            <div class="ws-muted ws-small" style="margin-bottom:8px">What are you photographing?</div>
+            <h3>{{ _('Exposure') }}</h3>
+            <div class="ws-muted ws-small" style="margin-bottom:8px">{{ _('What are you photographing?') }}</div>
             <div class="ws-presets" id="presetButtons">
-                <button class="ws-btn" type="button" data-preset="moon">The Moon</button>
-                <button class="ws-btn" type="button" data-preset="planet">A planet</button>
-                <button class="ws-btn" type="button" data-preset="bright">Bright nebula or cluster</button>
-                <button class="ws-btn" type="button" data-preset="faint">Galaxy or faint nebula</button>
-                <button class="ws-btn" type="button" data-preset="star">A bright star</button>
+                <button class="ws-btn" type="button" data-preset="moon">{{ _('The Moon') }}</button>
+                <button class="ws-btn" type="button" data-preset="planet">{{ _('A planet') }}</button>
+                <button class="ws-btn" type="button" data-preset="bright">{{ _('Bright nebula or cluster') }}</button>
+                <button class="ws-btn" type="button" data-preset="faint">{{ _('Galaxy or faint nebula') }}</button>
+                <button class="ws-btn" type="button" data-preset="star">{{ _('A bright star') }}</button>
             </div>
-            <div class="ws-row" style="margin:10px 0"><span>Settings</span><span id="presetSettingsLine">Choose one above</span></div>
+            <div class="ws-row" style="margin:10px 0"><span>{{ _('Settings') }}</span><span id="presetSettingsLine">{{ _('Choose one above') }}</span></div>
             <div class="ws-small ws-muted" id="presetNote" style="margin-bottom:10px"></div>
-            <button class="ws-btn primary block" type="button" id="btnTestShot" disabled>Take a test shot</button>
+            <button class="ws-btn primary block" type="button" id="btnTestShot" disabled>{{ _('Take a test shot') }}</button>
         </div>
 
         <div class="ws-card basic-only">
-            <h3>Last test shot <span class="ws-aside" id="testShotTime"></span></h3>
-            <div id="testShotEmpty" class="ws-small ws-muted">Take a test shot and it shows up here with plain checks: are the stars round, is it in focus, is the exposure right.</div>
+            <h3>{{ _('Last test shot') }} <span class="ws-aside" id="testShotTime"></span></h3>
+            <div id="testShotEmpty" class="ws-small ws-muted">{{ _('Take a test shot and it shows up here with plain checks: are the stars round, is it in focus, is the exposure right.') }}</div>
             <div id="testShotBody" class="ws-hidden">
                 <div class="test-shot">
-                    <a id="testShotLink" href="#" target="_blank" rel="noopener"><img class="ws-thumb" id="testShotThumb" alt="The last test shot"></a>
+                    <a id="testShotLink" href="#" target="_blank" rel="noopener"><img class="ws-thumb" id="testShotThumb" alt="{{ _('The last test shot') }}"></a>
                     <div class="ws-small"><div class="ws-strong" id="testShotVerdict"></div><div class="ws-muted" id="testShotVerdictSub"></div></div>
                 </div>
                 <div id="testShotChecks"></div>
@@ -382,84 +382,84 @@
         </div>
 
         <div class="ws-card basic-only" data-step-card="capture">
-            <h3>Capture</h3>
+            <h3>{{ _('Capture') }}</h3>
             <div id="captureForm">
-                <div class="ws-row"><label for="capCount" id="capCountLabel">Photos</label><span><input id="capCount" class="ws-input num" type="number" min="1" max="2000" value="40"> <span id="capExposureLabel">× 30 s</span></span></div>
-                <label class="ws-row ws-tick" id="capDarksRow"><span>Take darks afterwards (<span id="capDarkCount">20</span>)</span><input type="checkbox" id="capDarks" checked></label>
-                <label class="ws-row ws-tick" id="capBiasRow"><span>Take bias frames (<span id="capBiasCount">30</span>)</span><input type="checkbox" id="capBias" checked></label>
-                <label class="ws-row ws-tick" id="capDitherRow"><span>Nudge the mount between photos</span><input type="checkbox" id="capDither" checked></label>
-                <div class="ws-small ws-muted" id="capEstimate" style="margin:8px 0 10px">Choose a target and an exposure first.</div>
-                <button class="ws-btn primary block" type="button" id="btnStartCapture" disabled>Start capturing</button>
-                <button class="ws-btn ghost block ws-small" type="button" id="btnCaptureBuilder" style="margin-top:6px">Build a custom plan instead…</button>
+                <div class="ws-row"><label for="capCount" id="capCountLabel">{{ _('Photos') }}</label><span><input id="capCount" class="ws-input num" type="number" min="1" max="2000" value="40"> <span id="capExposureLabel">× 30 s</span></span></div>
+                <label class="ws-row ws-tick" id="capDarksRow"><span>{{ _('Take darks afterwards (%(count)s)', count='<span id="capDarkCount">20</span>'|safe) }}</span><input type="checkbox" id="capDarks" checked></label>
+                <label class="ws-row ws-tick" id="capBiasRow"><span>{{ _('Take bias frames (%(count)s)', count='<span id="capBiasCount">30</span>'|safe) }}</span><input type="checkbox" id="capBias" checked></label>
+                <label class="ws-row ws-tick" id="capDitherRow"><span>{{ _('Nudge the mount between photos') }}</span><input type="checkbox" id="capDither" checked></label>
+                <div class="ws-small ws-muted" id="capEstimate" style="margin:8px 0 10px">{{ _('Choose a target and an exposure first.') }}</div>
+                <button class="ws-btn primary block" type="button" id="btnStartCapture" disabled>{{ _('Start capturing') }}</button>
+                <button class="ws-btn ghost block ws-small" type="button" id="btnCaptureBuilder" style="margin-top:6px">{{ _('Build a custom plan instead…') }}</button>
             </div>
             <div id="captureRunning" class="ws-hidden">
                 <div class="ws-small ws-strong" id="basicPlanTitle"></div>
                 <div class="ws-progress"><div id="basicPlanBar"></div></div>
                 <div class="ws-small ws-muted" id="basicPlanProgress" style="white-space:pre-line"></div>
-                <div class="ws-note warn ws-hidden" id="basicCoverPrompt" style="margin-top:8px">Fit the scope cover now: the darks and bias need the telescope covered. Then press <b>Cover fitted</b>.</div>
+                <div class="ws-note warn ws-hidden" id="basicCoverPrompt" style="margin-top:8px">{{ _('Fit the scope cover now: the darks and bias need the telescope covered. Then press <b>Cover fitted</b>.') }}</div>
                 <div class="ws-actions" style="margin-top:8px">
-                    <button class="ws-btn primary ws-hidden" type="button" id="basicCoverBtn">Cover fitted</button>
-                    <button class="ws-btn" type="button" id="basicPauseBtn">Pause</button>
-                    <button class="ws-btn ws-hidden" type="button" id="basicResumeBtn">Resume</button>
-                    <button class="ws-btn" type="button" id="basicStopBtn">Stop</button>
+                    <button class="ws-btn primary ws-hidden" type="button" id="basicCoverBtn">{{ _('Cover fitted') }}</button>
+                    <button class="ws-btn" type="button" id="basicPauseBtn">{{ _('Pause') }}</button>
+                    <button class="ws-btn ws-hidden" type="button" id="basicResumeBtn">{{ _('Resume') }}</button>
+                    <button class="ws-btn" type="button" id="basicStopBtn">{{ _('Stop') }}</button>
                 </div>
             </div>
         </div>
 
         <!-- Advanced: camera, focus, histogram, last frame -->
         <div class="ws-card adv-only">
-            <h3>Camera <span class="ws-aside" id="cameraStatusLine">Battery — · Card —</span></h3>
+            <h3>{{ _('Camera') }} <span class="ws-aside" id="cameraStatusLine">{{ _('Battery — · Card —') }}</span></h3>
             <div class="ws-grid2">
-                <label class="ws-field">Shutter<select id="shutterSpeedSelect" class="ws-select"></select></label>
-                <label class="ws-field" id="bulbRow">Bulb seconds<input type="number" id="bulbSeconds" class="ws-input" min="0.1" max="900" step="0.1" value="30"></label>
+                <label class="ws-field">{{ _('Shutter') }}<select id="shutterSpeedSelect" class="ws-select"></select></label>
+                <label class="ws-field" id="bulbRow">{{ _('Bulb seconds') }}<input type="number" id="bulbSeconds" class="ws-input" min="0.1" max="900" step="0.1" value="30"></label>
                 <label class="ws-field">ISO<select id="isoSelect" class="ws-select"></select></label>
-                <label class="ws-field">Aperture<select id="apertureSelect" class="ws-select"></select></label>
-                <label class="ws-field">White balance<select id="whiteBalance" class="ws-select"></select></label>
-                <label class="ws-field">Format<select id="photoFormat" class="ws-select"></select></label>
-                <label class="ws-field">Exposure comp.<select id="exposureCompSelect" class="ws-select"></select></label>
-                <div class="ws-field" style="justify-content:flex-end"><button class="ws-btn sm" type="button" id="btnCameraRefresh" title="Battery and card">Refresh</button></div>
+                <label class="ws-field">{{ _('Aperture') }}<select id="apertureSelect" class="ws-select"></select></label>
+                <label class="ws-field">{{ _('White balance') }}<select id="whiteBalance" class="ws-select"></select></label>
+                <label class="ws-field">{{ _('Format') }}<select id="photoFormat" class="ws-select"></select></label>
+                <label class="ws-field">{{ _('Exposure comp.') }}<select id="exposureCompSelect" class="ws-select"></select></label>
+                <div class="ws-field" style="justify-content:flex-end"><button class="ws-btn sm" type="button" id="btnCameraRefresh" title="{{ _('Battery and card') }}">{{ _('Refresh') }}</button></div>
             </div>
             <div class="ws-actions" style="margin-top:10px">
-                <button class="ws-btn primary" type="button" style="flex:1" id="takePhotoBtn">Take photo</button>
-                <button class="ws-btn" type="button" id="btnAdvTestShot" title="Take a photo and check it">Test shot</button>
+                <button class="ws-btn primary" type="button" style="flex:1" id="takePhotoBtn">{{ _('Take photo') }}</button>
+                <button class="ws-btn" type="button" id="btnAdvTestShot" title="{{ _('Take a photo and check it') }}">{{ _('Test shot') }}</button>
             </div>
         </div>
 
         <div class="ws-card adv-only">
-            <h3>Focus <span class="ws-aside" id="focusAdvAside">live view off</span></h3>
-            <svg class="ws-spark" id="focusSparkAdv" role="img" aria-label="Half-flux radius over time" style="color:var(--accent)"></svg>
+            <h3>{{ _('Focus') }} <span class="ws-aside" id="focusAdvAside">{{ _('live view off') }}</span></h3>
+            <svg class="ws-spark" id="focusSparkAdv" role="img" aria-label="{{ _('Half-flux radius over time') }}" style="color:var(--accent)"></svg>
             <dl class="ws-kv" id="focusKv">
-                <dt>HFR now / best</dt><dd id="focusKvHfr">—</dd>
+                <dt>{{ _('HFR now / best') }}</dt><dd id="focusKvHfr">—</dd>
                 <dt>FWHM</dt><dd id="focusKvFwhm">—</dd>
-                <dt>Brightest star peak</dt><dd id="focusKvPeak">—</dd>
+                <dt>{{ _('Brightest star peak') }}</dt><dd id="focusKvPeak">—</dd>
             </dl>
-            <div class="ws-actions" style="margin-top:6px"><button class="ws-btn sm ghost" type="button" id="btnFocusReset">Reset graph</button></div>
+            <div class="ws-actions" style="margin-top:6px"><button class="ws-btn sm ghost" type="button" id="btnFocusReset">{{ _('Reset graph') }}</button></div>
         </div>
 
         <div class="ws-card adv-only">
-            <h3>Histogram
+            <h3>{{ _('Histogram') }}
                 <span class="ws-aside" id="liveHistogramControls">
-                    <select class="ws-select" data-hist="mode" aria-label="Channel" style="padding:3px 6px">
-                        <option value="luminance" selected>Luminance</option>
+                    <select class="ws-select" data-hist="mode" aria-label="{{ _('Channel') }}" style="padding:3px 6px">
+                        <option value="luminance" selected>{{ _('Luminance') }}</option>
                         <option value="rgb">RGB</option>
-                        <option value="red">Red</option>
-                        <option value="green">Green</option>
-                        <option value="blue">Blue</option>
+                        <option value="red">{{ _('Red') }}</option>
+                        <option value="green">{{ _('Green') }}</option>
+                        <option value="blue">{{ _('Blue') }}</option>
                     </select>
-                    <label class="ws-small"><input type="checkbox" data-hist="log-scale"> Log</label>
+                    <label class="ws-small"><input type="checkbox" data-hist="log-scale"> {{ pgettext('scale', 'Log') }}</label>
                 </span>
             </h3>
             <canvas id="liveHistogramCanvas" class="histogram-panel-canvas" width="320" height="90"></canvas>
-            <div id="liveHistogramStats" class="ws-small ws-muted" style="margin-top:4px">No image loaded.</div>
+            <div id="liveHistogramStats" class="ws-small ws-muted" style="margin-top:4px">{{ _('No image loaded.') }}</div>
             <div id="liveClipStats" class="ws-small ws-muted"></div>
         </div>
 
         <div class="ws-card adv-only">
-            <h3>Last frame <span class="ws-aside"><a href="/album" id="lastFrameLink">Album</a></span></h3>
-            <div id="lastFrameEmpty" class="ws-small ws-muted">Nothing from this telescope yet.</div>
+            <h3>{{ _('Last frame') }} <span class="ws-aside"><a href="/album" id="lastFrameLink">{{ _('Album') }}</a></span></h3>
+            <div id="lastFrameEmpty" class="ws-small ws-muted">{{ _('Nothing from this telescope yet.') }}</div>
             <div id="lastFrameBody" class="ws-hidden">
                 <div class="test-shot">
-                    <img class="ws-thumb" id="lastFrameThumb" alt="The newest frame">
+                    <img class="ws-thumb" id="lastFrameThumb" alt="{{ _('The newest frame') }}">
                     <div class="ws-small"><div class="ws-strong" id="lastFrameName"></div><div class="ws-muted" id="lastFrameSub"></div></div>
                 </div>
                 <dl class="ws-kv" id="lastFrameKv"></dl>
@@ -471,10 +471,10 @@
 
 <!-- Basic: tonight's frames -->
 <div class="ws-strip basic-only" id="tonightStrip">
-    <span class="ws-muted ws-small ws-strong">Tonight</span>
-    <span class="ws-muted ws-small" id="tonightEmpty">Photos appear here as they arrive.</span>
+    <span class="ws-muted ws-small ws-strong">{{ _('Tonight') }}</span>
+    <span class="ws-muted ws-small" id="tonightEmpty">{{ _('Photos appear here as they arrive.') }}</span>
     <span id="tonightThumbs" style="display:flex;gap:10px"></span>
-    <a href="/album" class="ws-small ws-strong" id="tonightLink" style="white-space:nowrap">Open tonight's photos in the album</a>
+    <a href="/album" class="ws-small ws-strong" id="tonightLink" style="white-space:nowrap">{{ _("Open tonight's photos in the album") }}</a>
 </div>
 
 <!-- Choosing a target (Basic) -->
@@ -482,16 +482,16 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="targetPickerLabel">Choose a target</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="targetPickerLabel">{{ _('Choose a target') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
             </div>
             <div class="modal-body">
                 <div class="ws-actions" style="margin-bottom:12px;flex-wrap:nowrap">
-                    <input class="ws-input" id="pickerSearch" placeholder="Or search: M27, NGC 891, Vega…" aria-label="Search for a target">
-                    <button class="ws-btn" type="button" id="pickerSearchBtn">Search</button>
+                    <input class="ws-input" id="pickerSearch" placeholder="{{ _('Or search: M27, NGC 891, Vega…') }}" aria-label="{{ _('Search for a target') }}">
+                    <button class="ws-btn" type="button" id="pickerSearchBtn">{{ _('Search') }}</button>
                 </div>
                 <div id="pickerSearchResult"></div>
-                <div class="ws-small ws-muted" id="pickerNote" style="margin-bottom:8px">Loading what's up tonight…</div>
+                <div class="ws-small ws-muted" id="pickerNote" style="margin-bottom:8px">{{ _("Loading what's up tonight…") }}</div>
                 <div class="ws-picker" id="targetList"></div>
             </div>
         </div>
@@ -503,57 +503,57 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="captureModalLabel">Capture plan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="captureModalLabel">{{ _('Capture plan') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
             </div>
             <div class="modal-body">
                 <div class="row g-3">
                     <div class="col-lg-8">
                         <div class="row g-2 align-items-end mb-3">
                             <div class="col-md-5">
-                                <label class="form-label small mb-1" for="planName">Plan name</label>
+                                <label class="form-label small mb-1" for="planName">{{ _('Plan name') }}</label>
                                 <input type="text" id="planName" class="form-control form-control-sm" maxlength="120" value="New plan">
                             </div>
                             <div class="col-md-7 d-flex flex-wrap gap-1 justify-content-md-end">
                                 <div class="dropdown">
-                                    <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">Add step</button>
+                                    <button class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">{{ _('Add step') }}</button>
                                     <ul class="dropdown-menu" id="addStepMenu"></ul>
                                 </div>
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">Presets</button>
+                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">{{ _('Presets') }}</button>
                                     <ul class="dropdown-menu" id="presetMenu"></ul>
                                 </div>
                                 <div class="dropdown">
-                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">My plans</button>
+                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" type="button">{{ _('My plans') }}</button>
                                     <ul class="dropdown-menu" id="savedPlanMenu"></ul>
                                 </div>
                             </div>
                         </div>
                         <div id="planSteps"></div>
-                        <div id="planEmpty" class="text-muted small border rounded p-3 text-center">No steps yet. Add a step or start from a preset.</div>
+                        <div id="planEmpty" class="text-muted small border rounded p-3 text-center">{{ _('No steps yet. Add a step or start from a preset.') }}</div>
                     </div>
                     <div class="col-lg-4">
                         <div class="border rounded p-2 mb-3">
-                            <h6 class="mb-2">Estimate</h6>
-                            <dl class="status-grid mb-0" id="planEstimate"><dt>Time</dt><dd>—</dd><dt>Frames</dt><dd>—</dd><dt>Storage</dt><dd>—</dd></dl>
-                            <div class="small text-muted mt-1">Each frame adds an overhead learned from this telescope's finished plans.</div>
+                            <h6 class="mb-2">{{ _('Estimate') }}</h6>
+                            <dl class="status-grid mb-0" id="planEstimate"><dt>{{ _('Time') }}</dt><dd>—</dd><dt>{{ _('Frames') }}</dt><dd>—</dd><dt>{{ _('Storage') }}</dt><dd>—</dd></dl>
+                            <div class="small text-muted mt-1">{{ _("Each frame adds an overhead learned from this telescope's finished plans.") }}</div>
                         </div>
                         <div class="border rounded p-2 mb-3">
-                            <h6 class="mb-2">Options</h6>
-                            <label class="form-label small mb-1" for="planOnError">If a step fails</label>
+                            <h6 class="mb-2">{{ _('Options') }}</h6>
+                            <label class="form-label small mb-1" for="planOnError">{{ _('If a step fails') }}</label>
                             <select id="planOnError" class="form-select form-select-sm mb-2">
-                                <option value="skip_step">Skip the step and carry on</option>
-                                <option value="stop">Stop the plan</option>
+                                <option value="skip_step">{{ _('Skip the step and carry on') }}</option>
+                                <option value="stop">{{ _('Stop the plan') }}</option>
                             </select>
-                            <label class="form-label small mb-1" for="planUpload">Uploads</label>
+                            <label class="form-label small mb-1" for="planUpload">{{ _('Uploads') }}</label>
                             <select id="planUpload" class="form-select form-select-sm mb-2">
-                                <option value="jpeg_first">JPEGs first, RAWs when asked</option>
-                                <option value="all">Everything as it's taken</option>
-                                <option value="none">Keep everything on the Pi</option>
+                                <option value="jpeg_first">{{ _('JPEGs first, RAWs when asked') }}</option>
+                                <option value="all">{{ _("Everything as it's taken") }}</option>
+                                <option value="none">{{ _('Keep everything on the Pi') }}</option>
                             </select>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="planParkAtEnd">
-                                <label class="form-check-label small" for="planParkAtEnd">Park when the plan ends</label>
+                                <label class="form-check-label small" for="planParkAtEnd">{{ _('Park when the plan ends') }}</label>
                             </div>
                         </div>
                         <div id="planErrors" class="alert alert-danger small d-none"></div>
@@ -562,9 +562,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" onclick="window.CapturePlanBuilder.save()">Save to my plans</button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-success" id="planStartBtn" onclick="window.CapturePlanBuilder.start()">Start plan</button>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.CapturePlanBuilder.save()">{{ _('Save to my plans') }}</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Close') }}</button>
+                <button type="button" class="btn btn-success" id="planStartBtn" onclick="window.CapturePlanBuilder.start()">{{ _('Start plan') }}</button>
             </div>
         </div>
     </div>
@@ -575,94 +575,94 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="advancedControlsModalLabel">Motor controls</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="advancedControlsModalLabel">{{ _('Motor controls') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
             </div>
             <div class="modal-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h6 class="mb-3">Basic controls</h6>
+                        <h6 class="mb-3">{{ _('Basic controls') }}</h6>
                         <div class="mb-3">
-                            <label for="motorSelect" class="form-label">Motor</label>
+                            <label for="motorSelect" class="form-label">{{ _('Motor') }}</label>
                             <select class="form-select form-select-sm" id="motorSelect" onchange="updateSelectedMotor()">
-                                <option value="motor1" selected>Motor 1 (default)</option>
+                                <option value="motor1" selected>{{ _('Motor 1 (default)') }}</option>
                             </select>
                         </div>
                         <div class="mb-3 d-flex justify-content-between align-items-center">
-                            <span class="fw-medium">Motor enable</span>
-                            <button id="motorEnableBtn" class="btn btn-outline-success btn-sm" onclick="toggleMotorEnable()">Enable</button>
+                            <span class="fw-medium">{{ _('Motor enable') }}</span>
+                            <button id="motorEnableBtn" class="btn btn-outline-success btn-sm" onclick="toggleMotorEnable()">{{ _('Enable') }}</button>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Direction</label>
+                            <label class="form-label">{{ _('Direction') }}</label>
                             <div class="btn-group w-100" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(true, this)">Forward</button>
-                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(false, this)">Reverse</button>
+                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(true, this)">{{ _('Forward') }}</button>
+                                <button type="button" class="btn btn-outline-primary" onclick="setDirection(false, this)">{{ _('Reverse') }}</button>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="speedControl" class="form-label">Speed (steps/s)</label>
+                            <label for="speedControl" class="form-label">{{ _('Speed (steps/s)') }}</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="speedControl" min="0" max="10000" step="0.1" value="100">
-                                <button class="btn btn-info" onclick="setSpeed()">Set</button>
+                                <button class="btn btn-info" onclick="setSpeed()">{{ _('Set') }}</button>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Movement</label>
+                            <label class="form-label">{{ _('Movement') }}</label>
                             <div class="row g-2">
-                                <div class="col-6"><button class="btn btn-success w-100" onclick="startMotor()">Start</button></div>
-                                <div class="col-6"><button class="btn btn-danger w-100" onclick="stopMotor()">Stop</button></div>
+                                <div class="col-6"><button class="btn btn-success w-100" onclick="startMotor()">{{ _('Start') }}</button></div>
+                                <div class="col-6"><button class="btn btn-danger w-100" onclick="stopMotor()">{{ _('Stop') }}</button></div>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="stepsControl" class="form-label">Move steps</label>
+                            <label for="stepsControl" class="form-label">{{ _('Move steps') }}</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="stepsControl" min="1" max="100000" step="1" value="200">
-                                <button class="btn btn-primary" onclick="moveSteps()">Move</button>
+                                <button class="btn btn-primary" onclick="moveSteps()">{{ _('Move') }}</button>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="mb-3">Settings</h6>
+                        <h6 class="mb-3">{{ _('Settings') }}</h6>
                         <div class="mb-3">
-                            <label for="microstepsControl" class="form-label">Microsteps</label>
+                            <label for="microstepsControl" class="form-label">{{ _('Microsteps') }}</label>
                             <select class="form-select form-select-sm" id="microstepsControl" onchange="setMicrosteps()">
                                 <option value="1">1</option><option value="2">2</option><option value="4">4</option>
                                 <option value="8">8</option><option value="16" selected>16</option><option value="32">32</option>
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="currentControl" class="form-label">Current (mA)</label>
+                            <label for="currentControl" class="form-label">{{ _('Current (mA)') }}</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="currentControl" min="0" max="2000" step="50" value="800">
-                                <button class="btn btn-info" onclick="setCurrent()">Set</button>
+                                <button class="btn btn-info" onclick="setCurrent()">{{ _('Set') }}</button>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="accelControl" class="form-label">Acceleration (steps/s²)</label>
+                            <label for="accelControl" class="form-label">{{ _('Acceleration (steps/s²)') }}</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="accelControl" min="0" max="10000" step="0.1" value="500">
-                                <button class="btn btn-info" onclick="setAcceleration()">Set</button>
+                                <button class="btn btn-info" onclick="setAcceleration()">{{ _('Set') }}</button>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="modeControl" class="form-label">Motor mode</label>
+                            <label for="modeControl" class="form-label">{{ _('Motor mode') }}</label>
                             <select class="form-select form-select-sm" id="modeControl" onchange="setMode()">
-                                <option value="stealth" selected>Stealth (quiet)</option>
-                                <option value="spread">Spread (performance)</option>
+                                <option value="stealth" selected>{{ _('Stealth (quiet)') }}</option>
+                                <option value="spread">{{ _('Spread (performance)') }}</option>
                             </select>
                         </div>
                         <div class="d-grid gap-2">
-                            <button class="btn btn-info btn-sm" onclick="getMotorStatus()">Status</button>
-                            <button class="btn btn-outline-info btn-sm" onclick="getAllMotorStatus()">All motors' status</button>
+                            <button class="btn btn-info btn-sm" onclick="getMotorStatus()">{{ _('Status') }}</button>
+                            <button class="btn btn-outline-info btn-sm" onclick="getAllMotorStatus()">{{ _("All motors' status") }}</button>
                         </div>
                     </div>
                 </div>
-                <h6 class="mt-3 mb-2">Status and log</h6>
-                <div id="motorStatus" class="p-2 border rounded">Ready for motor commands…</div>
+                <h6 class="mt-3 mb-2">{{ _('Status and log') }}</h6>
+                <div id="motorStatus" class="p-2 border rounded">{{ _('Ready for motor commands…') }}</div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-danger" onclick="emergencyStop()">Stop all motors</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ _('Close') }}</button>
+                <button type="button" class="btn btn-danger" onclick="emergencyStop()">{{ _('Stop all motors') }}</button>
             </div>
         </div>
     </div>

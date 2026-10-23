@@ -29,7 +29,7 @@ const supported = client.support();
 export const engine = {
     available: supported.ok,
     reason: supported.ok ? '' : supported.reason,
-    note: 'Runs in this browser tab: closing the tab (or the computer sleeping) stops it.',
+    note: _('Runs in this browser tab: closing the tab (or the computer sleeping) stops it.'),
     machine: () => client.machineInfo(),
     measure: (frames, options) => client.measure(frames, options),
     stack: (spec, options) => client.stack(spec, options),

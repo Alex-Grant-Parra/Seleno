@@ -3,14 +3,14 @@
 // frames out (app/processing/stack.py quality_rejections).
 
 export const TYPE_LABELS = {
-    light: 'Lights', dark: 'Darks', flat: 'Flats', darkflat: 'Dark flats', bias: 'Bias',
-    snapshot: 'Snapshots', test: 'Test shots', bracket: 'Brackets', timelapse: 'Timelapse',
-    video: 'Video', processed: 'Processed', other: 'Other', unknown: 'Not sorted'
+    light: _('Lights'), dark: _('Darks'), flat: _('Flats'), darkflat: _('Dark flats'), bias: _('Bias'),
+    snapshot: _('Snapshots'), test: _('Test shots'), bracket: _('Brackets'), timelapse: _('Timelapse'),
+    video: _('Video'), processed: _('Processed'), other: _('Other'), unknown: _('Not sorted')
 };
 export const TYPE_SINGULAR = {
-    light: 'light', dark: 'dark', flat: 'flat', darkflat: 'dark flat', bias: 'bias frame',
-    snapshot: 'snapshot', test: 'test shot', bracket: 'bracket', timelapse: 'timelapse frame',
-    video: 'video', processed: 'processed image', other: 'other', unknown: 'photo'
+    light: _('light'), dark: _('dark'), flat: _('flat'), darkflat: _('dark flat'), bias: _('bias frame'),
+    snapshot: _('snapshot'), test: _('test shot'), bracket: _('bracket'), timelapse: _('timelapse frame'),
+    video: _('video'), processed: _('processed image'), other: _('other'), unknown: _('photo')
 };
 export const CALIBRATION = ['dark', 'flat', 'darkflat', 'bias'];
 export const SETTABLE_TYPES = ['light', 'dark', 'flat', 'darkflat', 'bias', 'snapshot', 'test', 'processed', 'other'];
@@ -49,13 +49,13 @@ export function currentNightKey() {
 }
 
 export function nightLabel(key, long = false) {
-    if (key === 'unknown') return 'No date';
+    if (key === 'unknown') return _('No date');
     const [y, m, d] = key.split('-').map(Number);
     const date = new Date(y, m - 1, d);
     const sameYear = y === new Date().getFullYear();
-    const short = date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: sameYear ? undefined : 'numeric' });
-    if (key === currentNightKey()) return long ? `tonight, ${date.toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}` : `Tonight, ${date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
-    return long ? `the night of ${date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: sameYear ? undefined : 'numeric' })}` : short;
+    const short = date.toLocaleDateString(Seleno.locale(), { weekday: 'short', day: 'numeric', month: 'short', year: sameYear ? undefined : 'numeric' });
+    if (key === currentNightKey()) return long ? _('tonight, {date}', { date: date.toLocaleDateString(Seleno.locale(), { day: 'numeric', month: 'long' }) }) : _('Tonight, {date}', { date: date.toLocaleDateString(Seleno.locale(), { day: 'numeric', month: 'short' }) });
+    return long ? _('the night of {date}', { date: date.toLocaleDateString(Seleno.locale(), { day: 'numeric', month: 'long', year: sameYear ? undefined : 'numeric' }) }) : short;
 }
 
 export function targetKey(frame) {
@@ -80,8 +80,8 @@ export function groupFrames(frames, by, plans = {}) {
         const value = key.slice(key.indexOf(':') + 1);
         let label;
         if (by === 'night') label = nightLabel(value);
-        else if (by === 'target') label = value ? (list.find(f => f.target) || {}).target : 'No target';
-        else label = value ? ((plans[value] && plans[value].name) || value) : 'Not from a plan';
+        else if (by === 'target') label = value ? (list.find(f => f.target) || {}).target : _('No target');
+        else label = value ? ((plans[value] && plans[value].name) || value) : _('Not from a plan');
         return { key, value, label, frames: list, latest: Math.max(...list.map(frameTime)) };
     });
     if (by === 'target') out.sort((a, b) => (a.value === '') - (b.value === '') || b.frames.length - a.frames.length);
@@ -142,51 +142,51 @@ export function evaluate(frames) {
     const out = new Map();
     frames.forEach(frame => {
         if (frame.flag === 'reject') {
-            out.set(frame.name, { level: 'bad', reason: 'Rejected', user: true });
+            out.set(frame.name, { level: 'bad', reason: _('Rejected'), user: true });
             return;
         }
         if (frame.flag === 'pick') {
-            out.set(frame.name, { level: 'ok', reason: 'Accepted', user: true });
+            out.set(frame.name, { level: 'ok', reason: _('Accepted'), user: true });
             return;
         }
         if (!frame.metrics || !isLightLike(frame)) {
-            out.set(frame.name, { level: 'off', reason: frame.metrics ? '' : 'Not measured' });
+            out.set(frame.name, { level: 'off', reason: frame.metrics ? '' : _('Not measured') });
             return;
         }
         const fwhm = metric(frame, 'fwhm');
         const ecc = metric(frame, 'ecc');
         const stars = metric(frame, 'stars');
         if (stars !== null && stars < 5) {
-            out.set(frame.name, { level: 'bad', reason: 'Hardly any stars' });
+            out.set(frame.name, { level: 'bad', reason: _('Hardly any stars') });
             return;
         }
         if (enough) {
             const f = stats.fwhm, e = stats.ecc, s = stats.stars;
             // Trailing first: trailed stars are also wide, and "trailed" says why
             if (ecc !== null && e.median !== null && ecc > Math.max(0.6, e.median + 3 * e.sigma)) {
-                out.set(frame.name, { level: 'bad', reason: 'Stars trailed' });
+                out.set(frame.name, { level: 'bad', reason: _('Stars trailed') });
                 return;
             }
             if (fwhm !== null && f.median !== null && fwhm > f.median + Math.max(3 * f.sigma, 0.15 * f.median)) {
-                out.set(frame.name, { level: 'bad', reason: 'Blurred' });
+                out.set(frame.name, { level: 'bad', reason: _('Blurred') });
                 return;
             }
             if (stars !== null && s.median !== null && stars < 0.5 * s.median) {
-                out.set(frame.name, { level: 'bad', reason: 'Few stars: cloud?' });
+                out.set(frame.name, { level: 'bad', reason: _('Few stars: cloud?') });
                 return;
             }
             if ((fwhm !== null && f.median !== null && fwhm > f.median + Math.max(1.5 * f.sigma, 0.08 * f.median)) ||
                 (ecc !== null && e.median !== null && ecc > Math.max(0.5, e.median + 1.5 * e.sigma)) ||
                 (stars !== null && s.median !== null && stars < 0.75 * s.median)) {
-                out.set(frame.name, { level: 'warn', reason: 'Below average' });
+                out.set(frame.name, { level: 'warn', reason: _('Below average') });
                 return;
             }
             out.set(frame.name, { level: 'ok', reason: '' });
             return;
         }
         // Too few frames to compare: absolute limits only
-        if (ecc !== null && ecc >= 0.6) out.set(frame.name, { level: 'bad', reason: 'Stars trailed' });
-        else if (fwhm !== null && fwhm > 6.5) out.set(frame.name, { level: 'bad', reason: 'Out of focus' });
+        if (ecc !== null && ecc >= 0.6) out.set(frame.name, { level: 'bad', reason: _('Stars trailed') });
+        else if (fwhm !== null && fwhm > 6.5) out.set(frame.name, { level: 'bad', reason: _('Out of focus') });
         else if ((ecc !== null && ecc >= 0.45) || (fwhm !== null && fwhm > 4)) out.set(frame.name, { level: 'warn', reason: '' });
         else out.set(frame.name, { level: 'ok', reason: '' });
     });
@@ -195,23 +195,23 @@ export function evaluate(frames) {
 
 // A plain sentence about one frame, for Basic mode's inspector
 export function describe(frame, quality, frames) {
-    if (frame.flag === 'reject') return 'You marked this one as bad, so stacking leaves it out.';
-    if (!frame.metrics) return isLightLike(frame) ? "Its stars haven't been measured yet." : '';
+    if (frame.flag === 'reject') return _('You marked this one as bad, so stacking leaves it out.');
+    if (!frame.metrics) return isLightLike(frame) ? _("Its stars haven't been measured yet.") : '';
     const stats = groupStats(frames);
     const fwhm = metric(frame, 'fwhm');
     const ecc = metric(frame, 'ecc');
     if (quality.level === 'bad') {
-        if (quality.reason === 'Blurred') return `Blurrier than the rest of the night (stars ${fwhm.toFixed(1)} px against ${stats.fwhm.median.toFixed(1)}). Stacking leaves it out.`;
-        if (quality.reason === 'Stars trailed') return 'The stars are stretched: the mount slipped or something knocked it. Stacking leaves it out.';
-        if (quality.reason === 'Few stars: cloud?') return 'Far fewer stars than the others: probably cloud or haze. Stacking leaves it out.';
-        return 'Stacking leaves this one out.';
+        if (quality.reason === _('Blurred')) return _('Blurrier than the rest of the night (stars {fwhm} px against {median}). Stacking leaves it out.', { fwhm: fwhm.toFixed(1), median: stats.fwhm.median.toFixed(1) });
+        if (quality.reason === _('Stars trailed')) return _('The stars are stretched: the mount slipped or something knocked it. Stacking leaves it out.');
+        if (quality.reason === _('Few stars: cloud?')) return _('Far fewer stars than the others: probably cloud or haze. Stacking leaves it out.');
+        return _('Stacking leaves this one out.');
     }
     const round = ecc !== null && ecc < 0.45;
     if (stats.count >= 5 && fwhm !== null && fwhm <= stats.fwhm.median - 0.5 * (stats.fwhm.sigma || 0)) {
-        return `${round ? 'Sharp, round stars.' : 'Sharp stars.'} One of the best photos of the night.`;
+        return (round ? _('Sharp, round stars. One of the best photos of the night.') : _('Sharp stars. One of the best photos of the night.'));
     }
-    if (quality.level === 'warn') return 'A little softer than the best ones, but still worth stacking.';
-    return round ? 'Round stars and good focus.' : 'Fine to stack.';
+    if (quality.level === 'warn') return _('A little softer than the best ones, but still worth stacking.');
+    return round ? _('Round stars and good focus.') : _('Fine to stack.');
 }
 
 // Limits a night suggests: median + 3 sigma (and the stacker's floors)
@@ -280,7 +280,7 @@ export function drawQualityChart(svg, frames, limits) {
                 const c = document.createElementNS(ns, 'circle');
                 Object.entries({ cx: x(i), cy: y(values[i]), r: 4, fill: 'var(--danger)' }).forEach(([k, v]) => c.setAttribute(k, v));
                 const title = document.createElementNS(ns, 'title');
-                title.textContent = `${f.name}: FWHM ${values[i].toFixed(2)} px`;
+                title.textContent = _('{name}: FWHM {value} px', { name: f.name, value: values[i].toFixed(2) });
                 c.appendChild(title);
                 svg.appendChild(c);
             });

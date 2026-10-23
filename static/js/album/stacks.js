@@ -43,7 +43,7 @@ async function putMaster(stackId, master, onProgress, signal) {
             offset = body.received;        // the server already has more (a retried chunk)
             continue;
         }
-        if (!response.ok) throw new Error(body.message || `Upload failed (${response.status})`);
+        if (!response.ok) throw new Error(body.message || _('Upload failed ({status})', { status: response.status }));
         offset = body.received;
         retries = 0;
         onProgress(offset / master.size);
@@ -52,7 +52,7 @@ async function putMaster(stackId, master, onProgress, signal) {
 
 // Save a result from the engine (see engine.js for its shape). Resolves to the stack.
 export async function saveStackResult(result, { signal } = {}) {
-    const job = startJob(`Saving ${result.name}`, { kind: 'upload' });
+    const job = startJob(_('Saving {name}', { name: result.name }), { kind: 'upload' });
     try {
         const master = result.master || null;
         const created = await Seleno.api('/album/api/stacks', {
@@ -76,17 +76,17 @@ export async function saveStackResult(result, { signal } = {}) {
             signal
         });
         const stack = created.stack;
-        job.update(0.02, 'Saving the preview');
+        job.update(0.02, _('Saving the preview'));
         if (result.preview) await putFile(stack.id, 'preview.f16', result.preview.data, signal);
         await putFile(stack.id, 'auto.jpg', result.auto, signal);
         await putFile(stack.id, 'thumb.jpg', result.thumb, signal);
         if (result.coverage) await putFile(stack.id, 'coverage.u8', result.coverage, signal);
         if (master) {
             await putMaster(stack.id, master, fraction => job.update(0.05 + 0.93 * fraction,
-                `Uploading the master: ${Seleno.fmt.bytes(fraction * master.size)} of ${Seleno.fmt.bytes(master.size)}`), signal);
+                _('Uploading the master: {done} of {total}', { done: Seleno.fmt.bytes(fraction * master.size), total: Seleno.fmt.bytes(master.size) })), signal);
         }
         const finished = await Seleno.api(`/album/api/stacks/${stack.id}/finish`, { method: 'POST' });
-        job.finish(`Saved (${Seleno.fmt.bytes(finished.stack.bytes_total)})`);
+        job.finish(_('Saved ({size})', { size: Seleno.fmt.bytes(finished.stack.bytes_total) }));
         return finished.stack;
     } catch (error) {
         job.fail(error);
@@ -109,27 +109,27 @@ export function renderStackCards(box, stacks, { onOpen, onDelete, onRename }) {
     const ready = stacks.filter(s => s.state === 'ready');
     if (!ready.length) {
         box.appendChild(el('div', { className: 'ws-card ws-empty', style: { gridColumn: '1/-1' } },
-            'No stacked images yet. Select some photos in Photos and choose Stack.'));
+            _('No stacked images yet. Select some photos in Photos and choose Stack.')));
         return;
     }
     ready.forEach(stack => {
-        const exposure = stack.total_exposure_s ? ` · ${Seleno.fmt.duration(stack.total_exposure_s)} of light` : '';
-        const frames = stack.frames_used ? `${stack.frames_used}${stack.frames_total ? ' of ' + stack.frames_total : ''} frames` : '';
+        const exposure = stack.total_exposure_s ? _(' · {duration} of light', { duration: Seleno.fmt.duration(stack.total_exposure_s) }) : '';
+        const frames = stack.frames_used ? (stack.frames_total ? _('{used} of {total} frames', { used: stack.frames_used, total: stack.frames_total }) : _('{used} frames', { used: stack.frames_used })) : '';
         box.appendChild(el('div', { className: 'ws-card ws-stack-card' }, [
-            el('button', { type: 'button', className: 'ws-tile', onclick: () => onOpen(stack), title: `Edit ${stack.name}` },
+            el('button', { type: 'button', className: 'ws-tile', onclick: () => onOpen(stack), title: _('Edit {name}', { name: stack.name }) },
                 el('img', { src: stack.thumb_url, alt: stack.name, loading: 'lazy' })),
             el('div', { className: 'ws-actions' }, [
                 el('b', {}, stack.name),
-                stack.kind === 'planetary' ? el('span', { className: 'ws-chip' }, 'Lucky imaging') : null,
-                stack.edited ? el('span', { className: 'ws-chip' }, 'Edited') : null
+                stack.kind === 'planetary' ? el('span', { className: 'ws-chip' }, _('Lucky imaging')) : null,
+                stack.edited ? el('span', { className: 'ws-chip' }, _('Edited')) : null
             ]),
             el('div', { className: 'ws-small ws-muted' }, `${frames}${exposure} · ${stack.width} × ${stack.height} · ${Seleno.fmt.dateTime(stack.created_at)}`),
             el('div', { className: 'ws-actions' }, [
-                el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => onOpen(stack) }, 'Edit'),
-                el('a', { className: 'ws-btn sm', href: `${stack.auto_url}?download=1` }, 'Download JPEG'),
-                stack.has_master ? el('a', { className: 'ws-btn sm adv-only', href: `${stack.master_url}?download=1` }, `FITS (${Seleno.fmt.bytes(stack.master_bytes)})`) : null,
-                el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: () => onRename(stack) }, 'Rename'),
-                el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: () => onDelete(stack) }, 'Delete')
+                el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => onOpen(stack) }, _('Edit')),
+                el('a', { className: 'ws-btn sm', href: `${stack.auto_url}?download=1` }, _('Download JPEG')),
+                stack.has_master ? el('a', { className: 'ws-btn sm adv-only', href: `${stack.master_url}?download=1` }, _('FITS ({size})', { size: Seleno.fmt.bytes(stack.master_bytes) })) : null,
+                el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: () => onRename(stack) }, _('Rename')),
+                el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: () => onDelete(stack) }, _('Delete'))
             ])
         ]));
     });

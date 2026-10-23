@@ -13,6 +13,8 @@ import threading
 import time
 from datetime import datetime, timedelta
 
+from flask_babel import gettext as _
+
 from app.db import db
 from app.telescopeLink import shutter_seconds
 
@@ -284,7 +286,7 @@ def validate_plan(plan):
 
     frames = estimate_plan(plan)['frames']
     if frames > MAX_FRAMES:
-        errors.append(f"The plan takes {frames} frames; the limit is {MAX_FRAMES}")
+        errors.append(_("The plan takes %(frames)s frames; the limit is %(limit)s", frames=frames, limit=MAX_FRAMES))
     return errors
 
 
@@ -299,7 +301,8 @@ def check_camera_settings(plan, choices):
                 continue
             offered = choices.get(key)
             if isinstance(offered, list) and offered and str(step[field]) not in {str(c) for c in offered}:
-                errors.append(f"Step {index + 1}: the camera has no {field.replace('_', ' ')} {step[field]}")
+                errors.append(_("Step %(step)s: the camera has no %(setting)s %(value)s",
+                                step=index + 1, setting=field.replace('_', ' '), value=step[field]))
     return errors
 
 
@@ -473,12 +476,12 @@ def prepare_plan(user, telescope_row, plan_input):
 
     if booking is not None:
         if booking.requester_user_id != user.id and not may_manage:
-            return None, None, ["Only the booking's holder, the telescope's owner or an admin can start a plan"]
+            return None, None, [_("Only the booking's holder, the telescope's owner or an admin can start a plan")]
         owner_id = booking.requester_user_id
         end_by = booking.end_utc
     else:
         if not may_manage:
-            return None, None, ["You need a booking that covers now to start a plan"]
+            return None, None, [_("You need a booking that covers now to start a plan")]
         owner_id = user.id
         end_by = now + timedelta(hours=OWNER_PLAN_MAX_HOURS)
         upcoming = next_booking_start(telescope_row, after=now)
@@ -489,10 +492,10 @@ def prepare_plan(user, telescope_row, plan_input):
                              sizes=recent_frame_sizes(owner_id), start=now)
     remaining = (end_by - now).total_seconds()
     if estimate['seconds'] > remaining:
-        errors.append(
-            f"The plan needs about {_duration(estimate['seconds'])} but must end by "
-            f"{_iso_z(end_by)} ({_duration(max(0, remaining))} from now)"
-        )
+        errors.append(_(
+            "The plan needs about %(needs)s but must end by %(end)s (%(left)s from now)",
+            needs=_duration(estimate['seconds']), end=_iso_z(end_by), left=_duration(max(0, remaining))
+        ))
         return None, None, errors
 
     plan = {

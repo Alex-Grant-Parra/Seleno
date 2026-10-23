@@ -9,6 +9,8 @@ The formulas are the Astronomical Almanac's low-precision ones: the Sun to about
 import math
 from datetime import datetime, timedelta, timezone
 
+from flask_babel import gettext as _
+
 J2000 = 2451545.0
 DEG = math.pi / 180.0
 
@@ -97,22 +99,22 @@ def alt_az(ra, dec, lat, lon, jd):
 
 
 def sun_altitude(lat, lon, jd):
-    ra, dec, _ = sun_position(jd)
+    ra, dec, _unused = sun_position(jd)
     return alt_az(ra, dec, lat, lon, jd)[0]
 
 
 def moon_altitude(lat, lon, jd):
     """Topocentric: the Moon's parallax lowers it by up to a degree."""
-    ra, dec, _, parallax = moon_position(jd)
-    alt, _ = alt_az(ra, dec, lat, lon, jd)
+    ra, dec, _unused, parallax = moon_position(jd)
+    alt, _unused = alt_az(ra, dec, lat, lon, jd)
     return alt - parallax * math.cos(alt * DEG)
 
 
 def moon_phase(jd):
     """(illuminated fraction 0..1, waxing?, phase name)."""
-    _, _, sun_lon = sun_position(jd)
-    ra_m, dec_m, moon_lon, _ = moon_position(jd)
-    ra_s, dec_s, _ = sun_position(jd)
+    _unused, _unused2, sun_lon = sun_position(jd)
+    ra_m, dec_m, moon_lon, _unused = moon_position(jd)
+    ra_s, dec_s, _unused = sun_position(jd)
     elongation = separation_deg(ra_m, dec_m, ra_s, dec_s)
     fraction = (1.0 - math.cos(elongation * DEG)) / 2.0
     age = _wrap360(moon_lon - sun_lon)          # 0 new, 180 full
@@ -154,7 +156,7 @@ def _crossings(func, jd0, hours, level, step_min=10.0):
         value = func(jd) - level
         if (prev < 0) != (value < 0):
             lo, hi, f_lo = prev_jd, jd, prev
-            for _ in range(20):
+            for _attempt in range(20):
                 mid = 0.5 * (lo + hi)
                 f_mid = func(mid) - level
                 if (f_mid < 0) == (f_lo < 0):
@@ -215,7 +217,7 @@ def target_tonight(ra, dec, lat, lon, when, night=None, min_alt=30.0, step_min=5
         jd_end = julian_day(hi)
         step = step_min / 1440.0
         while jd <= jd_end:
-            alt, _ = alt_az(ra, dec, lat, lon, jd)
+            alt, _unused = alt_az(ra, dec, lat, lon, jd)
             if alt > best_alt:
                 best_alt, best_time = alt, jd
             if alt >= min_alt:
@@ -247,7 +249,7 @@ def sky_summary(lat, lon, when, target=None, min_alt=30.0):
     """Everything the interface's sky panel needs, as plain JSON-ready values."""
     jd = julian_day(when)
     sun_alt = sun_altitude(lat, lon, jd)
-    moon_ra, moon_dec, _, _ = moon_position(jd)
+    moon_ra, moon_dec, _unused, _unused2 = moon_position(jd)
     moon_alt = moon_altitude(lat, lon, jd)
     fraction, waxing, phase_name = moon_phase(jd)
     night = night_window(lat, lon, when, ASTRONOMICAL)
@@ -283,16 +285,16 @@ def verdict(target, sky):
     """('ok'|'warn'|'bad', plain words) for imaging the target now."""
     alt = target["alt"]
     if target.get("never_rises"):
-        return "bad", "Never rises from this telescope's site"
+        return "bad", _("Never rises from this telescope's site")
     if alt < 0:
-        return "bad", "Below the horizon now"
+        return "bad", _("Below the horizon now")
     if alt < 20:
-        return "warn", "Low in the sky: the air blurs and dims it"
+        return "warn", _("Low in the sky: the air blurs and dims it")
     moon = sky["moon"]
     if moon["alt"] > 0 and moon["illumination"] > 0.5 and target["moon_separation"] < 40:
-        return "warn", "Bright Moon close by: shorter exposures, or a narrowband filter"
+        return "warn", _("Bright Moon close by: shorter exposures, or a narrowband filter")
     if sky["sun"]["alt"] > ASTRONOMICAL:
-        return "warn", "The sky isn't fully dark yet"
+        return "warn", _("The sky isn't fully dark yet")
     if alt < 30:
-        return "warn", "Fairly low; it gets better nearer its transit" if target["rising"] else "Fairly low and sinking"
-    return "ok", "Good conditions for this target"
+        return "warn", _("Fairly low; it gets better nearer its transit") if target["rising"] else _("Fairly low and sinking")
+    return "ok", _("Good conditions for this target")

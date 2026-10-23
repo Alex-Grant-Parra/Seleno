@@ -19,6 +19,7 @@ from app.telescope_access import (
     user_can_control,
 )
 from models import star_catalog
+from flask_babel import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +95,8 @@ def update_camera():
     if errors:
         return jsonify({"status": "error", "message": "; ".join(errors), "changed": changed})
     if not changed:
-        return jsonify({"status": "error", "message": "No camera setting given"}), 400
-    return jsonify({"status": "success", "message": "Settings updated", "changed": changed})
+        return jsonify({"status": "error", "message": _("No camera setting given")}), 400
+    return jsonify({"status": "success", "message": _("Settings updated"), "changed": changed})
 
 def extract_friendly_common_name(common_names_field: str) -> str:
     # Extract the first friendly name from commonNames field; skip catalog designations
@@ -164,12 +165,12 @@ def search_object():
                 entry = star_catalog.lookup(designation) if designation else None
             if entry is None:
                 print("Object not found")
-                return jsonify({"status": "error", "message": "Object not found"})
+                return jsonify({"status": "error", "message": _("Object not found")})
             result = _catalog_search_result(entry)
 
     except ValueError as e:
         print(f"Error during search: {e}")
-        return jsonify({"status": "error", "message": "Invalid search format"})
+        return jsonify({"status": "error", "message": _("Invalid search format")})
 
     if result:
         # Check if result is a dictionary
@@ -212,7 +213,7 @@ def search_object():
         return jsonify({"status": "success", "data": result_data})
     else:
         print("Object not found")
-        return jsonify({"status": "error", "message": "Object not found"})
+        return jsonify({"status": "error", "message": _("Object not found")})
     
 
 
@@ -272,7 +273,7 @@ def get_camera_choices():
         return jsonify(choices)
     except Exception:
         logger.exception("Failed to get camera choices")
-        return jsonify({"status": "error", "message": "Failed to get camera choices"})
+        return jsonify({"status": "error", "message": _("Failed to get camera choices")})
 
 
 @interface_bp.route("/take_photo", methods=["POST"])
@@ -292,7 +293,7 @@ def take_photo():
             except (TypeError, ValueError):
                 return jsonify({"status": "error", "message": "exposure_s must be a number"}), 400
             if not 0 < exposure_s <= 900:
-                return jsonify({"status": "error", "message": "Bulb exposures run from 0 to 900 s"}), 400
+                return jsonify({"status": "error", "message": _("Bulb exposures run from 0 to 900 s")}), 400
         else:
             exposure_s = None
 
@@ -307,7 +308,7 @@ def take_photo():
         return _command_reply(result, "Photo taken")
     except Exception:
         logger.exception("Failed to take photo")
-        return jsonify({"status": "error", "message": "Failed to take photo"})
+        return jsonify({"status": "error", "message": _("Failed to take photo")})
 
 
 @interface_bp.route("/get_telescopes", methods=["GET"])
@@ -332,7 +333,7 @@ def get_telescopes():
         return jsonify({"status": "success", "telescopes": telescope_list})
     except Exception:
         logger.exception("Failed to get telescopes")
-        return jsonify({"status": "error", "message": "Failed to get telescopes"})
+        return jsonify({"status": "error", "message": _("Failed to get telescopes")})
 
 
 def _access_flags(telescope_id):
@@ -348,20 +349,20 @@ def select_telescope():
     # Set the selected telescope in the user's session
     from flask_login import current_user
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in to select telescope"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in to select telescope")}), 401
 
     try:
         data = request.json
         telescope_id = data.get("telescopeId") or data.get("telescope_id")
 
         if not telescope_id:
-            return jsonify({"status": "error", "message": "Telescope ID is required"})
+            return jsonify({"status": "error", "message": _("Telescope ID is required")})
 
         from models.tables import Telescope
         telescope = Telescope.get_telescope_by_id(telescope_id)
 
         if not telescope:
-            return jsonify({"status": "error", "message": "Telescope not found"})
+            return jsonify({"status": "error", "message": _("Telescope not found")})
 
         # Store selected telescope in session
         session['selected_telescope'] = {
@@ -374,14 +375,14 @@ def select_telescope():
 
         return jsonify({
             "status": "success",
-            "message": f"Selected telescope: {telescope_id}",
+            "message": _('Selected telescope: %(telescope_id)s', telescope_id=telescope_id),
             "telescope": session['selected_telescope'],
             "access": _access_flags(telescope_id),
         })
 
     except Exception:
         logger.exception("Failed to select telescope")
-        return jsonify({"status": "error", "message": "Failed to select telescope"})
+        return jsonify({"status": "error", "message": _("Failed to select telescope")})
 
 @interface_bp.route("/get_selected_telescope", methods=["GET"])
 def get_selected_telescope():
@@ -394,16 +395,16 @@ def get_selected_telescope():
             "access": _access_flags(selected_telescope.get('telescope_id')),
         })
     else:
-        return jsonify({"status": "success", "telescope": None, "message": "No telescope selected"})
+        return jsonify({"status": "success", "telescope": None, "message": _("No telescope selected")})
 
 @interface_bp.route("/add_telescope", methods=["POST"])
 def add_telescope():
     # Add a new telescope to the database (admins; owners register through /telescopes)
     from flask_login import current_user
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in to manage telescopes"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in to manage telescopes")}), 401
     if not current_user.is_admin:
-        return jsonify({"status": "error", "message": "Admin access required"}), 403
+        return jsonify({"status": "error", "message": _("Admin access required")}), 403
 
     try:
         data = request.json
@@ -415,7 +416,7 @@ def add_telescope():
         if not telescope_id:
             return jsonify({
                 "status": "error",
-                "message": "Telescope ID is required"
+                "message": _("Telescope ID is required")
             })
 
         from models.tables import Telescope
@@ -425,7 +426,7 @@ def add_telescope():
 
     except Exception:
         logger.exception("Failed to add telescope")
-        return jsonify({"status": "error", "message": "Failed to add telescope"})
+        return jsonify({"status": "error", "message": _("Failed to add telescope")})
 
 @interface_bp.route("/remove_telescope", methods=["POST"])
 def remove_telescope():
@@ -435,7 +436,7 @@ def remove_telescope():
         telescope_id = data.get("telescopeId") or data.get("telescope_id")
 
         if not telescope_id:
-            return jsonify({"status": "error", "message": "Telescope ID is required"})
+            return jsonify({"status": "error", "message": _("Telescope ID is required")})
 
         guard = _require_telescope_control_access(telescope_id, OWNER)
         if guard:
@@ -452,7 +453,7 @@ def remove_telescope():
 
     except Exception:
         logger.exception("Failed to remove telescope")
-        return jsonify({"status": "error", "message": "Failed to remove telescope"})
+        return jsonify({"status": "error", "message": _("Failed to remove telescope")})
 
 @interface_bp.route("/update_telescope_heartbeat", methods=["POST"])
 def update_telescope_heartbeat():
@@ -460,13 +461,13 @@ def update_telescope_heartbeat():
     # themselves over their sockets, so only admins may set it by hand
     from flask_login import current_user
     if not current_user.is_authenticated or not current_user.is_admin:
-        return jsonify({"status": "error", "message": "Admin access required"}), 403
+        return jsonify({"status": "error", "message": _("Admin access required")}), 403
     try:
         data = request.json
         telescope_id = data.get("telescopeId") or data.get("telescope_id")
 
         if not telescope_id:
-            return jsonify({"status": "error", "message": "Telescope ID is required"})
+            return jsonify({"status": "error", "message": _("Telescope ID is required")})
 
         from models.tables import Telescope
         result = Telescope.update_last_seen(telescope_id)
@@ -492,7 +493,7 @@ def start_live_view():
         return _command_reply(result, "Live view started")
     except Exception:
         logger.exception("Failed to start live view")
-        return jsonify({"status": "error", "message": "Failed to start live view"})
+        return jsonify({"status": "error", "message": _("Failed to start live view")})
 
 @interface_bp.route("/stop_live_view", methods=["POST"])
 def stop_live_view():
@@ -509,7 +510,7 @@ def stop_live_view():
         return _command_reply(result, "Live view stopped")
     except Exception:
         logger.exception("Failed to stop live view")
-        return jsonify({"status": "error", "message": "Failed to stop live view"})
+        return jsonify({"status": "error", "message": _("Failed to stop live view")})
 
 
 @interface_bp.route("/liveview_ticket", methods=["GET"])
@@ -698,7 +699,7 @@ def telescope_command():
     action = data.get("action")
     spec = TELESCOPE_ACTIONS.get(action)
     if spec is None:
-        return jsonify({"status": "error", "message": f"Unknown action: {action}"}), 400
+        return jsonify({"status": "error", "message": _('Unknown action: %(action)s', action=action)}), 400
     level, plain, run = spec
 
     telescope_id = requested_telescope_id(data)
@@ -760,7 +761,7 @@ def motor_command():
         }
 
         if command not in motor_commands:
-            return jsonify({"status": "error", "message": f"Unknown motor command: {command}"}), 400
+            return jsonify({"status": "error", "message": _('Unknown motor command: %(command)s', command=command)}), 400
 
         # Execute the command
         method = motor_commands[command]
@@ -782,7 +783,7 @@ def motor_command():
 
     except Exception:
         logger.exception("Failed to execute motor command")
-        return jsonify({"status": "error", "message": "Failed to execute motor command"}), 500
+        return jsonify({"status": "error", "message": _("Failed to execute motor command")}), 500
 
 @interface_bp.route("/get_motors", methods=["POST"])
 def get_motors():

@@ -17,6 +17,7 @@ from flask_login import current_user, login_required
 
 from app.db import db
 from controllers.album import get_user_photos_dir
+from flask_babel import gettext as _
 
 projects_api_bp = Blueprint("projects_api", __name__)
 
@@ -84,7 +85,7 @@ def _sizes(folder):
 
 def _folder_bytes(folder):
     total = 0
-    for root, _, files in os.walk(folder):
+    for root, _dirs, files in os.walk(folder):
         total += sum(os.path.getsize(os.path.join(root, f)) for f in files)
     return total
 
@@ -118,7 +119,7 @@ def projects_create():
             frames_json="[]", seen_json="[]", nights_json="[]", frames_total=0, exposure_total_s=0.0, generation=0,
         )
     except ValueError:
-        return jsonify({"status": "error", "message": "The project's description is too large"}), 400
+        return jsonify({"status": "error", "message": _("The project's description is too large")}), 400
     os.makedirs(_project_dir(row.id), exist_ok=True)
     db.session.add(row)
     db.session.commit()
@@ -174,9 +175,9 @@ def projects_upload(project_id, name):
         return jsonify({"status": "error", "message": "Chunk is empty or the file is too large"}), 400
     if offset == 0:
         if not data.startswith(b"SIMPLE  ="):
-            return jsonify({"status": "error", "message": f"{name} isn't a FITS file"}), 400
+            return jsonify({"status": "error", "message": _("%(name)s isn't a FITS file", name=name)}), 400
         if shutil.disk_usage(get_user_photos_dir()).free < DISK_RESERVE_BYTES + len(data):
-            return jsonify({"status": "error", "message": "The server is short of disk space"}), 507
+            return jsonify({"status": "error", "message": _("The server is short of disk space")}), 507
     with open(path, "r+b" if offset else "wb") as f:
         f.seek(offset)
         f.write(data)
@@ -241,7 +242,7 @@ def projects_commit(project_id):
             reference_json = _dump(reference, 512 * 1024) if reference else None
             settings_json = _dump(data["settings"], 64 * 1024) if mode == "rebuilt" and isinstance(data.get("settings"), dict) else None
     except ValueError:
-        return jsonify({"status": "error", "message": "Too much to record"}), 400
+        return jsonify({"status": "error", "message": _("Too much to record")}), 400
 
     error = _swap_in(row, "rebuild" if mode == "checkpoint" else "current", expected)
     if error:

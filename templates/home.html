@@ -1,22 +1,22 @@
 {% extends 'base.html' %}
 
-{% block title %}Home - SELENO{% endblock %}
+{% block title %}{{ _('Home - SELENO') }}{% endblock %}
 {% block body_class %}home-page{% endblock %}
 
 {% block content %}
 <main class="home-dashboard">
     <section class="home-hero">
         <div class="home-hero-copy">
-            <p class="home-eyebrow">Observatory Command Center</p>
-            <h1>Everything you need for tonight's session.</h1>
-            <p class="home-subtitle">Launch capture workflows, monitor telescope status, plan sky targets, and manage bookings from one clean dashboard.</p>
+            <p class="home-eyebrow">{{ _('Observatory Command Center') }}</p>
+            <h1>{{ _("Everything you need for tonight's session.") }}</h1>
+            <p class="home-subtitle">{{ _('Launch capture workflows, monitor telescope status, plan sky targets, and manage bookings from one clean dashboard.') }}</p>
             <div class="home-hero-actions">
                 {% if current_user.is_authenticated %}
-                <a class="btn btn-primary" href="{{ url_for('interface.interface') }}">Open Interface</a>
+                <a class="btn btn-primary" href="{{ url_for('interface.interface') }}">{{ _('Open Interface') }}</a>
                 {% else %}
-                <span class="btn btn-primary home-action-disabled" aria-disabled="true">Open Interface</span>
+                <span class="btn btn-primary home-action-disabled" aria-disabled="true">{{ _('Open Interface') }}</span>
                 {% endif %}
-                <a class="btn btn-ghost" href="{{ url_for('star_map.star_map') }}">Star Map</a>
+                <a class="btn btn-ghost" href="{{ url_for('star_map.star_map') }}">{{ _('Star Map') }}</a>
             </div>
         </div>
         <div class="home-hero-media" aria-hidden="true">
@@ -26,45 +26,45 @@
         </div>
     </section>
 
-    <section class="home-grid" aria-label="Primary navigation">
+    <section class="home-grid" aria-label="{{ _('Primary navigation') }}">
         {% if current_user.is_authenticated %}
         <a class="home-card" href="{{ url_for('interface.interface') }}">
-            <h2>Interface</h2>
-            <p>Live view, camera controls, telescope targeting, and tracking tools.</p>
+            <h2>{{ _('Interface') }}</h2>
+            <p>{{ _('Live view, camera controls, telescope targeting, and tracking tools.') }}</p>
         </a>
         <a class="home-card" href="{{ url_for('book.book_page') }}">
-            <h2>Book</h2>
-            <p>Reserve telescope time, review bookings, and manage owner requests.</p>
+            <h2>{{ _('Book') }}</h2>
+            <p>{{ _('Reserve telescope time, review bookings, and manage owner requests.') }}</p>
         </a>
         <a class="home-card" href="{{ url_for('album.album') }}">
-            <h2>Album</h2>
-            <p>Browse and manage astrophotography captured during your sessions.</p>
+            <h2>{{ _('Album') }}</h2>
+            <p>{{ _('Browse and manage astrophotography captured during your sessions.') }}</p>
         </a>
         {% else %}
         <div class="home-card home-card-disabled" aria-disabled="true">
-            <h2>Interface</h2>
-            <p>Live view, camera controls, telescope targeting, and tracking tools.</p>
+            <h2>{{ _('Interface') }}</h2>
+            <p>{{ _('Live view, camera controls, telescope targeting, and tracking tools.') }}</p>
         </div>
         <div class="home-card home-card-disabled" aria-disabled="true">
-            <h2>Book</h2>
-            <p>Reserve telescope time, review bookings, and manage owner requests.</p>
+            <h2>{{ _('Book') }}</h2>
+            <p>{{ _('Reserve telescope time, review bookings, and manage owner requests.') }}</p>
         </div>
         <div class="home-card home-card-disabled" aria-disabled="true">
-            <h2>Album</h2>
-            <p>Browse and manage astrophotography captured during your sessions.</p>
+            <h2>{{ _('Album') }}</h2>
+            <p>{{ _('Browse and manage astrophotography captured during your sessions.') }}</p>
         </div>
         {% endif %}
         <a class="home-card" href="{{ url_for('map.map_page') }}">
-            <h2>World Map</h2>
-            <p>Check weather and sky brightness layers before you plan observations.</p>
+            <h2>{{ _('World Map') }}</h2>
+            <p>{{ _('Check weather and sky brightness layers before you plan observations.') }}</p>
         </a>
         <a class="home-card" href="{{ url_for('downloads.downloads_home') }}">
-            <h2>Downloads</h2>
-            <p>Access current releases and client packages for your environment.</p>
+            <h2>{{ _('Downloads') }}</h2>
+            <p>{{ _('Access current releases and client packages for your environment.') }}</p>
         </a>
         <a class="home-card" href="{{ url_for('contact.support_home') }}">
-            <h2>Support</h2>
-            <p>Open support tickets and get help when something needs attention.</p>
+            <h2>{{ _('Support') }}</h2>
+            <p>{{ _('Open support tickets and get help when something needs attention.') }}</p>
         </a>
     </section>
 </main>

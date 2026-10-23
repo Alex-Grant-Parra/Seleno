@@ -14,6 +14,14 @@ import { previewHalf } from './combine.js';
 import { extensionOf } from './decode.js';
 import { serFrames } from './ser.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 export const DEFAULT_LUCKY = { keep_percent: 25, min_frames: 5, max_frames: 4000, roi: 'auto' };
 export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv', 'avi'];
 
@@ -69,7 +77,7 @@ function videoSource(url, max, signal) {
             video.src = url;
             await new Promise((resolve, reject) => {
                 video.onloadedmetadata = resolve;
-                video.onerror = () => reject(new Error("This browser can't play this video. MP4 (H.264) and WebM play everywhere; SER files work too."));
+                video.onerror = () => reject(new Error(_("This browser can't play this video. MP4 (H.264) and WebM play everywhere; SER files work too.")));
             });
             const w = video.videoWidth, h = video.videoHeight;
             source.count = Math.min(max, Math.round((video.duration || 60) * 30));
@@ -155,7 +163,7 @@ export async function runLucky(spec, ctx) {
     const entries = (spec.frames && spec.frames.light) || [];
     const { pool, signal } = ctx;
     const progress = ctx.onProgress || (() => {});
-    if (!entries.length && !ctx.source) throw new Error('Nothing to stack');
+    if (!entries.length && !ctx.source) throw new Error(_('Nothing to stack'));
     const source = ctx.source || sourceFor(entries, settings, signal);
 
     // Pass 1: score everything, keep the best crops
@@ -211,12 +219,12 @@ export async function runLucky(spec, ctx) {
         while (inFlight.size >= limit) await Promise.race(inFlight);
         const p = pool.run('luckyFrame', { frame: item.frame, cropW: crop[0], cropH: crop[1] }, { transfer: item.transfer, signal })
             .then(r => {
-                if (r.width !== frameW || r.height !== frameH) throw new Error("The frames aren't all the same size");
+                if (r.width !== frameW || r.height !== frameH) throw new Error(_("The frames aren't all the same size"));
                 keep(i, r);
             });
         const tracked = p.finally(() => inFlight.delete(tracked));
         inFlight.add(tracked);
-        if (i % 10 === 0) progress({ fraction: 0.6 * Math.min(1, i / Math.max(source.count || i + 50, 1)), message: `Scoring frames for sharpness (${i + 1})` });
+        if (i % 10 === 0) progress({ fraction: 0.6 * Math.min(1, i / Math.max(source.count || i + 50, 1)), message: _('Scoring frames for sharpness ({n})', { n: i + 1 }) });
     }
     await Promise.all(inFlight);
     if (!crop && early.length) {
@@ -224,13 +232,13 @@ export async function runLucky(spec, ctx) {
         for (const e of early) keep(e.i, await pool.run('luckyFrame', { frame: e.frame, cropW: crop[0], cropH: crop[1] }, { signal }));
     }
     const n = scores.filter(Boolean).length;
-    if (n < 2) throw new Error('Need at least two frames for lucky imaging');
+    if (n < 2) throw new Error(_('Need at least two frames for lucky imaging'));
 
     // The best usable frames (bright enough: not clouded over)
     const medBright = median(scores.filter(Boolean).map(s => s.brightness));
     const want = Math.max(settings.min_frames, Math.round(n * settings.keep_percent / 100));
     const chosen = kept.filter(k => k.brightness >= 0.5 * medBright).sort((a, b) => b.quality - a.quality).slice(0, want);
-    if (!chosen.length) throw new Error('No usable frames (all too dark)');
+    if (!chosen.length) throw new Error(_('No usable frames (all too dark)'));
     const ref = chosen[0];
 
     // Pass 2: line up and average
@@ -257,14 +265,14 @@ export async function runLucky(spec, ctx) {
                 shifts.push([Math.round(out.dx * 100) / 100, Math.round(out.dy * 100) / 100]);
                 used++;
             }
-            progress({ fraction: 0.6 + 0.35 * done / chosen.length, message: `Stacking the best frames (${done} of ${chosen.length})` });
+            progress({ fraction: 0.6 + 0.35 * done / chosen.length, message: _('Stacking the best frames ({done} of {total})', { done, total: chosen.length }) });
         }
     }));
-    if (!used) throw new Error('None of the chosen frames could be aligned');
+    if (!used) throw new Error(_('None of the chosen frames could be aligned'));
     const planes = total.map(t => Float32Array.from(t, (v, i) => v / Math.max(weight[i], 1)));
 
     // Outputs
-    progress({ fraction: 0.96, message: 'Writing the result' });
+    progress({ fraction: 0.96, message: _('Writing the result') });
     const master = fitsBlob(planes, cw, ch, { IMAGETYP: 'Lucky imaging stack', NCOMBINE: used, CREATOR: 'Seleno (in the browser)', OBJECT: spec.target || null });
     const preview = downsamplePlanes(planes, cw, ch, 1600);
     const params = autoParams(true);
@@ -291,7 +299,7 @@ export async function runLucky(spec, ctx) {
             shifts: shifts.slice(0, 2000),
             auto_params: params,
             stats: { seconds: Math.round((Date.now() - t0) / 100) / 10, frames_skipped_by_player: source.skipped || 0 },
-            warnings: source.skipped ? [`The video player skipped ${source.skipped} frames; the rest were scored.`] : [],
+            warnings: source.skipped ? [_('The video player skipped {skipped} frames; the rest were scored.', { skipped: source.skipped })] : [],
             engine: 'browser'
         },
         preview: { width: preview.width, height: preview.height, data: previewHalf(preview) },

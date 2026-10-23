@@ -4,7 +4,7 @@
             this.canvas = document.getElementById(config.canvasId);
             this.controlsRoot = document.getElementById(config.controlsRootId);
             this.statsElement = config.statsId ? document.getElementById(config.statsId) : null;
-            this.emptyMessage = config.emptyMessage || 'Waiting for image data...';
+            this.emptyMessage = config.emptyMessage || _('Waiting for image data...');
 
             this.sourceImage = null;
             this.onImageLoad = null;
@@ -129,7 +129,7 @@
         clear(message) {
             this.drawPlaceholder(message || this.emptyMessage);
             if (this.statsElement) {
-                this.statsElement.textContent = 'No image loaded.';
+                this.statsElement.textContent = _('No image loaded.');
             }
         }
 
@@ -160,9 +160,9 @@
             this.pendingFrame = requestAnimationFrame(() => {
                 const histogramData = this.buildHistogram();
                 if (!histogramData) {
-                    this.drawPlaceholder('Unable to compute histogram.');
+                    this.drawPlaceholder(_('Unable to compute histogram.'));
                     if (this.statsElement) {
-                        this.statsElement.textContent = 'Unable to read image pixel data.';
+                        this.statsElement.textContent = _('Unable to read image pixel data.');
                     }
                     return;
                 }
@@ -382,7 +382,7 @@
             const mean = histogramData.stats.meanLuminance.toFixed(1);
             const peak = histogramData.stats.peakBin;
             const sampleCount = histogramData.stats.samples.toLocaleString();
-            this.statsElement.textContent = `Mean: ${mean} | Peak bin: ${peak} | Samples: ${sampleCount}`;
+            this.statsElement.textContent = _('Mean: {mean} | Peak bin: {peak} | Samples: {sampleCount}', { mean, peak, sampleCount });
         }
     }
 

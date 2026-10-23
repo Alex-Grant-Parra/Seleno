@@ -70,7 +70,7 @@
         if (options.signal) init.signal = options.signal;
         const response = await fetch(url, init);
         if (response.status === 401) {
-            const error = new Error('You need to log in again.');
+            const error = new Error(_('You need to log in again.'));
             error.status = 401;
             throw error;
         }
@@ -100,6 +100,14 @@
     }
 
     const pad = (n) => String(n).padStart(2, '0');
+
+    // Dates in the page's language, in the browser's own regional variant when it
+    // matches (so English stays en-GB for a UK browser, Spanish becomes es-ES)
+    function locale() {
+        const lang = (document.documentElement.lang || 'en').toLowerCase();
+        const own = (navigator.languages || [navigator.language || '']).find(l => l && l.toLowerCase().split('-')[0] === lang);
+        return own || lang;
+    }
 
     const fmt = {
         bytes(bytes) {
@@ -135,11 +143,11 @@
         },
         dayMonth(value) {
             const d = value instanceof Date ? value : new Date(value);
-            return isNaN(d) ? '—' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+            return isNaN(d) ? '—' : d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
         },
         dateTime(value) {
             const d = value instanceof Date ? value : new Date(value);
-            return isNaN(d) ? '—' : `${d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            return isNaN(d) ? '—' : `${d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' })} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         },
         deg(value, digits = 0) {
             return value === undefined || value === null || isNaN(value) ? '—' : `${Number(value).toFixed(digits)}°`;
@@ -248,7 +256,7 @@
         return { x, y, lo, hi };
     }
 
-    window.Seleno = { el, api, toast, fmt, parseRA, parseDec, sparkline, mode, setMode };
+    window.Seleno = { el, api, toast, fmt, parseRA, parseDec, sparkline, mode, setMode, locale };
 
     applyMode(storedMode());
     document.addEventListener('DOMContentLoaded', () => {

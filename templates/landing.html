@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-night-mode="{% if current_user.is_authenticated %}{{ current_user.get_night_mode()|tojson }}{% else %}false{% endif %}">
+<html lang="{{ current_language }}" data-night-mode="{% if current_user.is_authenticated %}{{ current_user.get_night_mode()|tojson }}{% else %}false{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>SELENO Landing</title>
+    <title>{{ _('SELENO Landing') }}</title>
     <script>
         // Cleanup any leftover service worker/cache from an older build that broke
         // video playback with an infinite net::ERR_ABORTED loop (see base.html).
@@ -41,13 +41,16 @@
         <header class="landing-topbar">
             <a class="landing-brand" href="{{ url_for('home.home') }}">SELENO</a>
             <div class="landing-topbar-actions">
-                <button id="landingThemeToggle" class="theme-toggle" aria-label="Toggle light and dark mode" type="button">
+                <button id="landingThemeToggle" class="theme-toggle" aria-label="{{ _('Toggle light and dark mode') }}" type="button">
                     <span class="theme-toggle-track">
                         <span class="theme-toggle-thumb"></span>
                     </span>
-                    <span class="theme-toggle-label">Theme</span>
+                    <span class="theme-toggle-label">{{ _('Theme') }}</span>
                 </button>
-                <a class="landing-skip" href="{{ url_for('home.home') }}">Skip intro</a>
+                {% for code, name in languages.items() if code != current_language %}
+                <a class="landing-skip" lang="{{ code }}" href="{{ url_for('i18n.set_language', code=code, next=request.full_path) }}">{{ name }}</a>
+                {% endfor %}
+                <a class="landing-skip" href="{{ url_for('home.home') }}">{{ _('Skip intro') }}</a>
             </div>
         </header>
 
@@ -57,9 +60,9 @@
             </video>
             <div class="landing-gradient"></div>
             <div class="landing-content">
-                <p class="landing-kicker">Remote astronomy, redesigned</p>
-                <h1>Command your telescope network from accross the globe.</h1>
-                <p>SELENO allows you to control your telescopes, at any time, from anywhere.</p>
+                <p class="landing-kicker">{{ _('Remote astronomy, redesigned') }}</p>
+                <h1>{{ _('Command your telescope network from across the globe.') }}</h1>
+                <p>{{ _('SELENO allows you to control your telescopes, at any time, from anywhere.') }}</p>
             </div>
         </section>
 
@@ -69,9 +72,9 @@
             </video>
             <div class="landing-gradient"></div>
             <div class="landing-content">
-                <p class="landing-kicker">Track and align</p>
-                <h2>Point, center, and monitor automatically, or manually</h2>
-                <p>Allow SELENO to perform automated observation runs of the night's sky, or experiment with refined manual control on a specific object.</p>
+                <p class="landing-kicker">{{ _('Track and align') }}</p>
+                <h2>{{ _('Point, center, and monitor automatically, or manually') }}</h2>
+                <p>{{ _("Allow SELENO to perform automated observation runs of the night's sky, or experiment with refined manual control on a specific object.") }}</p>
             </div>
         </section>
 
@@ -81,9 +84,9 @@
             </video>
             <div class="landing-gradient"></div>
             <div class="landing-content">
-                <p class="landing-kicker">Capture and curate</p>
-                <h2>Turn nightly sessions into a gallery.</h2>
-                <p>Review your astrophotography and telescope telemetry in one unified center built for nightly use.</p>
+                <p class="landing-kicker">{{ _('Capture and curate') }}</p>
+                <h2>{{ _('Turn nightly sessions into a gallery.') }}</h2>
+                <p>{{ _('Review your astrophotography and telescope telemetry in one unified center built for nightly use.') }}</p>
             </div>
         </section>
 
@@ -93,10 +96,10 @@
             </video>
             <div class="landing-gradient"></div>
             <div class="landing-content">
-                <p class="landing-kicker">Ready to launch</p>
-                <h2>Scroll to enter your control dashboard.</h2>
-                <p>When you reach the end of this sequence, we automatically move you to the main home page.</p>
-                <a class="landing-enter" href="{{ url_for('home.home') }}">Enter home now</a>
+                <p class="landing-kicker">{{ _('Ready to launch') }}</p>
+                <h2>{{ _('Scroll to enter your control dashboard.') }}</h2>
+                <p>{{ _('When you reach the end of this sequence, we automatically move you to the main home page.') }}</p>
+                <a class="landing-enter" href="{{ url_for('home.home') }}">{{ _('Enter home now') }}</a>
             </div>
         </section>
     </main>

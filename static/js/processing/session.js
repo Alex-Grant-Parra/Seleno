@@ -5,6 +5,14 @@
 import { previewFromHalf } from './combine.js';
 import * as develop from './develop.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 let nextId = 1;
 
 export async function openSession(pool, target, stage) {
@@ -16,7 +24,7 @@ export async function openSession(pool, target, stage) {
         planetary = s.kind === 'planetary';
         crop = s.report && s.report.crop;
         const response = await fetch(s.preview_url, { credentials: 'same-origin' });
-        if (!response.ok) throw new Error(`Couldn't load the stack's preview (${response.status})`);
+        if (!response.ok) throw new Error(_('Couldn\'t load the stack\'s preview ({status})', { status: response.status }));
         const data = new Uint16Array(await response.arrayBuffer());
         const preview = previewFromHalf(data, s.preview_width, s.preview_height);
         await pool.run('devOpen', {
@@ -30,7 +38,7 @@ export async function openSession(pool, target, stage) {
     const canvas = document.createElement('canvas');
     canvas.id = 'editorCanvas';
     canvas.setAttribute('role', 'img');
-    canvas.setAttribute('aria-label', 'The developed image');
+    canvas.setAttribute('aria-label', _('The developed image'));
     stage.appendChild(canvas);
     const ctx = canvas.getContext('2d');
     let compare = 'after';

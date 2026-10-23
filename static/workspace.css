@@ -574,7 +574,8 @@ input[type='range'].ws-range {
 
 .ws-tabs {
     display: flex;
-    gap: 4px;
+    flex-wrap: wrap; /* longer labels (e.g. Spanish) take a second line rather than overflowing */
+    gap: 0 2px;
     margin: -4px 0 12px;
     border-bottom: 1px solid var(--line);
 }
@@ -587,7 +588,7 @@ input[type='range'].ws-range {
     border: 0;
     border-bottom: 2px solid transparent;
     color: var(--text-muted);
-    padding: 6px 10px;
+    padding: 6px 8px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;

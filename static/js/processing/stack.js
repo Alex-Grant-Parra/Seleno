@@ -19,6 +19,18 @@ import { METHODS } from './integrate.js';
 import { matchStars, RegistrationError, transformRotationDeg } from './register.js';
 import { outputShape, outputTransform } from './frame-ops.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+function calibrationWord(type) {
+    return { dark: _('dark'), flat: _('flat'), darkflat: _('dark flat'), bias: _('bias'), light: _('light') }[type] || type;
+}
+
+
 export const FRAME_TYPES = ['light', 'dark', 'flat', 'darkflat', 'bias'];
 
 export const DEFAULT_SETTINGS = {
@@ -122,24 +134,24 @@ export function qualityRejections(measured, settings, refIdx = null) {
         const [fMed, fSd] = robustStats(fwhm);
         const [eMed, eSd] = robustStats(ecc);
         const cMed = median(count);
-        measured.forEach((_, i) => {
-            if (Number.isFinite(fwhm[i]) && fwhm[i] > fMed + Math.max(3 * fSd, 0.15 * fMed)) out.set(i, `stars blurred (FWHM ${fmt(fwhm[i])} px, typical ${fmt(fMed)})`);
-            else if (Number.isFinite(ecc[i]) && ecc[i] > Math.max(0.6, eMed + 3 * eSd)) out.set(i, `stars stretched (eccentricity ${fmt(ecc[i])})`);
-            else if (count[i] < 0.5 * cMed) out.set(i, `few stars (${count[i]}, typical ${Math.trunc(cMed)}): cloud or haze?`);
+        measured.forEach((_unused, i) => {
+            if (Number.isFinite(fwhm[i]) && fwhm[i] > fMed + Math.max(3 * fSd, 0.15 * fMed)) out.set(i, _('stars blurred (FWHM {fwhm} px, typical {typical})', { fwhm: fmt(fwhm[i]), typical: fmt(fMed) }));
+            else if (Number.isFinite(ecc[i]) && ecc[i] > Math.max(0.6, eMed + 3 * eSd)) out.set(i, _('stars stretched (eccentricity {ecc})', { ecc: fmt(ecc[i]) }));
+            else if (count[i] < 0.5 * cMed) out.set(i, _('few stars ({count}, typical {typical}): cloud or haze?', { count: count[i], typical: Math.trunc(cMed) }));
         });
     }
-    measured.forEach((_, i) => {
+    measured.forEach((_unused, i) => {
         if (out.has(i)) return;
-        if (settings.reject_fwhm && Number.isFinite(fwhm[i]) && fwhm[i] > settings.reject_fwhm) out.set(i, `FWHM ${fmt(fwhm[i])} px over the ${settings.reject_fwhm} px limit`);
-        else if (settings.reject_ecc && Number.isFinite(ecc[i]) && ecc[i] > settings.reject_ecc) out.set(i, `eccentricity ${fmt(ecc[i])} over the ${settings.reject_ecc} limit`);
-        else if (settings.reject_stars && count[i] < settings.reject_stars) out.set(i, `${count[i]} stars, under the ${Math.trunc(settings.reject_stars)} limit`);
+        if (settings.reject_fwhm && Number.isFinite(fwhm[i]) && fwhm[i] > settings.reject_fwhm) out.set(i, _('FWHM {fwhm} px over the {limit} px limit', { fwhm: fmt(fwhm[i]), limit: settings.reject_fwhm }));
+        else if (settings.reject_ecc && Number.isFinite(ecc[i]) && ecc[i] > settings.reject_ecc) out.set(i, _('eccentricity {ecc} over the {limit} limit', { ecc: fmt(ecc[i]), limit: settings.reject_ecc }));
+        else if (settings.reject_stars && count[i] < settings.reject_stars) out.set(i, _('{count} stars, under the {limit} limit', { count: count[i], limit: Math.trunc(settings.reject_stars) }));
     });
     if (settings.keep_best && settings.keep_best < 1) {
-        const left = measured.map((_, i) => i).filter(i => !out.has(i));
+        const left = measured.map((_unused, i) => i).filter(i => !out.has(i));
         const keep = Math.max(1, Math.ceil(left.length * settings.keep_best));
         left.sort((a, b) => (fwhm[a] || Infinity) - (fwhm[b] || Infinity));
         left.slice(keep).forEach(i => {
-            if (i !== refIdx) out.set(i, `not among the sharpest ${Math.round(settings.keep_best * 100)}% (FWHM ${fmt(fwhm[i])} px)`);
+            if (i !== refIdx) out.set(i, _('not among the sharpest {percent}% (FWHM {fwhm} px)', { percent: Math.round(settings.keep_best * 100), fwhm: fmt(fwhm[i]) }));
         });
     }
     return out;
@@ -187,9 +199,9 @@ async function buildMaster(type, entries, ctx, { subtract = null, normalise = fa
         entry, k, shape, dest: frames.dest(), normalise, perChannel: ctx.settings.flat_per_channel, subtract
     }, { signal }).then(r => {
         frames.accept(k, r);
-        progress.sub(++done / (entries.length + 1), `Reading ${type === 'darkflat' ? 'dark flat' : type} frames (${done} of ${entries.length})`);
+        progress.sub(++done / (entries.length + 1), _('Reading {type} frames ({done} of {total})', { type: calibrationWord(type), done, total: entries.length }));
     })));
-    progress.sub(entries.length / (entries.length + 1), `Combining ${entries.length} ${type} frames`);
+    progress.sub(entries.length / (entries.length + 1), _('Combining {n} {type} frames', { n: entries.length, type: calibrationWord(type) }));
     const n = entries.length;
     const arrays = opfs ? null : Array.from({ length: planes }, () => new Float32Array(w * h));
     await stripCombine({
@@ -238,15 +250,15 @@ export async function runStack(spec, ctx) {
     if (project && project.skip && project.skip.size) {
         const before = groups.light.length;
         groups.light = groups.light.filter(e => !project.skip.has(e.name));
-        if (groups.light.length < before) warnings.push(`${before - groups.light.length} of the frames are already in the project, so they were left out`);
+        if (groups.light.length < before) warnings.push(_('{n} of the frames are already in the project, so they were left out', { n: before - groups.light.length }));
     }
     let lights = groups.light;
-    if (!lights.length) throw new StackError(project ? 'Every one of these frames is already in the project' : 'No light frames to stack');
+    if (!lights.length) throw new StackError(project ? _('Every one of these frames is already in the project') : _('No light frames to stack'));
 
     // What the lights are: probe the first one
     const probe = await pool.run('probe', { entry: lights[0] }, { signal });
     if (probe.fellBack) {
-        warnings.push('The RAW files could not be read in the browser (only Canon CR2 can be), so the JPEGs were stacked instead.');
+        warnings.push(_('The RAW files could not be read in the browser (only Canon CR2 can be), so the JPEGs were stacked instead.'));
         const toJpeg = (e) => (e.jpeg_url ? { ...e, url: e.jpeg_url, kind: 'jpeg' } : null);
         lights = lights.map(toJpeg).filter(Boolean);
         for (const t of ['dark', 'flat', 'darkflat', 'bias']) groups[t] = groups[t].map(toJpeg).filter(Boolean);
@@ -255,20 +267,20 @@ export async function runStack(spec, ctx) {
     const kind = isRaw ? 'raw' : 'jpeg';
     const otherKind = lights.filter(e => e.kind && ((e.kind === 'raw') !== isRaw));
     if (otherKind.length) {
-        warnings.push(`Left out ${otherKind.length} light(s) that aren't ${kind.toUpperCase()} like the first; lights must all be RAW or all JPEG`);
+        warnings.push(_('Left out {n} light(s) that aren\'t {kind} like the first; lights must all be RAW or all JPEG', { n: otherKind.length, kind: kind.toUpperCase() }));
         lights = lights.filter(e => !otherKind.includes(e));
     }
     for (const t of ['dark', 'flat', 'darkflat', 'bias']) {
         const mismatched = groups[t].filter(e => (e.kind === 'raw') !== isRaw);
         if (mismatched.length) {
-            warnings.push(`Left out ${mismatched.length} ${t} frame(s) that aren't ${kind.toUpperCase()} like the lights`);
+            warnings.push(_('Left out {n} {type} frame(s) that aren\'t {kind} like the lights', { n: mismatched.length, type: calibrationWord(t), kind: kind.toUpperCase() }));
             groups[t] = groups[t].filter(e => (e.kind === 'raw') === isRaw);
         }
     }
     if (!isRaw && ['dark', 'flat', 'bias', 'darkflat'].some(t => groups[t].length)) {
-        warnings.push("Calibrating JPEGs is approximate: the camera's tone curve isn't linear. RAW files calibrate exactly.");
+        warnings.push(_("Calibrating JPEGs is approximate: the camera's tone curve isn't linear. RAW files calibrate exactly."));
     }
-    if (settings.keep_masters) warnings.push("Keeping the master calibration frames isn't available in the browser yet.");
+    if (settings.keep_masters) warnings.push(_("Keeping the master calibration frames isn't available in the browser yet."));
 
     const shape = [probe.width, probe.height];
     const planes = isRaw ? 1 : 3;
@@ -295,7 +307,7 @@ export async function runStack(spec, ctx) {
     await share();
     const flatSub = masters.darkflat ? 'darkflat' : masters.bias ? 'bias' : null;
     take('flat', await buildMaster('flat', groups.flat, mctx, { subtract: flatSub, normalise: true }));
-    if (masters.flat && !flatSub) warnings.push('Flats were used without bias or dark flats; add bias frames for exact flat correction');
+    if (masters.flat && !flatSub) warnings.push(_('Flats were used without bias or dark flats; add bias frames for exact flat correction'));
     let hot = null;
     if (masters.dark && settings.hot_pixels) {
         const dark = opfs ? await readMaster(mctx, 'dark') : arrays.dark;
@@ -321,11 +333,11 @@ export async function runStack(spec, ctx) {
             if (error.name === 'AbortError') throw error;
             return { name: entry.name, entry, metrics: null, error: error.message };
         })
-        .finally(() => progress.sub(++done / lights.length, `Measuring stars (${done} of ${lights.length})`))));
+        .finally(() => progress.sub(++done / lights.length, _('Measuring stars ({done} of {total})', { done, total: lights.length })))));
     aborted(signal);
 
     const usable = measured.filter(m => m.metrics);
-    if (!usable.length) throw new StackError(`None of the light frames could be read${measured[0] && measured[0].error ? `: ${measured[0].error}` : ''}`);
+    if (!usable.length) throw new StackError(_('None of the light frames could be read{error}', { error: measured[0] && measured[0].error ? `: ${measured[0].error}` : '' }));
     const report = new Map(measured.map(m => [m.name, { name: m.name, accepted: false, metrics: m.metrics, reason: m.error || null, exposure_s: m.entry.exposure_s || null }]));
 
     // 3. Reference, rejection, alignment
@@ -335,10 +347,10 @@ export async function runStack(spec, ctx) {
     const ref = usable[refIdx];
     const refXy = projectRef ? projectRef.xy : ref.xy;
     if (projectRef && meta.source && meta.source !== (probe.isRaw && !probe.fellBack ? 'raw' : 'jpeg')) {
-        throw new StackError(`This project is made from ${meta.source.toUpperCase()} files; these frames aren't`);
+        throw new StackError(_('This project is made from {source} files; these frames aren\'t', { source: meta.source.toUpperCase() }));
     }
     if (!single && !projectRef && ref.metrics.stars < 8) {
-        throw new StackError(`Only ${ref.metrics.stars} stars found in the best frame, too few to align. For the Moon or a planet, use lucky imaging instead.`);
+        throw new StackError(_('Only {stars} stars found in the best frame, too few to align. For the Moon or a planet, use lucky imaging instead.', { stars: ref.metrics.stars }));
     }
     const rejections = single ? new Map() : qualityRejections(usable, settings, refIdx);
     rejections.delete(refIdx);
@@ -357,7 +369,7 @@ export async function runStack(spec, ctx) {
                 Object.assign(r, { matched: match.matched, rms: Math.round(match.rms * 2 * 1000) / 1000 });
             } catch (error) {
                 if (!(error instanceof RegistrationError)) throw error;
-                r.reason = `couldn't align: ${error.message}`;
+                r.reason = _('couldn\'t align: {message}', { message: error.message });
                 return;
             }
         }
@@ -365,7 +377,7 @@ export async function runStack(spec, ctx) {
         r.rotation_deg = Math.round(transformRotationDeg(mHalf) * 1000) / 1000;
         accepted.push({ m, mHalf });
     });
-    if (!accepted.length) throw new StackError('No frames could be aligned to the reference');
+    if (!accepted.length) throw new StackError(_('No frames could be aligned to the reference'));
     // The reference goes first: the streaming mode builds on it
     accepted.sort((a, b) => (a.m === ref ? -1 : b.m === ref ? 1 : 0));
     if (project) accepted.forEach(a => { report.get(a.m.name).project = true; });
@@ -373,11 +385,11 @@ export async function runStack(spec, ctx) {
     // 4. Pass 2: warp into the combine stage
     const [outW, outH] = outputShape(shape[0], shape[1], settings, isRaw);
     if (meta && meta.width && (meta.width !== outW || meta.height !== outH)) {
-        throw new StackError(`These frames make a ${outW} × ${outH} image; the project is ${meta.width} × ${meta.height}`);
+        throw new StackError(_('These frames make a {outW} × {outH} image; the project is {width} × {height}', { outW, outH, width: meta.width, height: meta.height }));
     }
     const n = accepted.length;
     const choice = project
-        ? { mode: 'stream', why: 'a project adds each night to its running totals' }
+        ? { mode: 'stream', why: _('a project adds each night to its running totals') }
         : chooseMode({ n, width: outW, height: outH, memoryBudget: ctx.memoryBudget, diskFree: ctx.diskFree || 0, opfs, force: ctx.mode || null });
     const common = { pool, store: ctx.store, width: outW, height: outH, n, settings, refK: 0, signal };
     const combiner = choice.mode === 'stream'
@@ -399,7 +411,7 @@ export async function runStack(spec, ctx) {
             mOut: outputTransform(mHalf, settings, isRaw), outW, outH, cubic, dest: combiner.dest()
         }, { signal, transfer: [] }).then(async (res) => {
             await combiner.add(k, res, { noise: Math.max(m.metrics.noise, 1e-7) });
-            progress.sub(++warped / n, `Aligning frames (${warped} of ${n})`);
+            progress.sub(++warped / n, _('Aligning frames ({done} of {total})', { done: warped, total: n }));
         });
     };
     // A few in flight at once (so returned frames don't pile up), in order
@@ -443,14 +455,14 @@ export async function runStack(spec, ctx) {
             COMBMODE: choice.mode
         };
         const sink = new ResultSink({ width: outW, height: outH, header, store: opfs ? ctx.store : null, pool: opfs ? pool : null, needed: nAll });
-        progress.sub(0, `Combining ${n} frames`);
-        const stats = await combiner.finish(sink, (f) => progress.sub(f, `Combining ${n} frames`));
+        progress.sub(0, _('Combining {n} frames', { n }));
+        const stats = await combiner.finish(sink, (f) => progress.sub(f, _('Combining {n} frames', { n })));
         const out = await sink.finish();
         accepted.forEach(a => { const r = report.get(a.m.name); r.accepted = true; r.reason = null; });
         const crop = settings.crop_common && nAll > 1 ? sink.crop() : null;
 
         // 5. Outputs
-        progress.sub(1, 'Writing the result');
+        progress.sub(1, _('Writing the result'));
         const params = autoParams(false);
         if (crop) params.crop = crop;
         const outputs = await pool.run('autoOutputs', { preview: out.preview, params, planetary: false }, { signal });

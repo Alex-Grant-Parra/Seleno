@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Downloads{% endblock %}
+{% block title %}{{ _('Downloads') }}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12 col-lg-10">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h1 class="h3 mb-3">Downloads</h1>
-                <p class="text-muted">Select a version to download. Each file is a zipped release.</p>
+                <h1 class="h3 mb-3">{{ _('Downloads') }}</h1>
+                <p class="text-muted">{{ _('Select a version to download. Each file is a zipped release.') }}</p>
 
                 {% if latest %}
                     <div class="alert alert-info d-flex flex-column flex-md-row align-items-md-center justify-content-md-between" role="alert">
                         <div>
-                            <strong>Latest:</strong> {{ latest }}
+                            <strong>{{ _('Latest:') }}</strong> {{ latest }}
                         </div>
-                        <a class="btn btn-primary mt-2 mt-md-0" href="/downloads/latest">Download Latest</a>
+                        <a class="btn btn-primary mt-2 mt-md-0" href="/downloads/latest">{{ _('Download Latest') }}</a>
                     </div>
                 {% endif %}
 
@@ -24,9 +24,9 @@
                         <table class="table table-striped align-middle">
                             <thead>
                                 <tr>
-                                    <th scope="col">Version</th>
-                                    <th scope="col">Updated</th>
-                                    <th scope="col">Size</th>
+                                    <th scope="col">{{ _('Version') }}</th>
+                                    <th scope="col">{{ _('Updated') }}</th>
+                                    <th scope="col">{{ _('Size') }}</th>
                                     <th scope="col"></th>
                                 </tr>
                             </thead>
@@ -37,7 +37,7 @@
                                         <td>{{ v.updated }}</td>
                                         <td>{{ v.size_display }}</td>
                                         <td class="text-end">
-                                            <a class="btn btn-sm btn-outline-primary" href="/downloads/{{ v.version }}">Download</a>
+                                            <a class="btn btn-sm btn-outline-primary" href="/downloads/{{ v.version }}">{{ _('Download') }}</a>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -46,7 +46,7 @@
                     </div>
                 {% else %}
                     <div class="alert alert-warning" role="alert">
-                        No downloads are available yet.
+                        {{ _('No downloads are available yet.') }}
                     </div>
                 {% endif %}
             </div>

@@ -9,92 +9,92 @@
     // Fields per step type; `camera` steps also get the camera settings section
     const STEP_TYPES = {
         goto: {
-            label: 'Go to',
+            label: _('Go to'),
             fields: [
-                { key: 'target', label: 'Target', type: 'text', placeholder: 'Moon, Jupiter… (or RA/Dec below)' },
-                { key: 'name', label: 'Name for RA/Dec', type: 'text', placeholder: 'M42' },
-                num('ra', 'RA °', { min: 0, max: 360, step: 0.0001 }),
-                num('dec', 'Dec °', { min: -90, max: 90, step: 0.0001 }),
-                { key: 'centre', label: 'Centre by plate solving', type: 'checkbox' }
+                { key: 'target', label: _('Target'), type: 'text', placeholder: _('Moon, Jupiter… (or RA/Dec below)') },
+                { key: 'name', label: _('Name for RA/Dec'), type: 'text', placeholder: 'M42' },
+                num('ra', _('RA °'), { min: 0, max: 360, step: 0.0001 }),
+                num('dec', _('Dec °'), { min: -90, max: 90, step: 0.0001 }),
+                { key: 'centre', label: _('Centre by plate solving'), type: 'checkbox' }
             ],
             defaults: { target: 'Moon' }
         },
         bracket: {
-            label: 'Bracket (Moon, planets, HDR)',
+            label: _('Bracket (Moon, planets, HDR)'),
             camera: true,
             fields: [
-                { key: 'exposures_s', label: 'Exposures (s)', type: 'list', placeholder: '0.001, 0.004, 0.016' },
-                int('repeat', 'Repeat', { min: 1, max: 100 })
+                { key: 'exposures_s', label: _('Exposures (s)'), type: 'list', placeholder: '0.001, 0.004, 0.016' },
+                int('repeat', _('Repeat'), { min: 1, max: 100 })
             ],
             defaults: { exposures_s: [0.001, 0.004, 0.016], repeat: 3 }
         },
         light: {
-            label: 'Lights',
+            label: _('Lights'),
             camera: true,
             fields: [
-                int('count', 'Frames', { min: 1, max: 2000 }),
-                num('exposure_s', 'Exposure (s)', { min: 0.0001, max: 900, step: 0.1 }),
-                num('interval_s', 'Gap (s)', { min: 0, max: 3600, step: 0.5 }),
-                int('dither_every', 'Dither every', { min: 0, max: 2000 }),
-                num('dither_arcmin', 'Dither (′)', { min: 0, max: 60, step: 0.5 })
+                int('count', _('Frames'), { min: 1, max: 2000 }),
+                num('exposure_s', _('Exposure (s)'), { min: 0.0001, max: 900, step: 0.1 }),
+                num('interval_s', _('Gap (s)'), { min: 0, max: 3600, step: 0.5 }),
+                int('dither_every', _('Dither every'), { min: 0, max: 2000 }),
+                num('dither_arcmin', _('Dither (′)'), { min: 0, max: 60, step: 0.5 })
             ],
             defaults: { count: 20, exposure_s: 30 }
         },
         timelapse: {
-            label: 'Timelapse',
+            label: _('Timelapse'),
             camera: true,
             fields: [
-                num('every_s', 'Every (s)', { min: 1, max: 3600, step: 1 }),
-                num('duration_s', 'For (s)', { min: 1, max: 43200, step: 60 }),
-                int('count', 'or frames', { min: 1, max: 2000 }),
-                num('exposure_s', 'Exposure (s)', { min: 0.0001, max: 900, step: 0.1 })
+                num('every_s', _('Every (s)'), { min: 1, max: 3600, step: 1 }),
+                num('duration_s', _('For (s)'), { min: 1, max: 43200, step: 60 }),
+                int('count', _('or frames'), { min: 1, max: 2000 }),
+                num('exposure_s', _('Exposure (s)'), { min: 0.0001, max: 900, step: 0.1 })
             ],
             defaults: { every_s: 10, duration_s: 1800 }
         },
         snapshot: {
-            label: 'Snapshots (live view)',
+            label: _('Snapshots (live view)'),
             fields: [
-                int('count', 'Frames', { min: 1, max: 2000 }),
-                num('interval_s', 'Every (s)', { min: 0, max: 3600, step: 0.5 })
+                int('count', _('Frames'), { min: 1, max: 2000 }),
+                num('interval_s', _('Every (s)'), { min: 0, max: 3600, step: 0.5 })
             ],
             labelOnly: true,
             defaults: { count: 10, interval_s: 2 }
         },
         video: {
-            label: 'Video (for stacking)',
+            label: _('Video (for stacking)'),
             fields: [
-                num('duration_s', 'Length (s)', { min: 1, max: 600, step: 1 }),
-                { key: 'quality', label: 'Quality', type: 'select', options: ['original', 'high', 'medium'] }
+                num('duration_s', _('Length (s)'), { min: 1, max: 600, step: 1 }),
+                { key: 'quality', label: _('Quality'), type: 'select', options: ['original', 'high', 'medium'] }
             ],
             labelOnly: true,
             defaults: { duration_s: 60, quality: 'original' }
         },
         dark: {
-            label: 'Darks (scope covered)',
+            label: _('Darks (scope covered)'),
             camera: true,
             fields: [
-                int('count', 'Frames', { min: 1, max: 2000 }),
-                num('exposure_s', 'Exposure (s)', { min: 0.0001, max: 900, step: 0.1 })
+                int('count', _('Frames'), { min: 1, max: 2000 }),
+                num('exposure_s', _('Exposure (s)'), { min: 0.0001, max: 900, step: 0.1 })
             ],
             defaults: { count: 20, exposure_s: 30 }
         },
         flat: {
-            label: 'Flats (even light)',
+            label: _('Flats (even light)'),
             camera: true,
             fields: [
-                int('count', 'Frames', { min: 1, max: 2000 }),
-                { key: 'exposure_s', label: 'Exposure (s or auto)', type: 'numberOrWord', word: 'auto' }
+                int('count', _('Frames'), { min: 1, max: 2000 }),
+                { key: 'exposure_s', label: _('Exposure (s or auto)'), type: 'numberOrWord', word: 'auto' }
             ],
             defaults: { count: 20, exposure_s: 0.5 }
         },
         bias: {
-            label: 'Bias (scope covered)',
+            label: _('Bias (scope covered)'),
             camera: true,
-            fields: [int('count', 'Frames', { min: 1, max: 2000 })],
+            fields: [int('count', _('Frames'), { min: 1, max: 2000 })],
             defaults: { count: 30 }
         },
         wait: {
-            label: 'Wait',
+            label: _('Wait'),
             fields: [{ key: 'wait', type: 'wait' }],
             defaults: { seconds: 600 }
         }
@@ -103,13 +103,13 @@
     // Camera settings a step can set, and the getCameraChoices list that offers them
     const CAMERA_FIELDS = [
         { key: 'iso', label: 'ISO', choices: 'iso' },
-        { key: 'shutter', label: 'Shutter', choices: 'shutterSpeed' },
-        { key: 'aperture', label: 'Aperture', choices: 'aperture' },
-        { key: 'white_balance', label: 'White balance', choices: 'whiteBalance' },
-        { key: 'image_format', label: 'Format', choices: 'imageFormat' },
-        { key: 'exposure_compensation', label: 'Exp. comp.', choices: 'exposureCompensation' }
+        { key: 'shutter', label: _('Shutter'), choices: 'shutterSpeed' },
+        { key: 'aperture', label: _('Aperture'), choices: 'aperture' },
+        { key: 'white_balance', label: _('White balance'), choices: 'whiteBalance' },
+        { key: 'image_format', label: _('Format'), choices: 'imageFormat' },
+        { key: 'exposure_compensation', label: _('Exp. comp.'), choices: 'exposureCompensation' }
     ];
-    const WAIT_MODES = { seconds: 'For (s)', until: 'Until (local time)', until_alt_deg: 'Until target altitude (°)' };
+    const WAIT_MODES = { seconds: _('For (s)'), until: _('Until (local time)'), until_alt_deg: _('Until target altitude (°)') };
 
     let steps = [];
     let savedPlanId = null;
@@ -153,7 +153,7 @@
     // The plan as the server takes it
     function currentPlan() {
         return {
-            name: ($('planName').value || '').trim() || 'Untitled plan',
+            name: ($('planName').value || '').trim() || _('Untitled plan'),
             on_error: $('planOnError').value,
             upload: $('planUpload').value,
             park_at_end: $('planParkAtEnd').checked,
@@ -171,7 +171,7 @@
 
     function loadPlan(plan, savedId = null) {
         savedPlanId = savedId;
-        $('planName').value = plan.name || 'New plan';
+        $('planName').value = plan.name || _('New plan');
         $('planOnError').value = plan.on_error || 'skip_step';
         $('planUpload').value = plan.upload || 'jpeg_first';
         $('planParkAtEnd').checked = !!plan.park_at_end;
@@ -276,8 +276,8 @@
         modeSelect.addEventListener('change', () => { setInputFor(modeSelect.value); valueInput.value = ''; store(); });
         valueInput.addEventListener('input', store);
         return [
-            el('div', { className: 'col-6 col-md-5' }, [el('label', { className: 'form-label small mb-0', text: 'Wait' }), modeSelect]),
-            el('div', { className: 'col-6 col-md-4' }, [el('label', { className: 'form-label small mb-0', text: 'Value' }), valueInput])
+            el('div', { className: 'col-6 col-md-5' }, [el('label', { className: 'form-label small mb-0', text: _('Wait') }), modeSelect]),
+            el('div', { className: 'col-6 col-md-4' }, [el('label', { className: 'form-label small mb-0', text: _('Value') }), valueInput])
         ];
     }
 
@@ -288,12 +288,12 @@
             const offered = Array.isArray(choices[field.choices]) ? choices[field.choices] : null;
             body.appendChild(fieldInput(step, offered && offered.length
                 ? { key: field.key, label: field.label, type: 'select', options: offered }
-                : { key: field.key, label: field.label, type: 'text', placeholder: 'camera default' }));
+                : { key: field.key, label: field.label, type: 'text', placeholder: _('camera default') }));
         });
-        body.appendChild(fieldInput(step, { key: 'label', label: 'Album label', type: 'text', placeholder: 'optional' }));
+        body.appendChild(fieldInput(step, { key: 'label', label: _('Album label'), type: 'text', placeholder: _('optional') }));
         const set = CAMERA_FIELDS.filter(f => step[f.key] !== undefined && step[f.key] !== '').length;
         const details = el('details', { className: 'mt-2' }, [
-            el('summary', { className: 'small text-muted', text: `Camera settings${set ? ` (${set} set)` : ''}` }),
+            el('summary', { className: 'small text-muted', text: _('Camera settings{set}', { set: set ? _(' ({set} set)', { set }) : '' }) }),
             body
         ]);
         if (set) details.open = true;
@@ -304,7 +304,7 @@
         const spec = STEP_TYPES[step.type] || { label: step.type, fields: [] };
         const card = el('div', { className: 'plan-step', 'data-index': index });
 
-        const handle = el('span', { className: 'step-handle me-2', title: 'Drag to reorder', text: '⋮⋮' });
+        const handle = el('span', { className: 'step-handle me-2', title: _('Drag to reorder'), text: '⋮⋮' });
         handle.addEventListener('mousedown', () => { card.draggable = true; });
         card.addEventListener('dragstart', (event) => {
             dragIndex = index;
@@ -325,9 +325,9 @@
         const header = el('div', { className: 'd-flex align-items-center' }, [
             handle,
             el('strong', { className: 'small flex-grow-1', text: `${index + 1}. ${spec.label}` }),
-            el('button', { type: 'button', className: 'btn btn-outline-secondary btn-sm py-0 me-1', title: 'Duplicate', text: '⧉',
+            el('button', { type: 'button', className: 'btn btn-outline-secondary btn-sm py-0 me-1', title: _('Duplicate'), text: '⧉',
                 onclick: () => { steps.splice(index + 1, 0, JSON.parse(JSON.stringify(step))); render(); } }),
-            el('button', { type: 'button', className: 'btn btn-outline-danger btn-sm py-0', title: 'Delete', text: '✕',
+            el('button', { type: 'button', className: 'btn btn-outline-danger btn-sm py-0', title: _('Delete'), text: '✕',
                 onclick: () => { steps.splice(index, 1); render(); } })
         ]);
         card.appendChild(header);
@@ -343,12 +343,12 @@
             card.appendChild(cameraSection(step, index));
         } else if (spec.labelOnly) {
             const row = el('div', { className: 'row g-2 mt-1' });
-            row.appendChild(fieldInput(step, { key: 'label', label: 'Album label', type: 'text', placeholder: 'optional' }));
+            row.appendChild(fieldInput(step, { key: 'label', label: _('Album label'), type: 'text', placeholder: _('optional') }));
             card.appendChild(row);
         }
         if (step.type === 'dark' || step.type === 'bias') {
             card.appendChild(el('div', { className: 'small text-muted mt-1',
-                text: 'The plan pauses here until you press Cover fitted (or Skip).' }));
+                text: _('The plan pauses here until you press Cover fitted (or Skip).') }));
         }
         return card;
     }
@@ -381,7 +381,7 @@
 
     function runEstimate() {
         if (!steps.length) {
-            $('planEstimate').innerHTML = '<dt>Time</dt><dd>—</dd><dt>Frames</dt><dd>—</dd><dt>Storage</dt><dd>—</dd>';
+            $('planEstimate').innerHTML = `<dt>${_('Time')}</dt><dd>—</dd><dt>${_('Frames')}</dt><dd>—</dd><dt>${_('Storage')}</dt><dd>—</dd>`;
             showErrors([]);
             return;
         }
@@ -397,10 +397,10 @@
             const grid = $('planEstimate');
             grid.innerHTML = '';
             const rows = [
-                ['Time', formatDuration(est.seconds) + (est.unknown_steps ? ' + altitude waits' : '')],
-                ['Frames', String(est.frames)],
-                ['Storage', formatSize(est.bytes)],
-                ['Overhead', `${est.overhead_s} s/frame`]
+                [_('Time'), formatDuration(est.seconds) + (est.unknown_steps ? _(' + altitude waits') : '')],
+                [_('Frames'), String(est.frames)],
+                [_('Storage'), formatSize(est.bytes)],
+                [_('Overhead'), `${est.overhead_s} s/frame`]
             ];
             rows.forEach(([label, value]) => grid.append(el('dt', { text: label }), el('dd', { text: value })));
             showErrors(data.errors);
@@ -421,7 +421,7 @@
             (data.presets || []).forEach(preset => {
                 menu.appendChild(el('li', {}, el('button', { type: 'button', className: 'dropdown-item', text: preset.name,
                     onclick: () => {
-                        if (steps.length && !confirm('Replace the current plan with this preset?')) return;
+                        if (steps.length && !confirm(_('Replace the current plan with this preset?'))) return;
                         loadPlan(preset.plan);
                     } })));
             });
@@ -435,20 +435,20 @@
             menu.innerHTML = '';
             const plans = data.plans || [];
             if (!plans.length) {
-                menu.appendChild(el('li', {}, el('span', { className: 'dropdown-item-text small text-muted', text: 'No saved plans yet' })));
+                menu.appendChild(el('li', {}, el('span', { className: 'dropdown-item-text small text-muted', text: _('No saved plans yet') })));
                 return;
             }
             plans.forEach(saved => {
                 const row = el('li', { className: 'd-flex align-items-center' }, [
                     el('button', { type: 'button', className: 'dropdown-item flex-grow-1', text: saved.name,
                         onclick: () => {
-                            if (steps.length && !confirm(`Replace the current plan with "${saved.name}"?`)) return;
+                            if (steps.length && !confirm(_('Replace the current plan with "{name}"?', { name: saved.name }))) return;
                             loadPlan(saved.plan, saved.id);
                         } }),
-                    el('button', { type: 'button', className: 'btn btn-link btn-sm text-danger me-2', title: 'Delete', text: '✕',
+                    el('button', { type: 'button', className: 'btn btn-link btn-sm text-danger me-2', title: _('Delete'), text: '✕',
                         onclick: (event) => {
                             event.stopPropagation();
-                            if (!confirm(`Delete the saved plan "${saved.name}"?`)) return;
+                            if (!confirm(_('Delete the saved plan "{name}"?', { name: saved.name }))) return;
                             fetch(`/interface/capture/saved/${saved.id}`, { method: 'DELETE' }).then(refreshSaved);
                             if (savedPlanId === saved.id) savedPlanId = null;
                         } })
@@ -462,7 +462,7 @@
         const plan = currentPlan();
         let id = null;
         if (savedPlanId !== null) {
-            id = confirm(`Update your saved plan "${plan.name}"? Cancel saves a new copy.`) ? savedPlanId : null;
+            id = confirm(_('Update your saved plan "{name}"? Cancel saves a new copy.', { name: plan.name })) ? savedPlanId : null;
         }
         fetch('/interface/capture/saved', {
             method: 'POST',
@@ -476,7 +476,7 @@
                 return;
             }
             savedPlanId = data.plan.id;
-            $('planNotice').textContent = `Saved "${data.plan.name}" to your plans.`;
+            $('planNotice').textContent = _('Saved "{name}" to your plans.', { name: data.plan.name });
             refreshSaved();
         })
         .catch(error => showErrors([String(error)]));
@@ -485,12 +485,12 @@
     function start() {
         const id = telescopeId();
         if (!id) {
-            alert('Select a telescope first.');
+            alert(_('Select a telescope first.'));
             return;
         }
         const btn = $('planStartBtn');
         btn.disabled = true;
-        $('planNotice').textContent = 'Checking the plan against the camera and sending it…';
+        $('planNotice').textContent = _('Checking the plan against the camera and sending it…');
         fetch('/interface/capture/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -515,7 +515,7 @@
 
     function open() {
         if (!telescopeId()) {
-            alert('Select a telescope first.');
+            alert(_('Select a telescope first.'));
             return;
         }
         if (!modal) {

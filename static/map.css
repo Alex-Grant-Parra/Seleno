@@ -172,7 +172,7 @@
 .map-legend {
     position: absolute;
     left: 18px;
-    bottom: 18px;
+    bottom: calc(var(--rail-h, 110px) + 30px);
     background: rgba(10, 14, 18, 0.82);
     border: 1px solid var(--map-border);
     border-radius: 16px;
@@ -194,6 +194,10 @@
     backdrop-filter: blur(8px);
     box-shadow: 0 18px 46px rgba(0, 0, 0, 0.45);
     z-index: 2300; /* above controls but below any modal UI */
+}
+
+.map-wrap .leaflet-bottom {
+    bottom: calc(var(--rail-h, 110px) + 18px);
 }
 
 .time-rail-head {
@@ -251,6 +255,12 @@
     color: var(--map-muted);
 }
 
+.legend-note {
+    margin-top: 10px;
+    font-size: 0.72rem;
+    color: var(--map-muted);
+}
+
 .legend-item {
     display: flex;
     align-items: center;
@@ -258,30 +268,24 @@
 }
 
 .legend-swatch {
-    width: 16px;
-    height: 16px;
+    width: 28px;
+    height: 14px;
     border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     display: inline-block;
 }
 
-.bortle-1 {
-    background: transparent;
-    border: 1px dashed rgba(255, 255, 255, 0.5);
-}
-
-.bortle-2 { background: #a6dfff; }
-.bortle-3 { background: #2e8bff; }
-.bortle-4 { background: #3cc86a; }
-.bortle-5 { background: #ffd84d; }
-.bortle-6 { background: #ff9f2e; }
-.bortle-7 { background: #ff4d4d; }
-.bortle-8 { background: #ffffff; }
-.bortle-9 { background: #000000; }
-
-.leaflet-tile.bortle-layer {
-    filter: saturate(1.15) contrast(1.05);
-}
+/* Each swatch spans its class's brightness range on the World Atlas 2015
+   colour ramp (PostGIS:WA_2015), so the key matches the overlay. */
+.bortle-1 { background: linear-gradient(90deg, #000000, #343434); }
+.bortle-2 { background: linear-gradient(90deg, #343434, #59647c, #0052b5); }
+.bortle-3 { background: linear-gradient(90deg, #0052b5, #0088ca, #1d8d4c); }
+.bortle-4 { background: linear-gradient(90deg, #1d8d4c, #bdbc00, #ff6e00); }
+.bortle-5 { background: linear-gradient(90deg, #ff6e00, #f02100, #e32c62); }
+.bortle-6 { background: linear-gradient(90deg, #e32c62, #e05ed3, #df82ff); }
+.bortle-7 { background: linear-gradient(90deg, #df82ff, #e1beff); }
+.bortle-8 { background: linear-gradient(90deg, #e1beff, #edd7ff); }
+.bortle-9 { background: linear-gradient(90deg, #edd7ff, #ffffff); }
 
 @media (max-width: 900px) {
     .map-header {
@@ -294,7 +298,7 @@
 
     .map-panel {
         top: auto;
-        bottom: 18px;
+        bottom: calc(var(--rail-h, 140px) + 30px);
         right: 50%;
         transform: translateX(50%);
         width: min(320px, 88vw);

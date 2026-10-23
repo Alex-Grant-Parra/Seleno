@@ -10,6 +10,14 @@ import { RawError, readCR2 } from './cr2.js';
 import { SRGB_TO_LINEAR_LUT } from './colour.js';
 import { fetchBytes } from './fetch-cache.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 export const RAW_EXTENSIONS = ['cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'dng', 'orf', 'rw2', 'raf', 'pef', 'srw', 'erf', 'kdc', 'mrw', '3fr'];
 
 export function extensionOf(url) {
@@ -85,7 +93,7 @@ export async function loadFrame(entry, env = {}, { linear = true, signal = null,
                 if (!(error instanceof RawError) || !entry.jpeg_url) throw error;
             }
         } else if (!entry.jpeg_url) {
-            throw new RawError(`${entry.name}: only Canon CR2 RAWs can be read in the browser; stack the JPEGs instead`);
+            throw new RawError(_('{name}: only Canon CR2 RAWs can be read in the browser; stack the JPEGs instead', { name: entry.name }));
         }
         const { buffer } = await fetchBytes(entry.jpeg_url, { cache: false, signal, onBytes });
         const frame = await jpegFrame(buffer, { linear });

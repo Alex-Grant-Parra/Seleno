@@ -87,11 +87,11 @@
                 });
                 data = await resp.json();
                 if (!resp.ok || data.status !== 'success') {
-                    this.onState('error', data.message || 'Could not open live view');
+                    this.onState('error', data.message || _('Could not open live view'));
                     return;
                 }
             } catch (error) {
-                this.onState('error', 'Could not reach the server');
+                this.onState('error', _('Could not reach the server'));
                 this._scheduleReconnect(generation);
                 return;
             }
@@ -121,7 +121,7 @@
                 this.ws = null;
                 this._closeDecoder();
                 if (event.code === 4003 || event.code === 4001) {
-                    this.onState('error', event.reason || 'Live view refused');
+                    this.onState('error', event.reason || _('Live view refused'));
                 }
                 this._scheduleReconnect(generation);
             };
@@ -168,7 +168,7 @@
                 });
                 this.needKeyframe = true;
             } catch (error) {
-                console.warn('Live view: could not configure the H.264 decoder', error);
+                console.warn(_('Live view: could not configure the H.264 decoder'), error);
                 this.decoder = null;
             }
         }
@@ -184,7 +184,7 @@
         }
 
         _onDecoderError(error) {
-            console.warn('Live view decoder error', error);
+            console.warn(_('Live view decoder error'), error);
             // Reset, ask for a keyframe and wait for it
             this._closeDecoder();
             this.playingH264 = false;

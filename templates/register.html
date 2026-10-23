@@ -1,50 +1,42 @@
 {% extends "base.html" %}
 
-{% block title %}Register - Telescope Control{% endblock %}
+{% block title %}{{ _('Register - Telescope Control') }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="text-center">Register</h1>
+    <h1 class="text-center">{{ _('Register') }}</h1>
 
-    <!-- Flash messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
     
     <form method="POST">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="mb-3">
-            <label for="username" class="form-label">Username</label>
+            <label for="username" class="form-label">{{ _('Username') }}</label>
             <input type="text" name="username" class="form-control" required>
         </div>
 
         <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
+            <label for="email" class="form-label">{{ _('Email') }}</label>
             <input type="email" name="email" class="form-control" required>
         </div>
 
         <div class="mb-3">
-            <label for="password" class="form-label">Password</label>
+            <label for="password" class="form-label">{{ _('Password') }}</label>
             <input type="password" name="password" class="form-control" required>
         </div>
 
         {% if captcha_required and captcha_enabled %}
         <div class="mb-3">
           <div class="cf-turnstile" data-sitekey="{{ captcha_site_key }}"></div>
-          <div class="form-text">Please complete the CAPTCHA before creating your account.</div>
+          <div class="form-text">{{ _('Please complete the CAPTCHA before creating your account.') }}</div>
         </div>
         {% endif %}
 
         <div class="mb-3 form-check">
             <input type="checkbox" class="form-check-input" name="agree_tos" id="agree_tos" required>
-            <label class="form-check-label" for="agree_tos">I agree to the <a href="{{ url_for('about.tos') }}" target="_blank" rel="noopener noreferrer">Terms of Service</a>.</label>
+            <label class="form-check-label" for="agree_tos">{{ _('I agree to the <a href="%(url)s" target="_blank" rel="noopener noreferrer">Terms of Service</a>.', url=url_for('about.tos')) }}</label>
         </div>
 
-        <button type="submit" class="btn btn-primary w-100">Register</button>
+        <button type="submit" class="btn btn-primary w-100">{{ _('Register') }}</button>
     </form>
 </div>
 {% endblock %}

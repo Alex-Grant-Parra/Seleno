@@ -37,16 +37,16 @@ export const DEFAULT_SETTINGS = {
     keep_masters: false
 };
 const METHODS = [
-    ['winsorized', 'Winsorized sigma clipping'],
-    ['sigma', 'Sigma clipping'],
-    ['median', 'Median'],
-    ['average', 'Average (no rejection)']
+    ['winsorized', _('Winsorized sigma clipping')],
+    ['sigma', _('Sigma clipping')],
+    ['median', _('Median')],
+    ['average', _('Average (no rejection)')]
 ];
 const CALIBRATION_HELP = {
-    dark: "Darks take away the camera's own glow and hot pixels. Take them with the cover on, at the same exposure and ISO as the lights.",
-    bias: 'Bias frames are the shortest possible exposures with the cover on: they take away the camera\'s fixed pattern.',
-    flat: 'Flats remove vignetting and dust shadows. Take them of an evenly lit sky or panel without moving the focus.',
-    darkflat: 'Dark flats match the flats\' exposure with the cover on. The bias frames stand in for them.'
+    dark: _("Darks take away the camera's own glow and hot pixels. Take them with the cover on, at the same exposure and ISO as the lights."),
+    bias: _('Bias frames are the shortest possible exposures with the cover on: they take away the camera\'s fixed pattern.'),
+    flat: _('Flats remove vignetting and dust shadows. Take them of an evenly lit sky or panel without moving the focus.'),
+    darkflat: _('Dark flats match the flats\' exposure with the cover on. The bias frames stand in for them.')
 };
 
 let ctx = null;         // the dialog's current job
@@ -95,11 +95,11 @@ function candidates(type, frames, ref) {
 }
 
 function describeChoice(type, group, ref) {
-    if (!group) return { level: 'off', title: `No ${Q.TYPE_LABELS[type].toLowerCase()}`, detail: CALIBRATION_HELP[type] };
+    if (!group) return { level: 'off', title: _('No {type}', { type: Q.TYPE_LABELS[type].toLowerCase() }), detail: CALIBRATION_HELP[type] };
     const n = group.frames.length;
-    const when = group.night === ref.night ? 'Same night' : `From ${Q.nightLabel(group.night)}`;
-    const what = type === 'dark' ? 'same exposure and ISO' : type === 'bias' ? 'same ISO' : 'same camera';
-    return { level: group.night === ref.night ? 'ok' : 'warn', title: `${n} ${n === 1 ? Q.TYPE_SINGULAR[type] : Q.TYPE_LABELS[type].toLowerCase()}`, detail: `${when}, ${what}` };
+    const when = group.night === ref.night ? _('Same night') : _('From {night}', { night: Q.nightLabel(group.night) });
+    const what = type === 'dark' ? _('same exposure and ISO') : type === 'bias' ? _('same ISO') : _('same camera');
+    return { level: group.night === ref.night ? 'ok' : 'warn', title: `${n} ${n === 1 ? Q.TYPE_SINGULAR[type] : Q.TYPE_LABELS[type].toLowerCase()}`, detail: _('{when}, {what}', { when, what }) };
 }
 
 function renderRows() {
@@ -111,12 +111,12 @@ function renderRows() {
     box.appendChild(el('div', { className: 'ws-frame-row' }, [
         el('span', { className: `ws-dot ${lights.length >= 2 ? 'ok' : 'warn'}` }),
         el('div', { style: { flex: 1 } }, [
-            el('b', {}, `${lights.length} ${lights.length === 1 ? 'light' : 'lights'}`),
+            el('b', {}, lights.length === 1 ? _('1 light') : _('{n} lights', { n: lights.length })),
             el('div', { className: 'ws-muted ws-small' }, [
-                ref.exposure ? Seleno.fmt.exposure(ref.exposure) : null, ref.iso ? `ISO ${ref.iso}` : null, kinds,
-                total ? `${Seleno.fmt.duration(total)} total` : null,
-                rejected ? `${rejected} rejected` : null,
-                ctx.bad ? `${ctx.bad} look bad` : null
+                ref.exposure ? Seleno.fmt.exposure(ref.exposure) : null, ref.iso ? _('ISO {iso}', { iso: ref.iso }) : null, kinds,
+                total ? _('{duration} total', { duration: Seleno.fmt.duration(total) }) : null,
+                rejected ? _('{n} rejected', { n: rejected }) : null,
+                ctx.bad ? _('{n} look bad', { n: ctx.bad }) : null
             ].filter(Boolean).join(' · '))
         ])
     ]));
@@ -126,19 +126,19 @@ function renderRows() {
         const options = ctx.options[type];
         const nearestOther = !group && options.length ? options[0] : null;
         let detail = d.detail;
-        if (nearestOther) detail = `None from this night; ${nearestOther.frames.length} from ${Q.nightLabel(nearestOther.night)} match.`;
+        if (nearestOther) detail = _('None from this night; {frames} from {night} match.', { frames: nearestOther.frames.length, night: Q.nightLabel(nearestOther.night) });
         box.appendChild(el('div', { className: 'ws-frame-row', style: { marginTop: '8px' } }, [
             el('span', { className: `ws-dot ${d.level}` }),
             el('div', { style: { flex: 1 } }, [el('b', {}, d.title), el('div', { className: 'ws-muted ws-small' }, detail)]),
-            nearestOther ? el('button', { className: 'ws-btn sm', type: 'button', onclick: () => { ctx.choice[type] = nearestOther; refresh(); } }, 'Use them') : null,
-            options.length > (group ? 1 : 0) || group ? el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: () => chooseAlternative(type) }, 'Change') : null
+            nearestOther ? el('button', { className: 'ws-btn sm', type: 'button', onclick: () => { ctx.choice[type] = nearestOther; refresh(); } }, _('Use them')) : null,
+            options.length > (group ? 1 : 0) || group ? el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: () => chooseAlternative(type) }, _('Change')) : null
         ]));
     });
 }
 
 function chooseAlternative(type) {
     const dialog = $('altDialog');
-    $('altTitle').textContent = `Choose ${Q.TYPE_LABELS[type].toLowerCase()}`;
+    $('altTitle').textContent = _('Choose {type}', { type: Q.TYPE_LABELS[type].toLowerCase() });
     const box = $('altGroups');
     box.innerHTML = '';
     const pick = (group) => {
@@ -146,15 +146,15 @@ function chooseAlternative(type) {
         dialog.close();
         refresh();
     };
-    box.appendChild(el('button', { className: 'ws-btn', type: 'button', onclick: () => pick(null) }, `No ${Q.TYPE_LABELS[type].toLowerCase()}`));
+    box.appendChild(el('button', { className: 'ws-btn', type: 'button', onclick: () => pick(null) }, _('No {type}', { type: Q.TYPE_LABELS[type].toLowerCase() })));
     ctx.options[type].forEach(group => {
         const current = ctx.choice[type] === group;
         box.appendChild(el('button', { className: `ws-btn${current ? ' sel' : ''}`, type: 'button', onclick: () => pick(group), style: { justifyContent: 'space-between' } }, [
             el('span', {}, Q.nightLabel(group.night)),
-            el('span', { className: 'ws-muted' }, `${group.frames.length} frames${group.frames[0].exposure_s ? ' · ' + Seleno.fmt.exposure(group.frames[0].exposure_s) : ''}${group.frames[0].iso ? ' · ISO ' + group.frames[0].iso : ''}`)
+            el('span', { className: 'ws-muted' }, _('{n} frames', { n: group.frames.length }) + (group.frames[0].exposure_s ? ' · ' + Seleno.fmt.exposure(group.frames[0].exposure_s) : '') + (group.frames[0].iso ? ' · ISO ' + group.frames[0].iso : ''))
         ]));
     });
-    if (!ctx.options[type].length) box.appendChild(el('p', { className: 'ws-small ws-muted' }, `None in your album match these lights. ${CALIBRATION_HELP[type]}`));
+    if (!ctx.options[type].length) box.appendChild(el('p', { className: 'ws-small ws-muted' }, _('None in your album match these lights. {help}', { help: CALIBRATION_HELP[type] })));
     dialog.showModal();
 }
 
@@ -253,24 +253,24 @@ function renderEstimate() {
     const cores = Math.max(1, Math.min(4, Math.floor((navigator.hardwareConcurrency || 2) / 2)));
     const perFrame = w && h ? (w * h / 20e6) * (half ? 4 : 7) : 6;
     const seconds = (all.length * perFrame) / cores + (temp ? temp / 150e6 : 0);
-    const parts = [`About ${Seleno.fmt.duration(Math.max(60, seconds))} in this browser (it depends on your computer)`];
-    if (download) parts.push(`${Seleno.fmt.bytes(download)} to download`);
-    if (temp) parts.push(`${Seleno.fmt.bytes(temp)} of temporary space`);
-    if (w && h) parts.push(`result ${w} × ${h}, 32-bit`);
+    const parts = [_('About {seconds} in this browser (it depends on your computer)', { seconds: Seleno.fmt.duration(Math.max(60, seconds)) })];
+    if (download) parts.push(_('{size} to download', { size: Seleno.fmt.bytes(download) }));
+    if (temp) parts.push(_('{temp} of temporary space', { temp: Seleno.fmt.bytes(temp) }));
+    if (w && h) parts.push(_('result {w} × {h}, 32-bit', { w, h }));
     $('stackEstimate').textContent = parts.join(' · ');
 
     const missing = lights.filter(f => f.kind === 'jpeg' && !f.raw).length;
     const source = $('stackSource');
     source.innerHTML = '';
     if (ctx.quick) {
-        source.textContent = 'Quick mode: stacks the JPEGs, so only small files are downloaded. For the best result (exact calibration), untick it to use the RAWs.';
+        source.textContent = _('Quick mode: stacks the JPEGs, so only small files are downloaded. For the best result (exact calibration), untick it to use the RAWs.');
     } else if (ctx.source === 'raw' && !missing) {
-        source.textContent = 'Uses the RAW files, which are linear, so the darks and bias subtract exactly.';
+        source.textContent = _('Uses the RAW files, which are linear, so the darks and bias subtract exactly.');
     } else if (missing) {
-        source.append(`${missing} of the lights have no RAW here yet (it's still on the telescope), so this stacks the JPEGs. JPEGs stack fine, but calibrating them is only approximate. `);
-        source.appendChild(el('button', { className: 'ws-btn sm', type: 'button', onclick: askForRaws }, 'Ask the telescope for the RAWs'));
+        source.append(_('{missing} of the lights have no RAW here yet (it\'s still on the telescope), so this stacks the JPEGs. JPEGs stack fine, but calibrating them is only approximate. ', { missing }));
+        source.appendChild(el('button', { className: 'ws-btn sm', type: 'button', onclick: askForRaws }, _('Ask the telescope for the RAWs')));
     } else {
-        source.textContent = 'Stacks the JPEGs: they align and combine well, but calibration on JPEGs is only approximate.';
+        source.textContent = _('Stacks the JPEGs: they align and combine well, but calibration on JPEGs is only approximate.');
     }
 }
 
@@ -279,11 +279,11 @@ async function askForRaws() {
     try {
         const data = await Seleno.api('/album/api/request_raws', { json: { files } });
         const ok = data.results.filter(r => r.status === 'success');
-        if (ok.length) Seleno.toast("Asked the telescope for the RAWs. They show up as they arrive; reopen this when they're in.", 'ok', 7000);
-        data.results.filter(r => r.status !== 'success').forEach(r => Seleno.toast(`${r.telescope || 'Telescope'}: ${r.message}`, 'warn', 7000));
-        if (data.skipped.length) Seleno.toast(`${data.skipped.length} photo(s) didn't come from a telescope upload, so there's nothing to ask for.`, 'warn');
+        if (ok.length) Seleno.toast(_("Asked the telescope for the RAWs. They show up as they arrive; reopen this when they're in."), 'ok', 7000);
+        data.results.filter(r => r.status !== 'success').forEach(r => Seleno.toast(`${r.telescope || _('Telescope')}: ${r.message}`, 'warn', 7000));
+        if (data.skipped.length) Seleno.toast(_('{skipped} photo(s) didn\'t come from a telescope upload, so there\'s nothing to ask for.', { skipped: data.skipped.length }), 'warn');
     } catch (error) {
-        Seleno.toast(`Couldn't ask for the RAWs: ${error.message}`, 'bad');
+        Seleno.toast(_('Couldn\'t ask for the RAWs: {message}', { message: error.message }), 'bad');
     }
 }
 
@@ -310,14 +310,14 @@ async function start() {
     }
     const spec = buildSpec();
     if (spec.frames.light.length < 1) {
-        Seleno.toast('There are no lights to stack.', 'warn');
+        Seleno.toast(_('There are no lights to stack.'), 'warn');
         return;
     }
     $('stackDialog').close();
     const onSaved = ctx && ctx.onSaved;
     const controller = new AbortController();
-    const job = startJob(`Stacking ${spec.name}`, { kind: 'stack', controller });
-    Seleno.toast(`Stacking ${spec.name} in this tab. Keep it open until it finishes; it shows under Activity.`, 'ok', 6000);
+    const job = startJob(_('Stacking {name}', { name: spec.name }), { kind: 'stack', controller });
+    Seleno.toast(_('Stacking {name} in this tab. Keep it open until it finishes; it shows under Activity.', { name: spec.name }), 'ok', 6000);
     await runAndSave(spec, job, controller, onSaved);
 }
 
@@ -329,19 +329,20 @@ export async function runAndSave(spec, job, controller, onSaved, run = null) {
             signal: controller.signal,
             onProgress: ({ fraction, message }) => job.update(fraction, message)
         }));
-        job.finish(`${result.frames_used} of ${result.frames_total} frames stacked`);
+        job.finish(_('{used} of {total} frames stacked', { used: result.frames_used, total: result.frames_total }));
         const saved = await saveStackResult(result);
         if (result.project) await updateProject(result.project.id, { stack_id: saved.id }).catch(() => {});
         if (result.measured && Object.keys(result.measured).length) {
             Seleno.api('/album/api/metrics', { json: { metrics: albumMetrics(result.measured, result.report.source) } }).catch(() => {});
         }
         if (onSaved) onSaved(saved);
-        const where = result.project ? ` and added to the project ${result.project.name}` : '';
-        Seleno.toast(`${result.name} is stacked${where}, and saved under Stacked images.`, 'ok', 7000);
+        Seleno.toast(result.project
+            ? _('{name} is stacked and added to the project {project}, and saved under Stacked images.', { name: result.name, project: result.project.name })
+            : _('{name} is stacked, and saved under Stacked images.', { name: result.name }), 'ok', 7000);
         return saved;
     } catch (error) {
         job.fail(error);
-        if (error.name !== 'AbortError') Seleno.toast(`Stacking failed: ${error.message}`, 'bad', 8000);
+        if (error.name !== 'AbortError') Seleno.toast(_('Stacking failed: {message}', { message: error.message }), 'bad', 8000);
         return null;
     } finally {
         if (result && result.dispose) await result.dispose().catch(() => {});
@@ -376,7 +377,7 @@ function wire() {
     $('btnStackDefaults').addEventListener('click', () => {
         try {
             localStorage.setItem(DEFAULTS_KEY, JSON.stringify(readSettings()));
-            Seleno.toast('Saved as your default stacking settings.', 'ok');
+            Seleno.toast(_('Saved as your default stacking settings.'), 'ok');
         } catch (error) { /* private window */ }
     });
     $('btnStackZip').addEventListener('click', () => {
@@ -401,8 +402,10 @@ function describeProject() {
     const value = $('stackProject').value;
     const p = projects.find(x => x.id === value);
     note.classList.toggle('ws-hidden', !value);
-    if (value === 'new') note.textContent = "Starts a project with these frames. Its alignment and combining settings stay fixed from now on, so later nights line up.";
-    else if (p) note.textContent = `${p.frames_total} frames so far${p.exposure_total_s ? `, ${Seleno.fmt.duration(p.exposure_total_s)}` : ''}, ${p.width} × ${p.height}. These frames are lined up with its reference and added to its totals; frames already in it are skipped. Its settings (${p.settings.debayer === 'superpixel' ? 'half size' : 'full size'}, ${p.settings.method || 'winsorized'}) are used.`;
+    if (value === 'new') note.textContent = _("Starts a project with these frames. Its alignment and combining settings stay fixed from now on, so later nights line up.");
+    else if (p) note.textContent = _('{frames} frames so far{exposure}, {width} × {height}. These frames are lined up with its reference and added to its totals; frames already in it are skipped. Its settings ({size}, {method}) are used.', {
+        frames: p.frames_total, exposure: p.exposure_total_s ? `, ${Seleno.fmt.duration(p.exposure_total_s)}` : '', width: p.width, height: p.height,
+        size: p.settings.debayer === 'superpixel' ? _('half size') : _('full size'), method: p.settings.method || 'winsorized' });
 }
 
 async function fillProjects(target) {
@@ -464,7 +467,7 @@ export function openStackDialog({ lights, library, title, onSaved }) {
     });
     const hasRaw = kept.length && kept.every(f => f.raw || f.kind === 'raw');
     const weak = engine.available && engine.machine().weak;
-    const defaultName = `${target || 'Stack'} ${ref.night !== 'unknown' ? Q.nightLabel(ref.night).replace(/^Tonight, /, '') : ''}`.trim();
+    const defaultName = `${target || _('Stack')} ${ref.night !== 'unknown' ? Q.nightLabel(ref.night).replace(/^Tonight, /, '') : ''}`.trim();
     ctx = {
         lights: kept, rejected, bad: kept.filter(f => (quality.get(f.name) || {}).level === 'bad').length,
         ref, target, options, choice, defaultName, onSaved,
@@ -478,21 +481,21 @@ export function openStackDialog({ lights, library, title, onSaved }) {
     $('stackQuickJpegRow').classList.toggle('ws-hidden', !(hasRaw && kept.every(f => f.kind === 'jpeg')));
     $('stackQuickJpeg').checked = false;
     fillProjects(target);
-    $('stackTitle').textContent = title || `Stack ${defaultName}`;
+    $('stackTitle').textContent = title || _('Stack {defaultName}', { defaultName });
     $('stackName').value = defaultName;
 
     const reference = document.querySelector('#stackDialog [data-setting="reference"]');
     reference.innerHTML = '';
-    reference.appendChild(el('option', { value: 'auto' }, 'Best (sharpest, roundest)'));
+    reference.appendChild(el('option', { value: 'auto' }, _('Best (sharpest, roundest)')));
     kept.forEach(f => reference.appendChild(el('option', { value: f.name },
-        `${f.name}${f.metrics && f.metrics.fwhm ? ` (FWHM ${Number(f.metrics.fwhm).toFixed(2)})` : ''}`)));
+        f.name + (f.metrics && f.metrics.fwhm ? _(' (FWHM {fwhm})', { fwhm: Number(f.metrics.fwhm).toFixed(2) }) : ''))));
     if (!kept.some(f => f.name === ctx.settings.reference)) ctx.settings.reference = 'auto';
     writeSettings(ctx.settings);
 
     const note = $('stackFootNote');
     note.textContent = engine.available
-        ? `${engine.note} It shows under Activity.`
-        : `${engine.reason} Your choices here are ready for it. Meanwhile "Download the frames" gets them all in one zip for Siril or DeepSkyStacker.`;
+        ? _('{note} It shows under Activity.', { note: engine.note })
+        : _('{reason} Your choices here are ready for it. Meanwhile "Download the frames" gets them all in one zip for Siril or DeepSkyStacker.', { reason: engine.reason });
     $('btnStackStart').disabled = !engine.available || !kept.length;
     refresh();
     $('stackDialog').showModal();

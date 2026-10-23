@@ -13,6 +13,7 @@ from PIL import Image, ExifTags
 
 from app.db import db
 from app.album_index import forget_thumbnails
+from flask_babel import gettext as _
 
 album_bp = Blueprint("album", __name__, template_folder="../templates")
 
@@ -434,7 +435,7 @@ def album_photo_metadata(filename):
             return jsonify({"status": "success", "photo": _build_metadata_sections(path, filename)})
         except Exception as e:
             logging.exception("Failed to read metadata for %s: %s", filename, e)
-            return jsonify({"status": "error", "message": "Failed to read image metadata"}), 500
+            return jsonify({"status": "error", "message": _("Failed to read image metadata")}), 500
 
     data = request.get_json(silent=True) or {}
     target = data.get("target", "")
@@ -445,7 +446,7 @@ def album_photo_metadata(filename):
         return jsonify({"status": "success", "photo": _build_metadata_sections(path, filename)})
     except Exception as e:
         logging.exception("Failed to save metadata for %s: %s", filename, e)
-        return jsonify({"status": "error", "message": "Failed to save image metadata"}), 500
+        return jsonify({"status": "error", "message": _("Failed to save image metadata")}), 500
 
 
 def _forget_photo(rows, filename):

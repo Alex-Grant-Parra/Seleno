@@ -18,6 +18,7 @@ from werkzeug.utils import secure_filename
 from app.album_index import THUMB_SIZES, make_thumbnail, refresh_index
 from app.db import db
 from controllers.album import (_photo_rows, _safe_photo_path, _write_metadata_to_jpeg, get_user_photos_dir)
+from flask_babel import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,7 @@ def album_set_frames():
     if not isinstance(files, list) or not files or not isinstance(changes, dict):
         return jsonify({"status": "error", "message": "files and set are required"}), 400
     if len(files) > 5000:
-        return jsonify({"status": "error", "message": "Too many files at once"}), 400
+        return jsonify({"status": "error", "message": _("Too many files at once")}), 400
 
     if "flag" in changes and changes["flag"] not in FLAGS + (None,):
         return jsonify({"status": "error", "message": "flag must be pick, reject or null"}), 400
@@ -192,7 +193,7 @@ def album_set_frames():
             return jsonify({"status": "error", "message": "rating must be 0 to 5"}), 400
         changes["rating"] = rating
     if "frame_type" in changes and changes["frame_type"] not in USER_FRAME_TYPES + (None,):
-        return jsonify({"status": "error", "message": f"frame_type must be one of {', '.join(USER_FRAME_TYPES)}"}), 400
+        return jsonify({"status": "error", "message": _('frame_type must be one of %(types)s', types=', '.join(USER_FRAME_TYPES))}), 400
 
     refresh_index(_owner_id(), get_user_photos_dir())
     rows = _index_rows(files)
@@ -213,7 +214,7 @@ def album_set_frames():
                     row.file_size, row.file_mtime = st.st_size, st.st_mtime
                 except Exception:
                     logger.exception("Couldn't write the target and notes into %s", name)
-                    return jsonify({"status": "error", "message": f"Couldn't save the target and notes into {name}"}), 500
+                    return jsonify({"status": "error", "message": _("Couldn't save the target and notes into %(name)s", name=name)}), 500
             row.target, row.notes = target, notes
         updated.append(name)
     db.session.commit()
@@ -287,7 +288,7 @@ def album_request_raws():
         scope = db.session.get(TelescopeRow, telescope_pk)
         if scope is None or not user_can_control(current_user, scope):
             results.append({"telescope": scope.telescope_id if scope else None, "status": "error",
-                            "message": "You can't control this telescope now"})
+                            "message": _("You can't control this telescope now")})
             continue
         t = Telescope(scope.telescope_id)
         pairs = sorted({r.pair_id for r in rows if r.pair_id})
@@ -355,11 +356,11 @@ def stacks_create():
     if master_bytes not in (None, 0):
         master_bytes = _positive_int(master_bytes, MAX_MASTER_BYTES)
         if master_bytes is None:
-            return jsonify({"status": "error", "message": "The result is too big to keep on the server"}), 400
+            return jsonify({"status": "error", "message": _("The result is too big to keep on the server")}), 400
     user_dir = get_user_photos_dir()
     free = shutil.disk_usage(user_dir).free
     if (master_bytes or 0) + DISK_RESERVE_BYTES > free:
-        return jsonify({"status": "error", "message": "The server is short of disk space; download the result instead"}), 507
+        return jsonify({"status": "error", "message": _("The server is short of disk space; download the result instead")}), 507
     kind = data.get("kind") if data.get("kind") in ("stack", "planetary", "single") else "stack"
     try:
         row = StackResult(
@@ -384,7 +385,7 @@ def stacks_create():
             master_received=0,
         )
     except ValueError:
-        return jsonify({"status": "error", "message": "The stack's description is too large"}), 400
+        return jsonify({"status": "error", "message": _("The stack's description is too large")}), 400
     os.makedirs(_stack_dir(row.id), exist_ok=True)
     db.session.add(row)
     db.session.commit()
@@ -398,14 +399,14 @@ def stacks_put_file(stack_id, name):
     spec = STACK_FILES.get(name)
     if spec is None:
         abort(404)
-    _, limit = spec
+    _unused, limit = spec
     if (request.content_length or 0) > limit:
-        return jsonify({"status": "error", "message": f"{name} is too large"}), 413
+        return jsonify({"status": "error", "message": _('%(name)s is too large', name=name)}), 413
     data = request.get_data(cache=False)
     if len(data) > limit or not data:
-        return jsonify({"status": "error", "message": f"{name} is empty or too large"}), 400
+        return jsonify({"status": "error", "message": _('%(name)s is empty or too large', name=name)}), 400
     if name.endswith(".jpg") and data[:3] != b"\xff\xd8\xff":
-        return jsonify({"status": "error", "message": f"{name} isn't a JPEG"}), 400
+        return jsonify({"status": "error", "message": _("%(name)s isn't a JPEG", name=name)}), 400
     if name == "preview.f16" and row.preview_width and row.preview_height:
         if len(data) != row.preview_width * row.preview_height * 3 * 2:
             return jsonify({"status": "error", "message": "preview.f16 doesn't match the preview size"}), 400
@@ -424,7 +425,7 @@ def stacks_put_master(stack_id):
     """One chunk of master.fits, at ?offset= (which must be what the server has)."""
     row = _own_stack(stack_id)
     if not row.master_bytes:
-        return jsonify({"status": "error", "message": "This stack has no master file"}), 400
+        return jsonify({"status": "error", "message": _("This stack has no master file")}), 400
     try:
         offset = int(request.args.get("offset", ""))
     except ValueError:
@@ -458,7 +459,7 @@ def stacks_finish(stack_id):
     if row.master_bytes and row.master_received < row.master_bytes:
         missing.append(MASTER_NAME)
     if missing:
-        return jsonify({"status": "error", "message": f"Still missing: {', '.join(missing)}"}), 400
+        return jsonify({"status": "error", "message": _('Still missing: %(missing)s', missing=', '.join(missing))}), 400
     row.state = "ready"
     row.bytes_total = sum(os.path.getsize(os.path.join(folder, n)) for n in os.listdir(folder)
                           if os.path.isfile(os.path.join(folder, n)))
@@ -486,7 +487,7 @@ def stacks_one(stack_id):
         try:
             row.edit_json = _json_field(data.get("edit"))
         except ValueError:
-            return jsonify({"status": "error", "message": "The edit settings are too large"}), 400
+            return jsonify({"status": "error", "message": _("The edit settings are too large")}), 400
     db.session.commit()
     return jsonify({"status": "success", "stack": row.to_dict()})
 
@@ -521,10 +522,10 @@ def album_save_image():
         return jsonify({"status": "error", "message": "format must be jpg, png, tif or fits"}), 400
     data = upload.read(MAX_SAVE_IMAGE_BYTES + 1)
     if len(data) > MAX_SAVE_IMAGE_BYTES or not data:
-        return jsonify({"status": "error", "message": "The image is empty or too large"}), 400
+        return jsonify({"status": "error", "message": _("The image is empty or too large")}), 400
     magic = {"jpg": (b"\xff\xd8\xff",), "png": (b"\x89PNG",), "tif": (b"II*\x00", b"MM\x00*"), "fits": (b"SIMPLE  =",)}
     if not data.startswith(magic[fmt]):
-        return jsonify({"status": "error", "message": f"That isn't a {fmt.upper()} file"}), 400
+        return jsonify({"status": "error", "message": _("That isn't a %(format)s file", format=fmt.upper())}), 400
     stem = secure_filename(request.form.get("name") or "") or "edited"
     stem = stem[:80]
     user_dir = get_user_photos_dir()

@@ -75,6 +75,10 @@ app.config["ENCRYPTION_KEY"] = os.getenv("ENCRYPTION_KEY")
 
 db.init_app(app)
 
+# Language support (English/Spanish)
+from app.i18n import init_i18n
+init_i18n(app)
+
 # Email Configuration
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.zoho.eu")
 app.config["MAIL_PORT"] = 587

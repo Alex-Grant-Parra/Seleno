@@ -13,6 +13,7 @@ from models.trusted_device import TrustedDevice
 from app.db import db
 from utility.emailer import send_email
 from datetime import datetime
+from flask_babel import gettext as _
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -105,7 +106,7 @@ def login():
             # Prevent disabled accounts from logging in
             try:
                 if not user.is_enabled():
-                    flash('This account has been disabled. Contact an administrator.', 'danger')
+                    flash(_('This account has been disabled. Contact an administrator.'), 'danger')
                     sec_logger.info(json.dumps({'event': 'login_disabled_attempt', 'user_id': user.id, 'username': username}))
                     return render_template('login.html')
             except Exception:
@@ -119,13 +120,13 @@ def login():
             if is_local:
                 # Skip 2FA for local connections (localhost, 127.0.0.1, private IPs)
                 login_user(user)
-                flash('Login successful! (2FA bypassed for local connection)', 'success')
+                flash(_('Login successful! (2FA bypassed for local connection)'), 'success')
                 sec_logger.info(json.dumps({'event': 'login_success', 'user_id': user.id, 'method': 'local_bypass'}))
                 return redirect(url_for('home.home'))
             elif is_trusted:
                 # Skip 2FA for trusted devices
                 login_user(user)
-                flash(f'Login successful! (Trusted device: {device_name})', 'success')
+                flash(_('Login successful! (Trusted device: %(device)s)', device=device_name), 'success')
                 sec_logger.info(json.dumps({'event': 'login_success', 'user_id': user.id, 'method': 'trusted_device', 'device': device_name}))
                 return redirect(url_for('home.home'))
             else:
@@ -136,12 +137,12 @@ def login():
                 # Generate and send the 2FA code
                 totp_code = user.generate_totp_code()
                 # Auth-related email sender
-                send_email(current_app, 'auth', [user.get_email()], "Your 2FA Code", f"Your 2FA code is {totp_code}. Please enter this code to complete your login.")
-                flash('Check your email for the 2FA code to complete the login.', 'info')
+                send_email(current_app, 'auth', [user.get_email()], _("Your 2FA Code"), _("Your 2FA code is %(code)s. Please enter this code to complete your login.", code=totp_code))
+                flash(_('Check your email for the 2FA code to complete the login.'), 'info')
                 sec_logger.info(json.dumps({'event': 'login_2fa_required', 'user_id': user.id}))
                 return redirect(url_for('auth.login_2fa'))
         else:
-            flash('Invalid credentials, please try again.', 'danger')
+            flash(_('Invalid credentials, please try again.'), 'danger')
             sec_logger.info(json.dumps({'event': 'login_failed', 'username': username}))
 
     return render_template('login.html')
@@ -155,7 +156,7 @@ def logout():
         pass
     logout_user()
     session.clear()  # Clear the session
-    flash('Logged out successfully', 'info')
+    flash(_('Logged out successfully'), 'info')
     return resp
 
 @auth_bp.route("/register", methods=['GET', 'POST'])
@@ -170,7 +171,7 @@ def register():
             is_valid_captcha, captcha_errors = _verify_turnstile_token(turnstile_token, remote_ip)
             if not is_valid_captcha:
                 current_app.logger.warning('Register CAPTCHA failed: %s', ','.join(captcha_errors or []))
-                flash('Please complete the CAPTCHA before creating your account.', 'danger')
+                flash(_('Please complete the CAPTCHA before creating your account.'), 'danger')
                 return redirect(url_for('auth.register'))
 
         username = request.form['username']
@@ -179,7 +180,7 @@ def register():
         # Ensure the user agreed to Terms of Service
         agree_tos = request.form.get('agree_tos')
         if not agree_tos:
-            flash('You must agree to the Terms of Service to create an account.', 'danger')
+            flash(_('You must agree to the Terms of Service to create an account.'), 'danger')
             return redirect(url_for('auth.register'))
 
         user_with_same_username = User.query.filter_by(username=username).first()
@@ -187,15 +188,15 @@ def register():
         email_taken = any(u.get_email() == email for u in users)
 
         if user_with_same_username and email_taken:
-            flash('Username and email already taken. Please choose another two.', 'danger')
+            flash(_('Username and email already taken. Please choose another two.'), 'danger')
             return redirect(url_for('auth.register'))
 
         if user_with_same_username:
-            flash('Username already taken. Please choose another one.', 'danger')
+            flash(_('Username already taken. Please choose another one.'), 'danger')
             return redirect(url_for('auth.register'))
 
         if email_taken:
-            flash('Email already used. Please choose another one.', 'danger')
+            flash(_('Email already used. Please choose another one.'), 'danger')
             return redirect(url_for('auth.register'))
 
         hashed_password = hash_password(password)
@@ -208,7 +209,7 @@ def register():
         db.session.commit()
 
         login_user(new_user)
-        flash('Account created and logged in successfully!', 'success')
+        flash(_('Account created and logged in successfully!'), 'success')
         session['_flashes'] = []  # Clear flash messages manually
         return redirect(url_for('home.home'))
 
@@ -232,7 +233,7 @@ def forgot_password():
             is_valid_captcha, captcha_errors = _verify_turnstile_token(turnstile_token, remote_ip)
             if not is_valid_captcha:
                 current_app.logger.warning('Forgot-password CAPTCHA failed: %s', ','.join(captcha_errors or []))
-                flash('Please complete the CAPTCHA before requesting a reset link.', 'danger')
+                flash(_('Please complete the CAPTCHA before requesting a reset link.'), 'danger')
                 return redirect(url_for('auth.forgot_password'))
 
         email = request.form['email']
@@ -249,8 +250,8 @@ def forgot_password():
             # Check if request is from local connection
             if is_local_connection():
                 reset_token = found_user.get_reset_token()
-                flash(f'Password reset token (local connection): {reset_token}', 'info')
-                flash('Use this token to access the reset link directly.', 'info')
+                flash(_('Password reset token (local connection): %(token)s', token=reset_token), 'info')
+                flash(_('Use this token to access the reset link directly.'), 'info')
                 return redirect(url_for('auth.login'))
             else:
                 # Generate a reset token
@@ -259,15 +260,15 @@ def forgot_password():
                 # Send an email with the token link
                 reset_url = url_for('auth.reset_password', token=reset_token, _external=True)
                 try:
-                    send_email(current_app, 'auth', [email], "Password Reset Request", f"Click the following link to reset your password: {reset_url}")
-                    flash('A password reset link has been sent to your email.', 'info')
+                    send_email(current_app, 'auth', [email], _("Password Reset Request"), _("Click the following link to reset your password: %(url)s", url=reset_url))
+                    flash(_('A password reset link has been sent to your email.'), 'info')
                 except Exception as e:
-                    flash(f"Error sending email: {str(e)}", 'danger')
+                    flash(_("Error sending email: %(error)s", error=str(e)), 'danger')
                     return redirect(url_for('auth.forgot_password'))
 
                 return redirect(url_for('auth.login'))
         else:
-            flash('No account found with that email address.', 'danger')
+            flash(_('No account found with that email address.'), 'danger')
 
     return render_template(
         'forgot_password.html',
@@ -283,7 +284,7 @@ def reset_password(token):
     user = User.verify_reset_token(token)
 
     if not user:
-        flash('That is an invalid or expired token.', 'danger')
+        flash(_('That is an invalid or expired token.'), 'danger')
         return redirect(url_for('auth.forgot_password'))
 
     # Print statement to console
@@ -293,7 +294,7 @@ def reset_password(token):
         password = request.form['password']
         user.password = hash_password(password)  # Update password
         db.session.commit()
-        flash('Your password has been updated!', 'success')
+        flash(_('Your password has been updated!'), 'success')
         return redirect(url_for('auth.login'))
 
     return render_template('reset_password.html', token=token)
@@ -306,7 +307,7 @@ def login_2fa():
         trust_device = session.get('trust_device', False)
         
         if not user_id:
-            flash('Session expired. Please log in again.', 'danger')
+            flash(_('Session expired. Please log in again.'), 'danger')
             return redirect(url_for('auth.login'))
 
         user = User.query.get(user_id)
@@ -314,7 +315,7 @@ def login_2fa():
         if user:
             try:
                 if not user.is_enabled():
-                    flash('This account has been disabled. Contact an administrator.', 'danger')
+                    flash(_('This account has been disabled. Contact an administrator.'), 'danger')
                     sec_logger.info(json.dumps({'event': 'login_2fa_disabled_attempt', 'user_id': user.id}))
                     session.pop('user_id', None)
                     session.pop('trust_device', None)
@@ -329,20 +330,20 @@ def login_2fa():
                 # Set a cookie that will persist for the trust period, httponly to reduce XSS risk
                 resp = redirect(url_for('home.home'))
                 resp.set_cookie('trusted_device_token', token, max_age=30*24*60*60, httponly=True, samesite='Lax')
-                flash(f'Login successful! Device "{device_name}" is now trusted for 30 days.', 'success')
+                flash(_('Login successful! Device "%(device)s" is now trusted for 30 days.', device=device_name), 'success')
                 login_user(user)
                 session.pop('user_id', None)  # Remove user_id from session
                 session.pop('trust_device', None)  # Remove trust_device from session
                 return resp
             else:
-                flash('Login successful!', 'success')
+                flash(_('Login successful!'), 'success')
             
             login_user(user)
             session.pop('user_id', None)  # Remove user_id from session
             session.pop('trust_device', None)  # Remove trust_device from session
             return redirect(url_for('home.home'))
         else:
-            flash('Invalid 2FA code. Please try again.', 'danger')
+            flash(_('Invalid 2FA code. Please try again.'), 'danger')
 
     return render_template('login_2fa.html')
 
@@ -359,9 +360,9 @@ def trusted_devices():
 def revoke_device(device_id):
     # Revoke trust for a specific device
     if TrustedDevice.revoke_device(current_user.id, device_id):
-        flash('Device trust revoked successfully.', 'success')
+        flash(_('Device trust revoked successfully.'), 'success')
     else:
-        flash('Device not found or could not be revoked.', 'danger')
+        flash(_('Device not found or could not be revoked.'), 'danger')
     return redirect(url_for('auth.trusted_devices'))
 
 

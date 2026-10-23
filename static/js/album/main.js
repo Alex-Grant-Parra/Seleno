@@ -64,7 +64,7 @@ function savePrefs() {
 // --- loading ------------------------------------------------------------------------
 
 async function loadLibrary() {
-    $('libraryStatus').textContent = 'Loading…';
+    $('libraryStatus').textContent = _('Loading…');
     try {
         const data = await Seleno.api('/album/api/library');
         state.frames = data.frames || [];
@@ -76,7 +76,7 @@ async function loadLibrary() {
         if (state.current && !state.byName.has(state.current)) state.current = null;
     } catch (error) {
         $('libraryStatus').textContent = '';
-        $('groupTitle').textContent = "Couldn't load your photos";
+        $('groupTitle').textContent = _("Couldn't load your photos");
         $('groupSummary').textContent = error.message;
         throw error;
     }
@@ -128,25 +128,25 @@ function renderNav() {
         groups.forEach(g => {
             const lights = g.frames.filter(Q.isLightLike).length;
             const videos = g.frames.filter(f => Q.typeOf(f) === 'video').length;
-            const count = lights || !videos ? String(lights || g.frames.length) : `${videos} video${videos === 1 ? '' : 's'}`;
+            const count = lights || !videos ? String(lights || g.frames.length) : (videos === 1 ? _('1 video') : _('{n} videos', { n: videos }));
             nav.appendChild(el('button', {
                 type: 'button',
                 className: state.groupKey === g.key ? 'on' : '',
-                title: `${g.frames.length} files`,
+                title: _('{n} files', { n: g.frames.length }),
                 onclick: () => selectGroup(g.key)
             }, [el('span', {}, g.label || '—'), el('span', { className: 'ws-count' }, count)]));
         });
     };
     if (Seleno.mode() === 'advanced') {
-        const labels = { night: 'Nights', target: 'Targets', plan: 'Plans' };
+        const labels = { night: _('Nights'), target: _('Targets'), plan: _('Plans') };
         section(labels[state.groupBy], groupsFor(state.groupBy), state.groupBy);
     } else {
-        section('Nights', groupsFor('night').slice(0, 40), 'night');
-        section('Targets', groupsFor('target').filter(g => g.value).slice(0, 30), 'target');
+        section(_('Nights'), groupsFor('night').slice(0, 40), 'night');
+        section(_('Targets'), groupsFor('target').filter(g => g.value).slice(0, 30), 'target');
     }
-    nav.appendChild(el('div', { className: 'ws-side-label' }, 'Everything'));
+    nav.appendChild(el('div', { className: 'ws-side-label' }, _('Everything')));
     nav.appendChild(el('button', { type: 'button', className: state.groupKey === 'all' ? 'on' : '', onclick: () => selectGroup('all') },
-        [el('span', {}, 'All photos'), el('span', { className: 'ws-count' }, String(state.frames.length))]));
+        [el('span', {}, _('All photos')), el('span', { className: 'ws-count' }, String(state.frames.length))]));
 }
 
 function selectGroup(key) {
@@ -162,12 +162,12 @@ function groupTitle(frames) {
     const key = state.groupKey || 'all';
     const lights = frames.filter(Q.isLightLike);
     const target = Q.mostCommon(lights.map(f => f.target));
-    if (key === 'all') return 'All photos';
+    if (key === 'all') return _('All photos');
     const [by, value] = [key.slice(0, key.indexOf(':')), key.slice(key.indexOf(':') + 1)];
     if (by === 'night') return `${target ? target + ' · ' : ''}${Q.nightLabel(value, true).replace(/^t/, 'T')}`;
-    if (by === 'target') return value ? `${target || value}` : 'Photos without a target';
+    if (by === 'target') return value ? `${target || value}` : _('Photos without a target');
     const plan = state.plans[value];
-    return value ? (plan ? plan.name : value) : 'Photos not from a plan';
+    return value ? (plan ? plan.name : value) : _('Photos not from a plan');
 }
 
 function summaryLine(frames) {
@@ -175,15 +175,18 @@ function summaryLine(frames) {
     const lights = frames.filter(Q.isLightLike);
     const light = lights.reduce((s, f) => s + (f.exposure_s || 0), 0);
     const parts = [];
-    if (lights.length) parts.push(`${lights.length} ${lights.length === 1 ? 'photo' : 'photos'}${light > 60 ? ` (${Seleno.fmt.duration(light)} of light)` : ''}`);
+    if (lights.length) {
+        const count = lights.length === 1 ? _('1 photo') : _('{n} photos', { n: lights.length });
+        parts.push(light > 60 ? _('{count} ({duration} of light)', { count, duration: Seleno.fmt.duration(light) }) : count);
+    }
     ['dark', 'flat', 'darkflat', 'bias', 'snapshot', 'test', 'bracket', 'timelapse', 'video', 'processed', 'other'].forEach(type => {
         if (counts[type]) parts.push(`${counts[type]} ${counts[type] === 1 ? Q.TYPE_SINGULAR[type] : Q.TYPE_LABELS[type].toLowerCase()}`);
     });
     const bad = lights.filter(f => (state.quality.get(f.name) || {}).level === 'bad').length;
-    if (bad) parts.push(`${bad} ${bad === 1 ? 'photo looks' : 'photos look'} bad`);
+    if (bad) parts.push(bad === 1 ? _('1 photo looks bad') : _('{n} photos look bad', { n: bad }));
     const unmeasured = lights.filter(f => !f.metrics).length;
-    if (lights.length && unmeasured === lights.length && Seleno.mode() === 'advanced') parts.push('not measured yet');
-    return parts.join(' · ') || 'Nothing here';
+    if (lights.length && unmeasured === lights.length && Seleno.mode() === 'advanced') parts.push(_('not measured yet'));
+    return parts.join(' · ') || _('Nothing here');
 }
 
 function renderHead(frames) {
@@ -192,7 +195,7 @@ function renderHead(frames) {
     const lights = frames.filter(Q.isLightLike);
     const stack = $('btnStackGroup');
     stack.disabled = lights.length < 1;
-    stack.textContent = (state.groupKey || '').startsWith('night:') ? 'Stack this night' : 'Stack these photos';
+    stack.textContent = (state.groupKey || '').startsWith('night:') ? _('Stack this night') : _('Stack these photos');
     $('btnDownloadGroup').disabled = !frames.length;
     const zip = $('groupPlanZip');
     const isPlan = (state.groupKey || '').startsWith('plan:') && state.groupKey.length > 5;
@@ -213,10 +216,10 @@ function tile(frame) {
     if (state.current === frame.name) classes.push('current');
     if (frame.flag === 'reject') classes.push('rejected');
     const picture = frame.kind === 'video'
-        ? el('div', { className: 'ws-tile-blank' }, 'Video')
+        ? el('div', { className: 'ws-tile-blank' }, _('Video'))
         : el('img', { src: frame.thumb, alt: frame.name, loading: 'lazy', decoding: 'async' });
-    if (picture.tagName === 'IMG') picture.addEventListener('error', () => picture.replaceWith(el('div', { className: 'ws-tile-blank' }, frame.kind === 'raw' ? 'RAW' : 'No preview')));
-    const flagText = frame.flag === 'reject' ? 'Rejected' : frame.flag === 'pick' ? 'Accepted' : q.level === 'bad' ? q.reason : '';
+    if (picture.tagName === 'IMG') picture.addEventListener('error', () => picture.replaceWith(el('div', { className: 'ws-tile-blank' }, frame.kind === 'raw' ? 'RAW' : _('No preview'))));
+    const flagText = frame.flag === 'reject' ? _('Rejected') : frame.flag === 'pick' ? _('Accepted') : q.level === 'bad' ? q.reason : '';
     return el('button', {
         type: 'button',
         className: classes.join(' '),
@@ -238,19 +241,19 @@ function grid(frames) {
 }
 
 const COLUMNS = [
-    { key: 'name', label: 'File', value: f => f.name },
-    { key: 'time', label: 'Time', value: f => Q.frameTime(f), show: f => f.captured_at ? Seleno.fmt.time(f.captured_at) : '—' },
-    { key: 'type', label: 'Type', value: f => Q.typeOf(f), show: f => Q.typeOf(f) === 'unknown' ? '—' : Q.typeOf(f) },
-    { key: 'exp', label: 'Exp', value: f => f.exposure_s || 0, show: f => Seleno.fmt.exposure(f.exposure_s) },
+    { key: 'name', label: _('File'), value: f => f.name },
+    { key: 'time', label: _('Time'), value: f => Q.frameTime(f), show: f => f.captured_at ? Seleno.fmt.time(f.captured_at) : '—' },
+    { key: 'type', label: _('Type'), value: f => Q.typeOf(f), show: f => Q.typeOf(f) === 'unknown' ? '—' : Q.typeOf(f) },
+    { key: 'exp', label: _('Exp'), value: f => f.exposure_s || 0, show: f => Seleno.fmt.exposure(f.exposure_s) },
     { key: 'iso', label: 'ISO', value: f => parseFloat(f.iso) || 0, show: f => f.iso || '—' },
-    { key: 'stars', label: 'Stars', metric: 'stars', digits: 0 },
+    { key: 'stars', label: _('Stars'), metric: 'stars', digits: 0 },
     { key: 'fwhm', label: 'FWHM', metric: 'fwhm', digits: 2 },
     { key: 'hfr', label: 'HFR', metric: 'hfr', digits: 2 },
-    { key: 'ecc', label: 'Ecc', metric: 'ecc', digits: 2 },
-    { key: 'bg', label: 'Bkg', metric: 'background_pct', digits: 1, suffix: '%' },
-    { key: 'noise', label: 'Noise', metric: 'noise_pct', digits: 2, suffix: '%' },
+    { key: 'ecc', label: _('Ecc'), metric: 'ecc', digits: 2 },
+    { key: 'bg', label: _('Bkg'), metric: 'background_pct', digits: 1, suffix: '%' },
+    { key: 'noise', label: _('Noise'), metric: 'noise_pct', digits: 2, suffix: '%' },
     { key: 'snr', label: 'SNR', metric: 'snr', digits: 1 },
-    { key: 'flag', label: 'Flag', value: f => ({ ok: 3, warn: 2, bad: 1, off: 0 })[qualityOf(f).level] }
+    { key: 'flag', label: _('Flag'), value: f => ({ ok: 3, warn: 2, bad: 1, off: 0 })[qualityOf(f).level] }
 ];
 
 function columnValue(col, f) {
@@ -275,7 +278,7 @@ function sortFrames(frames) {
 
 function table(frames) {
     const head = el('tr', {}, [
-        el('th', {}, el('input', { type: 'checkbox', 'aria-label': 'Select all', onclick: (e) => {
+        el('th', {}, el('input', { type: 'checkbox', 'aria-label': _('Select all'), onclick: (e) => {
             e.stopPropagation();
             frames.forEach(f => (e.target.checked ? state.selection.add(f.name) : state.selection.delete(f.name)));
             renderContent();
@@ -299,7 +302,7 @@ function table(frames) {
         if (state.selection.has(f.name)) classes.push('selected');
         if (f.flag === 'reject' || q.level === 'bad') classes.push('rejected');
         const row = el('tr', { className: classes.join(' '), dataset: { name: f.name } }, [
-            el('td', {}, el('input', { type: 'checkbox', checked: state.selection.has(f.name), 'aria-label': `Select ${f.name}`, onclick: (e) => {
+            el('td', {}, el('input', { type: 'checkbox', checked: state.selection.has(f.name), 'aria-label': _('Select {name}', { name: f.name }), onclick: (e) => {
                 e.stopPropagation();
                 toggleSelection(f.name);
             } })),
@@ -324,9 +327,9 @@ function calibrationRow(type, frames) {
     const exposure = Q.mostCommon(frames.map(f => f.exposure_s));
     const iso = Q.mostCommon(frames.map(f => f.iso));
     const open = state.expanded.has(type);
-    const details = [exposure ? Seleno.fmt.exposure(exposure) : null, iso ? `ISO ${iso}` : null,
+    const details = [exposure ? Seleno.fmt.exposure(exposure) : null, iso ? _('ISO {iso}', { iso }) : null,
         type === 'dark' || type === 'bias' || type === 'darkflat' ? 'cover on' : null,
-        type === 'dark' ? 'match your photos' : null].filter(Boolean).join(' · ');
+        type === 'dark' ? _('match your photos') : null].filter(Boolean).join(' · ');
     const wrap = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '10px' } });
     wrap.appendChild(el('div', { className: 'ws-grouprow' }, [
         el('img', { className: 'ws-thumb', src: first.thumb, alt: '', loading: 'lazy' }),
@@ -335,7 +338,7 @@ function calibrationRow(type, frames) {
         el('button', { className: 'ws-btn sm', type: 'button', onclick: () => {
             if (open) state.expanded.delete(type); else state.expanded.add(type);
             renderContent();
-        } }, open ? 'Hide' : 'Show')
+        } }, open ? _('Hide') : _('Show'))
     ]));
     if (open) wrap.appendChild(grid(frames));
     return wrap;
@@ -350,8 +353,8 @@ function renderBasic(frames) {
         const exposure = Q.mostCommon(lights.map(f => f.exposure_s));
         const iso = Q.mostCommon(lights.map(f => f.iso));
         box.appendChild(el('div', { className: 'ws-actions', style: { justifyContent: 'space-between', alignItems: 'baseline' } }, [
-            el('h2', { className: 'ws-section-title' }, [`Photos${target ? ' of ' + target : ''}`, ' ',
-                el('span', { className: 'ws-muted ws-small', style: { fontWeight: 500 } }, [exposure ? Seleno.fmt.exposure(exposure) : null, iso ? `ISO ${iso}` : null].filter(Boolean).join(' · '))]),
+            el('h2', { className: 'ws-section-title' }, [target ? _('Photos of {target}', { target }) : _('Photos'), ' ',
+                el('span', { className: 'ws-muted ws-small', style: { fontWeight: 500 } }, [exposure ? Seleno.fmt.exposure(exposure) : null, iso ? _('ISO {iso}', { iso }) : null].filter(Boolean).join(' · '))]),
             el('span', { className: 'ws-small ws-muted' }, [el('span', { className: 'ws-dot ok' }), ' good ', el('span', { className: 'ws-dot warn', style: { marginLeft: '8px' } }), ' so-so ',
                 el('span', { className: 'ws-dot bad', style: { marginLeft: '8px' } }), ' bad ', el('span', { className: 'ws-dot off', style: { marginLeft: '8px' } }), ' not measured'])
         ]));
@@ -370,7 +373,7 @@ function renderBasic(frames) {
         box.appendChild(calibrationRow(type, list));
         if (state.expanded.has(type)) ordered.push(...list);
     });
-    if (!frames.length) box.appendChild(el('div', { className: 'ws-card ws-empty' }, 'No photos here yet. They appear as the telescope uploads them.'));
+    if (!frames.length) box.appendChild(el('div', { className: 'ws-card ws-empty' }, _('No photos here yet. They appear as the telescope uploads them.')));
     state.visible = ordered;
 }
 
@@ -399,7 +402,7 @@ function renderQuality(frames) {
     const measured = lights.filter(f => f.metrics);
     const svg = $('qualityChart');
     const empty = $('qualityEmpty');
-    $('qualityTitle').textContent = measured.length ? `· ${measured.length} of ${lights.length} lights measured` : '';
+    $('qualityTitle').textContent = measured.length ? _('· {measured} of {lights} lights measured', { measured: measured.length, lights: lights.length }) : '';
     const limits = readLimits();
     const drawn = Q.drawQualityChart(svg, frames, limits);
     svg.classList.toggle('ws-hidden', drawn < 2);
@@ -407,12 +410,12 @@ function renderQuality(frames) {
     empty.classList.toggle('ws-hidden', drawn >= 2);
     if (drawn < 2) {
         empty.textContent = lights.length
-            ? (engine.available ? 'Select photos and choose Measure quality to chart their star sizes and roundness.'
-                : `Star size, roundness and sky level show here once the photos are measured. ${engine.reason}`)
-            : 'No lights in this group.';
+            ? (engine.available ? _('Select photos and choose Measure quality to chart their star sizes and roundness.')
+                : _('Star size, roundness and sky level show here once the photos are measured. {reason}', { reason: engine.reason }))
+            : _('No lights in this group.');
     }
     const over = Q.overLimits(frames, limits);
-    $('btnRejectByLimits').textContent = `Reject ${over.length} ${over.length === 1 ? 'frame' : 'frames'}`;
+    $('btnRejectByLimits').textContent = over.length === 1 ? _('Reject 1 frame') : _('Reject {n} frames', { n: over.length });
     $('btnRejectByLimits').disabled = !over.length;
 }
 
@@ -440,7 +443,7 @@ function renderAdvanced(frames) {
     shown = sortFrames(shown);
     state.visible = shown;
     if (!shown.length) {
-        box.appendChild(el('div', { className: 'ws-card ws-empty' }, frames.length ? 'Nothing matches the filters.' : 'No photos here yet.'));
+        box.appendChild(el('div', { className: 'ws-card ws-empty' }, frames.length ? _('Nothing matches the filters.') : _('No photos here yet.')));
         return;
     }
     box.appendChild(state.layout === 'table' ? table(shown) : grid(shown));
@@ -543,7 +546,7 @@ function selectedFrames() {
 function renderBulk() {
     const n = state.selection.size;
     $('bulkBar').classList.toggle('ws-hidden', n === 0);
-    $('bulkCount').textContent = `${n} selected`;
+    $('bulkCount').textContent = _('{n} selected', { n });
     $('btnBlink').disabled = n < 2 && currentFrames().filter(Q.isLightLike).length < 2;
 }
 
@@ -555,7 +558,7 @@ function initHistogram() {
         canvasId: 'albumHistogramCanvas',
         controlsRootId: 'albumHistogramControls',
         statsId: 'albumHistogramStats',
-        emptyMessage: 'Select a photo'
+        emptyMessage: _('Select a photo')
     });
     histogram.setSourceImage($('inspectorImg'));
 }
@@ -579,13 +582,13 @@ function renderInspector() {
     const q = qualityOf(frame);
     const chip = $('inspectorQuality');
     chip.querySelector('.ws-dot').className = `ws-dot ${q.level}`;
-    chip.querySelector('span:last-child').textContent = q.level === 'off' ? (frame.metrics ? 'Measured' : 'Not measured')
-        : q.reason || ({ ok: 'Good', warn: 'So-so', bad: 'Bad' })[q.level];
+    chip.querySelector('span:last-child').textContent = q.level === 'off' ? (frame.metrics ? _('Measured') : _('Not measured'))
+        : q.reason || ({ ok: _('Good'), warn: _('So-so'), bad: _('Bad') })[q.level];
     $('inspectorSub').textContent = [
         frame.captured_at ? Seleno.fmt.time(frame.captured_at) : null,
         Seleno.fmt.exposure(frame.exposure_s) !== '—' ? Seleno.fmt.exposure(frame.exposure_s) : null,
-        frame.iso ? `ISO ${frame.iso}` : null,
-        frame.raw ? 'RAW + JPEG' : frame.kind === 'raw' ? 'RAW' : frame.kind === 'video' ? 'Video' : 'JPEG',
+        frame.iso ? _('ISO {iso}', { iso: frame.iso }) : null,
+        frame.raw ? 'RAW + JPEG' : frame.kind === 'raw' ? 'RAW' : frame.kind === 'video' ? _('Video') : 'JPEG',
         Q.typeOf(frame) !== 'unknown' ? Q.TYPE_SINGULAR[Q.typeOf(frame)] : null
     ].filter(Boolean).join(' · ');
     $('inspectorSentence').textContent = Q.describe(frame, q, currentFrames());
@@ -609,26 +612,26 @@ function renderInspector() {
 
     const plan = frame.plan_id ? state.plans[frame.plan_id] : null;
     kvRows($('inspectorKv'), [
-        ['Captured', frame.captured_at ? Seleno.fmt.dateTime(frame.captured_at) : null],
-        ['Camera', frame.camera],
-        ['Exposure', [Seleno.fmt.exposure(frame.exposure_s) !== '—' ? Seleno.fmt.exposure(frame.exposure_s) : null, frame.iso ? `ISO ${frame.iso}` : null].filter(Boolean).join(' · ')],
-        ['Type', Q.typeOf(frame) === 'unknown' ? 'Not set' : `${Q.typeOf(frame)}${frame.frame_type_set ? ' (set by you)' : ''}`],
-        ['Plan', plan ? `${plan.name}${frame.step !== undefined && frame.step !== null ? ` · step ${frame.step + 1}` : ''}${frame.frame !== undefined && frame.frame !== null ? ` · frame ${frame.frame + 1}` : ''}` : null],
-        ['Telescope', frame.telescope],
-        ['Pointing', frame.ra !== undefined && frame.ra !== null ? `RA ${Seleno.fmt.ra(frame.ra)} · Dec ${Seleno.fmt.dec(frame.dec)}` : null],
-        ['Size', [frame.width ? `${frame.width} × ${frame.height}` : null, frame.bytes ? Seleno.fmt.bytes(frame.bytes) : null].filter(Boolean).join(' · ')],
+        [_('Captured'), frame.captured_at ? Seleno.fmt.dateTime(frame.captured_at) : null],
+        [_('Camera'), frame.camera],
+        [_('Exposure'), [Seleno.fmt.exposure(frame.exposure_s) !== '—' ? Seleno.fmt.exposure(frame.exposure_s) : null, frame.iso ? _('ISO {iso}', { iso: frame.iso }) : null].filter(Boolean).join(' · ')],
+        [_('Type'), Q.typeOf(frame) === 'unknown' ? _('Not set') : `${Q.typeOf(frame)}${frame.frame_type_set ? _(' (set by you)') : ''}`],
+        [_('Plan'), plan ? [plan.name, frame.step !== undefined && frame.step !== null ? _(' · step {step}', { step: frame.step + 1 }) : '', frame.frame !== undefined && frame.frame !== null ? _(' · frame {frame}', { frame: frame.frame + 1 }) : ''].join('') : null],
+        [_('Telescope'), frame.telescope],
+        [_('Pointing'), frame.ra !== undefined && frame.ra !== null ? _('RA {ra} · Dec {dec}', { ra: Seleno.fmt.ra(frame.ra), dec: Seleno.fmt.dec(frame.dec) }) : null],
+        [_('Size'), [frame.width ? `${frame.width} × ${frame.height}` : null, frame.bytes ? Seleno.fmt.bytes(frame.bytes) : null].filter(Boolean).join(' · ')],
         ['RAW', frame.raw || (frame.kind === 'raw' ? frame.name : null)]
     ]);
     const m = frame.metrics;
-    $('inspectorMeasuredFrom').textContent = m ? `from the ${frame.metrics_source === 'raw' ? 'RAW' : 'JPEG'}` : '';
+    $('inspectorMeasuredFrom').textContent = m ? (frame.metrics_source === 'raw' ? _('from the RAW') : _('from the JPEG')) : '';
     kvRows($('inspectorMetrics'), m ? [
-        ['Stars found', m.stars !== undefined ? String(m.stars) : null],
-        ['FWHM / HFR', m.fwhm !== undefined ? `${Seleno.fmt.num(m.fwhm)} / ${Seleno.fmt.num(m.hfr)} px${m.fwhm_arcsec ? ` · ${Number(m.fwhm_arcsec).toFixed(1)}″` : ''}` : null],
-        ['Eccentricity', m.ecc !== undefined ? Seleno.fmt.num(m.ecc) : null],
-        ['Background', m.background_pct !== undefined ? `${Seleno.fmt.num(m.background_pct, 1)}%` : null],
-        ['Noise', m.noise_pct !== undefined ? `${Seleno.fmt.num(m.noise_pct, 2)}%` : null],
-        ['Clipped pixels', m.clipped_pct !== undefined ? `${Seleno.fmt.num(m.clipped_pct, 2)}%` : null]
-    ] : [['Measured', 'Not yet']]);
+        [_('Stars found'), m.stars !== undefined ? String(m.stars) : null],
+        [_('FWHM / HFR'), m.fwhm !== undefined ? _('{fwhm} / {hfr} px{fwhmArcsec}', { fwhm: Seleno.fmt.num(m.fwhm), hfr: Seleno.fmt.num(m.hfr), fwhmArcsec: m.fwhm_arcsec ? ` · ${Number(m.fwhm_arcsec).toFixed(1)}″` : '' }) : null],
+        [_('Eccentricity'), m.ecc !== undefined ? Seleno.fmt.num(m.ecc) : null],
+        [_('Background'), m.background_pct !== undefined ? `${Seleno.fmt.num(m.background_pct, 1)}%` : null],
+        [_('Noise'), m.noise_pct !== undefined ? `${Seleno.fmt.num(m.noise_pct, 2)}%` : null],
+        [_('Clipped pixels'), m.clipped_pct !== undefined ? `${Seleno.fmt.num(m.clipped_pct, 2)}%` : null]
+    ] : [[_('Measured'), _('Not yet')]]);
     const details = $('exifDetails');
     details.open = false;
     details.dataset.name = frame.name;
@@ -642,10 +645,10 @@ async function loadExif() {
     const box = $('exifSections');
     if (!details.open || !frame || box.childNodes.length) return;
     if (frame.kind !== 'jpeg') {
-        box.textContent = 'Only JPEGs have their details read here.';
+        box.textContent = _('Only JPEGs have their details read here.');
         return;
     }
-    box.textContent = 'Loading…';
+    box.textContent = _('Loading…');
     try {
         const data = await Seleno.api(`/album/photo/${encodeURIComponent(frame.name)}/metadata`);
         box.innerHTML = '';
@@ -656,7 +659,7 @@ async function loadExif() {
             box.appendChild(dl);
         });
     } catch (error) {
-        box.textContent = `Couldn't read the file: ${error.message}`;
+        box.textContent = _('Couldn\'t read the file: {message}', { message: error.message });
     }
 }
 
@@ -668,13 +671,13 @@ async function saveMeta() {
     const notes = $('inspectorNotes').value.trim();
     metaDirty = false;
     $('btnSaveMeta').disabled = true;
-    $('metaStatus').textContent = 'Saving…';
+    $('metaStatus').textContent = _('Saving…');
     try {
         await setFrames([frame], { target, notes });
-        if (inspected === frame.name) $('metaStatus').textContent = 'Saved';
+        if (inspected === frame.name) $('metaStatus').textContent = _('Saved');
     } catch (error) {
-        Seleno.toast(`Couldn't save the notes for ${frame.name}: ${error.message}`, 'bad');
-        if (inspected === frame.name) $('metaStatus').textContent = `Couldn't save: ${error.message}`;
+        Seleno.toast(_('Couldn\'t save the notes for {name}: {message}', { name: frame.name, message: error.message }), 'bad');
+        if (inspected === frame.name) $('metaStatus').textContent = _('Couldn\'t save: {message}', { message: error.message });
     }
 }
 
@@ -696,7 +699,7 @@ async function setFlag(frames, flag) {
     try {
         await setFrames(frames, { flag });
     } catch (error) {
-        Seleno.toast(`Couldn't change the flag: ${error.message}`, 'bad');
+        Seleno.toast(_('Couldn\'t change the flag: {message}', { message: error.message }), 'bad');
     }
 }
 
@@ -714,7 +717,10 @@ function postDownload(files, name) {
 async function deleteFrames(frames) {
     if (!frames.length) return;
     const rawCount = frames.filter(f => f.raw).length;
-    const question = `Delete ${frames.length} ${frames.length === 1 ? 'photo' : 'photos'}${rawCount ? ` (and ${rawCount} RAW ${rawCount === 1 ? 'file' : 'files'} with them)` : ''}? This can't be undone.`;
+    const what = frames.length === 1 ? _('1 photo') : _('{n} photos', { n: frames.length });
+    const raws = rawCount === 1 ? _('1 RAW file') : _('{n} RAW files', { n: rawCount });
+    const question = rawCount ? _("Delete {what} (and {raws} with them)? This can't be undone.", { what, raws })
+        : _("Delete {what}? This can't be undone.", { what });
     if (!confirm(question)) return;
     try {
         const response = await fetch('/album/photo/delete', {
@@ -723,40 +729,41 @@ async function deleteFrames(frames) {
             body: JSON.stringify({ files: frames.map(f => f.name) })
         });
         const data = await response.json();
-        if (data.failed && data.failed.length) Seleno.toast(`${data.failed.length} couldn't be deleted.`, 'warn');
+        if (data.failed && data.failed.length) Seleno.toast(_('{failed} couldn\'t be deleted.', { failed: data.failed.length }), 'warn');
         frames.forEach(f => state.selection.delete(f.name));
         if (frames.some(f => f.name === state.current)) state.current = null;
         await loadLibrary();
         renderPhotos();
     } catch (error) {
-        Seleno.toast(`Couldn't delete: ${error.message}`, 'bad');
+        Seleno.toast(_('Couldn\'t delete: {message}', { message: error.message }), 'bad');
     }
 }
 
 async function requestRaws(frames) {
     const files = frames.filter(f => f.kind === 'jpeg' && !f.raw).map(f => f.name);
     if (!files.length) {
-        Seleno.toast('Those photos already have their RAWs here.', 'ok');
+        Seleno.toast(_('Those photos already have their RAWs here.'), 'ok');
         return;
     }
     try {
         const data = await Seleno.api('/album/api/request_raws', { json: { files } });
         data.results.forEach(r => Seleno.toast(r.status === 'success'
-            ? `Asked ${r.telescope} for ${r.frames} RAW${r.frames === 1 ? '' : 's'}. They appear here as they arrive.`
-            : `${r.telescope || 'Telescope'}: ${r.message}`, r.status === 'success' ? 'ok' : 'warn', 7000));
-        if (data.skipped.length) Seleno.toast(`${data.skipped.length} didn't come from a telescope upload, so there's no RAW to ask for.`, 'warn');
+            ? (r.frames === 1 ? _('Asked {telescope} for 1 RAW. It appears here when it arrives.', { telescope: r.telescope })
+                    : _('Asked {telescope} for {n} RAWs. They appear here as they arrive.', { telescope: r.telescope, n: r.frames }))
+            : `${r.telescope || _('Telescope')}: ${r.message}`, r.status === 'success' ? 'ok' : 'warn', 7000));
+        if (data.skipped.length) Seleno.toast(_('{skipped} didn\'t come from a telescope upload, so there\'s no RAW to ask for.', { skipped: data.skipped.length }), 'warn');
     } catch (error) {
-        Seleno.toast(`Couldn't ask for the RAWs: ${error.message}`, 'bad');
+        Seleno.toast(_('Couldn\'t ask for the RAWs: {message}', { message: error.message }), 'bad');
     }
 }
 
 // Star counts, sizes and sky levels for the album, measured in this tab
 async function measureFrames(frames) {
-    if (!requireEngine('Measuring quality')) return;
+    if (!requireEngine(_('Measuring quality'))) return;
     const list = frames.filter(f => f.kind !== 'video');
     if (!list.length) return;
     const controller = new AbortController();
-    const job = startJob(`Measuring ${list.length} ${list.length === 1 ? 'photo' : 'photos'}`, { kind: 'measure', controller });
+    const job = startJob(list.length === 1 ? _('Measuring 1 photo') : _('Measuring {n} photos', { n: list.length }), { kind: 'measure', controller });
     try {
         const out = await engine.measure(list.map(f => ({ name: f.name, url: f.url, raw_url: f.raw_url, kind: f.kind })), {
             signal: controller.signal,
@@ -765,13 +772,16 @@ async function measureFrames(frames) {
         const good = Object.fromEntries(Object.entries(out).filter(([, m]) => m && !m.error));
         const failed = Object.entries(out).filter(([, m]) => !m || m.error);
         if (Object.keys(good).length) await Seleno.api('/album/api/metrics', { json: { metrics: good } });
-        job.finish(`${Object.keys(good).length} measured${failed.length ? `, ${failed.length} couldn't be` : ''}`);
-        if (failed.length) Seleno.toast(`Couldn't measure ${failed[0][0]}${failed.length > 1 ? ` and ${failed.length - 1} more` : ''}: ${failed[0][1] && failed[0][1].error}`, 'warn', 7000);
+        job.finish(failed.length ? _("{good} measured, {failed} couldn't be", { good: Object.keys(good).length, failed: failed.length })
+            : _('{good} measured', { good: Object.keys(good).length }));
+        if (failed.length) Seleno.toast(failed.length > 1
+            ? _("Couldn't measure {name} and {more} more: {error}", { name: failed[0][0], more: failed.length - 1, error: failed[0][1] && failed[0][1].error })
+            : _("Couldn't measure {name}: {error}", { name: failed[0][0], error: failed[0][1] && failed[0][1].error }), 'warn', 7000);
         await loadLibrary();
         renderPhotos();
     } catch (error) {
         job.fail(error);
-        if (error.name !== 'AbortError') Seleno.toast(`Measuring failed: ${error.message}`, 'bad');
+        if (error.name !== 'AbortError') Seleno.toast(_('Measuring failed: {message}', { message: error.message }), 'bad');
     }
 }
 
@@ -830,7 +840,7 @@ async function showView(view, options = {}) {
             if (options.photo) await openPhotoEditor(options.photo);
             else await openEditor(options.id);
         } catch (error) {
-            Seleno.toast(`Couldn't open that stack: ${error.message}`, 'bad');
+            Seleno.toast(_('Couldn\'t open that stack: {message}', { message: error.message }), 'bad');
             showView('stacks');
         }
     }
@@ -840,19 +850,19 @@ async function refreshStacks() {
     try {
         state.stacks = await loadStacks();
     } catch (error) {
-        Seleno.toast(`Couldn't load the stacks: ${error.message}`, 'bad');
+        Seleno.toast(_('Couldn\'t load the stacks: {message}', { message: error.message }), 'bad');
         return;
     }
     setStackCount(state.stacks.filter(s => s.state === 'ready').length);
     renderStackCards($('stackCards'), state.stacks, {
         onOpen: (stack) => showView('editor', { id: stack.id }),
         onDelete: async (stack) => {
-            if (!confirm(`Delete the stack "${stack.name}" and its master? The photos it came from stay.`)) return;
+            if (!confirm(_('Delete the stack "{name}" and its master? The photos it came from stay.', { name: stack.name }))) return;
             await deleteStack(stack.id);
             refreshStacks();
         },
         onRename: async (stack) => {
-            const name = prompt('New name', stack.name);
+            const name = prompt(_('New name'), stack.name);
             if (!name || name === stack.name) return;
             await updateStack(stack.id, { name });
             refreshStacks();
@@ -905,7 +915,7 @@ function wire() {
     $('btnSuggestLimits').addEventListener('click', suggestLimits);
     $('btnRejectByLimits').addEventListener('click', async () => {
         const over = Q.overLimits(currentFrames(), readLimits());
-        if (over.length && confirm(`Reject ${over.length} ${over.length === 1 ? 'frame' : 'frames'} over the limits?`)) await setFlag(over, 'reject');
+        if (over.length && confirm(over.length === 1 ? _('Reject 1 frame over the limits?') : _('Reject {n} frames over the limits?', { n: over.length }))) await setFlag(over, 'reject');
     });
 
     // Group header
@@ -915,7 +925,7 @@ function wire() {
     });
     $('btnStackGroup').addEventListener('click', () => {
         const frames = currentFrames();
-        stackFrames(frames.filter(Q.isLightLike), `Stack ${groupTitle(frames)}`);
+        stackFrames(frames.filter(Q.isLightLike), _('Stack {title}', { title: groupTitle(frames) }));
     });
 
     // Inspector
@@ -933,8 +943,8 @@ function wire() {
         select.appendChild(el('option', { value: '' }, placeholder));
         Q.SETTABLE_TYPES.forEach(t => select.appendChild(el('option', { value: t }, Q.TYPE_LABELS[t])));
     };
-    typeOptions($('inspectorType'), 'Not set');
-    typeOptions($('bulkType'), 'Choose…');
+    typeOptions($('inspectorType'), _('Not set'));
+    typeOptions($('bulkType'), _('Choose…'));
     $('inspectorType').addEventListener('change', (e) => {
         const f = state.byName.get(state.current);
         if (f) setFrames([f], { frame_type: e.target.value || null }).catch(error => Seleno.toast(error.message, 'bad'));
@@ -953,7 +963,7 @@ function wire() {
     $('btnDownloadOne').addEventListener('click', () => postDownload([state.current], state.current));
     $('btnEditPhoto').addEventListener('click', () => {
         const f = state.byName.get(state.current);
-        if (f && requireEngine('Editing a photo')) showView('editor', { photo: f });
+        if (f && requireEngine(_('Editing a photo'))) showView('editor', { photo: f });
     });
     $('btnLucky').addEventListener('click', () => {
         const f = state.byName.get(state.current);
@@ -977,12 +987,12 @@ function wire() {
         const videos = list.filter(f => f.kind === 'video');
         if (videos.length === 1 && list.length === 1) luckyFrames(videos);
         else if (list.filter(f => f.kind !== 'video').length >= 2) luckyFrames(list.filter(f => f.kind !== 'video'));
-        else Seleno.toast('Choose one video, or two or more photos of the Moon or a planet.', 'warn');
+        else Seleno.toast(_('Choose one video, or two or more photos of the Moon or a planet.'), 'warn');
     });
     $('btnBulkRaws').addEventListener('click', () => requestRaws(selectedFrames()));
     $('btnBulkDownload').addEventListener('click', () => postDownload([...state.selection], `${state.selection.size} photos`));
     $('btnBulkDelete').addEventListener('click', () => deleteFrames(selectedFrames()));
-    $('btnBulkStack').addEventListener('click', () => stackFrames(selectedFrames(), `Stack ${state.selection.size} photos`));
+    $('btnBulkStack').addEventListener('click', () => stackFrames(selectedFrames(), _('Stack {size} photos', { size: state.selection.size })));
 
     // Keys, in the photos view
     document.addEventListener('keydown', (e) => {
@@ -1017,7 +1027,7 @@ function wire() {
     onJobsChange(() => {
         const n = runningCount();
         const chip = $('activityChip');
-        chip.textContent = `${n} running`;
+        chip.textContent = _('{n} running', { n });
         chip.classList.toggle('ws-hidden', !n);
         if (state.view === 'activity') renderJobs($('jobList'), $('jobHistory'));
     });

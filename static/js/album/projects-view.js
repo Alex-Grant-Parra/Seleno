@@ -37,15 +37,21 @@ async function rebuild(summary, library, onSaved, refresh) {
     const project = await getProject(summary.id);
     const { batches, missing } = batchesFor(project, library);
     if (!batches.length) {
-        Seleno.toast("None of this project's frames are in the album any more, so it can't be re-stacked.", 'warn', 7000);
+        Seleno.toast(_("None of this project's frames are in the album any more, so it can't be re-stacked."), 'warn', 7000);
         return;
     }
     const resuming = project.rebuilding && project.rebuilding.done && project.rebuilding.done.length;
-    const message = `${resuming ? 'Carry on re-stacking' : 'Re-stack'} ${project.name} from scratch? ${project.frames_total} frames${missing ? ` (${missing} are no longer in the album and will be left out)` : ''}. ` +
-        "It runs in this tab a night at a time and saves a checkpoint after each, so it can carry on later if the tab closes. The project's current totals stay in use until it finishes.";
+    const v = { name: project.name, frames: project.frames_total, missing };
+    const question = resuming
+        ? (missing ? _('Carry on re-stacking {name} from scratch? {frames} frames ({missing} are no longer in the album and will be left out).', v)
+            : _('Carry on re-stacking {name} from scratch? {frames} frames.', v))
+        : (missing ? _('Re-stack {name} from scratch? {frames} frames ({missing} are no longer in the album and will be left out).', v)
+            : _('Re-stack {name} from scratch? {frames} frames.', v));
+    const message = question + ' ' +
+        _("It runs in this tab a night at a time and saves a checkpoint after each, so it can carry on later if the tab closes. The project's current totals stay in use until it finishes.");
     if (!confirm(message)) return;
     const controller = new AbortController();
-    const job = startJob(`Re-stacking ${project.name}`, { kind: 'stack', controller });
+    const job = startJob(_('Re-stacking {name}', { name: project.name }), { kind: 'stack', controller });
     await runAndSave(null, job, controller, onSaved, () => engine.rebuildProject(project.id, batches, {
         signal: controller.signal, onProgress: ({ fraction, message: m }) => job.update(fraction, m)
     }));
@@ -57,13 +63,13 @@ export async function renderProjects(box, { library, onOpenStack, onSaved }) {
     try {
         projects = await listProjects();
     } catch (error) {
-        box.textContent = `Couldn't load the projects: ${error.message}`;
+        box.textContent = _('Couldn\'t load the projects: {message}', { message: error.message });
         return;
     }
     const refresh = () => renderProjects(box, { library, onOpenStack, onSaved });
     box.innerHTML = '';
     if (!projects.length) {
-        box.appendChild(el('div', { className: 'ws-empty' }, 'No projects yet. In the stack dialog (Advanced), choose "Add to a project".'));
+        box.appendChild(el('div', { className: 'ws-empty' }, _('No projects yet. In the stack dialog (Advanced), choose "Add to a project".')));
         return;
     }
     projects.forEach(p => {
@@ -74,23 +80,23 @@ export async function renderProjects(box, { library, onOpenStack, onSaved }) {
                 el('b', {}, p.name),
                 p.target ? el('span', { className: 'ws-muted' }, ` · ${p.target}`) : null,
                 el('div', { className: 'ws-small ws-muted' }, [
-                    `${p.frames_total} frames`,
-                    p.exposure_total_s ? `${Seleno.fmt.duration(p.exposure_total_s)} of light` : null,
+                    _('{n} frames', { n: p.frames_total }),
+                    p.exposure_total_s ? _('{duration} of light', { duration: Seleno.fmt.duration(p.exposure_total_s) }) : null,
                     `${nights.length} ${nights.length === 1 ? 'night' : 'nights'}`,
                     `${p.width} × ${p.height}`,
-                    p.bytes_total ? `${Seleno.fmt.bytes(p.bytes_total)} on the server` : null
+                    p.bytes_total ? _('{size} on the server', { size: Seleno.fmt.bytes(p.bytes_total) }) : null
                 ].filter(Boolean).join(' · ')),
-                rebuilding ? el('div', { className: 'ws-small' }, `Re-stacking stopped at ${rebuilding.done.length} of ${rebuilding.total} frames: it can carry on.`) : null
+                rebuilding ? el('div', { className: 'ws-small' }, _('Re-stacking stopped at {done} of {total} frames: it can carry on.', { done: rebuilding.done.length, total: rebuilding.total })) : null
             ]),
             el('div', { className: 'ws-actions' }, [
-                p.stack_id ? el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => onOpenStack(p.stack_id) }, 'Open the result') : null,
-                el('button', { className: 'ws-btn sm', type: 'button', onclick: () => rebuild(p, library, onSaved, refresh) }, rebuilding ? 'Carry on re-stacking' : 'Re-stack from scratch'),
-                rebuilding ? el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: async () => { await cancelRebuild(p.id); refresh(); } }, 'Abandon re-stack') : null,
+                p.stack_id ? el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => onOpenStack(p.stack_id) }, _('Open the result')) : null,
+                el('button', { className: 'ws-btn sm', type: 'button', onclick: () => rebuild(p, library, onSaved, refresh) }, rebuilding ? _('Carry on re-stacking') : _('Re-stack from scratch')),
+                rebuilding ? el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: async () => { await cancelRebuild(p.id); refresh(); } }, _('Abandon re-stack')) : null,
                 el('button', { className: 'ws-btn sm ghost', type: 'button', onclick: async () => {
-                    if (!confirm(`Delete the project "${p.name}" and its totals? Its photos and saved stacks stay.`)) return;
+                    if (!confirm(_('Delete the project "{name}" and its totals? Its photos and saved stacks stay.', { name: p.name }))) return;
                     await deleteProject(p.id);
                     refresh();
-                } }, 'Delete')
+                } }, _('Delete'))
             ])
         ]));
     });

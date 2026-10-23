@@ -2,6 +2,14 @@
 // a 21 MP CR2 is about 25 MB, so bandwidth is usually the real limit, and stacking the
 // same night again with other settings shouldn't download it all again.
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 const CACHE_NAME = 'seleno-frames-v1';
 const DEFAULT_LIMIT = 8 * 1024 ** 3;
 
@@ -27,7 +35,7 @@ export async function fetchBytes(url, { cache = true, signal = null, onBytes = n
         }
     }
     const response = await fetch(url, { credentials: 'same-origin', signal });
-    if (!response.ok) throw new Error(`Couldn't download ${decodeURIComponent(url.split('/').pop().split('?')[0])} (${response.status})`);
+    if (!response.ok) throw new Error(_('Couldn\'t download {file} ({status})', { file: decodeURIComponent(url.split('/').pop().split('?')[0]), status: response.status }));
     let buffer;
     if (onBytes && response.body && response.body.getReader) {
         const reader = response.body.getReader();

@@ -9,25 +9,25 @@
     // What each kind of target wants. Exposures are starting points the test shot checks.
     const PRESETS = {
         moon: {
-            label: 'The Moon', exposure_s: 1 / 250, iso: 100, kind: 'bracket',
-            bracket: [1 / 1000, 1 / 250, 1 / 60], count: 5, countLabel: 'Brackets', unit: '× 3 exposures',
-            note: 'Short exposures freeze the turbulence. Each bracket is three exposures, so one of them is right whatever the phase.'
+            label: _('The Moon'), exposure_s: 1 / 250, iso: 100, kind: 'bracket',
+            bracket: [1 / 1000, 1 / 250, 1 / 60], count: 5, countLabel: _('Brackets'), unit: _('× 3 exposures'),
+            note: _('Short exposures freeze the turbulence. Each bracket is three exposures, so one of them is right whatever the phase.')
         },
         planet: {
-            label: 'A planet', exposure_s: 1 / 60, iso: 400, kind: 'video', count: 60, countLabel: 'Video length (s)', unit: 's',
-            note: 'Planets are small: zoom the live view in on it, then record a video. The album keeps the sharpest frames (lucky imaging).'
+            label: _('A planet'), exposure_s: 1 / 60, iso: 400, kind: 'video', count: 60, countLabel: _('Video length (s)'), unit: 's',
+            note: _('Planets are small: zoom the live view in on it, then record a video. The album keeps the sharpest frames (lucky imaging).')
         },
         bright: {
-            label: 'Bright nebula or cluster', exposure_s: 30, iso: 800, kind: 'light', count: 40, darks: 20, bias: 30,
-            countLabel: 'Photos', note: ''
+            label: _('Bright nebula or cluster'), exposure_s: 30, iso: 800, kind: 'light', count: 40, darks: 20, bias: 30,
+            countLabel: _('Photos'), note: ''
         },
         faint: {
-            label: 'Galaxy or faint nebula', exposure_s: 60, iso: 1600, kind: 'light', count: 60, darks: 20, bias: 30,
-            countLabel: 'Photos', note: 'A minute per photo needs steady tracking: the test shot checks the stars are round.'
+            label: _('Galaxy or faint nebula'), exposure_s: 60, iso: 1600, kind: 'light', count: 60, darks: 20, bias: 30,
+            countLabel: _('Photos'), note: _('A minute per photo needs steady tracking: the test shot checks the stars are round.')
         },
         star: {
-            label: 'A bright star', exposure_s: 2, iso: 200, kind: 'light', count: 30, darks: 10, bias: 30,
-            countLabel: 'Photos', note: 'Bright stars fill up fast: short exposures keep their colour, and split close doubles.'
+            label: _('A bright star'), exposure_s: 2, iso: 200, kind: 'light', count: 30, darks: 10, bias: 30,
+            countLabel: _('Photos'), note: _('Bright stars fill up fast: short exposures keep their colour, and split close doubles.')
         }
     };
     const STEPS = ['target', 'focus', 'exposure', 'capture'];
@@ -78,10 +78,10 @@
             btn.querySelector('.ws-badge').textContent = done && step !== current ? '✓' : String(STEPS.indexOf(step) + 1);
         });
         const note = (step, text) => { const n = document.querySelector(`[data-step-note="${step}"]`); if (n) n.textContent = text; };
-        note('target', currentTarget ? targetLabel(currentTarget) : "Pick something that's up tonight");
-        note('focus', session.focusDone ? 'Done' : 'Make the stars as small as they\'ll go');
-        note('exposure', session.exposureDone ? (session.preset ? PRESETS[session.preset].label : 'Done') : 'Take a test shot and read the checks');
-        note('capture', currentPlan ? `${currentPlan.name}: ${(currentPlan.last_status || {}).state || currentPlan.state}` : 'Set how many photos, then start');
+        note('target', currentTarget ? targetLabel(currentTarget) : _("Pick something that's up tonight"));
+        note('focus', session.focusDone ? _('Done') : _('Make the stars as small as they\'ll go'));
+        note('exposure', session.exposureDone ? (session.preset ? PRESETS[session.preset].label : _('Done')) : _('Take a test shot and read the checks'));
+        note('capture', currentPlan ? _('{name}: {state}', { name: currentPlan.name, state: (currentPlan.last_status || {}).state || currentPlan.state }) : _('Set how many photos, then start'));
     }
 
     function targetLabel(target) {
@@ -102,7 +102,7 @@
         if (currentTarget.designation && currentTarget.designation !== currentTarget.name) desc.push(currentTarget.name);
         else if (currentTarget.common) desc.push(currentTarget.common);
         if (currentTarget.kind) desc.push(currentTarget.kind);
-        if (currentTarget.size_arcmin) desc.push(`${currentTarget.size_arcmin >= 1 ? Math.round(currentTarget.size_arcmin) + '′' : Math.round(currentTarget.size_arcmin * 60) + '″'} across`);
+        if (currentTarget.size_arcmin) desc.push(_('{size} across', { size: currentTarget.size_arcmin >= 1 ? Math.round(currentTarget.size_arcmin) + '′' : Math.round(currentTarget.size_arcmin * 60) + '″' }));
         $('basicTargetDesc').textContent = desc.join(' · ');
         const isTracking = tracking && tracking.name && sameTarget(tracking, currentTarget);
         $('btnGotoTarget').classList.toggle('ws-hidden', !!isTracking);
@@ -112,14 +112,14 @@
         const sky = latestSky && latestSky.target;
         if (!latestSky || !latestSky.site) {
             ['basicTargetAlt', 'basicTargetBest', 'basicTargetAbove', 'basicTargetMoon'].forEach(id => { $(id).textContent = '—'; });
-            setVerdict('off', latestSky && latestSky.message ? "The telescope's location isn't set" : 'Checking the sky…');
+            setVerdict('off', latestSky && latestSky.message ? _("The telescope's location isn't set") : _('Checking the sky…'));
             return;
         }
         if (!sky) return;
-        $('basicTargetAlt').textContent = `${Math.round(sky.alt)}° and ${sky.rising ? 'rising' : 'sinking'}`;
-        $('basicTargetBest').textContent = sky.best_time ? `${Seleno.fmt.time(sky.best_time)} at ${Math.round(sky.best_alt)}°` : '—';
-        $('basicTargetAbove').textContent = sky.minutes_above ? `${Seleno.fmt.duration(sky.minutes_above * 60)} more` : 'Not tonight';
-        $('basicTargetMoon').textContent = `${Math.round(latestSky.moon.illumination * 100)}% lit, ${Math.round(sky.moon_separation)}° away`;
+        $('basicTargetAlt').textContent = sky.rising ? _('{alt}° and rising', { alt: Math.round(sky.alt) }) : _('{alt}° and sinking', { alt: Math.round(sky.alt) });
+        $('basicTargetBest').textContent = sky.best_time ? _('{bestTime} at {bestAlt}°', { bestTime: Seleno.fmt.time(sky.best_time), bestAlt: Math.round(sky.best_alt) }) : '—';
+        $('basicTargetAbove').textContent = sky.minutes_above ? _('{duration} more', { duration: Seleno.fmt.duration(sky.minutes_above * 60) }) : _('Not tonight');
+        $('basicTargetMoon').textContent = _('{illumination}% lit, {moonSeparation}° away', { illumination: Math.round(latestSky.moon.illumination * 100), moonSeparation: Math.round(sky.moon_separation) });
         setVerdict(sky.verdict[0], sky.verdict[1]);
     }
 
@@ -132,6 +132,7 @@
     function sameTarget(a, b) {
         const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, '');
         return norm(a.name) === norm(b.name) || norm(a.name) === norm(b.designation) ||
+            (b.track_name && norm(a.name) === norm(b.track_name)) ||
             (a.ra !== undefined && b.ra !== undefined && Math.abs(Number(a.ra) - Number(b.ra)) < 0.05 && Math.abs(Number(a.dec) - Number(b.dec)) < 0.05);
     }
 
@@ -147,20 +148,20 @@
 
     function describeTargetPlacement(t) {
         if (t.alt === undefined) return t.kind || '';
-        if (t.never_rises) return "Never rises from this telescope's site";
+        if (t.never_rises) return _("Never rises from this telescope's site");
         if (t.good_tonight === false) {
-            if (t.best_alt === null || t.best_alt < 30) return `Not good tonight: ${t.best_alt === null ? 'not up while it is dark' : `only reaches ${Math.max(0, Math.round(t.best_alt))}° while it is dark`}`;
-            return 'Not good tonight: high for under an hour while it is dark';
+            if (t.best_alt === null || t.best_alt < 30) return _('Not good tonight: {dark}', { dark: t.best_alt === null ? _('not up while it is dark') : _('only reaches {bestAlt}° while it is dark', { bestAlt: Math.max(0, Math.round(t.best_alt)) }) });
+            return _('Not good tonight: high for under an hour while it is dark');
         }
-        if (t.alt >= 20) return `${Math.round(t.alt)}° now and ${t.rising ? 'rising' : 'sinking'}`;
-        if (t.best_alt !== null && t.best_alt >= 25 && t.best_time) return `Up later: best ${Seleno.fmt.time(t.best_time)} at ${Math.round(t.best_alt)}°`;
-        if (t.alt > 0) return `Low (${Math.round(t.alt)}°)`;
-        return 'Not well placed tonight';
+        if (t.alt >= 20) return t.rising ? _('{alt}° now and rising', { alt: Math.round(t.alt) }) : _('{alt}° now and sinking', { alt: Math.round(t.alt) });
+        if (t.best_alt !== null && t.best_alt >= 25 && t.best_time) return _('Up later: best {bestTime} at {bestAlt}°', { bestTime: Seleno.fmt.time(t.best_time), bestAlt: Math.round(t.best_alt) });
+        if (t.alt > 0) return _('Low ({alt}°)', { alt: Math.round(t.alt) });
+        return _('Not well placed tonight');
     }
 
     function openPicker() {
         if (!selectedTelescopeId) {
-            Seleno.toast('Choose a telescope first (top left).', 'warn');
+            Seleno.toast(_('Choose a telescope first (top left).'), 'warn');
             return;
         }
         const modal = bootstrap.Modal.getOrCreateInstance($('targetPickerModal'));
@@ -168,12 +169,12 @@
         const list = $('targetList');
         const note = $('pickerNote');
         list.innerHTML = '';
-        note.textContent = "Loading what's up tonight…";
+        note.textContent = _("Loading what's up tonight…");
         loadTargets().then(data => {
             if (!data) return;
             note.textContent = data.site
-                ? `Sorted by how well placed they are tonight${data.night && data.night.start ? ` (dark ${Seleno.fmt.time(data.night.start)} – ${Seleno.fmt.time(data.night.end)})` : ''}.`
-                : "The telescope's location isn't set, so the list can't say what's up. Its owner can set it on the telescope's settings page.";
+                ? _('Sorted by how well placed they are tonight{end}.', { end: data.night && data.night.start ? _(' (dark {start} – {end})', { start: Seleno.fmt.time(data.night.start), end: Seleno.fmt.time(data.night.end) }) : '' })
+                : _("The telescope's location isn't set, so the list can't say what's up. Its owner can set it on the telescope's settings page.");
             data.targets.forEach(t => {
                 const dim = t.good_tonight === false;
                 const verdict = t.verdict || ['off', ''];
@@ -186,31 +187,32 @@
                         el('span', { className: 'ws-small' }, describeTargetPlacement(t)),
                         t.blurb ? el('span', { className: 'ws-small ws-muted' }, t.blurb) : null
                     ]),
-                    t.wiki ? el('a', { className: 'ws-small ws-pick-link', href: t.wiki, target: '_blank', rel: 'noopener' }, 'Read about it on Wikipedia ↗') : null
+                    t.wiki ? el('a', { className: 'ws-small ws-pick-link', href: t.wiki, target: '_blank', rel: 'noopener' }, _('Read about it on Wikipedia ↗')) : null
                 ]));
             });
-        }).catch(error => { note.textContent = `Couldn't load targets: ${error.message}`; });
+        }).catch(error => { note.textContent = _('Couldn\'t load targets: {message}', { message: error.message }); });
     }
 
     function pickerSearch() {
         const text = $('pickerSearch').value.trim();
         const box = $('pickerSearchResult');
         if (!text) return;
-        box.textContent = 'Searching…';
+        box.textContent = _('Searching…');
         searchCatalogue(text).then(star => {
             if (!star) {
-                box.textContent = `Nothing called “${text}” in the catalogue.`;
+                box.textContent = _('Nothing called “{text}” in the catalogue.', { text });
                 return;
             }
             renderSearchResult(box, star, target => [
-                el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => chooseTarget({ ...target, preset: null }) }, 'Choose this')
+                el('button', { className: 'ws-btn sm primary', type: 'button', onclick: () => chooseTarget({ ...target, preset: null }) }, _('Choose this'))
             ]);
-        }).catch(() => { box.textContent = 'The search failed.'; });
+        }).catch(() => { box.textContent = _('The search failed.'); });
     }
 
     function chooseTarget(t) {
         const target = {
             name: t.name,
+            track_name: t.track_name || '',
             designation: t.designation || t.name,
             common: t.common || '',
             kind: t.kind || '',
@@ -227,11 +229,11 @@
         saveSession();
         setCurrentTarget(target);
         if (telescopeAccess.control && (t.alt === undefined || t.alt > 0)) {
-            goToTarget(target).then(ok => { if (ok) Seleno.toast(`Going to ${target.designation}. The mount tracks it once it gets there.`, 'ok'); });
+            goToTarget(target).then(ok => { if (ok) Seleno.toast(_('Going to {designation}. The mount tracks it once it gets there.', { designation: target.designation }), 'ok'); });
         } else if (!telescopeAccess.control) {
-            Seleno.toast("You can't move this telescope now: that needs a booking that covers now.", 'warn');
+            Seleno.toast(_("You can't move this telescope now: that needs a booking that covers now."), 'warn');
         } else {
-            Seleno.toast(`${target.designation} is below the horizon. Go to it once it has risen.`, 'warn');
+            Seleno.toast(_('{designation} is below the horizon. Go to it once it has risen.', { designation: target.designation }), 'warn');
         }
     }
 
@@ -293,14 +295,14 @@
         const note = $('presetNote');
         $('btnTestShot').disabled = !session.preset || !telescopeAccess.control;
         if (!session.preset) {
-            line.textContent = 'Choose one above';
+            line.textContent = _('Choose one above');
             note.textContent = '';
             return;
         }
         const { preset, shutter, iso, format } = presetSettings(session.preset);
-        line.textContent = [Seleno.fmt.exposure(shutter.exposure_s), `ISO ${iso}`, format ? 'RAW + JPEG' : ''].filter(Boolean).join(' · ');
+        line.textContent = [Seleno.fmt.exposure(shutter.exposure_s), _('ISO {iso}', { iso }), format ? 'RAW + JPEG' : ''].filter(Boolean).join(' · ');
         note.textContent = preset.note || '';
-        $('btnTestShot').textContent = `Take a ${Seleno.fmt.exposure(shutter.exposure_s)} test shot`;
+        $('btnTestShot').textContent = _('Take a {exposureS} test shot', { exposureS: Seleno.fmt.exposure(shutter.exposure_s) });
         renderCaptureForm();
     }
 
@@ -336,33 +338,33 @@
         const out = [];
         if (!m) return out;
         if (m.stars !== undefined && m.stars !== null && m.stars < 5) {
-            out.push({ level: 'bad', title: 'Hardly any stars', detail: 'Clouds, the cover still on, badly out of focus, or a target with no stars (the Moon or a planet).' });
+            out.push({ level: 'bad', title: _('Hardly any stars'), detail: _('Clouds, the cover still on, badly out of focus, or a target with no stars (the Moon or a planet).') });
             return out;
         }
         if (m.ecc !== undefined && m.ecc !== null) {
-            if (m.ecc < 0.45) out.push({ level: 'ok', title: 'Stars are round', detail: `Tracking is steady (eccentricity ${m.ecc.toFixed(2)}).` });
-            else if (m.ecc < 0.6) out.push({ level: 'warn', title: 'Stars are slightly stretched', detail: `Eccentricity ${m.ecc.toFixed(2)}. A shorter exposure, a better polar alignment or less wind helps.` });
-            else out.push({ level: 'bad', title: 'Stars are trailing', detail: `Eccentricity ${m.ecc.toFixed(2)}. Check the mount is tracking and polar aligned, or shorten the exposure.` });
+            if (m.ecc < 0.45) out.push({ level: 'ok', title: _('Stars are round'), detail: _('Tracking is steady (eccentricity {ecc}).', { ecc: m.ecc.toFixed(2) }) });
+            else if (m.ecc < 0.6) out.push({ level: 'warn', title: _('Stars are slightly stretched'), detail: _('Eccentricity {ecc}. A shorter exposure, a better polar alignment or less wind helps.', { ecc: m.ecc.toFixed(2) }) });
+            else out.push({ level: 'bad', title: _('Stars are trailing'), detail: _('Eccentricity {ecc}. Check the mount is tracking and polar aligned, or shorten the exposure.', { ecc: m.ecc.toFixed(2) }) });
         }
         if (m.fwhm !== undefined && m.fwhm !== null) {
             let size = `${m.fwhm.toFixed(1)} px`;
             if (pixelScaleArcsec) size += ` (${(m.fwhm * pixelScaleArcsec).toFixed(1)}″)`;
-            if (m.fwhm <= 4.0) out.push({ level: 'ok', title: 'In focus', detail: `Stars are ${size} across.` });
-            else if (m.fwhm <= 6.5) out.push({ level: 'warn', title: 'Focus could be sharper', detail: `Stars are ${size} across. Seeing may be poor, or refocus with the focus helper.` });
-            else out.push({ level: 'bad', title: 'Out of focus', detail: `Stars are ${size} across. Refocus before capturing.` });
+            if (m.fwhm <= 4.0) out.push({ level: 'ok', title: _('In focus'), detail: _('Stars are {size} across.', { size }) });
+            else if (m.fwhm <= 6.5) out.push({ level: 'warn', title: _('Focus could be sharper'), detail: _('Stars are {size} across. Seeing may be poor, or refocus with the focus helper.', { size }) });
+            else out.push({ level: 'bad', title: _('Out of focus'), detail: _('Stars are {size} across. Refocus before capturing.', { size }) });
         }
         const bg = m.background_display;
         if (bg !== undefined && bg !== null) {
             const pct = Math.round(bg * 100);
-            if (bg < 0.08) out.push({ level: 'warn', title: 'Underexposed', detail: `The sky sits at ${pct}% of the histogram. Expose longer or raise the ISO so faint detail clears the noise.` });
-            else if (bg > 0.55) out.push({ level: 'bad', title: 'Overexposed', detail: `The sky sits at ${pct}%. Shorten the exposure or lower the ISO; light pollution or twilight may be washing it out.` });
-            else out.push({ level: 'ok', title: 'Exposure is right', detail: `The sky sits at ${pct}% of the histogram.` });
+            if (bg < 0.08) out.push({ level: 'warn', title: _('Underexposed'), detail: _('The sky sits at {pct}% of the histogram. Expose longer or raise the ISO so faint detail clears the noise.', { pct }) });
+            else if (bg > 0.55) out.push({ level: 'bad', title: _('Overexposed'), detail: _('The sky sits at {pct}%. Shorten the exposure or lower the ISO; light pollution or twilight may be washing it out.', { pct }) });
+            else out.push({ level: 'ok', title: _('Exposure is right'), detail: _('The sky sits at {pct}% of the histogram.', { pct }) });
         }
         const clipped = m.clipped_pct || 0;
         const n = m.stars || 0;
-        if (clipped > 0.5) out.push({ level: 'bad', title: 'Highlights are clipped', detail: `${clipped.toFixed(2)}% of the picture is pure white. Shorten the exposure.` });
-        else if (n && (m.saturated_stars || 0) > 0.1 * n) out.push({ level: 'warn', title: 'Many bright stars are clipped', detail: 'Normal for long exposures; shorten it if star colour matters.' });
-        else if (m.clipped_pct !== undefined) out.push({ level: 'ok', title: 'Nothing important is clipped', detail: `${clipped.toFixed(2)}% of pixels at full brightness.` });
+        if (clipped > 0.5) out.push({ level: 'bad', title: _('Highlights are clipped'), detail: _('{clipped}% of the picture is pure white. Shorten the exposure.', { clipped: clipped.toFixed(2) }) });
+        else if (n && (m.saturated_stars || 0) > 0.1 * n) out.push({ level: 'warn', title: _('Many bright stars are clipped'), detail: _('Normal for long exposures; shorten it if star colour matters.') });
+        else if (m.clipped_pct !== undefined) out.push({ level: 'ok', title: _('Nothing important is clipped'), detail: _('{clipped}% of pixels at full brightness.', { clipped: clipped.toFixed(2) }) });
         return out;
     }
 
@@ -411,9 +413,9 @@
     }
 
     function verdictOf(checks) {
-        if (checks.some(c => c.level === 'bad')) return ['bad', 'Needs fixing', 'Fix what the red check says, then take another test shot.'];
-        if (checks.some(c => c.level === 'warn')) return ['warn', 'Nearly there', 'Worth a look, but you can capture with this.'];
-        return ['ok', 'Looks good', "You're ready to capture."];
+        if (checks.some(c => c.level === 'bad')) return ['bad', _('Needs fixing'), _('Fix what the red check says, then take another test shot.')];
+        if (checks.some(c => c.level === 'warn')) return ['warn', _('Nearly there'), _('Worth a look, but you can capture with this.')];
+        return ['ok', _('Looks good'), _("You're ready to capture.")];
     }
 
     async function showTestShot(frame) {
@@ -423,7 +425,7 @@
         $('testShotTime').textContent = Seleno.fmt.time(frame.captured_at || frame.uploaded_at);
         $('testShotThumb').src = frame.thumb;
         $('testShotLink').href = `/album?frame=${encodeURIComponent(frame.name)}`;
-        $('testShotVerdict').textContent = 'Checking…';
+        $('testShotVerdict').textContent = _('Checking…');
         $('testShotVerdictSub').textContent = '';
         let metrics = frame.metrics;
         let partial = false;
@@ -440,7 +442,7 @@
         }
         const checks = frameChecks(metrics);
         if (partial) {
-            checks.push({ level: 'off', title: 'Star shape and focus not measured yet', detail: 'Measuring stars arrives with in-browser processing. Meanwhile zoom into the test shot in the album to check they look round and sharp.' });
+            checks.push({ level: 'off', title: _('Star shape and focus not measured yet'), detail: _('Measuring stars arrives with in-browser processing. Meanwhile zoom into the test shot in the album to check they look round and sharp.') });
         }
         renderChecks($('testShotChecks'), checks);
         renderChecks($('lastFrameChecks'), checks);
@@ -468,17 +470,17 @@
         const sinceIso = new Date(requestedAt + serverClockOffsetMs - 5000).toISOString();
         pendingTest = { since: sinceIso, deadline: requestedAt + (exposure + 180) * 1000 };
         let countdown = Math.ceil(exposure);
-        btn.textContent = `Exposing… ${countdown} s`;
+        btn.textContent = _('Exposing… {countdown} s', { countdown });
         const timer = setInterval(() => {
             countdown -= 1;
-            btn.textContent = countdown > 0 ? `Exposing… ${countdown} s` : 'Waiting for the photo to arrive…';
+            btn.textContent = countdown > 0 ? _('Exposing… {countdown} s', { countdown }) : _('Waiting for the photo to arrive…');
         }, 1000);
         start
             .then(() => takePhoto(settings ? { shutter: settings.shutter.shutter, exposure_s: settings.shutter.exposure_s, frame_type: 'test' } : { frame_type: 'test' }))
             .then(() => waitForTestShot())
             .catch(error => {
                 pendingTest = null;
-                if (error.message !== 'Bad exposure') Seleno.toast(`The test shot failed: ${error.message}`, 'bad');
+                if (error.message !== 'Bad exposure') Seleno.toast(_('The test shot failed: {message}', { message: error.message }), 'bad');
             })
             .finally(() => {
                 clearInterval(timer);
@@ -493,7 +495,7 @@
             const tick = () => {
                 if (!pendingTest) return resolve(null);
                 if (Date.now() > pendingTest.deadline) {
-                    Seleno.toast("The test shot hasn't arrived yet. It may still be uploading; it'll show up in the album.", 'warn', 7000);
+                    Seleno.toast(_("The test shot hasn't arrived yet. It may still be uploading; it'll show up in the album."), 'warn', 7000);
                     pendingTest = null;
                     return resolve(null);
                 }
@@ -518,7 +520,7 @@
 
     function nightLabel(date = new Date()) {
         const evening = new Date(date.getTime() - 12 * 3600 * 1000);
-        return evening.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        return evening.toLocaleDateString(Seleno.locale(), { day: 'numeric', month: 'short' });
     }
 
     function buildPlan() {
@@ -529,7 +531,7 @@
         const label = currentTarget.designation || currentTarget.name;
         const isTracking = tracking && tracking.name && sameTarget(tracking, currentTarget);
         if (!isTracking) {
-            if (currentTarget.moving) steps.push({ type: 'goto', target: currentTarget.name });
+            if (currentTarget.moving) steps.push({ type: 'goto', target: currentTarget.track_name || currentTarget.name });
             else steps.push({ type: 'goto', name: label, ra: Number(currentTarget.ra), dec: Number(currentTarget.dec), centre: true });
         }
         const camera = { iso };
@@ -563,7 +565,7 @@
         $('capDarksRow').classList.toggle('ws-hidden', !light);
         $('capBiasRow').classList.toggle('ws-hidden', !light);
         $('capDitherRow').classList.toggle('ws-hidden', !light);
-        $('capCountLabel').textContent = preset ? preset.countLabel : 'Photos';
+        $('capCountLabel').textContent = preset ? preset.countLabel : _('Photos');
         if (preset) {
             $('capDarkCount').textContent = preset.darks || 20;
             $('capBiasCount').textContent = preset.bias || 30;
@@ -583,57 +585,60 @@
         const line = $('capEstimate');
         const plan = buildPlan();
         if (!plan) {
-            line.textContent = !currentTarget ? 'Choose a target first.' : 'Choose what you are photographing first.';
+            line.textContent = !currentTarget ? _('Choose a target first.') : _('Choose what you are photographing first.');
             return;
         }
         Seleno.api('/interface/capture/estimate', { json: { plan, telescope_id: selectedTelescopeId } })
             .then(data => {
                 const est = data.estimate;
-                const parts = [`About ${Seleno.fmt.duration(est.seconds)} and ${Seleno.fmt.bytes(est.bytes)}.`];
+                const parts = [_('About {seconds} and {bytes}.', { seconds: Seleno.fmt.duration(est.seconds), bytes: Seleno.fmt.bytes(est.bytes) })];
                 const endsAt = Date.now() + est.seconds * 1000;
                 const booking = latestStatus && latestStatus.booking;
                 const next = latestStatus && latestStatus.next_booking_start;
                 if (booking && booking.end) {
                     const end = new Date(booking.end).getTime();
-                    parts.push(endsAt > end ? `That runs past your booking (ends ${Seleno.fmt.time(end)}): take fewer photos.`
-                        : end - endsAt > 20 * 60 * 1000 ? 'Ends well before your booking does.' : `Ends just before your booking (${Seleno.fmt.time(end)}).`);
+                    parts.push(endsAt > end ? _('That runs past your booking (ends {end}): take fewer photos.', { end: Seleno.fmt.time(end) })
+                        : end - endsAt > 20 * 60 * 1000 ? _('Ends well before your booking does.') : _('Ends just before your booking ({end}).', { end: Seleno.fmt.time(end) }));
                 } else if (next && endsAt > new Date(next).getTime()) {
-                    parts.push(`Someone's booking starts at ${Seleno.fmt.time(next)}; the plan stops then.`);
+                    parts.push(_('Someone\'s booking starts at {next}; the plan stops then.', { next: Seleno.fmt.time(next) }));
                 }
                 const target = latestSky && latestSky.target;
                 if (target && target.above_to && endsAt > new Date(target.above_to).getTime() + 10 * 60 * 1000) {
-                    parts.push(`${currentTarget.designation || currentTarget.name} drops below 30° at ${Seleno.fmt.time(target.above_to)}.`);
+                    parts.push(_('{name} drops below 30° at {aboveTo}.', { name: currentTarget.designation || currentTarget.name, aboveTo: Seleno.fmt.time(target.above_to) }));
                 }
                 if (data.errors && data.errors.length) parts.push(data.errors[0]);
                 line.textContent = parts.join(' ');
             })
-            .catch(error => { line.textContent = `Couldn't estimate: ${error.message}`; });
+            .catch(error => { line.textContent = _('Couldn\'t estimate: {message}', { message: error.message }); });
     }
 
     function startCapture() {
         const plan = buildPlan();
         if (!plan) return;
         if (!session.focusDone || !session.exposureDone) {
-            const missing = [!session.focusDone ? 'focused' : null, !session.exposureDone ? 'checked a test shot' : null].filter(Boolean).join(' or ');
-            if (!confirm(`You haven't ${missing} yet. Start capturing anyway?`)) return;
+            const question = !session.focusDone && !session.exposureDone
+                ? _("You haven't focused or checked a test shot yet. Start capturing anyway?")
+                : !session.focusDone ? _("You haven't focused yet. Start capturing anyway?")
+                : _("You haven't checked a test shot yet. Start capturing anyway?");
+            if (!confirm(question)) return;
         }
         const btn = $('btnStartCapture');
         btn.disabled = true;
-        btn.textContent = 'Starting…';
+        btn.textContent = _('Starting…');
         Seleno.api('/interface/capture/start', { json: { plan, telescope_id: selectedTelescopeId } })
             .then(data => {
-                logLine(`✓ started plan ${plan.name}`, 'ok');
-                Seleno.toast('Capturing. It keeps going if you close this page.', 'ok', 6000);
+                logLine(_('✓ started plan {name}', { name: plan.name }), 'ok');
+                Seleno.toast(_('Capturing. It keeps going if you close this page.'), 'ok', 6000);
                 renderPlan(data.plan);
                 pollTelescopeStatus();
                 loadPlanHistory();
             })
             .catch(error => {
                 const errors = error.body && error.body.errors;
-                Seleno.toast(`Couldn't start: ${errors && errors.length ? errors.join('; ') : error.message}`, 'bad', 8000);
+                Seleno.toast(_('Couldn\'t start: {message}', { message: errors && errors.length ? errors.join('; ') : error.message }), 'bad', 8000);
             })
             .finally(() => {
-                btn.textContent = 'Start capturing';
+                btn.textContent = _('Start capturing');
                 renderCaptureForm();
             });
     }
@@ -664,15 +669,15 @@
         const sub = $('focusAdviceSub');
         if (!liveViewActive) {
             $('focusHfrBig').textContent = '—';
-            advice.textContent = 'Start live view, then click a bright star to zoom in on it.';
-            sub.textContent = 'Turn the focuser slowly. Smaller is sharper; the green dot marks the best point.';
+            advice.textContent = _('Start live view, then click a bright star to zoom in on it.');
+            sub.textContent = _('Turn the focuser slowly. Smaller is sharper; the green dot marks the best point.');
             Seleno.sparkline($('focusSpark'), [{ values: [] }]);
             return;
         }
         if (!result || result.hfr === null) {
             $('focusHfrBig').textContent = '—';
-            advice.textContent = 'No stars found in the picture.';
-            sub.textContent = liveZoom > 1 ? 'Point at a brighter star, or check the cover is off.' : 'Click a bright star to zoom in on it.';
+            advice.textContent = _('No stars found in the picture.');
+            sub.textContent = liveZoom > 1 ? _('Point at a brighter star, or check the cover is off.') : _('Click a bright star to zoom in on it.');
             return;
         }
         const values = history.map(e => e.hfr);
@@ -687,23 +692,23 @@
         const before = n >= 6 ? mean(values.slice(n - 6, n - 3)) : null;
         const bestValue = values[best];
         if (n < 4) {
-            advice.textContent = 'Measuring…';
-            sub.textContent = 'Turn the focuser slowly one way and watch the number.';
+            advice.textContent = _('Measuring…');
+            sub.textContent = _('Turn the focuser slowly one way and watch the number.');
         } else if (now <= bestValue * 1.04) {
-            advice.textContent = `That's the sharpest so far: ${bestValue.toFixed(1)} px.`;
-            sub.textContent = 'Keep turning slowly the same way; if it grows again, come back to here.';
+            advice.textContent = _('That\'s the sharpest so far: {bestValue} px.', { bestValue: bestValue.toFixed(1) });
+            sub.textContent = _('Keep turning slowly the same way; if it grows again, come back to here.');
         } else if (best < n - 3 && now > bestValue * 1.12 && recent > before) {
-            advice.textContent = `Best so far ${bestValue.toFixed(1)} px. You've just gone past it.`;
-            sub.textContent = 'Turn the focuser back slowly. Smaller is sharper; the green dot marks the best point.';
+            advice.textContent = _('Best so far {bestValue} px. You\'ve just gone past it.', { bestValue: bestValue.toFixed(1) });
+            sub.textContent = _('Turn the focuser back slowly. Smaller is sharper; the green dot marks the best point.');
         } else if (recent !== null && recent < before * 0.97) {
-            advice.textContent = 'Getting smaller: keep turning the same way.';
-            sub.textContent = `Best so far ${bestValue.toFixed(1)} px.`;
+            advice.textContent = _('Getting smaller: keep turning the same way.');
+            sub.textContent = _('Best so far {bestValue} px.', { bestValue: bestValue.toFixed(1) });
         } else if (recent !== null && recent > before * 1.03) {
-            advice.textContent = 'Getting bigger: turn the other way.';
-            sub.textContent = `Best so far ${bestValue.toFixed(1)} px.`;
+            advice.textContent = _('Getting bigger: turn the other way.');
+            sub.textContent = _('Best so far {bestValue} px.', { bestValue: bestValue.toFixed(1) });
         } else {
-            advice.textContent = `Steady at ${now.toFixed(1)} px.`;
-            sub.textContent = `Best so far ${bestValue.toFixed(1)} px. Small turns, then wait a moment for the picture to settle.`;
+            advice.textContent = _('Steady at {now} px.', { now: now.toFixed(1) });
+            sub.textContent = _('Best so far {bestValue} px. Small turns, then wait a moment for the picture to settle.', { bestValue: bestValue.toFixed(1) });
         }
     }
 
@@ -771,7 +776,7 @@
         $('basicCoverBtn').addEventListener('click', () => planControl('resume'));
         $('basicPauseBtn').addEventListener('click', () => planControl('pause'));
         $('basicResumeBtn').addEventListener('click', () => planControl('resume'));
-        $('basicStopBtn').addEventListener('click', () => { if (confirm('Stop capturing?')) planControl('stop'); });
+        $('basicStopBtn').addEventListener('click', () => { if (confirm(_('Stop capturing?'))) planControl('stop'); });
         renderBasicFocus(null);
         refreshAll();
     });

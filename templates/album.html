@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Album - SELENO{% endblock %}
+{% block title %}{{ _('Album - SELENO') }}{% endblock %}
 {% block body_class %}ws-page album-page{% endblock %}
 
 {% block extra_css %}
@@ -41,17 +41,17 @@
 
 {% block content %}
 <div class="ws-toolbar">
-    <h1 class="ws-title">Album</h1>
-    <div class="ws-tabs" role="tablist" aria-label="Album" style="margin:0;border:0">
-        <button class="ws-tab on" type="button" role="tab" aria-selected="true" data-view="photos">Photos</button>
-        <button class="ws-tab" type="button" role="tab" aria-selected="false" data-view="stacks">Stacked images <span class="ws-chip ws-hidden" id="stackCountChip" style="padding:1px 7px"></span></button>
-        <button class="ws-tab" type="button" role="tab" aria-selected="false" data-view="activity">Activity <span class="ws-chip ws-hidden" id="activityChip" style="padding:1px 7px"></span></button>
+    <h1 class="ws-title">{{ _('Album') }}</h1>
+    <div class="ws-tabs" role="tablist" aria-label="{{ _('Album') }}" style="margin:0;border:0">
+        <button class="ws-tab on" type="button" role="tab" aria-selected="true" data-view="photos">{{ _('Photos') }}</button>
+        <button class="ws-tab" type="button" role="tab" aria-selected="false" data-view="stacks">{{ _('Stacked images') }} <span class="ws-chip ws-hidden" id="stackCountChip" style="padding:1px 7px"></span></button>
+        <button class="ws-tab" type="button" role="tab" aria-selected="false" data-view="activity">{{ _('Activity') }} <span class="ws-chip ws-hidden" id="activityChip" style="padding:1px 7px"></span></button>
     </div>
     <div class="ws-toolbar-end">
         <span class="ws-small ws-muted" id="libraryStatus"></span>
-        <div class="ws-seg" role="group" aria-label="Album mode" data-mode-toggle>
-            <button type="button" data-mode="basic">Basic</button>
-            <button type="button" data-mode="advanced">Advanced</button>
+        <div class="ws-seg" role="group" aria-label="{{ _('Album mode') }}" data-mode-toggle>
+            <button type="button" data-mode="basic">{{ _('Basic') }}</button>
+            <button type="button" data-mode="advanced">{{ _('Advanced') }}</button>
         </div>
     </div>
 </div>
@@ -59,54 +59,54 @@
 <!-- Photos -->
 <section class="ws-view" id="viewPhotos">
     <div class="ws-subbar adv-only">
-        <span class="ws-muted ws-small ws-strong">Group by</span>
-        <div class="ws-seg sm" role="group" aria-label="Group by" id="groupBySeg">
-            <button type="button" data-group-by="night" class="on">Night</button>
-            <button type="button" data-group-by="target">Target</button>
-            <button type="button" data-group-by="plan">Plan</button>
+        <span class="ws-muted ws-small ws-strong">{{ _('Group by') }}</span>
+        <div class="ws-seg sm" role="group" aria-label="{{ _('Group by') }}" id="groupBySeg">
+            <button type="button" data-group-by="night" class="on">{{ _('Night') }}</button>
+            <button type="button" data-group-by="target">{{ _('Target') }}</button>
+            <button type="button" data-group-by="plan">{{ _('Plan') }}</button>
         </div>
-        <span class="ws-muted ws-small ws-strong" style="margin-left:8px">Show</span>
+        <span class="ws-muted ws-small ws-strong" style="margin-left:8px">{{ _('Show') }}</span>
         <span id="typeChips" class="ws-actions"></span>
-        <button type="button" class="ws-chip" id="hideRejectedChip" aria-pressed="false">Hide rejected</button>
+        <button type="button" class="ws-chip" id="hideRejectedChip" aria-pressed="false">{{ _('Hide rejected') }}</button>
         <span class="ws-spacer"></span>
-        <div class="ws-seg sm" role="group" aria-label="Layout" id="layoutSeg">
-            <button type="button" data-layout="grid" class="on">Grid</button>
-            <button type="button" data-layout="table">Table</button>
+        <div class="ws-seg sm" role="group" aria-label="{{ _('Layout') }}" id="layoutSeg">
+            <button type="button" data-layout="grid" class="on">{{ _('Grid') }}</button>
+            <button type="button" data-layout="table">{{ _('Table') }}</button>
         </div>
     </div>
 
     <div class="ws-body">
         <aside class="ws-col album-side">
-            <nav class="ws-side" id="groupNav" aria-label="Photo groups"></nav>
+            <nav class="ws-side" id="groupNav" aria-label="{{ _('Photo groups') }}"></nav>
         </aside>
 
         <main class="ws-col album-main" id="photosMain">
             <div class="ws-card ws-group-head" id="groupHead">
                 <div style="flex:1;min-width:260px">
-                    <div class="ws-group-title" id="groupTitle">Loading your photos…</div>
+                    <div class="ws-group-title" id="groupTitle">{{ _('Loading your photos…') }}</div>
                     <div class="ws-muted ws-small" id="groupSummary"></div>
                 </div>
-                <a class="ws-btn ws-hidden" id="groupPlanZip" href="#">Plan zip</a>
-                <button class="ws-btn" type="button" id="btnDownloadGroup">Download all</button>
-                <button class="ws-btn primary" type="button" id="btnStackGroup">Stack this night</button>
+                <a class="ws-btn ws-hidden" id="groupPlanZip" href="#">{{ _('Plan zip') }}</a>
+                <button class="ws-btn" type="button" id="btnDownloadGroup">{{ _('Download all') }}</button>
+                <button class="ws-btn primary" type="button" id="btnStackGroup">{{ _('Stack this night') }}</button>
             </div>
 
             <!-- Advanced: quality over the group -->
             <div class="ws-card adv-only" id="qualityCard">
-                <h3>Quality <span class="ws-muted ws-small" id="qualityTitle" style="font-weight:500"></span>
+                <h3>{{ _('Quality') }} <span class="ws-muted ws-small" id="qualityTitle" style="font-weight:500"></span>
                     <span class="ws-legend ws-aside">
                         <span><i style="background:var(--ws-series-1)"></i>FWHM</span>
-                        <span><i style="background:var(--ws-series-2)"></i>eccentricity</span>
-                        <span><i style="background:var(--ws-series-3)"></i>background</span>
+                        <span><i style="background:var(--ws-series-2)"></i>{{ _('eccentricity') }}</span>
+                        <span><i style="background:var(--ws-series-3)"></i>{{ _('background') }}</span>
                     </span>
                 </h3>
-                <svg class="ws-chart" id="qualityChart" role="img" aria-label="Frame quality over the group"></svg>
+                <svg class="ws-chart" id="qualityChart" role="img" aria-label="{{ _('Frame quality over the group') }}"></svg>
                 <div class="ws-actions ws-small" id="qualityControls" style="margin-top:6px">
-                    <span>Reject frames where FWHM is over</span><input class="ws-input num" id="limitFwhm" aria-label="FWHM limit" inputmode="decimal">
-                    <span>px, eccentricity over</span><input class="ws-input num" id="limitEcc" aria-label="Eccentricity limit" inputmode="decimal">
-                    <span>or stars under</span><input class="ws-input num" id="limitStars" aria-label="Star count limit" inputmode="numeric">
-                    <button class="ws-btn sm" type="button" id="btnRejectByLimits">Reject 0 frames</button>
-                    <button class="ws-btn sm ghost" type="button" id="btnSuggestLimits">Suggest: median + 3σ</button>
+                    <span>{{ _('Reject frames where FWHM is over') }}</span><input class="ws-input num" id="limitFwhm" aria-label="{{ _('FWHM limit') }}" inputmode="decimal">
+                    <span>{{ _('px, eccentricity over') }}</span><input class="ws-input num" id="limitEcc" aria-label="{{ _('Eccentricity limit') }}" inputmode="decimal">
+                    <span>{{ _('or stars under') }}</span><input class="ws-input num" id="limitStars" aria-label="{{ _('Star count limit') }}" inputmode="numeric">
+                    <button class="ws-btn sm" type="button" id="btnRejectByLimits">{{ _('Reject 0 frames') }}</button>
+                    <button class="ws-btn sm ghost" type="button" id="btnSuggestLimits">{{ _('Suggest: median + 3σ') }}</button>
                 </div>
                 <div class="ws-note ws-hidden" id="qualityEmpty" style="margin-top:6px"></div>
             </div>
@@ -114,69 +114,69 @@
             <div id="groupContent"></div>
         </main>
 
-        <aside class="ws-col album-aside" id="inspector" aria-label="Selected photo">
+        <aside class="ws-col album-aside" id="inspector" aria-label="{{ _('Selected photo') }}">
             <div class="ws-card" id="inspectorEmpty">
-                <h3>Select a photo</h3>
-                <p class="ws-small ws-muted" style="margin:0">Click a photo to see it here with its details. Ctrl-click or Shift-click to select several; the bar at the bottom acts on them.</p>
+                <h3>{{ _('Select a photo') }}</h3>
+                <p class="ws-small ws-muted" style="margin:0">{{ _('Click a photo to see it here with its details. Ctrl-click or Shift-click to select several; the bar at the bottom acts on them.') }}</p>
             </div>
             <div id="inspectorBody" class="ws-hidden" style="display:flex;flex-direction:column;gap:var(--ws-gap)">
                 <div class="ws-card">
-                    <div class="ws-preview"><img id="inspectorImg" alt="Preview of the selected photo" crossorigin="anonymous"></div>
+                    <div class="ws-preview"><img id="inspectorImg" alt="{{ _('Preview of the selected photo') }}" crossorigin="anonymous"></div>
                     <div class="ws-actions" style="justify-content:space-between">
                         <span class="inspector-name" id="inspectorName"></span>
-                        <span class="ws-chip" id="inspectorQuality"><span class="ws-dot off"></span><span>Not measured</span></span>
+                        <span class="ws-chip" id="inspectorQuality"><span class="ws-dot off"></span><span>{{ _('Not measured') }}</span></span>
                     </div>
                     <div class="ws-muted ws-small" id="inspectorSub" style="margin:4px 0 10px"></div>
                     <div class="inspector-quality basic-only" id="inspectorSentence"></div>
                     <div class="ws-actions adv-only" style="margin-bottom:8px">
-                        <button class="ws-btn sm" type="button" id="btnFlagPick" title="Keep this one (p)">Accept</button>
-                        <button class="ws-btn sm" type="button" id="btnFlagReject" title="Leave it out of stacks (x)">Reject</button>
-                        <button class="ws-btn sm ghost" type="button" id="btnFlagClear">Clear flag</button>
-                        <label class="ws-small ws-muted" style="display:flex;align-items:center;gap:6px;margin-left:auto">Type
+                        <button class="ws-btn sm" type="button" id="btnFlagPick" title="{{ _('Keep this one (p)') }}">{{ _('Accept') }}</button>
+                        <button class="ws-btn sm" type="button" id="btnFlagReject" title="{{ _('Leave it out of stacks (x)') }}">{{ _('Reject') }}</button>
+                        <button class="ws-btn sm ghost" type="button" id="btnFlagClear">{{ _('Clear flag') }}</button>
+                        <label class="ws-small ws-muted" style="display:flex;align-items:center;gap:6px;margin-left:auto">{{ _('Type') }}
                             <select class="ws-select" id="inspectorType" style="padding:3px 6px"></select>
                         </label>
                     </div>
-                    <label class="ws-field" for="inspectorTarget">Target<input class="ws-input" id="inspectorTarget" placeholder="M42"></label>
-                    <label class="ws-field" for="inspectorNotes" style="margin-top:8px">Notes<textarea class="ws-textarea" id="inspectorNotes" placeholder="Seeing, haze, anything worth remembering"></textarea></label>
+                    <label class="ws-field" for="inspectorTarget">{{ _('Target') }}<input class="ws-input" id="inspectorTarget" placeholder="M42"></label>
+                    <label class="ws-field" for="inspectorNotes" style="margin-top:8px">{{ _('Notes') }}<textarea class="ws-textarea" id="inspectorNotes" placeholder="{{ _('Seeing, haze, anything worth remembering') }}"></textarea></label>
                     <div class="ws-actions" style="margin-top:10px">
-                        <button class="ws-btn sm" type="button" id="btnSaveMeta" disabled>Save</button>
+                        <button class="ws-btn sm" type="button" id="btnSaveMeta" disabled>{{ _('Save') }}</button>
                         <span class="ws-small ws-muted" id="metaStatus"></span>
                     </div>
                     <div class="ws-actions" style="margin-top:12px">
-                        <button class="ws-btn" type="button" id="btnEditPhoto">Edit this photo</button>
-                        <button class="ws-btn primary ws-hidden" type="button" id="btnLucky" title="Stack the sharpest frames of a planet or Moon video">Lucky imaging</button>
-                        <button class="ws-btn" type="button" id="btnViewFull">View full size</button>
-                        <button class="ws-btn" type="button" id="btnBlink" title="Flick through the selected photos, or this night's lights">Blink</button>
-                        <button class="ws-btn" type="button" id="btnDownloadOne">Download</button>
+                        <button class="ws-btn" type="button" id="btnEditPhoto">{{ _('Edit this photo') }}</button>
+                        <button class="ws-btn primary ws-hidden" type="button" id="btnLucky" title="{{ _('Stack the sharpest frames of a planet or Moon video') }}">{{ _('Lucky imaging') }}</button>
+                        <button class="ws-btn" type="button" id="btnViewFull">{{ _('View full size') }}</button>
+                        <button class="ws-btn" type="button" id="btnBlink" title="{{ _("Flick through the selected photos, or this night's lights") }}">{{ _('Blink') }}</button>
+                        <button class="ws-btn" type="button" id="btnDownloadOne">{{ _('Download') }}</button>
                     </div>
                 </div>
                 <div class="ws-card adv-only">
-                    <h3>Details</h3>
+                    <h3>{{ _('Details') }}</h3>
                     <dl class="ws-kv" id="inspectorKv"></dl>
                 </div>
                 <div class="ws-card adv-only">
-                    <h3>Measured <span class="ws-aside" id="inspectorMeasuredFrom"></span></h3>
+                    <h3>{{ _('Measured') }} <span class="ws-aside" id="inspectorMeasuredFrom"></span></h3>
                     <dl class="ws-kv" id="inspectorMetrics"></dl>
                 </div>
                 <div class="ws-card adv-only">
-                    <h3>Histogram
+                    <h3>{{ _('Histogram') }}
                         <span class="ws-aside" id="albumHistogramControls">
-                            <select class="ws-select" data-hist="mode" aria-label="Channel" style="padding:3px 6px">
+                            <select class="ws-select" data-hist="mode" aria-label="{{ _('Channel') }}" style="padding:3px 6px">
                                 <option value="rgb" selected>RGB</option>
-                                <option value="luminance">Luminance</option>
-                                <option value="red">Red</option>
-                                <option value="green">Green</option>
-                                <option value="blue">Blue</option>
+                                <option value="luminance">{{ _('Luminance') }}</option>
+                                <option value="red">{{ _('Red') }}</option>
+                                <option value="green">{{ _('Green') }}</option>
+                                <option value="blue">{{ _('Blue') }}</option>
                             </select>
-                            <label class="ws-small"><input type="checkbox" data-hist="log-scale"> Log</label>
+                            <label class="ws-small"><input type="checkbox" data-hist="log-scale"> {{ pgettext('scale', 'Log') }}</label>
                         </span>
                     </h3>
                     <canvas id="albumHistogramCanvas" class="ws-hist" width="320" height="90"></canvas>
-                    <div id="albumHistogramStats" class="ws-small ws-muted" style="margin-top:4px">No image loaded.</div>
+                    <div id="albumHistogramStats" class="ws-small ws-muted" style="margin-top:4px">{{ _('No image loaded.') }}</div>
                 </div>
                 <div class="ws-card adv-only">
                     <details id="exifDetails">
-                        <summary class="ws-small ws-strong">Everything in the file</summary>
+                        <summary class="ws-small ws-strong">{{ _('Everything in the file') }}</summary>
                         <div class="exif-sections" id="exifSections"></div>
                     </details>
                 </div>
@@ -184,22 +184,22 @@
         </aside>
     </div>
 
-    <div class="ws-bulkbar ws-hidden" id="bulkBar" role="region" aria-label="Selected photos">
-        <b class="ws-small" id="bulkCount">0 selected</b>
-        <button class="ws-btn sm ghost" type="button" id="btnClearSelection">Clear</button>
+    <div class="ws-bulkbar ws-hidden" id="bulkBar" role="region" aria-label="{{ _('Selected photos') }}">
+        <b class="ws-small" id="bulkCount">{{ _('0 selected') }}</b>
+        <button class="ws-btn sm ghost" type="button" id="btnClearSelection">{{ _('Clear') }}</button>
         <span class="ws-spacer"></span>
         <div class="adv-only ws-actions">
-            <label class="ws-small ws-muted" for="bulkType">Set type</label>
+            <label class="ws-small ws-muted" for="bulkType">{{ _('Set type') }}</label>
             <select class="ws-select" id="bulkType" style="padding:4px 6px"></select>
-            <button class="ws-btn sm" type="button" id="btnBulkAccept">Accept</button>
-            <button class="ws-btn sm" type="button" id="btnBulkMeasure">Measure quality</button>
-            <button class="ws-btn sm" type="button" id="btnBulkLucky" title="Stack the sharpest of a burst of Moon or planet photos">Lucky imaging</button>
-            <button class="ws-btn sm" type="button" id="btnBulkRaws">Ask the telescope for RAWs</button>
+            <button class="ws-btn sm" type="button" id="btnBulkAccept">{{ _('Accept') }}</button>
+            <button class="ws-btn sm" type="button" id="btnBulkMeasure">{{ _('Measure quality') }}</button>
+            <button class="ws-btn sm" type="button" id="btnBulkLucky" title="{{ _('Stack the sharpest of a burst of Moon or planet photos') }}">{{ _('Lucky imaging') }}</button>
+            <button class="ws-btn sm" type="button" id="btnBulkRaws">{{ _('Ask the telescope for RAWs') }}</button>
         </div>
-        <button class="ws-btn sm" type="button" id="btnBulkReject"><span class="basic-only">Mark as bad</span><span class="adv-only">Reject</span></button>
-        <button class="ws-btn sm" type="button" id="btnBulkDownload">Download</button>
-        <button class="ws-btn sm" type="button" id="btnBulkDelete">Delete</button>
-        <button class="ws-btn sm primary" type="button" id="btnBulkStack"><span class="basic-only">Stack these</span><span class="adv-only">Stack…</span></button>
+        <button class="ws-btn sm" type="button" id="btnBulkReject"><span class="basic-only">{{ _('Mark as bad') }}</span><span class="adv-only">{{ _('Reject') }}</span></button>
+        <button class="ws-btn sm" type="button" id="btnBulkDownload">{{ _('Download') }}</button>
+        <button class="ws-btn sm" type="button" id="btnBulkDelete">{{ _('Delete') }}</button>
+        <button class="ws-btn sm primary" type="button" id="btnBulkStack"><span class="basic-only">{{ _('Stack these') }}</span><span class="adv-only">{{ _('Stack…') }}</span></button>
     </div>
 </section>
 
@@ -207,14 +207,14 @@
 <section class="ws-view" id="viewStacks" hidden>
     <div class="ws-body" style="flex-direction:column;align-items:stretch">
         <div class="ws-card">
-            <h3>Stacked images</h3>
-            <p class="ws-small ws-muted" style="margin:0">Stacks you've made, with their linear masters for editing again. Open one to edit it, or download the master to work on it in other software.</p>
+            <h3>{{ _('Stacked images') }}</h3>
+            <p class="ws-small ws-muted" style="margin:0">{{ _("Stacks you've made, with their linear masters for editing again. Open one to edit it, or download the master to work on it in other software.") }}</p>
         </div>
         <div class="ws-stack-cards" id="stackCards"></div>
         <div class="ws-card adv-only" id="projectsCard">
-            <h3>Projects</h3>
-            <p class="ws-small ws-muted" style="margin:0 0 8px">Long integrations built up night by night. Each night's frames are added to running totals kept on the server, so a project can grow to hundreds of hours. Choose a project in the stack dialog to add to it.</p>
-            <div id="projectList"><div class="ws-empty">No projects yet.</div></div>
+            <h3>{{ _('Projects') }}</h3>
+            <p class="ws-small ws-muted" style="margin:0 0 8px">{{ _("Long integrations built up night by night. Each night's frames are added to running totals kept on the server, so a project can grow to hundreds of hours. Choose a project in the stack dialog to add to it.") }}</p>
+            <div id="projectList"><div class="ws-empty">{{ _('No projects yet.') }}</div></div>
         </div>
     </div>
 </section>
@@ -223,13 +223,13 @@
 <section class="ws-view" id="viewActivity" hidden>
     <div class="ws-body" style="flex-direction:column;align-items:stretch">
         <div class="ws-card">
-            <h3>Running in this browser</h3>
-            <div id="jobList"><div class="ws-empty">Nothing running.</div></div>
-            <p class="ws-small ws-muted" style="margin:8px 0 0">Measuring and stacking run in this tab, on your computer. Keep the tab open until they finish; you can carry on using the album meanwhile.</p>
+            <h3>{{ _('Running in this browser') }}</h3>
+            <div id="jobList"><div class="ws-empty">{{ _('Nothing running.') }}</div></div>
+            <p class="ws-small ws-muted" style="margin:8px 0 0">{{ _('Measuring and stacking run in this tab, on your computer. Keep the tab open until they finish; you can carry on using the album meanwhile.') }}</p>
         </div>
         <div class="ws-card">
-            <h3>Finished</h3>
-            <div id="jobHistory"><div class="ws-empty">Nothing yet this visit.</div></div>
+            <h3>{{ _('Finished') }}</h3>
+            <div id="jobHistory"><div class="ws-empty">{{ _('Nothing yet this visit.') }}</div></div>
         </div>
     </div>
 </section>
@@ -237,7 +237,7 @@
 <!-- Editing a stack -->
 <section class="ws-view" id="viewEditor" hidden>
     <div class="editor-head">
-        <button class="ws-btn sm ghost" type="button" data-view="stacks">‹ Stacked images</button>
+        <button class="ws-btn sm ghost" type="button" data-view="stacks">{{ _('‹ Stacked images') }}</button>
         <span class="ws-muted">/</span>
         <span class="ws-strong" style="font-family:'Sora',sans-serif" id="editorName"></span>
         <span class="ws-muted ws-small" id="editorInfo"></span>
@@ -245,22 +245,22 @@
     <div class="editor-body">
         <div class="editor-stage-col">
             <div class="ws-actions">
-                <div class="ws-seg sm" role="group" aria-label="Compare" id="compareSeg">
-                    <button type="button" data-compare="after" class="on">After</button>
-                    <button type="button" data-compare="before">Before</button>
-                    <button type="button" data-compare="split">Split</button>
+                <div class="ws-seg sm" role="group" aria-label="{{ _('Compare') }}" id="compareSeg">
+                    <button type="button" data-compare="after" class="on">{{ _('After') }}</button>
+                    <button type="button" data-compare="before">{{ _('Before') }}</button>
+                    <button type="button" data-compare="split">{{ _('Split') }}</button>
                 </div>
-                <div class="ws-seg sm" role="group" aria-label="Zoom" id="editorZoomSeg">
-                    <button type="button" data-zoom="fit" class="on">Fit</button>
+                <div class="ws-seg sm" role="group" aria-label="{{ _('Zoom') }}" id="editorZoomSeg">
+                    <button type="button" data-zoom="fit" class="on">{{ _('Fit') }}</button>
                     <button type="button" data-zoom="100">100%</button>
                 </div>
-                <label class="ws-tick ws-small adv-only"><input type="checkbox" id="showBgModel"> Show background model</label>
+                <label class="ws-tick ws-small adv-only"><input type="checkbox" id="showBgModel"> {{ _('Show background model') }}</label>
                 <span class="ws-spacer"></span>
-                <button class="ws-btn sm ghost" type="button" id="btnUndo" disabled>Undo</button>
-                <button class="ws-btn sm ghost" type="button" id="btnRedo" disabled>Redo</button>
+                <button class="ws-btn sm ghost" type="button" id="btnUndo" disabled>{{ _('Undo') }}</button>
+                <button class="ws-btn sm ghost" type="button" id="btnRedo" disabled>{{ _('Redo') }}</button>
             </div>
             <div class="ws-editor-stage" id="editorStage">
-                <img id="editorImg" alt="The stacked image">
+                <img id="editorImg" alt="{{ _('The stacked image') }}">
                 <span class="ws-chip ws-hidden" id="editorReadout" style="position:absolute;left:12px;bottom:12px"></span>
             </div>
             <div class="ws-card adv-only" id="editorReport"></div>
@@ -268,83 +268,83 @@
         <aside class="ws-panel" id="editorPanel">
             <div class="ws-sec">
                 <div class="ws-note warn ws-hidden" id="editorEngineNote" style="margin-bottom:10px"></div>
-                <div class="ws-actions"><button class="ws-btn primary" type="button" style="flex:1" id="btnEditAuto">Auto</button><button class="ws-btn" type="button" style="flex:1" id="btnEditReset">Reset</button></div>
+                <div class="ws-actions"><button class="ws-btn primary" type="button" style="flex:1" id="btnEditAuto">{{ _('Auto') }}</button><button class="ws-btn" type="button" style="flex:1" id="btnEditReset">{{ _('Reset') }}</button></div>
             </div>
             <div class="ws-panel-scroll"><fieldset id="editorControls">
                 <div class="ws-sec basic-only">
-                    <h3>Adjust</h3>
-                    <div class="ws-slider"><span>Brightness</span><input type="range" min="0.05" max="0.45" step="0.01" data-param="stretch.target" aria-label="Brightness"><output></output></div>
-                    <div class="ws-slider"><span>Contrast</span><input type="range" min="-0.5" max="0.6" step="0.01" data-param="contrast" aria-label="Contrast"><output></output></div>
-                    <div class="ws-slider"><span>Colour</span><input type="range" min="0" max="2.5" step="0.05" data-param="saturation" aria-label="Colour saturation"><output></output></div>
-                    <div class="ws-slider"><span>Smoothing</span><input type="range" min="0" max="1" step="0.05" data-param="basic.noise" aria-label="Noise reduction"><output></output></div>
-                    <div class="ws-slider"><span>Sharpening</span><input type="range" min="0.5" max="2.5" step="0.05" data-param="basic.sharpen" aria-label="Sharpening"><output></output></div>
-                    <label class="ws-tick"><input type="checkbox" data-param="background.enabled"> Remove gradients (light pollution, Moon glow)</label>
+                    <h3>{{ _('Adjust') }}</h3>
+                    <div class="ws-slider"><span>{{ _('Brightness') }}</span><input type="range" min="0.05" max="0.45" step="0.01" data-param="stretch.target" aria-label="{{ _('Brightness') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Contrast') }}</span><input type="range" min="-0.5" max="0.6" step="0.01" data-param="contrast" aria-label="{{ _('Contrast') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Colour') }}</span><input type="range" min="0" max="2.5" step="0.05" data-param="saturation" aria-label="{{ _('Colour saturation') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Smoothing') }}</span><input type="range" min="0" max="1" step="0.05" data-param="basic.noise" aria-label="{{ _('Noise reduction') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Sharpening') }}</span><input type="range" min="0.5" max="2.5" step="0.05" data-param="basic.sharpen" aria-label="{{ _('Sharpening') }}"><output></output></div>
+                    <label class="ws-tick"><input type="checkbox" data-param="background.enabled"> {{ _('Remove gradients (light pollution, Moon glow)') }}</label>
                 </div>
                 <div class="ws-sec adv-only">
-                    <h3>Crop</h3>
-                    <label class="ws-tick"><input type="checkbox" id="editCropCommon"> Crop to the area every frame covers</label>
+                    <h3>{{ _('Crop') }}</h3>
+                    <label class="ws-tick"><input type="checkbox" id="editCropCommon"> {{ _('Crop to the area every frame covers') }}</label>
                 </div>
                 <div class="ws-sec adv-only">
-                    <h3>Background
-                        <select class="ws-select" data-param="background.degree" aria-label="Background model" style="padding:3px 6px">
-                            <option value="0">Flat</option><option value="1">Degree 1</option><option value="2">Degree 2</option><option value="3">Degree 3</option><option value="4">Degree 4</option>
+                    <h3>{{ _('Background') }}
+                        <select class="ws-select" data-param="background.degree" aria-label="{{ _('Background model') }}" style="padding:3px 6px">
+                            <option value="0">{{ _('Flat') }}</option><option value="1">{{ _('Degree 1') }}</option><option value="2">{{ _('Degree 2') }}</option><option value="3">{{ _('Degree 3') }}</option><option value="4">{{ _('Degree 4') }}</option>
                         </select>
                     </h3>
-                    <label class="ws-tick"><input type="checkbox" data-param="background.enabled"> Remove gradients (light pollution, Moon glow)</label>
-                    <label class="ws-tick"><input type="checkbox" data-param="background.divide"> Divide (vignetting) rather than subtract</label>
-                    <div class="ws-slider"><span>Samples</span><input type="range" min="6" max="40" step="1" data-param="background.grid" aria-label="Background samples"><output></output></div>
+                    <label class="ws-tick"><input type="checkbox" data-param="background.enabled"> {{ _('Remove gradients (light pollution, Moon glow)') }}</label>
+                    <label class="ws-tick"><input type="checkbox" data-param="background.divide"> {{ _('Divide (vignetting) rather than subtract') }}</label>
+                    <div class="ws-slider"><span>{{ _('Samples') }}</span><input type="range" min="6" max="40" step="1" data-param="background.grid" aria-label="{{ _('Background samples') }}"><output></output></div>
                 </div>
                 <div class="ws-sec adv-only">
-                    <h3>Colour
-                        <select class="ws-select" data-param="colour.white" aria-label="White balance" style="padding:3px 6px">
-                            <option value="stars">White from the stars</option>
-                            <option value="average">White from the whole image</option>
-                            <option value="manual">Set by hand</option>
-                            <option value="none">Leave as stacked</option>
+                    <h3>{{ _('Colour') }}
+                        <select class="ws-select" data-param="colour.white" aria-label="{{ _('White balance') }}" style="padding:3px 6px">
+                            <option value="stars">{{ _('White from the stars') }}</option>
+                            <option value="average">{{ _('White from the whole image') }}</option>
+                            <option value="manual">{{ _('Set by hand') }}</option>
+                            <option value="none">{{ _('Leave as stacked') }}</option>
                         </select>
                     </h3>
-                    <label class="ws-tick"><input type="checkbox" data-param="colour.neutralise"> Neutral grey background</label>
-                    <div class="ws-slider"><span>Red</span><input type="range" min="0.3" max="3" step="0.01" data-param="colour.manual.0" aria-label="Red factor"><output></output></div>
-                    <div class="ws-slider"><span>Blue</span><input type="range" min="0.3" max="3" step="0.01" data-param="colour.manual.2" aria-label="Blue factor"><output></output></div>
+                    <label class="ws-tick"><input type="checkbox" data-param="colour.neutralise"> {{ _('Neutral grey background') }}</label>
+                    <div class="ws-slider"><span>{{ _('Red') }}</span><input type="range" min="0.3" max="3" step="0.01" data-param="colour.manual.0" aria-label="{{ _('Red factor') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Blue') }}</span><input type="range" min="0.3" max="3" step="0.01" data-param="colour.manual.2" aria-label="{{ _('Blue factor') }}"><output></output></div>
                     <div class="ws-small ws-muted" id="editorColourInfo"></div>
                 </div>
                 <div class="ws-sec adv-only">
-                    <h3>Stretch
-                        <select class="ws-select" data-param="stretch.mode" aria-label="Stretch" style="padding:3px 6px">
-                            <option value="auto">Auto (screen transfer)</option>
-                            <option value="manual">Manual levels</option>
-                            <option value="arcsinh">Arcsinh (keeps star colour)</option>
-                            <option value="none">None</option>
+                    <h3>{{ _('Stretch') }}
+                        <select class="ws-select" data-param="stretch.mode" aria-label="{{ _('Stretch') }}" style="padding:3px 6px">
+                            <option value="auto">{{ _('Auto (screen transfer)') }}</option>
+                            <option value="manual">{{ _('Manual levels') }}</option>
+                            <option value="arcsinh">{{ _('Arcsinh (keeps star colour)') }}</option>
+                            <option value="none">{{ _('None') }}</option>
                         </select>
                     </h3>
-                    <div class="ws-slider"><span>Brightness</span><input type="range" min="0.02" max="0.6" step="0.01" data-param="stretch.target" aria-label="Target sky brightness"><output></output></div>
-                    <div class="ws-slider"><span>Black point</span><input type="range" min="-8" max="2" step="0.1" data-param="stretch.shadows" aria-label="Black point in sigma"><output></output></div>
-                    <label class="ws-tick"><input type="checkbox" data-param="stretch.linked"> Same stretch for every colour</label>
-                    <div class="ws-slider"><span>Levels black</span><input type="range" min="0" max="0.5" step="0.001" data-param="stretch.black" aria-label="Manual black level"><output></output></div>
-                    <div class="ws-slider"><span>Midtones</span><input type="range" min="0.001" max="0.999" step="0.001" data-param="stretch.mid" aria-label="Manual midtones"><output></output></div>
-                    <div class="ws-slider"><span>Levels white</span><input type="range" min="0.01" max="1" step="0.01" data-param="stretch.white" aria-label="Manual white level"><output></output></div>
-                    <div class="ws-slider"><span>Arcsinh</span><input type="range" min="1" max="500" step="1" data-param="stretch.asinh" aria-label="Arcsinh strength"><output></output></div>
-                    <div class="ws-slider"><span>Contrast</span><input type="range" min="-0.9" max="0.9" step="0.01" data-param="contrast" aria-label="Contrast"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Brightness') }}</span><input type="range" min="0.02" max="0.6" step="0.01" data-param="stretch.target" aria-label="{{ _('Target sky brightness') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Black point') }}</span><input type="range" min="-8" max="2" step="0.1" data-param="stretch.shadows" aria-label="{{ _('Black point in sigma') }}"><output></output></div>
+                    <label class="ws-tick"><input type="checkbox" data-param="stretch.linked"> {{ _('Same stretch for every colour') }}</label>
+                    <div class="ws-slider"><span>{{ _('Levels black') }}</span><input type="range" min="0" max="0.5" step="0.001" data-param="stretch.black" aria-label="{{ _('Manual black level') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Midtones') }}</span><input type="range" min="0.001" max="0.999" step="0.001" data-param="stretch.mid" aria-label="{{ _('Manual midtones') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Levels white') }}</span><input type="range" min="0.01" max="1" step="0.01" data-param="stretch.white" aria-label="{{ _('Manual white level') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Arcsinh') }}</span><input type="range" min="1" max="500" step="1" data-param="stretch.asinh" aria-label="{{ _('Arcsinh strength') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Contrast') }}</span><input type="range" min="-0.9" max="0.9" step="0.01" data-param="contrast" aria-label="{{ _('Contrast') }}"><output></output></div>
                 </div>
                 <div class="ws-sec adv-only">
-                    <h3>Detail</h3>
-                    <div class="ws-slider"><span>Saturation</span><input type="range" min="0" max="3" step="0.05" data-param="saturation" aria-label="Saturation"><output></output></div>
-                    <div class="ws-slider"><span>Noise (colour)</span><input type="range" min="0" max="1" step="0.05" data-param="noise.chroma" aria-label="Colour noise reduction"><output></output></div>
-                    <div class="ws-slider"><span>Noise (detail)</span><input type="range" min="0" max="1" step="0.05" data-param="noise.luma" aria-label="Detail noise reduction"><output></output></div>
-                    <div class="ws-slider"><span>Sharpen fine</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.0" aria-label="Sharpen fine detail"><output></output></div>
-                    <div class="ws-slider"><span>Sharpen small</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.1" aria-label="Sharpen small detail"><output></output></div>
-                    <div class="ws-slider"><span>Sharpen medium</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.2" aria-label="Sharpen medium detail"><output></output></div>
-                    <div class="ws-slider"><span>Sharpen large</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.3" aria-label="Sharpen large detail"><output></output></div>
+                    <h3>{{ _('Detail') }}</h3>
+                    <div class="ws-slider"><span>{{ _('Saturation') }}</span><input type="range" min="0" max="3" step="0.05" data-param="saturation" aria-label="{{ _('Saturation') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Noise (colour)') }}</span><input type="range" min="0" max="1" step="0.05" data-param="noise.chroma" aria-label="{{ _('Colour noise reduction') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Noise (detail)') }}</span><input type="range" min="0" max="1" step="0.05" data-param="noise.luma" aria-label="{{ _('Detail noise reduction') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Sharpen fine') }}</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.0" aria-label="{{ _('Sharpen fine detail') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Sharpen small') }}</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.1" aria-label="{{ _('Sharpen small detail') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Sharpen medium') }}</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.2" aria-label="{{ _('Sharpen medium detail') }}"><output></output></div>
+                    <div class="ws-slider"><span>{{ _('Sharpen large') }}</span><input type="range" min="0" max="4" step="0.05" data-param="sharpen.layers.3" aria-label="{{ _('Sharpen large detail') }}"><output></output></div>
                 </div>
             </fieldset></div>
             <div class="ws-sec" style="border-bottom:0;border-top:1px solid var(--line)">
-                <h3>Save</h3>
+                <h3>{{ _('Save') }}</h3>
                 <div class="ws-actions">
-                    <button class="ws-btn primary" type="button" id="btnSaveJpegToAlbum">Save JPEG to album</button>
+                    <button class="ws-btn primary" type="button" id="btnSaveJpegToAlbum">{{ _('Save JPEG to album') }}</button>
                     <button class="ws-btn adv-only" type="button" id="btnExportTiff">TIFF 16-bit</button>
                     <button class="ws-btn adv-only" type="button" id="btnExportPng">PNG</button>
                     <a class="ws-btn adv-only" id="btnDownloadMaster" href="#">FITS (linear)</a>
-                    <a class="ws-btn basic-only" id="btnDownloadAuto" href="#">Download</a>
+                    <a class="ws-btn basic-only" id="btnDownloadAuto" href="#">{{ _('Download') }}</a>
                 </div>
                 <div class="ws-small ws-muted" id="editorSaveStatus" style="margin-top:6px"></div>
             </div>
@@ -355,128 +355,128 @@
 <!-- Stacking -->
 <dialog class="ws-dialog" id="stackDialog" aria-labelledby="stackTitle">
     <div class="ws-dialog-head">
-        <h2 id="stackTitle">Stack</h2>
-        <label class="ws-small ws-muted" for="stackName">Name</label>
+        <h2 id="stackTitle">{{ _('Stack') }}</h2>
+        <label class="ws-small ws-muted" for="stackName">{{ _('Name') }}</label>
         <input id="stackName" class="ws-input" style="width:200px">
-        <button class="ws-btn" type="button" data-close>Close</button>
+        <button class="ws-btn" type="button" data-close>{{ _('Close') }}</button>
     </div>
     <div class="ws-dialog-body">
         <div class="stack-columns">
             <div class="stack-frames">
-                <div class="ws-small ws-muted ws-strong" style="letter-spacing:.06em;text-transform:uppercase">Frames</div>
+                <div class="ws-small ws-muted ws-strong" style="letter-spacing:.06em;text-transform:uppercase">{{ _('Frames') }}</div>
                 <div id="stackFrameRows"></div>
                 <div class="stack-estimate">
-                    <div class="ws-small ws-strong" style="margin-bottom:6px">Estimate</div>
+                    <div class="ws-small ws-strong" style="margin-bottom:6px">{{ _('Estimate') }}</div>
                     <div class="ws-small ws-muted" id="stackEstimate"></div>
                     <div class="ws-small ws-muted" id="stackSource" style="margin-top:4px"></div>
                 </div>
             </div>
             <div class="stack-settings">
                 <div class="ws-group basic-only" style="grid-column:1/-1">
-                    <h3>Which photos to use</h3>
+                    <h3>{{ _('Which photos to use') }}</h3>
                     <div class="stack-choices" id="stackQualityChoices">
-                        <label><input type="radio" name="stackQuality" value="auto" checked><span><b>Leave out the worst (recommended)</b><br><span class="ws-small ws-muted">Blurred, trailed or cloudy photos are left out, and say why.</span></span></label>
-                        <label><input type="radio" name="stackQuality" value="best"><span><b>Only the sharpest half</b><br><span class="ws-small ws-muted">Sharper detail, at the cost of more noise.</span></span></label>
-                        <label><input type="radio" name="stackQuality" value="all"><span><b>Keep every photo</b><br><span class="ws-small ws-muted">Except the ones you marked as bad.</span></span></label>
+                        <label><input type="radio" name="stackQuality" value="auto" checked><span><b>{{ _('Leave out the worst (recommended)') }}</b><br><span class="ws-small ws-muted">{{ _('Blurred, trailed or cloudy photos are left out, and say why.') }}</span></span></label>
+                        <label><input type="radio" name="stackQuality" value="best"><span><b>{{ _('Only the sharpest half') }}</b><br><span class="ws-small ws-muted">{{ _('Sharper detail, at the cost of more noise.') }}</span></span></label>
+                        <label><input type="radio" name="stackQuality" value="all"><span><b>{{ _('Keep every photo') }}</b><br><span class="ws-small ws-muted">{{ _('Except the ones you marked as bad.') }}</span></span></label>
                     </div>
-                    <label class="ws-tick"><input type="checkbox" id="stackHalfSize"> Half size (faster, and kinder to slower computers)</label>
+                    <label class="ws-tick"><input type="checkbox" id="stackHalfSize"> {{ _('Half size (faster, and kinder to slower computers)') }}</label>
                 </div>
                 <div class="ws-group" style="grid-column:1/-1" id="stackWhere">
-                    <label class="ws-tick ws-hidden" id="stackQuickJpegRow"><input type="checkbox" id="stackQuickJpeg"> Quick: stack the JPEGs instead of the RAWs (nothing big to download; calibration is only approximate)</label>
-                    <label class="ws-field adv-only" for="stackProject">Add to a project (a long integration over many nights)
-                        <select class="ws-select" id="stackProject"><option value="">No, a stack on its own</option><option value="new">A new project, named as above</option></select>
+                    <label class="ws-tick ws-hidden" id="stackQuickJpegRow"><input type="checkbox" id="stackQuickJpeg"> {{ _('Quick: stack the JPEGs instead of the RAWs (nothing big to download; calibration is only approximate)') }}</label>
+                    <label class="ws-field adv-only" for="stackProject">{{ _('Add to a project (a long integration over many nights)') }}
+                        <select class="ws-select" id="stackProject"><option value="">{{ _('No, a stack on its own') }}</option><option value="new">{{ _('A new project, named as above') }}</option></select>
                     </label>
                     <div class="ws-small ws-muted adv-only ws-hidden" id="stackProjectNote"></div>
                 </div>
                 <div class="ws-group adv-only">
-                    <h3>Calibration</h3>
-                    <label class="ws-field">Combine calibration frames<select class="ws-select" data-setting="calibration_method"></select></label>
-                    <label class="ws-field">Dark exposure doesn't match<select class="ws-select" data-setting="dark_scaling"><option value="true">Scale with the bias</option><option value="false">Use as they are</option></select></label>
-                    <label class="ws-tick"><input type="checkbox" data-setting="hot_pixels"> Fix hot pixels found in the darks</label>
-                    <label class="ws-tick"><input type="checkbox" data-setting="cosmetic"> Fix stray hot and cold pixels in each photo</label>
-                    <label class="ws-tick"><input type="checkbox" data-setting="flat_per_channel"> Normalise flats per colour</label>
+                    <h3>{{ _('Calibration') }}</h3>
+                    <label class="ws-field">{{ _('Combine calibration frames') }}<select class="ws-select" data-setting="calibration_method"></select></label>
+                    <label class="ws-field">{{ _("Dark exposure doesn't match") }}<select class="ws-select" data-setting="dark_scaling"><option value="true">{{ _('Scale with the bias') }}</option><option value="false">{{ _('Use as they are') }}</option></select></label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="hot_pixels"> {{ _('Fix hot pixels found in the darks') }}</label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="cosmetic"> {{ _('Fix stray hot and cold pixels in each photo') }}</label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="flat_per_channel"> {{ _('Normalise flats per colour') }}</label>
                 </div>
                 <div class="ws-group adv-only">
-                    <h3>Alignment</h3>
-                    <label class="ws-field">Reference photo<select class="ws-select" data-setting="reference"></select></label>
-                    <label class="ws-field">Transform<select class="ws-select" data-setting="transform"><option value="similarity">Shift, rotate, scale</option><option value="affine">Affine (shear too)</option></select></label>
-                    <label class="ws-field">Star detection<select class="ws-select" data-setting="star_sigma"><option value="3">3 σ (faint stars)</option><option value="5">5 σ (default)</option><option value="8">8 σ (bright stars only)</option></select></label>
-                    <label class="ws-field">Interpolation<select class="ws-select" data-setting="interpolation"><option value="bicubic">Bicubic (sharper)</option><option value="bilinear">Bilinear (smoother)</option></select></label>
+                    <h3>{{ _('Alignment') }}</h3>
+                    <label class="ws-field">{{ _('Reference photo') }}<select class="ws-select" data-setting="reference"></select></label>
+                    <label class="ws-field">{{ _('Transform') }}<select class="ws-select" data-setting="transform"><option value="similarity">{{ _('Shift, rotate, scale') }}</option><option value="affine">{{ _('Affine (shear too)') }}</option></select></label>
+                    <label class="ws-field">{{ _('Star detection') }}<select class="ws-select" data-setting="star_sigma"><option value="3">{{ _('3 σ (faint stars)') }}</option><option value="5">{{ _('5 σ (default)') }}</option><option value="8">{{ _('8 σ (bright stars only)') }}</option></select></label>
+                    <label class="ws-field">{{ _('Interpolation') }}<select class="ws-select" data-setting="interpolation"><option value="bicubic">{{ _('Bicubic (sharper)') }}</option><option value="bilinear">{{ _('Bilinear (smoother)') }}</option></select></label>
                 </div>
                 <div class="ws-group adv-only">
-                    <h3>Combining</h3>
-                    <label class="ws-field">Method<select class="ws-select" data-setting="method"></select></label>
+                    <h3>{{ _('Combining') }}</h3>
+                    <label class="ws-field">{{ _('Method') }}<select class="ws-select" data-setting="method"></select></label>
                     <div class="ws-grid2">
-                        <label class="ws-field">κ low<input class="ws-input" data-setting="kappa_low" inputmode="decimal"></label>
-                        <label class="ws-field">κ high<input class="ws-input" data-setting="kappa_high" inputmode="decimal"></label>
+                        <label class="ws-field">{{ _('κ low') }}<input class="ws-input" data-setting="kappa_low" inputmode="decimal"></label>
+                        <label class="ws-field">{{ _('κ high') }}<input class="ws-input" data-setting="kappa_high" inputmode="decimal"></label>
                     </div>
-                    <label class="ws-field">Normalise frames<select class="ws-select" data-setting="normalise"><option value="true">Background and spread</option><option value="false">Don't normalise</option></select></label>
-                    <label class="ws-field">Weight frames<select class="ws-select" data-setting="weighting"><option value="noise">By noise</option><option value="none">Equally</option></select></label>
-                    <label class="ws-tick"><input type="checkbox" data-setting="reject_auto"> Leave out frames far worse than the rest</label>
+                    <label class="ws-field">{{ _('Normalise frames') }}<select class="ws-select" data-setting="normalise"><option value="true">{{ _('Background and spread') }}</option><option value="false">{{ _("Don't normalise") }}</option></select></label>
+                    <label class="ws-field">{{ _('Weight frames') }}<select class="ws-select" data-setting="weighting"><option value="noise">{{ _('By noise') }}</option><option value="none">{{ _('Equally') }}</option></select></label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="reject_auto"> {{ _('Leave out frames far worse than the rest') }}</label>
                 </div>
                 <div class="ws-group adv-only">
-                    <h3>Output</h3>
-                    <label class="ws-field">Debayer<select class="ws-select" data-setting="debayer"><option value="bilinear">Bilinear, full size</option><option value="superpixel">Super-pixel, half size</option></select></label>
-                    <label class="ws-field">Colour<select class="ws-select" data-setting="colour"><option value="camera">White balance + camera matrix</option><option value="wb">White balance only</option><option value="none">Camera colours as they are</option></select></label>
-                    <label class="ws-field">White balance<select class="ws-select" data-setting="wb"><option value="daylight">Daylight</option><option value="as_shot">As shot</option></select></label>
-                    <label class="ws-tick"><input type="checkbox" data-setting="crop_common"> Crop to the area every photo covers</label>
-                    <label class="ws-tick"><input type="checkbox" data-setting="keep_masters"> Keep the master calibration frames</label>
+                    <h3>{{ _('Output') }}</h3>
+                    <label class="ws-field">{{ _('Debayer') }}<select class="ws-select" data-setting="debayer"><option value="bilinear">{{ _('Bilinear, full size') }}</option><option value="superpixel">{{ _('Super-pixel, half size') }}</option></select></label>
+                    <label class="ws-field">{{ _('Colour') }}<select class="ws-select" data-setting="colour"><option value="camera">{{ _('White balance + camera matrix') }}</option><option value="wb">{{ _('White balance only') }}</option><option value="none">{{ _('Camera colours as they are') }}</option></select></label>
+                    <label class="ws-field">{{ _('White balance') }}<select class="ws-select" data-setting="wb"><option value="daylight">{{ _('Daylight') }}</option><option value="as_shot">{{ _('As shot') }}</option></select></label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="crop_common"> {{ _('Crop to the area every photo covers') }}</label>
+                    <label class="ws-tick"><input type="checkbox" data-setting="keep_masters"> {{ _('Keep the master calibration frames') }}</label>
                 </div>
             </div>
         </div>
     </div>
     <div class="ws-dialog-foot">
-        <span class="ws-muted ws-small" id="stackFootNote" style="flex:1">Runs in this browser tab: keep it open until it finishes. It shows under Activity.</span>
-        <button class="ws-btn" type="button" id="btnStackZip" title="All these frames in one zip, for other stacking software">Download the frames</button>
-        <button class="ws-btn adv-only" type="button" id="btnStackDefaults">Save as default</button>
-        <button class="ws-btn primary" type="button" id="btnStackStart">Start stacking</button>
+        <span class="ws-muted ws-small" id="stackFootNote" style="flex:1">{{ _('Runs in this browser tab: keep it open until it finishes. It shows under Activity.') }}</span>
+        <button class="ws-btn" type="button" id="btnStackZip" title="{{ _('All these frames in one zip, for other stacking software') }}">{{ _('Download the frames') }}</button>
+        <button class="ws-btn adv-only" type="button" id="btnStackDefaults">{{ _('Save as default') }}</button>
+        <button class="ws-btn primary" type="button" id="btnStackStart">{{ _('Start stacking') }}</button>
     </div>
 </dialog>
 
 <!-- Lucky imaging -->
 <dialog class="ws-dialog narrow" id="luckyDialog" aria-labelledby="luckyTitle">
     <div class="ws-dialog-head">
-        <h2 id="luckyTitle">Lucky imaging</h2>
-        <button class="ws-btn" type="button" data-close>Close</button>
+        <h2 id="luckyTitle">{{ _('Lucky imaging') }}</h2>
+        <button class="ws-btn" type="button" data-close>{{ _('Close') }}</button>
     </div>
     <div class="ws-dialog-body">
         <p class="ws-small ws-muted" style="margin-top:0" id="luckySource"></p>
-        <label class="ws-field" for="luckyName">Name<input class="ws-input" id="luckyName"></label>
-        <label class="ws-field" for="luckyKeep">Keep the sharpest <output id="luckyKeepOut">25%</output>
+        <label class="ws-field" for="luckyName">{{ _('Name') }}<input class="ws-input" id="luckyName"></label>
+        <label class="ws-field" for="luckyKeep">{{ _('Keep the sharpest %(percent)s', percent='<output id="luckyKeepOut">25%</output>'|safe) }}
             <input type="range" id="luckyKeep" min="5" max="75" step="5" value="25">
         </label>
-        <label class="ws-field adv-only" for="luckyRoi">Area<select class="ws-select" id="luckyRoi"><option value="auto">Around the planet (found automatically)</option><option value="full">The whole frame (the Moon)</option></select></label>
-        <p class="ws-small ws-muted">Runs in this browser tab. For a video, keep the tab in view: browsers stop playing video in hidden tabs.</p>
+        <label class="ws-field adv-only" for="luckyRoi">{{ _('Area') }}<select class="ws-select" id="luckyRoi"><option value="auto">{{ _('Around the planet (found automatically)') }}</option><option value="full">{{ _('The whole frame (the Moon)') }}</option></select></label>
+        <p class="ws-small ws-muted">{{ _('Runs in this browser tab. For a video, keep the tab in view: browsers stop playing video in hidden tabs.') }}</p>
     </div>
     <div class="ws-dialog-foot">
         <span class="ws-spacer"></span>
-        <button class="ws-btn primary" type="button" id="btnLuckyStart">Start</button>
+        <button class="ws-btn primary" type="button" id="btnLuckyStart">{{ _('Start') }}</button>
     </div>
 </dialog>
 
 <!-- Choosing frames for one row of the stack dialog -->
 <dialog class="ws-dialog narrow" id="altDialog" aria-labelledby="altTitle">
-    <div class="ws-dialog-head"><h2 id="altTitle">Choose frames</h2><button class="ws-btn" type="button" data-close>Close</button></div>
+    <div class="ws-dialog-head"><h2 id="altTitle">{{ _('Choose frames') }}</h2><button class="ws-btn" type="button" data-close>{{ _('Close') }}</button></div>
     <div class="ws-dialog-body"><div class="alt-groups" id="altGroups"></div></div>
 </dialog>
 
 <!-- Full-size viewer and blink -->
-<dialog class="ws-viewer" id="viewer" aria-label="Photo viewer">
+<dialog class="ws-viewer" id="viewer" aria-label="{{ _('Photo viewer') }}">
     <div class="ws-viewer-bar">
         <b id="viewerName" style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></b>
         <span class="ws-small" id="viewerInfo" style="color:#9daccc"></span>
         <span class="ws-spacer"></span>
-        <button class="ws-btn sm" type="button" id="viewerPrev" title="Previous (←)">‹</button>
-        <button class="ws-btn sm" type="button" id="viewerPlay" title="Blink (space)">Blink</button>
-        <button class="ws-btn sm" type="button" id="viewerNext" title="Next (→)">›</button>
-        <div class="ws-seg sm" role="group" aria-label="Zoom" id="viewerZoomSeg">
-            <button type="button" data-zoom="fit" class="on">Fit</button>
+        <button class="ws-btn sm" type="button" id="viewerPrev" title="{{ _('Previous (←)') }}">‹</button>
+        <button class="ws-btn sm" type="button" id="viewerPlay" title="{{ _('Blink (space)') }}">{{ _('Blink') }}</button>
+        <button class="ws-btn sm" type="button" id="viewerNext" title="{{ _('Next (→)') }}">›</button>
+        <div class="ws-seg sm" role="group" aria-label="{{ _('Zoom') }}" id="viewerZoomSeg">
+            <button type="button" data-zoom="fit" class="on">{{ _('Fit') }}</button>
             <button type="button" data-zoom="1">100%</button>
             <button type="button" data-zoom="2">200%</button>
         </div>
-        <button class="ws-btn sm" type="button" id="viewerStretch" aria-pressed="false" title="Brighten faint detail on screen (s)">Auto stretch</button>
-        <button class="ws-btn sm" type="button" id="viewerReject" title="Reject (x)">Reject</button>
-        <button class="ws-btn sm" type="button" data-close title="Close (Esc)">Close</button>
+        <button class="ws-btn sm" type="button" id="viewerStretch" aria-pressed="false" title="{{ _('Brighten faint detail on screen (s)') }}">{{ _('Auto stretch') }}</button>
+        <button class="ws-btn sm" type="button" id="viewerReject" title="{{ _('Reject (x)') }}">{{ _('Reject') }}</button>
+        <button class="ws-btn sm" type="button" data-close title="{{ _('Close (Esc)') }}">{{ _('Close') }}</button>
     </div>
     <div class="ws-viewer-stage" id="viewerStage"><canvas id="viewerCanvas"></canvas></div>
 </dialog>

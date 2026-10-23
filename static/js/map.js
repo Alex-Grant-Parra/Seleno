@@ -28,8 +28,8 @@
     })();
     const bortleUrl = (config.bortleTileUrl || "").trim();
     const bortleWmsUrl = (config.bortleWmsUrl || "").trim();
-    const bortleWmsLayer = (config.bortleWmsLayer || "VIIRS_Night_Lights").trim() || "VIIRS_Night_Lights";
-    const bortleWmsTime = (config.bortleWmsTime || "2016-01-01").trim() || "2016-01-01";
+    const bortleWmsLayer = (config.bortleWmsLayer || "PostGIS:WA_2015").trim() || "PostGIS:WA_2015";
+    const bortleWmsTime = (config.bortleWmsTime || "").trim();
     const bortleFixedUrl = (config.bortleFixedUrl || "").trim();
     const satelliteUrl = (config.satelliteTileUrl || "").trim() ||
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
@@ -74,7 +74,6 @@
     }
     if (bortlePane) {
         bortlePane.style.zIndex = 460;
-        bortlePane.style.mixBlendMode = "screen";
     }
 
     let weatherOpacity = weatherOpacityInput ? parseFloat(weatherOpacityInput.value) : 0.7;
@@ -86,6 +85,26 @@
 
     // Marker used for search / info pin
     let infoMarker = null;
+
+    // Separate from infoMarker so selecting other points never hides it.
+    let locationMarker = null;
+
+    function showCurrentLocation(lat, lon, popupHtml) {
+        if (locationMarker) {
+            locationMarker.setLatLng([lat, lon]);
+        } else {
+            locationMarker = L.circleMarker([lat, lon], {
+                radius: 8,
+                color: "#ffffff",
+                weight: 2,
+                fillColor: "#2e8bff",
+                fillOpacity: 1,
+                pane: "markerPane",
+                interactive: true
+            }).addTo(map);
+        }
+        locationMarker.bindPopup(popupHtml).openPopup();
+    }
 
     function placePin(lat, lon, popupHtml) {
         if (infoMarker) {
@@ -162,123 +181,15 @@
         }
     }
 
-    function estimateBortleFromRadiance(radiance) {
-        if (!Number.isFinite(radiance) || radiance < 0) {
-            return null;
-        }
-        // Heuristic bins to convert VIIRS-like radiance values into a 1..9 Bortle estimate.
-        if (radiance <= 0.25) return 1;
-        if (radiance <= 0.5) return 2;
-        if (radiance <= 1) return 3;
-        if (radiance <= 2) return 4;
-        if (radiance <= 5) return 5;
-        if (radiance <= 10) return 6;
-        if (radiance <= 20) return 7;
-        if (radiance <= 40) return 8;
-        return 9;
-    }
-
-    function parseBortleValueFromFeatureInfo(text) {
-        if (!text || typeof text !== "string") {
-            return null;
-        }
-
-        // First, try to parse JSON-style GetFeatureInfo responses.
+    // Looked up server-side: the light pollution map server blocks browser requests (no CORS).
+    async function fetchBortleInfo(lat, lon) {
         try {
-            const parsed = JSON.parse(text);
-            const feature = parsed && Array.isArray(parsed.features) ? parsed.features[0] : null;
-            const properties = feature && feature.properties ? feature.properties : null;
-            if (properties && typeof properties === "object") {
-                const numericValues = Object.values(properties)
-                    .map((value) => Number(value))
-                    .filter((value) => Number.isFinite(value));
-
-                const directBortle = numericValues.find((value) => value >= 1 && value <= 9);
-                if (Number.isFinite(directBortle)) {
-                    return Math.max(1, Math.min(9, Math.round(directBortle)));
-                }
-
-                if (numericValues.length > 0) {
-                    return estimateBortleFromRadiance(numericValues[0]);
-                }
-            }
-        } catch (err) {
-            // Not JSON, continue with plain-text parsing.
-        }
-
-        const numberMatches = text.match(/-?\d+(?:\.\d+)?/g);
-        if (!numberMatches || numberMatches.length === 0) {
-            return null;
-        }
-
-        const numbers = numberMatches
-            .map((value) => Number(value))
-            .filter((value) => Number.isFinite(value));
-
-        if (numbers.length === 0) {
-            return null;
-        }
-
-        const directBortle = numbers.find((value) => value >= 1 && value <= 9);
-        if (Number.isFinite(directBortle)) {
-            return Math.max(1, Math.min(9, Math.round(directBortle)));
-        }
-
-        return estimateBortleFromRadiance(numbers[0]);
-    }
-
-    async function fetchBortleLevel(lat, lon) {
-        if (!bortleWmsUrl || !bortleWmsLayer) {
-            return null;
-        }
-
-        try {
-            const latLng = L.latLng(lat, lon);
-            const point = map.latLngToContainerPoint(latLng);
-            const size = map.getSize();
-            const bounds = map.getBounds();
-            const sw = map.options.crs.project(bounds.getSouthWest());
-            const ne = map.options.crs.project(bounds.getNorthEast());
-            const bbox = [sw.x, sw.y, ne.x, ne.y].join(",");
-
-            const url = new URL(bortleWmsUrl);
-            url.searchParams.set("service", "WMS");
-            url.searchParams.set("version", "1.1.1");
-            url.searchParams.set("request", "GetFeatureInfo");
-            url.searchParams.set("layers", bortleWmsLayer);
-            url.searchParams.set("query_layers", bortleWmsLayer);
-            url.searchParams.set("styles", "");
-            url.searchParams.set("bbox", bbox);
-            url.searchParams.set("srs", "EPSG:3857");
-            url.searchParams.set("width", String(Math.round(size.x)));
-            url.searchParams.set("height", String(Math.round(size.y)));
-            url.searchParams.set("x", String(Math.round(point.x)));
-            url.searchParams.set("y", String(Math.round(point.y)));
-            url.searchParams.set("feature_count", "1");
-            url.searchParams.set("info_format", "application/json");
-
-            const response = await fetch(url.toString());
-            const text = await response.text();
-
+            const response = await fetch(`/map/bortle?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`);
             if (!response.ok) {
-                throw new Error(`Bortle WMS GetFeatureInfo failed (${response.status})`);
+                throw new Error(`Bortle lookup failed (${response.status})`);
             }
-
-            let bortle = parseBortleValueFromFeatureInfo(text);
-            if (Number.isFinite(bortle)) {
-                return bortle;
-            }
-
-            // Fallback for servers that do not support JSON GetFeatureInfo.
-            url.searchParams.set("info_format", "text/plain");
-            const plainResponse = await fetch(url.toString());
-            const plainText = await plainResponse.text();
-            if (!plainResponse.ok) {
-                throw new Error(`Bortle WMS text GetFeatureInfo failed (${plainResponse.status})`);
-            }
-
-            bortle = parseBortleValueFromFeatureInfo(plainText);
-            return Number.isFinite(bortle) ? bortle : null;
+            const data = await response.json();
+            return Number.isFinite(data.bortle) ? data : null;
         } catch (err) {
             console.warn("Bortle lookup failed", err);
             return null;
@@ -497,7 +408,7 @@
             opacity: bortleOpacity,
             pane: "bortlePane",
             attribution: bortleAttribution,
-            time: bortleWmsTime,
+            ...(bortleWmsTime ? { time: bortleWmsTime } : {}),
             version: "1.3.0"
         });
     } else if (bortleFixedUrl) {
@@ -557,9 +468,9 @@
         const loadingHtml = `<div style="min-width:160px">Loading data for<br><strong>${lat.toFixed(5)}, ${lon.toFixed(5)}</strong>…</div>`;
         placePin(lat, lon, loadingHtml);
 
-        const [weather, bortleLevel] = await Promise.all([
+        const [weather, bortleInfo] = await Promise.all([
             fetchPointWeather(lat, lon),
-            fetchBortleLevel(lat, lon)
+            fetchBortleInfo(lat, lon)
         ]);
         let popupHtml = `<div style="min-width:200px"><strong>Coords:</strong> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>`;
         if (!weather) {
@@ -570,12 +481,13 @@
             popupHtml += `<strong>Precipitation (hour):</strong> ${weather.precipitation !== null ? weather.precipitation + ' mm' : 'N/A'}<br>`;
         }
 
-        if (bortleLevel !== null) {
-            popupHtml += `<strong>Bortle level:</strong> ${bortleLevel}<br>`;
-        } else if (overlayLayers.bortle) {
-            popupHtml += `<strong>Bortle level:</strong> Unavailable at this point<br>`;
+        if (bortleInfo) {
+            popupHtml += `<strong>Bortle level:</strong> ${bortleInfo.bortle}<br>`;
+            if (Number.isFinite(bortleInfo.sqm)) {
+                popupHtml += `<strong>Sky brightness:</strong> ${bortleInfo.sqm.toFixed(2)} mag/arcsec²<br>`;
+            }
         } else {
-            popupHtml += `<strong>Bortle level:</strong> Overlay unavailable<br>`;
+            popupHtml += `<strong>Bortle level:</strong> Unavailable at this point<br>`;
         }
 
         popupHtml += `</div>`;
@@ -674,7 +586,7 @@
                     try {
                         map.setView([lat, lon], Math.max(map.getZoom(), 6));
                         const title = msg.source === 'browser' ? 'Your location' : 'Approximate location';
-                        placePin(lat, lon, `<div><strong>${title}</strong><br>${lat.toFixed(5)}, ${lon.toFixed(5)}</div>`);
+                        showCurrentLocation(lat, lon, `<div><strong>${title}</strong><br>${lat.toFixed(5)}, ${lon.toFixed(5)}</div>`);
                     } catch (err) {
                         console.warn('Failed to center map on location', err);
                     }
@@ -724,6 +636,19 @@
                 overlayLayers.bortle.setOpacity(bortleOpacity);
             }
         });
+    }
+
+    // Keep the legend and zoom/attribution controls clear of the time rail.
+    const mapWrap = document.querySelector(".map-wrap");
+    const timeRail = document.querySelector(".time-rail");
+    if (mapWrap && timeRail) {
+        const syncRailHeight = () => {
+            mapWrap.style.setProperty("--rail-h", `${timeRail.offsetHeight}px`);
+        };
+        syncRailHeight();
+        if (typeof ResizeObserver !== "undefined") {
+            new ResizeObserver(syncRailHeight).observe(timeRail);
+        }
     }
 
     map.whenReady(() => {

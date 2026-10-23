@@ -26,6 +26,7 @@ from app.telescope_access import (
     requested_telescope_id,
     telescope_access_error,
 )
+from flask_babel import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ def _may_manage_plan(row, telescope_row):
 @capture_bp.route("/presets", methods=["GET"])
 def presets():
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in")}), 401
     return jsonify({"status": "success", "presets": PRESETS})
 
 
@@ -74,7 +75,7 @@ def presets():
 def estimate():
     # Shape errors and the time, frames and storage a plan needs, while it's being built
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in")}), 401
     data = _json_body()
     plan = data.get("plan")
     row = get_telescope_row(requested_telescope_id(data))
@@ -99,7 +100,7 @@ def start():
     row = get_telescope_row(telescope_id)
 
     if _active_plan(row) is not None:
-        return jsonify({"status": "error", "message": "A plan is already running on this telescope; stop it first"}), 409
+        return jsonify({"status": "error", "message": _("A plan is already running on this telescope; stop it first")}), 409
 
     plan, context, errors = prepare_plan(current_user, row, data.get("plan"))
     if errors:
@@ -112,7 +113,7 @@ def start():
         choices = t.camera.get_settings()
         error = result_error(choices)
         if error:
-            return jsonify({"status": "error", "message": f"Couldn't read the camera's settings: {error}"}), 502
+            return jsonify({"status": "error", "message": _("Couldn't read the camera's settings: %(error)s", error=error)}), 502
         errors = check_camera_settings(plan, choices)
         if errors:
             return jsonify({"status": "error", "message": errors[0], "errors": errors}), 400
@@ -189,9 +190,9 @@ def control():
 
     record = _active_plan(row)
     if record is None:
-        return jsonify({"status": "error", "message": "No plan is running on this telescope"}), 404
+        return jsonify({"status": "error", "message": _("No plan is running on this telescope")}), 404
     if not _may_manage_plan(record, row):
-        return jsonify({"status": "error", "message": "Only the plan's owner, the telescope's owner or an admin can change it"}), 403
+        return jsonify({"status": "error", "message": _("Only the plan's owner, the telescope's owner or an admin can change it")}), 403
 
     plans = Telescope(telescope_id).plans
     result = getattr(plans, CONTROL_ACTIONS[action])()
@@ -232,7 +233,7 @@ def history():
 def saved_list():
     from models.capture_plan import SavedCapturePlan
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in")}), 401
     rows = SavedCapturePlan.query.filter_by(owner_id=current_user.id).order_by(SavedCapturePlan.updated_at.desc()).all()
     return jsonify({"status": "success", "plans": [r.to_dict() for r in rows]})
 
@@ -242,7 +243,7 @@ def saved_save():
     # Save a plan from the builder; with an id, replace that saved plan
     from models.capture_plan import SavedCapturePlan
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in")}), 401
 
     data = _json_body()
     plan = data.get("plan")
@@ -252,16 +253,16 @@ def saved_save():
     keep = {key: plan[key] for key in ("name", "steps", "on_error", "upload", "park_at_end") if key in plan}
     encoded = json.dumps(keep)
     if len(encoded) > 256 * 1024:
-        return jsonify({"status": "error", "message": "The plan is too large to save"}), 400
+        return jsonify({"status": "error", "message": _("The plan is too large to save")}), 400
 
     row = None
     if data.get("id") is not None:
         row = SavedCapturePlan.query.filter_by(id=data.get("id"), owner_id=current_user.id).first()
         if row is None:
-            return jsonify({"status": "error", "message": "Saved plan not found"}), 404
+            return jsonify({"status": "error", "message": _("Saved plan not found")}), 404
     else:
         if SavedCapturePlan.query.filter_by(owner_id=current_user.id).count() >= MAX_SAVED_PLANS:
-            return jsonify({"status": "error", "message": f"You can save up to {MAX_SAVED_PLANS} plans"}), 400
+            return jsonify({"status": "error", "message": _('You can save up to %(MAX_SAVED_PLANS)s plans', MAX_SAVED_PLANS=MAX_SAVED_PLANS)}), 400
         row = SavedCapturePlan(owner_id=current_user.id)
         db.session.add(row)
     row.name = keep["name"]
@@ -274,10 +275,10 @@ def saved_save():
 def saved_delete(plan_id):
     from models.capture_plan import SavedCapturePlan
     if not current_user.is_authenticated:
-        return jsonify({"status": "error", "message": "Must be logged in"}), 401
+        return jsonify({"status": "error", "message": _("Must be logged in")}), 401
     row = SavedCapturePlan.query.filter_by(id=plan_id, owner_id=current_user.id).first()
     if row is None:
-        return jsonify({"status": "error", "message": "Saved plan not found"}), 404
+        return jsonify({"status": "error", "message": _("Saved plan not found")}), 404
     db.session.delete(row)
     db.session.commit()
     return jsonify({"status": "success"})

@@ -130,7 +130,7 @@ function changed(record = true) {
     clearTimeout(saveTimer);
     if (stack.photo) return;          // a single photo: nothing saved on the server until exported
     saveTimer = setTimeout(() => {
-        updateStack(stack.id, { edit: params }).catch(error => { $('editorSaveStatus').textContent = `Couldn't save the settings: ${error.message}`; });
+        updateStack(stack.id, { edit: params }).catch(error => { $('editorSaveStatus').textContent = _('Couldn\'t save the settings: {message}', { message: error.message }); });
     }, 1500);
 }
 
@@ -145,13 +145,13 @@ function stackInfo(s) {
     const parts = [];
     if (s.frames_used) {
         const exposure = report.frames && report.frames.length ? report.frames.find(f => f.accepted && f.exposure_s) : null;
-        parts.push(`${s.frames_used}${exposure ? ' × ' + Seleno.fmt.exposure(exposure.exposure_s) : ' frames'}${s.total_exposure_s ? ` (${Seleno.fmt.duration(s.total_exposure_s)})` : ''}`);
+        parts.push(`${s.frames_used}${exposure ? ' × ' + Seleno.fmt.exposure(exposure.exposure_s) : _(' frames')}${s.total_exposure_s ? ` (${Seleno.fmt.duration(s.total_exposure_s)})` : ''}`);
     }
     ['dark', 'bias', 'flat', 'darkflat'].forEach(type => {
-        if (masters[type] && masters[type].frames) parts.push(`${masters[type].frames} ${type === 'darkflat' ? 'dark flats' : type === 'bias' ? 'bias' : type + 's'}`);
+        if (masters[type] && masters[type].frames) parts.push(`${masters[type].frames} ${({ dark: _('darks'), bias: _('bias'), flat: _('flats'), darkflat: _('dark flats') })[type]}`);
     });
     if (s.width) parts.push(`${s.width} × ${s.height}`);
-    parts.push(`stacked ${Seleno.fmt.dateTime(s.created_at)}`);
+    parts.push(_('stacked {date}', { date: Seleno.fmt.dateTime(s.created_at) }));
     return parts.join(' · ');
 }
 
@@ -159,23 +159,23 @@ function renderReport(s) {
     const box = $('editorReport');
     box.innerHTML = '';
     const report = s.report || {};
-    box.appendChild(el('h3', {}, 'How it was stacked'));
+    box.appendChild(el('h3', {}, _('How it was stacked')));
     const kv = el('dl', { className: 'ws-kv' });
     const add = (k, v) => { if (v !== undefined && v !== null && v !== '') kv.append(el('dt', {}, k), el('dd', {}, v)); };
-    add('Frames used', s.frames_used ? `${s.frames_used} of ${s.frames_total || s.frames_used}` : '');
-    add('Reference', report.reference);
+    add(_('Frames used'), s.frames_used ? _('{used} of {total}', { used: s.frames_used, total: s.frames_total || s.frames_used }) : '');
+    add(_('Reference'), report.reference);
     const settings = s.settings || {};
-    add('Combine', settings.method);
-    add('Debayer', settings.debayer);
+    add(_('Combine'), settings.method);
+    add(_('Debayer'), settings.debayer);
     if (report.stats) {
-        add('Took', report.stats.seconds ? Seleno.fmt.duration(report.stats.seconds) : '');
-        add('Rejected pixels', report.stats.rejected_low_pct !== undefined ? `${report.stats.rejected_low_pct}% low · ${report.stats.rejected_high_pct}% high` : '');
+        add(_('Took'), report.stats.seconds ? Seleno.fmt.duration(report.stats.seconds) : '');
+        add(_('Rejected pixels'), report.stats.rejected_low_pct !== undefined ? _('{rejectedLowPct}% low · {rejectedHighPct}% high', { rejectedLowPct: report.stats.rejected_low_pct, rejectedHighPct: report.stats.rejected_high_pct }) : '');
     }
-    if (report.masters && report.masters.hot_pixels !== undefined) add('Hot pixels fixed', String(report.masters.hot_pixels));
+    if (report.masters && report.masters.hot_pixels !== undefined) add(_('Hot pixels fixed'), String(report.masters.hot_pixels));
     box.appendChild(kv);
     const left = (report.frames || []).filter(f => !f.accepted);
     if (left.length) {
-        box.appendChild(el('div', { className: 'ws-small ws-strong', style: { marginTop: '8px' } }, `Left out (${left.length})`));
+        box.appendChild(el('div', { className: 'ws-small ws-strong', style: { marginTop: '8px' } }, _('Left out ({left})', { left: left.length })));
         left.slice(0, 50).forEach(f => box.appendChild(el('div', { className: 'ws-row ws-small' }, [el('span', {}, f.name), el('span', {}, f.reason || '')])));
     }
     (report.warnings || []).forEach(w => box.appendChild(el('div', { className: 'ws-note warn', style: { marginTop: '6px' } }, w)));
@@ -184,7 +184,7 @@ function renderReport(s) {
 
 async function saveJpegToAlbum() {
     const status = $('editorSaveStatus');
-    status.textContent = 'Saving…';
+    status.textContent = _('Saving…');
     try {
         let blob;
         if (session) blob = await session.export(params, 'jpeg');
@@ -195,16 +195,16 @@ async function saveJpegToAlbum() {
         form.append('name', stack.name);
         if (stack.target) form.append('target', stack.target);
         const data = await Seleno.api('/album/api/save_image', { method: 'POST', body: form });
-        status.textContent = `Saved to the album as ${data.name}.`;
-        Seleno.toast(`Saved ${data.name} to the album.`, 'ok');
+        status.textContent = _('Saved to the album as {name}.', { name: data.name });
+        Seleno.toast(_('Saved {name} to the album.', { name: data.name }), 'ok');
     } catch (error) {
-        status.textContent = `Couldn't save: ${error.message}`;
+        status.textContent = _('Couldn\'t save: {message}', { message: error.message });
     }
 }
 
 async function exportAs(format) {
     if (!session) {
-        Seleno.toast(`${format.toUpperCase()} export: ${engine.reason}`, 'warn', 6500);
+        Seleno.toast(_('{format} export: {reason}', { format: format.toUpperCase(), reason: engine.reason }), 'warn', 6500);
         return;
     }
     const blob = await session.export(params, format);
@@ -282,7 +282,7 @@ function wire() {
         session.compare(btn.dataset.compare);
     }));
     $('showBgModel').addEventListener('change', (e) => { if (session && session.showBackground) session.showBackground(e.target.checked); });
-    $('editorStage').addEventListener('develop-error', (e) => { $('editorSaveStatus').textContent = `Couldn't render: ${e.detail && e.detail.message}`; });
+    $('editorStage').addEventListener('develop-error', (e) => { $('editorSaveStatus').textContent = _('Couldn\'t render: {message}', { message: e.detail && e.detail.message }); });
     document.addEventListener('keydown', (e) => {
         if ($('viewEditor').hidden || !(e.ctrlKey || e.metaKey) || e.target.closest('input, textarea')) return;
         if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); $('btnUndo').click(); }
@@ -319,7 +319,7 @@ export async function openEditor(stackId) {
             session.render(params);
         } catch (error) {
             session = null;
-            $('editorSaveStatus').textContent = `Showing the automatic result: ${error.message}`;
+            $('editorSaveStatus').textContent = _('Showing the automatic result: {message}', { message: error.message });
         }
     }
     finishOpening(note, img);
@@ -332,7 +332,7 @@ function finishOpening(note, img) {
     $('btnEditReset').disabled = !live;
     document.querySelectorAll('#compareSeg button').forEach(b => { b.disabled = !live; });
     note.classList.toggle('ws-hidden', live);
-    note.textContent = engine.available ? 'Showing the result as it was saved.' : `Showing the automatic result. Adjusting it needs the in-browser processing: ${engine.reason} Saving and downloading work.`;
+    note.textContent = engine.available ? _('Showing the result as it was saved.') : _('Showing the automatic result. Adjusting it needs the in-browser processing: {reason} Saving and downloading work.', { reason: engine.reason });
     img.classList.toggle('ws-hidden', live);
     syncControls();
 }
@@ -362,7 +362,7 @@ export async function openPhotoEditor(frame) {
     $('editorReport').classList.add('ws-hidden');
     $('btnDownloadMaster').classList.add('ws-hidden');
     $('btnDownloadAuto').href = `${frame.url}`;
-    $('editorSaveStatus').textContent = 'Opening the photo…';
+    $('editorSaveStatus').textContent = _('Opening the photo…');
     const entry = { name: frame.name, url: useRaw ? frame.raw_url || frame.url : frame.url, kind: useRaw ? 'raw' : 'jpeg', jpeg_url: frame.kind === 'jpeg' ? frame.url : null };
     try {
         session = await engine.develop({ entry }, $('editorStage'));
@@ -371,7 +371,7 @@ export async function openPhotoEditor(frame) {
         $('editorSaveStatus').textContent = '';
     } catch (error) {
         session = null;
-        $('editorSaveStatus').textContent = `Couldn't open it for editing: ${error.message}`;
+        $('editorSaveStatus').textContent = _('Couldn\'t open it for editing: {message}', { message: error.message });
     }
     finishOpening($('editorEngineNote'), img);
 }

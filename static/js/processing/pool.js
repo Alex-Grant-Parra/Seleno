@@ -5,6 +5,14 @@
 
 import { newEnv, runTask } from './tasks.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 const GB = 1024 ** 3;
 
 // How much this machine can do: workers and the memory budget for data held in this tab
@@ -48,7 +56,7 @@ export class WorkerPool {
     }
 
     run(name, args = {}, { transfer = [], worker = null, signal = null } = {}) {
-        if (this.closed) return Promise.reject(new Error('The processing pool is closed'));
+        if (this.closed) return Promise.reject(new Error(_('The processing pool is closed')));
         return new Promise((resolve, reject) => {
             const job = { id: this.nextId++, name, args, transfer, resolve, reject, signal };
             if (signal) {
@@ -69,7 +77,7 @@ export class WorkerPool {
     }
 
     broadcast(name, args = {}) {
-        return Promise.all(this.workers.map((_, i) => this.run(name, args, { worker: i })));
+        return Promise.all(this.workers.map((_unused, i) => this.run(name, args, { worker: i })));
     }
 
     pump() {
@@ -99,7 +107,7 @@ export class WorkerPool {
         for (const [id, entry] of this.pending) {
             if (entry.worker !== i) continue;
             this.pending.delete(id);
-            entry.job.reject(new Error(`A processing worker stopped (${event.message || 'probably out of memory'}). Try half-size (super-pixel) or fewer frames.`));
+            entry.job.reject(new Error(_('A processing worker stopped ({message}). Try half-size (super-pixel) or fewer frames.', { message: event.message || _('probably out of memory') })));
         }
         this.busy[i] = false;
         event.preventDefault && event.preventDefault();

@@ -1,0 +1,6204 @@
+# Spanish translations for SELENO.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SELENO project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SELENO VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-23 20:02+0100\n"
+"PO-Revision-Date: 2026-10-23 18:47+0100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: es\n"
+"Language-Team: Spanish (Spain)\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: app/capture_plans.py:289
+#, python-format
+msgid "The plan takes %(frames)s frames; the limit is %(limit)s"
+msgstr "El plan toma %(frames)s fotogramas; el límite es %(limit)s"
+
+#: app/capture_plans.py:304
+#, python-format
+msgid "Step %(step)s: the camera has no %(setting)s %(value)s"
+msgstr "Paso %(step)s: la cámara no tiene %(setting)s %(value)s"
+
+#: app/capture_plans.py:479
+msgid "Only the booking's holder, the telescope's owner or an admin can start a plan"
+msgstr "Solo el titular de la reserva, el propietario del telescopio o un administrador pueden iniciar un plan"
+
+#: app/capture_plans.py:484
+msgid "You need a booking that covers now to start a plan"
+msgstr "Necesitas una reserva vigente en este momento para iniciar un plan"
+
+#: app/capture_plans.py:496
+#, python-format
+msgid "The plan needs about %(needs)s but must end by %(end)s (%(left)s from now)"
+msgstr "El plan necesita unos %(needs)s, pero debe terminar antes de %(end)s (dentro de %(left)s)"
+
+#: app/sky.py:288 static/js/interface-guide.js:151
+msgid "Never rises from this telescope's site"
+msgstr "Nunca sale sobre el horizonte desde el lugar de este telescopio"
+
+#: app/sky.py:290
+msgid "Below the horizon now"
+msgstr "Ahora está bajo el horizonte"
+
+#: app/sky.py:292
+msgid "Low in the sky: the air blurs and dims it"
+msgstr "Bajo en el cielo: el aire lo emborrona y lo atenúa"
+
+#: app/sky.py:295
+msgid "Bright Moon close by: shorter exposures, or a narrowband filter"
+msgstr "Luna brillante cerca: exposiciones más cortas o un filtro de banda estrecha"
+
+#: app/sky.py:297
+msgid "The sky isn't fully dark yet"
+msgstr "El cielo todavía no está del todo oscuro"
+
+#: app/sky.py:299
+msgid "Fairly low; it gets better nearer its transit"
+msgstr "Bastante bajo; mejora cerca de su tránsito"
+
+#: app/sky.py:299
+msgid "Fairly low and sinking"
+msgstr "Bastante bajo y bajando"
+
+#: app/sky.py:300
+msgid "Good conditions for this target"
+msgstr "Buenas condiciones para este objetivo"
+
+#: app/telescope_access.py:106
+msgid "Must be logged in to control telescope"
+msgstr "Debes iniciar sesión para controlar el telescopio"
+
+#: app/telescope_access.py:108
+msgid "Limited accounts cannot control telescopes."
+msgstr "Las cuentas limitadas no pueden controlar telescopios."
+
+#: app/telescope_access.py:110 controllers/interface.py:398
+#: static/js/interface.js:64 static/js/interface.js:658
+#: static/js/interface.js:1528
+msgid "No telescope selected"
+msgstr "No hay ningún telescopio seleccionado"
+
+#: app/telescope_access.py:114 controllers/interface.py:365
+msgid "Telescope not found"
+msgstr "No se ha encontrado el telescopio"
+
+#: app/telescope_access.py:118
+msgid "Only the telescope's owner or an admin can do that."
+msgstr "Solo el propietario del telescopio o un administrador pueden hacer eso."
+
+#: app/telescope_access.py:120
+msgid "You need to own this telescope or hold a booking that covers now."
+msgstr "Necesitas ser el propietario de este telescopio o tener una reserva vigente en este momento."
+
+#: controllers/album.py:438
+msgid "Failed to read image metadata"
+msgstr "No se han podido leer los metadatos de la imagen"
+
+#: controllers/album.py:449
+msgid "Failed to save image metadata"
+msgstr "No se han podido guardar los metadatos de la imagen"
+
+#: controllers/album_api.py:183
+msgid "Too many files at once"
+msgstr "Demasiados archivos a la vez"
+
+#: controllers/album_api.py:196
+#, python-format
+msgid "frame_type must be one of %(types)s"
+msgstr "frame_type debe ser uno de estos: %(types)s"
+
+#: controllers/album_api.py:217
+#, python-format
+msgid "Couldn't save the target and notes into %(name)s"
+msgstr "No se han podido guardar el objetivo y las notas en %(name)s"
+
+#: controllers/album_api.py:291
+msgid "You can't control this telescope now"
+msgstr "Ahora no puedes controlar este telescopio"
+
+#: controllers/album_api.py:359
+msgid "The result is too big to keep on the server"
+msgstr "El resultado es demasiado grande para guardarlo en el servidor"
+
+#: controllers/album_api.py:363
+msgid "The server is short of disk space; download the result instead"
+msgstr "El servidor se está quedando sin espacio en disco; descarga el resultado"
+
+#: controllers/album_api.py:388
+msgid "The stack's description is too large"
+msgstr "La descripción del apilado es demasiado grande"
+
+#: controllers/album_api.py:404
+#, python-format
+msgid "%(name)s is too large"
+msgstr "%(name)s es demasiado grande"
+
+#: controllers/album_api.py:407
+#, python-format
+msgid "%(name)s is empty or too large"
+msgstr "%(name)s está vacío o es demasiado grande"
+
+#: controllers/album_api.py:409
+#, python-format
+msgid "%(name)s isn't a JPEG"
+msgstr "%(name)s no es un JPEG"
+
+#: controllers/album_api.py:428
+msgid "This stack has no master file"
+msgstr "Este apilado no tiene archivo máster"
+
+#: controllers/album_api.py:462
+#, python-format
+msgid "Still missing: %(missing)s"
+msgstr "Todavía faltan: %(missing)s"
+
+#: controllers/album_api.py:490
+msgid "The edit settings are too large"
+msgstr "Los ajustes de edición son demasiado grandes"
+
+#: controllers/album_api.py:525
+msgid "The image is empty or too large"
+msgstr "La imagen está vacía o es demasiado grande"
+
+#: controllers/album_api.py:528
+#, python-format
+msgid "That isn't a %(format)s file"
+msgstr "Eso no es un archivo %(format)s"
+
+#: controllers/auth.py:109 controllers/auth.py:318
+msgid "This account has been disabled. Contact an administrator."
+msgstr "Esta cuenta ha sido desactivada. Ponte en contacto con un administrador."
+
+#: controllers/auth.py:123
+msgid "Login successful! (2FA bypassed for local connection)"
+msgstr "¡Sesión iniciada! (2FA omitido por conexión local)"
+
+#: controllers/auth.py:129
+#, python-format
+msgid "Login successful! (Trusted device: %(device)s)"
+msgstr "¡Sesión iniciada! (Dispositivo de confianza: %(device)s)"
+
+#: controllers/auth.py:140
+msgid "Your 2FA Code"
+msgstr "Tu código 2FA"
+
+#: controllers/auth.py:140
+#, python-format
+msgid "Your 2FA code is %(code)s. Please enter this code to complete your login."
+msgstr "Tu código 2FA es %(code)s. Introdúcelo para completar el inicio de sesión."
+
+#: controllers/auth.py:141
+msgid "Check your email for the 2FA code to complete the login."
+msgstr "Revisa tu correo electrónico: te hemos enviado el código 2FA para completar el inicio de sesión."
+
+#: controllers/auth.py:145
+msgid "Invalid credentials, please try again."
+msgstr "Credenciales no válidas. Inténtalo de nuevo."
+
+#: controllers/auth.py:159
+msgid "Logged out successfully"
+msgstr "Has cerrado sesión correctamente"
+
+#: controllers/auth.py:174 templates/register.html:30
+msgid "Please complete the CAPTCHA before creating your account."
+msgstr "Completa el CAPTCHA antes de crear tu cuenta."
+
+#: controllers/auth.py:183
+msgid "You must agree to the Terms of Service to create an account."
+msgstr "Debes aceptar las Condiciones del servicio para crear una cuenta."
+
+#: controllers/auth.py:191
+msgid "Username and email already taken. Please choose another two."
+msgstr "El nombre de usuario y el correo electrónico ya están en uso. Elige otros."
+
+#: controllers/auth.py:195
+msgid "Username already taken. Please choose another one."
+msgstr "Ese nombre de usuario ya está en uso. Elige otro."
+
+#: controllers/auth.py:199
+msgid "Email already used. Please choose another one."
+msgstr "Ese correo electrónico ya está en uso. Elige otro."
+
+#: controllers/auth.py:212
+msgid "Account created and logged in successfully!"
+msgstr "¡Cuenta creada y sesión iniciada correctamente!"
+
+#: controllers/auth.py:236 templates/forgot_password.html:21
+msgid "Please complete the CAPTCHA before requesting a reset link."
+msgstr "Completa el CAPTCHA antes de solicitar el enlace de restablecimiento."
+
+#: controllers/auth.py:253
+#, python-format
+msgid "Password reset token (local connection): %(token)s"
+msgstr "Token para restablecer la contraseña (conexión local): %(token)s"
+
+#: controllers/auth.py:254
+msgid "Use this token to access the reset link directly."
+msgstr "Usa este token para acceder directamente al enlace de restablecimiento."
+
+#: controllers/auth.py:263
+msgid "Password Reset Request"
+msgstr "Solicitud de restablecimiento de contraseña"
+
+#: controllers/auth.py:263
+#, python-format
+msgid "Click the following link to reset your password: %(url)s"
+msgstr "Haz clic en el siguiente enlace para restablecer tu contraseña: %(url)s"
+
+#: controllers/auth.py:264
+msgid "A password reset link has been sent to your email."
+msgstr "Te hemos enviado un enlace para restablecer la contraseña a tu correo electrónico."
+
+#: controllers/auth.py:266
+#, python-format
+msgid "Error sending email: %(error)s"
+msgstr "Error al enviar el correo electrónico: %(error)s"
+
+#: controllers/auth.py:271
+msgid "No account found with that email address."
+msgstr "No hay ninguna cuenta con ese correo electrónico."
+
+#: controllers/auth.py:287
+msgid "That is an invalid or expired token."
+msgstr "El token no es válido o ha caducado."
+
+#: controllers/auth.py:297
+msgid "Your password has been updated!"
+msgstr "¡Tu contraseña se ha actualizado!"
+
+#: controllers/auth.py:310
+msgid "Session expired. Please log in again."
+msgstr "La sesión ha caducado. Vuelve a iniciar sesión."
+
+#: controllers/auth.py:333
+#, python-format
+msgid "Login successful! Device \"%(device)s\" is now trusted for 30 days."
+msgstr "¡Sesión iniciada! El dispositivo «%(device)s» será de confianza durante 30 días."
+
+#: controllers/auth.py:339
+msgid "Login successful!"
+msgstr "¡Sesión iniciada!"
+
+#: controllers/auth.py:346
+msgid "Invalid 2FA code. Please try again."
+msgstr "Código 2FA no válido. Inténtalo de nuevo."
+
+#: controllers/auth.py:363
+msgid "Device trust revoked successfully."
+msgstr "Se ha retirado la confianza del dispositivo."
+
+#: controllers/auth.py:365
+msgid "Device not found or could not be revoked."
+msgstr "No se ha encontrado el dispositivo o no se ha podido retirar la confianza."
+
+#: controllers/capture.py:70 controllers/capture.py:78
+#: controllers/capture.py:236 controllers/capture.py:246
+#: controllers/capture.py:278
+msgid "Must be logged in"
+msgstr "Debes iniciar sesión"
+
+#: controllers/capture.py:103
+msgid "A plan is already running on this telescope; stop it first"
+msgstr "Ya hay un plan en marcha en este telescopio; detenlo primero"
+
+#: controllers/capture.py:116
+#, python-format
+msgid "Couldn't read the camera's settings: %(error)s"
+msgstr "No se han podido leer los ajustes de la cámara: %(error)s"
+
+#: controllers/capture.py:193
+msgid "No plan is running on this telescope"
+msgstr "No hay ningún plan en marcha en este telescopio"
+
+#: controllers/capture.py:195
+msgid "Only the plan's owner, the telescope's owner or an admin can change it"
+msgstr "Solo el propietario del plan, el propietario del telescopio o un administrador pueden cambiarlo"
+
+#: controllers/capture.py:256
+msgid "The plan is too large to save"
+msgstr "El plan es demasiado grande para guardarlo"
+
+#: controllers/capture.py:262 controllers/capture.py:281
+msgid "Saved plan not found"
+msgstr "No se ha encontrado el plan guardado"
+
+#: controllers/capture.py:265
+#, python-format
+msgid "You can save up to %(MAX_SAVED_PLANS)s plans"
+msgstr "Puedes guardar hasta %(MAX_SAVED_PLANS)s planes"
+
+#: controllers/interface.py:98
+msgid "No camera setting given"
+msgstr "No se ha indicado ningún ajuste de cámara"
+
+#: controllers/interface.py:99
+msgid "Settings updated"
+msgstr "Ajustes actualizados"
+
+#: controllers/interface.py:168 controllers/interface.py:216
+msgid "Object not found"
+msgstr "No se ha encontrado el objeto"
+
+#: controllers/interface.py:173
+msgid "Invalid search format"
+msgstr "Formato de búsqueda no válido"
+
+#: controllers/interface.py:276
+msgid "Failed to get camera choices"
+msgstr "No se han podido obtener las opciones de la cámara"
+
+#: controllers/interface.py:296
+msgid "Bulb exposures run from 0 to 900 s"
+msgstr "Las exposiciones en modo bulb van de 0 a 900 s"
+
+#: controllers/interface.py:311
+msgid "Failed to take photo"
+msgstr "No se ha podido hacer la foto"
+
+#: controllers/interface.py:336
+msgid "Failed to get telescopes"
+msgstr "No se han podido obtener los telescopios"
+
+#: controllers/interface.py:352
+msgid "Must be logged in to select telescope"
+msgstr "Debes iniciar sesión para seleccionar un telescopio"
+
+#: controllers/interface.py:359 controllers/interface.py:419
+#: controllers/interface.py:439 controllers/interface.py:470
+msgid "Telescope ID is required"
+msgstr "Se necesita el ID del telescopio"
+
+#: controllers/interface.py:378
+#, python-format
+msgid "Selected telescope: %(telescope_id)s"
+msgstr "Telescopio seleccionado: %(telescope_id)s"
+
+#: controllers/interface.py:385
+msgid "Failed to select telescope"
+msgstr "No se ha podido seleccionar el telescopio"
+
+#: controllers/interface.py:405
+msgid "Must be logged in to manage telescopes"
+msgstr "Debes iniciar sesión para gestionar telescopios"
+
+#: controllers/interface.py:407 controllers/interface.py:464
+msgid "Admin access required"
+msgstr "Se necesita acceso de administrador"
+
+#: controllers/interface.py:429
+msgid "Failed to add telescope"
+msgstr "No se ha podido añadir el telescopio"
+
+#: controllers/interface.py:456
+msgid "Failed to remove telescope"
+msgstr "No se ha podido eliminar el telescopio"
+
+#: controllers/interface.py:496
+msgid "Failed to start live view"
+msgstr "No se ha podido iniciar la vista en directo"
+
+#: controllers/interface.py:513
+msgid "Failed to stop live view"
+msgstr "No se ha podido detener la vista en directo"
+
+#: controllers/interface.py:702
+#, python-format
+msgid "Unknown action: %(action)s"
+msgstr "Acción desconocida: %(action)s"
+
+#: controllers/interface.py:764
+#, python-format
+msgid "Unknown motor command: %(command)s"
+msgstr "Orden de motor desconocida: %(command)s"
+
+#: controllers/interface.py:786
+msgid "Failed to execute motor command"
+msgstr "No se ha podido ejecutar la orden del motor"
+
+#: controllers/interface_api.py:72
+msgid "This telescope's location isn't known yet. Its owner can set it on the telescope's settings page."
+msgstr "Todavía no se conoce la ubicación de este telescopio. Su propietario puede indicarla en la página de ajustes del telescopio."
+
+#: controllers/interface_api.py:139
+#, python-format
+msgid "Couldn't find %(name)s"
+msgstr "No se ha encontrado %(name)s"
+
+#: controllers/projects_api.py:122
+msgid "The project's description is too large"
+msgstr "La descripción del proyecto es demasiado grande"
+
+#: controllers/projects_api.py:178
+#, python-format
+msgid "%(name)s isn't a FITS file"
+msgstr "%(name)s no es un archivo FITS"
+
+#: controllers/projects_api.py:180
+msgid "The server is short of disk space"
+msgstr "El servidor se está quedando sin espacio en disco"
+
+#: controllers/projects_api.py:245
+msgid "Too much to record"
+msgstr "Demasiado para registrar"
+
+#: models/album.py:222
+msgid "our Moon"
+msgstr "nuestra Luna"
+
+#: models/album.py:222
+msgid "Craters and maria in sharp detail; best near the quarters, when shadows are long."
+msgstr "Cráteres y mares con todo detalle; mejor cerca de los cuartos, cuando las sombras son largas."
+
+#: models/album.py:222 static/js/interface-guide.js:12
+#: templates/interface.html:361
+msgid "The Moon"
+msgstr "La Luna"
+
+#: models/album.py:223
+msgid "Cloud belts and the four big moons."
+msgstr "Bandas de nubes y las cuatro grandes lunas."
+
+#: models/album.py:223 models/album.py:224 models/album.py:225
+#: models/album.py:226
+msgid "planet"
+msgstr "planeta"
+
+#: models/album.py:223 static/js/interface.js:1336 templates/interface.html:133
+msgid "Jupiter"
+msgstr "Júpiter"
+
+#: models/album.py:224
+msgid "The rings, even in small telescopes."
+msgstr "Los anillos, incluso con telescopios pequeños."
+
+#: models/album.py:224 static/js/interface.js:1336 templates/interface.html:133
+msgid "Saturn"
+msgstr "Saturno"
+
+#: models/album.py:225
+msgid "Small and bright; shows most near opposition."
+msgstr "Pequeño y brillante; se ve mejor cerca de la oposición."
+
+#: models/album.py:225 static/js/interface.js:1335 templates/interface.html:132
+msgid "Mars"
+msgstr "Marte"
+
+#: models/album.py:226
+msgid "A dazzling crescent or gibbous disc."
+msgstr "Un disco deslumbrante, en fase creciente o gibosa."
+
+#: models/album.py:226 static/js/interface.js:1335 templates/interface.html:132
+msgid "Venus"
+msgstr "Venus"
+
+#: models/album.py:227
+msgid "Orion Nebula"
+msgstr "Nebulosa de Orión"
+
+#: models/album.py:227
+msgid "The brightest nebula in the sky: glowing gas and newborn stars."
+msgstr "La nebulosa más brillante del cielo: gas luminoso y estrellas recién nacidas."
+
+#: models/album.py:227 models/album.py:238 models/album.py:239
+#: models/album.py:240 models/album.py:244
+msgid "emission nebula"
+msgstr "nebulosa de emisión"
+
+#: models/album.py:228
+msgid "Andromeda Galaxy"
+msgstr "Galaxia de Andrómeda"
+
+#: models/album.py:228
+msgid "The nearest big galaxy, so large it fills the frame."
+msgstr "La gran galaxia más cercana, tan extensa que llena el encuadre."
+
+#: models/album.py:228 models/album.py:233 models/album.py:234
+#: models/album.py:236 models/album.py:237 models/album.py:243
+#: models/album.py:250 models/album.py:262
+msgid "spiral galaxy"
+msgstr "galaxia espiral"
+
+#: models/album.py:229
+msgid "Pleiades"
+msgstr "Pléyades"
+
+#: models/album.py:229
+msgid "Blue stars wrapped in faint reflection nebula."
+msgstr "Estrellas azules envueltas en una tenue nebulosa de reflexión."
+
+#: models/album.py:229 models/album.py:248 models/album.py:249
+#: models/album.py:259 models/album.py:260
+msgid "open cluster"
+msgstr "cúmulo abierto"
+
+#: models/album.py:230
+msgid "Great Hercules Cluster"
+msgstr "Gran Cúmulo de Hércules"
+
+#: models/album.py:230
+msgid "Hundreds of thousands of stars in a tight ball."
+msgstr "Cientos de miles de estrellas en una bola compacta."
+
+#: models/album.py:230 models/album.py:246 models/album.py:247
+#: models/album.py:257 models/album.py:258
+msgid "globular cluster"
+msgstr "cúmulo globular"
+
+#: models/album.py:231
+msgid "Dumbbell Nebula"
+msgstr "Nebulosa Dumbbell"
+
+#: models/album.py:231
+msgid "A bright, colourful dying star's shell."
+msgstr "La envoltura brillante y colorida de una estrella moribunda."
+
+#: models/album.py:231 models/album.py:232 models/album.py:251
+#: models/album.py:263
+msgid "planetary nebula"
+msgstr "nebulosa planetaria"
+
+#: models/album.py:232
+msgid "Ring Nebula"
+msgstr "Nebulosa del Anillo"
+
+#: models/album.py:232
+msgid "A small, bright smoke ring."
+msgstr "Un pequeño y brillante anillo de humo."
+
+#: models/album.py:233
+msgid "Whirlpool Galaxy"
+msgstr "Galaxia del Remolino"
+
+#: models/album.py:233
+msgid "A face-on spiral pulling on a smaller companion."
+msgstr "Una espiral vista de frente que atrae a una compañera más pequeña."
+
+#: models/album.py:234
+msgid "Bode's Galaxy"
+msgstr "Galaxia de Bode"
+
+#: models/album.py:234
+msgid "A bright spiral; M82 sits next to it."
+msgstr "Una espiral brillante; M82 está justo al lado."
+
+#: models/album.py:235
+msgid "Cigar Galaxy"
+msgstr "Galaxia del Cigarro"
+
+#: models/album.py:235
+msgid "starburst galaxy"
+msgstr "galaxia con brote estelar"
+
+#: models/album.py:235
+msgid "An edge-on galaxy with red plumes."
+msgstr "Una galaxia vista de canto con penachos rojos."
+
+#: models/album.py:236
+msgid "Pinwheel Galaxy"
+msgstr "Galaxia del Molinete"
+
+#: models/album.py:236
+msgid "A big, faint face-on spiral: needs a long total exposure."
+msgstr "Una espiral grande y tenue vista de frente: necesita una exposición total larga."
+
+#: models/album.py:237
+msgid "Triangulum Galaxy"
+msgstr "Galaxia del Triángulo"
+
+#: models/album.py:237
+msgid "A large, faint spiral with pink star-forming regions."
+msgstr "Una espiral grande y tenue con regiones rosadas de formación estelar."
+
+#: models/album.py:238
+msgid "Lagoon Nebula"
+msgstr "Nebulosa de la Laguna"
+
+#: models/album.py:238
+msgid "A bright summer nebula low in the south."
+msgstr "Una nebulosa brillante de verano, baja en el sur."
+
+#: models/album.py:239
+msgid "Eagle Nebula"
+msgstr "Nebulosa del Águila"
+
+#: models/album.py:239
+msgid "Home of the Pillars of Creation."
+msgstr "El hogar de los Pilares de la Creación."
+
+#: models/album.py:240
+msgid "Omega Nebula"
+msgstr "Nebulosa Omega"
+
+#: models/album.py:240
+msgid "A bright swan-shaped cloud."
+msgstr "Una nube brillante con forma de cisne."
+
+#: models/album.py:241
+msgid "Trifid Nebula"
+msgstr "Nebulosa Trífida"
+
+#: models/album.py:241
+msgid "emission and reflection nebula"
+msgstr "nebulosa de emisión y reflexión"
+
+#: models/album.py:241
+msgid "Red and blue nebula split by dark lanes."
+msgstr "Nebulosa roja y azul dividida por franjas oscuras."
+
+#: models/album.py:242
+msgid "Crab Nebula"
+msgstr "Nebulosa del Cangrejo"
+
+#: models/album.py:242
+msgid "The remains of a star seen exploding in 1054."
+msgstr "Los restos de una estrella que se vio explotar en 1054."
+
+#: models/album.py:242 models/album.py:264 models/album.py:265
+msgid "supernova remnant"
+msgstr "remanente de supernova"
+
+#: models/album.py:243
+msgid "Sombrero Galaxy"
+msgstr "Galaxia del Sombrero"
+
+#: models/album.py:243
+msgid "An edge-on galaxy with a dark dust lane."
+msgstr "Una galaxia vista de canto con una franja oscura de polvo."
+
+#: models/album.py:244
+msgid "North America Nebula"
+msgstr "Nebulosa Norteamérica"
+
+#: models/album.py:244
+msgid "A huge nebula shaped like the continent; wide fields only."
+msgstr "Una enorme nebulosa con la forma del continente; solo para campos amplios."
+
+#: models/album.py:245
+msgid "Double Cluster"
+msgstr "Doble Cúmulo de Perseo"
+
+#: models/album.py:245
+msgid "open clusters"
+msgstr "cúmulos abiertos"
+
+#: models/album.py:245
+msgid "Two rich star clusters side by side."
+msgstr "Dos ricos cúmulos estelares, uno junto al otro."
+
+#: models/album.py:246
+msgid "A bright, rich globular cluster."
+msgstr "Un cúmulo globular brillante y rico."
+
+#: models/album.py:247
+msgid "A compact globular, often overlooked next to M13."
+msgstr "Un globular compacto, a menudo olvidado al lado de M13."
+
+#: models/album.py:248
+msgid "Beehive Cluster"
+msgstr "Cúmulo del Pesebre"
+
+#: models/album.py:248
+msgid "A big, bright cluster for wide fields."
+msgstr "Un cúmulo grande y brillante para campos amplios."
+
+#: models/album.py:249
+msgid "A rich cluster in Gemini."
+msgstr "Un cúmulo rico en Géminis."
+
+#: models/album.py:250
+msgid "Black Eye Galaxy"
+msgstr "Galaxia del Ojo Negro"
+
+#: models/album.py:250
+msgid "A dark dust band across a bright core."
+msgstr "Una banda oscura de polvo que cruza un núcleo brillante."
+
+#: models/album.py:251
+msgid "Owl Nebula"
+msgstr "Nebulosa del Búho"
+
+#: models/album.py:251
+msgid "A round, faint nebula with two dark 'eyes'."
+msgstr "Una nebulosa redonda y tenue con dos «ojos» oscuros."
+
+#: models/album.py:252
+msgid "Sirius"
+msgstr "Sirio"
+
+#: models/album.py:252
+msgid "The brightest star in the night sky, flashing colours when low."
+msgstr "La estrella más brillante del cielo nocturno; centellea en colores cuando está baja."
+
+#: models/album.py:252 models/album.py:256
+msgid "star"
+msgstr "estrella"
+
+#: models/album.py:253
+msgid "Albireo"
+msgstr "Albireo"
+
+#: models/album.py:253
+msgid "double star"
+msgstr "estrella doble"
+
+#: models/album.py:253
+msgid "A gold and a blue star side by side: the classic colour double."
+msgstr "Una estrella dorada y otra azul, una junto a la otra: la clásica doble de colores."
+
+#: models/album.py:254
+msgid "Mizar and Alcor"
+msgstr "Mizar y Alcor"
+
+#: models/album.py:254
+msgid "multiple star"
+msgstr "estrella múltiple"
+
+#: models/album.py:254
+msgid "A naked-eye pair in the Plough's handle; the telescope splits Mizar too."
+msgstr "Una pareja visible a simple vista en la cola de la Osa Mayor; el telescopio también desdobla Mizar."
+
+#: models/album.py:255
+msgid "Betelgeuse"
+msgstr "Betelgeuse"
+
+#: models/album.py:255
+msgid "red supergiant"
+msgstr "supergigante roja"
+
+#: models/album.py:255
+msgid "A huge orange-red star marking Orion's shoulder."
+msgstr "Una enorme estrella rojo anaranjada que marca el hombro de Orión."
+
+#: models/album.py:256
+msgid "Vega"
+msgstr "Vega"
+
+#: models/album.py:256
+msgid "A brilliant blue-white star high on summer evenings."
+msgstr "Una brillante estrella blanco azulada, alta en las noches de verano."
+
+#: models/album.py:257
+msgid "A big, bright globular low in Sagittarius."
+msgstr "Un globular grande y brillante, bajo en Sagitario."
+
+#: models/album.py:258
+msgid "A dense globular with a very bright core."
+msgstr "Un globular denso con un núcleo muy brillante."
+
+#: models/album.py:259
+msgid "Wild Duck Cluster"
+msgstr "Cúmulo del Pato Salvaje"
+
+#: models/album.py:259
+msgid "A rich cluster packed like a flock of birds."
+msgstr "Un cúmulo rico, apretado como una bandada de pájaros."
+
+#: models/album.py:260
+msgid "Ptolemy Cluster"
+msgstr "Cúmulo de Ptolomeo"
+
+#: models/album.py:260
+msgid "A big, bright cluster: a southern summer target."
+msgstr "Un cúmulo grande y brillante: un objetivo de verano, bajo en el sur."
+
+#: models/album.py:261
+msgid "reflection nebula"
+msgstr "nebulosa de reflexión"
+
+#: models/album.py:261
+msgid "A small blue glow in Orion."
+msgstr "Un pequeño resplandor azul en Orión."
+
+#: models/album.py:262
+msgid "Sculptor Galaxy"
+msgstr "Galaxia del Escultor"
+
+#: models/album.py:262
+msgid "A bright, dusty spiral seen nearly edge-on."
+msgstr "Una espiral brillante y polvorienta, vista casi de canto."
+
+#: models/album.py:263
+msgid "Helix Nebula"
+msgstr "Nebulosa de la Hélice"
+
+#: models/album.py:263
+msgid "A large, faint 'eye' of gas: one of the nearest planetary nebulae."
+msgstr "Un gran «ojo» de gas tenue: una de las nebulosas planetarias más cercanas."
+
+#: models/album.py:264
+msgid "Western Veil Nebula"
+msgstr "Nebulosa del Velo Occidental"
+
+#: models/album.py:264
+msgid "Fine filaments of an old supernova, around 52 Cygni."
+msgstr "Finos filamentos de una antigua supernova, alrededor de 52 Cygni."
+
+#: models/album.py:265
+msgid "Eastern Veil Nebula"
+msgstr "Nebulosa del Velo Oriental"
+
+#: models/album.py:265
+msgid "The brighter half of the Veil: twisted ropes of gas."
+msgstr "La mitad más brillante del Velo: cuerdas de gas retorcidas."
+
+#: static/js/album/editor.js:133
+#, python-brace-format
+msgid "Couldn't save the settings: {message}"
+msgstr "No se han podido guardar los ajustes: {message}"
+
+#: static/js/album/editor.js:148
+msgid " frames"
+msgstr " fotogramas"
+
+#: static/js/album/editor.js:151
+msgid "darks"
+msgstr "darks"
+
+#: static/js/album/editor.js:151
+msgid "flats"
+msgstr "flats"
+
+#: static/js/album/editor.js:151
+msgid "dark flats"
+msgstr "dark flats"
+
+#: static/js/album/editor.js:154
+#, python-brace-format
+msgid "stacked {date}"
+msgstr "apilado el {date}"
+
+#: static/js/album/editor.js:162
+msgid "How it was stacked"
+msgstr "Cómo se apiló"
+
+#: static/js/album/editor.js:165
+msgid "Frames used"
+msgstr "Fotogramas usados"
+
+#: static/js/album/editor.js:165
+#, python-brace-format
+msgid "{used} of {total}"
+msgstr "{used} de {total}"
+
+#: static/js/album/editor.js:166
+msgid "Reference"
+msgstr "Referencia"
+
+#: static/js/album/editor.js:168
+msgid "Combine"
+msgstr "Combinación"
+
+#: static/js/album/editor.js:169 templates/album.html:419
+msgid "Debayer"
+msgstr "Debayer"
+
+#: static/js/album/editor.js:171
+msgid "Took"
+msgstr "Duración"
+
+#: static/js/album/editor.js:172
+msgid "Rejected pixels"
+msgstr "Píxeles rechazados"
+
+#: static/js/album/editor.js:172
+#, no-python-format, python-brace-format
+msgid "{rejectedLowPct}% low · {rejectedHighPct}% high"
+msgstr "{rejectedLowPct} % bajos · {rejectedHighPct} % altos"
+
+#: static/js/album/editor.js:174
+msgid "Hot pixels fixed"
+msgstr "Píxeles calientes corregidos"
+
+#: static/js/album/editor.js:178
+#, python-brace-format
+msgid "Left out ({left})"
+msgstr "Descartados ({left})"
+
+#: static/js/album/editor.js:187 static/js/album/main.js:674
+msgid "Saving…"
+msgstr "Guardando…"
+
+#: static/js/album/editor.js:198
+#, python-brace-format
+msgid "Saved to the album as {name}."
+msgstr "Guardado en el álbum como {name}."
+
+#: static/js/album/editor.js:199
+#, python-brace-format
+msgid "Saved {name} to the album."
+msgstr "{name} se ha guardado en el álbum."
+
+#: static/js/album/editor.js:201 static/js/album/main.js:680
+#, python-brace-format
+msgid "Couldn't save: {message}"
+msgstr "No se ha podido guardar: {message}"
+
+#: static/js/album/editor.js:207
+#, python-brace-format
+msgid "{format} export: {reason}"
+msgstr "Exportar a {format}: {reason}"
+
+#: static/js/album/editor.js:285
+#, python-brace-format
+msgid "Couldn't render: {message}"
+msgstr "No se ha podido renderizar: {message}"
+
+#: static/js/album/editor.js:322
+#, python-brace-format
+msgid "Showing the automatic result: {message}"
+msgstr "Se muestra el resultado automático: {message}"
+
+#: static/js/album/editor.js:335
+msgid "Showing the result as it was saved."
+msgstr "Se muestra el resultado tal como se guardó."
+
+#: static/js/album/editor.js:335
+#, python-brace-format
+msgid "Showing the automatic result. Adjusting it needs the in-browser processing: {reason} Saving and downloading work."
+msgstr "Se muestra el resultado automático. Para ajustarlo hace falta el procesado en el navegador: {reason} Guardar y descargar sí funcionan."
+
+#: static/js/album/editor.js:365
+msgid "Opening the photo…"
+msgstr "Abriendo la foto…"
+
+#: static/js/album/editor.js:374
+#, python-brace-format
+msgid "Couldn't open it for editing: {message}"
+msgstr "No se ha podido abrir para editarla: {message}"
+
+#: static/js/album/engine.js:32
+msgid "Runs in this browser tab: closing the tab (or the computer sleeping) stops it."
+msgstr "Se ejecuta en esta pestaña del navegador: si cierras la pestaña (o el ordenador entra en reposo), se detiene."
+
+#: static/js/album/jobs.js:51
+msgid "Cancelled"
+msgstr "Cancelado"
+
+#: static/js/album/jobs.js:69 templates/album.html:227
+msgid "Nothing running."
+msgstr "No hay nada en marcha."
+
+#: static/js/album/jobs.js:76
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: static/js/album/jobs.js:83 templates/album.html:232
+msgid "Nothing yet this visit."
+msgstr "Nada todavía en esta visita."
+
+#: static/js/album/lucky-dialog.js:35
+#, python-brace-format
+msgid "Lucky imaging {name}"
+msgstr "Lucky imaging de {name}"
+
+#: static/js/album/lucky-dialog.js:36
+msgid "Lucky imaging runs in this tab. For a video, keep the tab in view until it finishes."
+msgstr "El lucky imaging se ejecuta en esta pestaña. Si es un vídeo, mantén la pestaña visible hasta que termine."
+
+#: static/js/album/lucky-dialog.js:44
+#, python-brace-format
+msgid "Lucky imaging: {reason}"
+msgstr "Lucky imaging: {reason}"
+
+#: static/js/album/lucky-dialog.js:50 static/js/album/stacks.js:123
+#: templates/album.html:147 templates/album.html:196 templates/album.html:439
+msgid "Lucky imaging"
+msgstr "Lucky imaging"
+
+#: static/js/album/lucky-dialog.js:53
+#, python-brace-format
+msgid "{name}: every frame is scored for sharpness, the sharpest are lined up and averaged."
+msgstr "{name}: se puntúa la nitidez de cada fotograma y los más nítidos se alinean y se promedian."
+
+#: static/js/album/lucky-dialog.js:54
+#, python-brace-format
+msgid "{frames} photos: the sharpest are lined up and averaged. This suits short exposures of the Moon or a planet, not star fields (use Stack for those)."
+msgstr "{frames} fotos: las más nítidas se alinean y se promedian. Sirve para exposiciones cortas de la Luna o de un planeta, no para campos estelares (para eso, usa Apilar)."
+
+#: static/js/album/main.js:67 static/js/album/main.js:651
+msgid "Loading…"
+msgstr "Cargando…"
+
+#: static/js/album/main.js:79
+msgid "Couldn't load your photos"
+msgstr "No se han podido cargar tus fotos"
+
+#: static/js/album/main.js:131
+msgid "1 video"
+msgstr "1 vídeo"
+
+#: static/js/album/main.js:131
+#, python-brace-format
+msgid "{n} videos"
+msgstr "{n} vídeos"
+
+#: static/js/album/main.js:135
+#, python-brace-format
+msgid "{n} files"
+msgstr "{n} archivos"
+
+#: static/js/album/main.js:141
+msgid "Plans"
+msgstr "Planes"
+
+#: static/js/album/main.js:141 static/js/album/main.js:144
+msgid "Nights"
+msgstr "Noches"
+
+#: static/js/album/main.js:141 static/js/album/main.js:145
+msgid "Targets"
+msgstr "Objetivos"
+
+#: static/js/album/main.js:147
+msgid "Everything"
+msgstr "Todo"
+
+#: static/js/album/main.js:149 static/js/album/main.js:165
+msgid "All photos"
+msgstr "Todas las fotos"
+
+#: static/js/album/main.js:168
+msgid "Photos without a target"
+msgstr "Fotos sin objetivo"
+
+#: static/js/album/main.js:170
+msgid "Photos not from a plan"
+msgstr "Fotos que no son de un plan"
+
+#: static/js/album/main.js:179 static/js/album/main.js:720
+msgid "1 photo"
+msgstr "1 foto"
+
+#: static/js/album/main.js:179 static/js/album/main.js:720
+#, python-brace-format
+msgid "{n} photos"
+msgstr "{n} fotos"
+
+#: static/js/album/main.js:180
+#, python-brace-format
+msgid "{count} ({duration} of light)"
+msgstr "{count} ({duration} de luz)"
+
+#: static/js/album/main.js:186
+msgid "1 photo looks bad"
+msgstr "1 foto parece mala"
+
+#: static/js/album/main.js:186
+#, python-brace-format
+msgid "{n} photos look bad"
+msgstr "{n} fotos parecen malas"
+
+#: static/js/album/main.js:188
+msgid "not measured yet"
+msgstr "aún sin medir"
+
+#: static/js/album/main.js:189
+msgid "Nothing here"
+msgstr "No hay nada aquí"
+
+#: static/js/album/main.js:198
+msgid "Stack these photos"
+msgstr "Apilar estas fotos"
+
+#: static/js/album/main.js:198 templates/album.html:91
+msgid "Stack this night"
+msgstr "Apilar esta noche"
+
+#: static/js/album/main.js:219 static/js/album/main.js:591
+#: static/js/album/quality.js:8 templates/interface.html:275
+msgid "Video"
+msgstr "Vídeo"
+
+#: static/js/album/main.js:221
+msgid "No preview"
+msgstr "Sin vista previa"
+
+#: static/js/album/main.js:222 static/js/album/quality.js:145
+#: static/js/album/viewer.js:164 static/js/album/viewer.js:263
+msgid "Rejected"
+msgstr "Rechazada"
+
+#: static/js/album/main.js:222 static/js/album/quality.js:149
+msgid "Accepted"
+msgstr "Aceptada"
+
+#: static/js/album/main.js:244
+msgid "File"
+msgstr "Archivo"
+
+#: static/js/album/main.js:246 static/js/album/main.js:618
+#: templates/album.html:135 templates/interface.html:217
+msgid "Type"
+msgstr "Tipo"
+
+#: static/js/album/main.js:247
+msgid "Exp"
+msgstr "Exp."
+
+#: static/js/album/main.js:252
+msgid "Ecc"
+msgstr "Exc."
+
+#: static/js/album/main.js:253
+msgid "Bkg"
+msgstr "Fondo"
+
+#: static/js/album/main.js:254 static/js/album/main.js:632
+msgid "Noise"
+msgstr "Ruido"
+
+#: static/js/album/main.js:256
+msgid "Flag"
+msgstr "Marca"
+
+#: static/js/album/main.js:281
+msgid "Select all"
+msgstr "Seleccionar todo"
+
+#: static/js/album/main.js:305
+#, python-brace-format
+msgid "Select {name}"
+msgstr "Seleccionar {name}"
+
+#: static/js/album/main.js:332
+msgid "match your photos"
+msgstr "coinciden con tus fotos"
+
+#: static/js/album/main.js:341
+msgid "Hide"
+msgstr "Ocultar"
+
+#: static/js/album/main.js:341 templates/album.html:68
+msgid "Show"
+msgstr "Mostrar"
+
+#: static/js/album/main.js:356
+#, python-brace-format
+msgid "Photos of {target}"
+msgstr "Fotos de {target}"
+
+#: static/js/album/main.js:376
+msgid "No photos here yet. They appear as the telescope uploads them."
+msgstr "Todavía no hay fotos aquí. Aparecerán a medida que el telescopio las suba."
+
+#: static/js/album/main.js:405
+#, python-brace-format
+msgid "· {measured} of {lights} lights measured"
+msgstr "· {measured} de {lights} lights medidos"
+
+#: static/js/album/main.js:413
+msgid "Select photos and choose Measure quality to chart their star sizes and roundness."
+msgstr "Selecciona fotos y elige Medir calidad para ver en un gráfico el tamaño y la redondez de sus estrellas."
+
+#: static/js/album/main.js:414
+#, python-brace-format
+msgid "Star size, roundness and sky level show here once the photos are measured. {reason}"
+msgstr "El tamaño de las estrellas, su redondez y el nivel del cielo aparecen aquí cuando se miden las fotos. {reason}"
+
+#: static/js/album/main.js:415
+msgid "No lights in this group."
+msgstr "No hay lights en este grupo."
+
+#: static/js/album/main.js:418
+msgid "Reject 1 frame"
+msgstr "Rechazar 1 fotograma"
+
+#: static/js/album/main.js:418
+#, python-brace-format
+msgid "Reject {n} frames"
+msgstr "Rechazar {n} fotogramas"
+
+#: static/js/album/main.js:446
+msgid "Nothing matches the filters."
+msgstr "Nada coincide con los filtros."
+
+#: static/js/album/main.js:446
+msgid "No photos here yet."
+msgstr "Todavía no hay fotos aquí."
+
+#: static/js/album/main.js:549
+#, python-brace-format
+msgid "{n} selected"
+msgstr "{n} seleccionadas"
+
+#: static/js/album/main.js:561 templates/album.html:119
+msgid "Select a photo"
+msgstr "Selecciona una foto"
+
+#: static/js/album/main.js:585 static/js/album/quality.js:153
+#: templates/album.html:127
+msgid "Not measured"
+msgstr "Sin medir"
+
+#: static/js/album/main.js:586
+msgid "Good"
+msgstr "Buena"
+
+#: static/js/album/main.js:586
+msgid "So-so"
+msgstr "Regular"
+
+#: static/js/album/main.js:586
+msgid "Bad"
+msgstr "Mala"
+
+#: static/js/album/main.js:615
+msgid "Captured"
+msgstr "Capturada"
+
+#: static/js/album/main.js:617 templates/interface.html:358
+msgid "Exposure"
+msgstr "Exposición"
+
+#: static/js/album/main.js:618
+msgid " (set by you)"
+msgstr " (indicado por ti)"
+
+#: static/js/album/main.js:618 static/js/album/main.js:946
+msgid "Not set"
+msgstr "Sin indicar"
+
+#: static/js/album/main.js:619
+#, python-brace-format
+msgid " · step {step}"
+msgstr " · paso {step}"
+
+#: static/js/album/main.js:619 templates/album.html:66
+msgid "Plan"
+msgstr "Plan"
+
+#: static/js/album/main.js:620 static/js/album/main.js:753
+#: static/js/album/stack-dialog.js:283 templates/interface.html:44
+#: templates/interface.html:45 templates/interface.html:46
+msgid "Telescope"
+msgstr "Telescopio"
+
+#: static/js/album/main.js:621
+msgid "Pointing"
+msgstr "Apuntado"
+
+#: static/js/album/main.js:621
+#, python-brace-format
+msgid "RA {ra} · Dec {dec}"
+msgstr "AR {ra} · Dec {dec}"
+
+#: static/js/album/main.js:622 templates/downloads.html:29
+msgid "Size"
+msgstr "Tamaño"
+
+#: static/js/album/main.js:626
+msgid "from the RAW"
+msgstr "del RAW"
+
+#: static/js/album/main.js:626
+msgid "from the JPEG"
+msgstr "del JPEG"
+
+#: static/js/album/main.js:628
+msgid "Stars found"
+msgstr "Estrellas encontradas"
+
+#: static/js/album/main.js:629
+#, python-brace-format
+msgid "{fwhm} / {hfr} px{fwhmArcsec}"
+msgstr "{fwhm} / {hfr} px{fwhmArcsec}"
+
+#: static/js/album/main.js:631 templates/album.html:288
+msgid "Background"
+msgstr "Fondo"
+
+#: static/js/album/main.js:633
+msgid "Clipped pixels"
+msgstr "Píxeles saturados"
+
+#: static/js/album/main.js:648
+msgid "Only JPEGs have their details read here."
+msgstr "Aquí solo se leen los detalles de los JPEG."
+
+#: static/js/album/main.js:662
+#, python-brace-format
+msgid "Couldn't read the file: {message}"
+msgstr "No se ha podido leer el archivo: {message}"
+
+#: static/js/album/main.js:677
+msgid "Saved"
+msgstr "Guardado"
+
+#: static/js/album/main.js:679
+#, python-brace-format
+msgid "Couldn't save the notes for {name}: {message}"
+msgstr "No se han podido guardar las notas de {name}: {message}"
+
+#: static/js/album/main.js:702
+#, python-brace-format
+msgid "Couldn't change the flag: {message}"
+msgstr "No se ha podido cambiar la marca: {message}"
+
+#: static/js/album/main.js:721
+msgid "1 RAW file"
+msgstr "1 archivo RAW"
+
+#: static/js/album/main.js:721
+#, python-brace-format
+msgid "{n} RAW files"
+msgstr "{n} archivos RAW"
+
+#: static/js/album/main.js:722
+#, python-brace-format
+msgid "Delete {what} (and {raws} with them)? This can't be undone."
+msgstr "¿Eliminar {what} (y {raws} con ellas)? No se puede deshacer."
+
+#: static/js/album/main.js:723
+#, python-brace-format
+msgid "Delete {what}? This can't be undone."
+msgstr "¿Eliminar {what}? No se puede deshacer."
+
+#: static/js/album/main.js:732
+#, python-brace-format
+msgid "{failed} couldn't be deleted."
+msgstr "No se han podido eliminar {failed}."
+
+#: static/js/album/main.js:738
+#, python-brace-format
+msgid "Couldn't delete: {message}"
+msgstr "No se ha podido eliminar: {message}"
+
+#: static/js/album/main.js:745
+msgid "Those photos already have their RAWs here."
+msgstr "Esas fotos ya tienen aquí sus RAW."
+
+#: static/js/album/main.js:751
+#, python-brace-format
+msgid "Asked {telescope} for 1 RAW. It appears here when it arrives."
+msgstr "Se ha pedido 1 RAW a {telescope}. Aparecerá aquí cuando llegue."
+
+#: static/js/album/main.js:752
+#, python-brace-format
+msgid "Asked {telescope} for {n} RAWs. They appear here as they arrive."
+msgstr "Se han pedido {n} RAW a {telescope}. Aparecerán aquí a medida que lleguen."
+
+#: static/js/album/main.js:754
+#, python-brace-format
+msgid "{skipped} didn't come from a telescope upload, so there's no RAW to ask for."
+msgstr "{skipped} no vienen de una subida del telescopio, así que no hay RAW que pedir."
+
+#: static/js/album/main.js:756 static/js/album/stack-dialog.js:286
+#, python-brace-format
+msgid "Couldn't ask for the RAWs: {message}"
+msgstr "No se han podido pedir los RAW: {message}"
+
+#: static/js/album/main.js:762
+msgid "Measuring quality"
+msgstr "Medir la calidad"
+
+#: static/js/album/main.js:766
+msgid "Measuring 1 photo"
+msgstr "Midiendo 1 foto"
+
+#: static/js/album/main.js:766
+#, python-brace-format
+msgid "Measuring {n} photos"
+msgstr "Midiendo {n} fotos"
+
+#: static/js/album/main.js:775
+#, python-brace-format
+msgid "{good} measured, {failed} couldn't be"
+msgstr "{good} medidas, {failed} no se han podido medir"
+
+#: static/js/album/main.js:776
+#, python-brace-format
+msgid "{good} measured"
+msgstr "{good} medidas"
+
+#: static/js/album/main.js:778
+#, python-brace-format
+msgid "Couldn't measure {name} and {more} more: {error}"
+msgstr "No se han podido medir {name} y {more} más: {error}"
+
+#: static/js/album/main.js:779
+#, python-brace-format
+msgid "Couldn't measure {name}: {error}"
+msgstr "No se ha podido medir {name}: {error}"
+
+#: static/js/album/main.js:784
+#, python-brace-format
+msgid "Measuring failed: {message}"
+msgstr "La medición ha fallado: {message}"
+
+#: static/js/album/main.js:843
+#, python-brace-format
+msgid "Couldn't open that stack: {message}"
+msgstr "No se ha podido abrir ese apilado: {message}"
+
+#: static/js/album/main.js:853
+#, python-brace-format
+msgid "Couldn't load the stacks: {message}"
+msgstr "No se han podido cargar los apilados: {message}"
+
+#: static/js/album/main.js:860
+#, python-brace-format
+msgid "Delete the stack \"{name}\" and its master? The photos it came from stay."
+msgstr "¿Eliminar el apilado «{name}» y su máster? Las fotos de las que salió se conservan."
+
+#: static/js/album/main.js:865
+msgid "New name"
+msgstr "Nombre nuevo"
+
+#: static/js/album/main.js:918
+msgid "Reject 1 frame over the limits?"
+msgstr "¿Rechazar 1 fotograma que supera los límites?"
+
+#: static/js/album/main.js:918
+#, python-brace-format
+msgid "Reject {n} frames over the limits?"
+msgstr "¿Rechazar {n} fotogramas que superan los límites?"
+
+#: static/js/album/main.js:928
+#, python-brace-format
+msgid "Stack {title}"
+msgstr "Apilar {title}"
+
+#: static/js/album/main.js:947
+msgid "Choose…"
+msgstr "Elegir…"
+
+#: static/js/album/main.js:966
+msgid "Editing a photo"
+msgstr "Editar una foto"
+
+#: static/js/album/main.js:990
+msgid "Choose one video, or two or more photos of the Moon or a planet."
+msgstr "Elige un vídeo, o dos o más fotos de la Luna o de un planeta."
+
+#: static/js/album/main.js:995
+#, python-brace-format
+msgid "Stack {size} photos"
+msgstr "Apilar {size} fotos"
+
+#: static/js/album/main.js:1030
+#, python-brace-format
+msgid "{n} running"
+msgstr "{n} en marcha"
+
+#: static/js/album/projects-view.js:40
+msgid "None of this project's frames are in the album any more, so it can't be re-stacked."
+msgstr "Ninguno de los fotogramas de este proyecto sigue en el álbum, así que no se puede volver a apilar."
+
+#: static/js/album/projects-view.js:46
+#, python-brace-format
+msgid "Carry on re-stacking {name} from scratch? {frames} frames ({missing} are no longer in the album and will be left out)."
+msgstr "¿Continuar reapilando {name} desde cero? {frames} fotogramas ({missing} ya no están en el álbum y se descartarán)."
+
+#: static/js/album/projects-view.js:47
+#, python-brace-format
+msgid "Carry on re-stacking {name} from scratch? {frames} frames."
+msgstr "¿Continuar reapilando {name} desde cero? {frames} fotogramas."
+
+#: static/js/album/projects-view.js:48
+#, python-brace-format
+msgid "Re-stack {name} from scratch? {frames} frames ({missing} are no longer in the album and will be left out)."
+msgstr "¿Reapilar {name} desde cero? {frames} fotogramas ({missing} ya no están en el álbum y se descartarán)."
+
+#: static/js/album/projects-view.js:49
+#, python-brace-format
+msgid "Re-stack {name} from scratch? {frames} frames."
+msgstr "¿Reapilar {name} desde cero? {frames} fotogramas."
+
+#: static/js/album/projects-view.js:51
+msgid "It runs in this tab a night at a time and saves a checkpoint after each, so it can carry on later if the tab closes. The project's current totals stay in use until it finishes."
+msgstr "Se ejecuta en esta pestaña, noche a noche, y guarda un punto de control tras cada una, así que puede continuar más tarde si se cierra la pestaña. Los totales actuales del proyecto se siguen usando hasta que termine."
+
+#: static/js/album/projects-view.js:54
+#, python-brace-format
+msgid "Re-stacking {name}"
+msgstr "Reapilando {name}"
+
+#: static/js/album/projects-view.js:66
+#, python-brace-format
+msgid "Couldn't load the projects: {message}"
+msgstr "No se han podido cargar los proyectos: {message}"
+
+#: static/js/album/projects-view.js:72
+msgid "No projects yet. In the stack dialog (Advanced), choose \"Add to a project\"."
+msgstr "Todavía no hay proyectos. En el diálogo de apilado (Avanzado), elige «Añadir a un proyecto»."
+
+#: static/js/album/projects-view.js:83 static/js/album/stack-dialog.js:154
+#, python-brace-format
+msgid "{n} frames"
+msgstr "{n} fotogramas"
+
+#: static/js/album/projects-view.js:84
+#, python-brace-format
+msgid "{duration} of light"
+msgstr "{duration} de luz"
+
+#: static/js/album/projects-view.js:87
+#, python-brace-format
+msgid "{size} on the server"
+msgstr "{size} en el servidor"
+
+#: static/js/album/projects-view.js:89
+#, python-brace-format
+msgid "Re-stacking stopped at {done} of {total} frames: it can carry on."
+msgstr "El reapilado se detuvo en {done} de {total} fotogramas: puede continuar."
+
+#: static/js/album/projects-view.js:92
+msgid "Open the result"
+msgstr "Abrir el resultado"
+
+#: static/js/album/projects-view.js:93
+msgid "Carry on re-stacking"
+msgstr "Continuar el reapilado"
+
+#: static/js/album/projects-view.js:93
+msgid "Re-stack from scratch"
+msgstr "Reapilar desde cero"
+
+#: static/js/album/projects-view.js:94
+msgid "Abandon re-stack"
+msgstr "Abandonar el reapilado"
+
+#: static/js/album/projects-view.js:96
+#, python-brace-format
+msgid "Delete the project \"{name}\" and its totals? Its photos and saved stacks stay."
+msgstr "¿Eliminar el proyecto «{name}» y sus totales? Sus fotos y apilados guardados se conservan."
+
+#: static/js/album/quality.js:6
+msgid "Darks"
+msgstr "Darks"
+
+#: static/js/album/quality.js:6
+msgid "Flats"
+msgstr "Flats"
+
+#: static/js/album/quality.js:6
+msgid "Dark flats"
+msgstr "Dark flats"
+
+#: static/js/album/quality.js:6
+msgid "Bias"
+msgstr "Bias"
+
+#: static/js/album/quality.js:7
+msgid "Snapshots"
+msgstr "Instantáneas"
+
+#: static/js/album/quality.js:7
+msgid "Test shots"
+msgstr "Fotos de prueba"
+
+#: static/js/album/quality.js:8
+msgid "Processed"
+msgstr "Procesadas"
+
+#: static/js/album/quality.js:8
+msgid "Other"
+msgstr "Otras"
+
+#: static/js/album/quality.js:8
+msgid "Not sorted"
+msgstr "Sin clasificar"
+
+#: static/js/album/quality.js:11
+msgid "bias frame"
+msgstr "bias"
+
+#: static/js/album/quality.js:11 static/js/processing/stack.js:30
+msgid "dark flat"
+msgstr "dark flat"
+
+#: static/js/album/quality.js:12
+msgid "bracket"
+msgstr "horquillado"
+
+#: static/js/album/quality.js:12
+msgid "timelapse frame"
+msgstr "fotograma de timelapse"
+
+#: static/js/album/quality.js:13
+msgid "processed image"
+msgstr "imagen procesada"
+
+#: static/js/album/quality.js:13
+msgid "other"
+msgstr "otra"
+
+#: static/js/album/quality.js:13
+msgid "photo"
+msgstr "foto"
+
+#: static/js/album/quality.js:52
+msgid "No date"
+msgstr "Sin fecha"
+
+#: static/js/album/quality.js:57
+#, python-brace-format
+msgid "tonight, {date}"
+msgstr "esta noche, {date}"
+
+#: static/js/album/quality.js:57
+#, python-brace-format
+msgid "Tonight, {date}"
+msgstr "Esta noche, {date}"
+
+#: static/js/album/quality.js:58
+#, python-brace-format
+msgid "the night of {date}"
+msgstr "la noche del {date}"
+
+#: static/js/album/quality.js:83
+msgid "No target"
+msgstr "Sin objetivo"
+
+#: static/js/album/quality.js:84
+msgid "Not from a plan"
+msgstr "No es de un plan"
+
+#: static/js/album/quality.js:167 static/js/album/quality.js:188
+#: static/js/album/quality.js:205
+msgid "Stars trailed"
+msgstr "Estrellas movidas"
+
+#: static/js/album/quality.js:171 static/js/album/quality.js:204
+msgid "Blurred"
+msgstr "Desenfocada"
+
+#: static/js/album/quality.js:175 static/js/album/quality.js:206
+msgid "Few stars: cloud?"
+msgstr "Pocas estrellas: ¿nubes?"
+
+#: static/js/album/quality.js:181
+msgid "Below average"
+msgstr "Por debajo de la media"
+
+#: static/js/album/quality.js:198
+msgid "You marked this one as bad, so stacking leaves it out."
+msgstr "La marcaste como mala, así que el apilado la descarta."
+
+#: static/js/album/quality.js:199
+msgid "Its stars haven't been measured yet."
+msgstr "Sus estrellas todavía no se han medido."
+
+#: static/js/album/quality.js:204
+#, python-brace-format
+msgid "Blurrier than the rest of the night (stars {fwhm} px against {median}). Stacking leaves it out."
+msgstr "Más borrosa que el resto de la noche (estrellas de {fwhm} px frente a {median}). El apilado la descarta."
+
+#: static/js/album/quality.js:205
+msgid "The stars are stretched: the mount slipped or something knocked it. Stacking leaves it out."
+msgstr "Las estrellas salen alargadas: la montura se deslizó o algo la golpeó. El apilado la descarta."
+
+#: static/js/album/quality.js:206
+msgid "Far fewer stars than the others: probably cloud or haze. Stacking leaves it out."
+msgstr "Muchas menos estrellas que las demás: probablemente nubes o bruma. El apilado la descarta."
+
+#: static/js/album/quality.js:207
+msgid "Stacking leaves this one out."
+msgstr "El apilado descarta esta."
+
+#: static/js/album/quality.js:211
+msgid "Sharp, round stars. One of the best photos of the night."
+msgstr "Estrellas nítidas y redondas. Una de las mejores fotos de la noche."
+
+#: static/js/album/quality.js:211
+msgid "Sharp stars. One of the best photos of the night."
+msgstr "Estrellas nítidas. Una de las mejores fotos de la noche."
+
+#: static/js/album/quality.js:213
+msgid "A little softer than the best ones, but still worth stacking."
+msgstr "Algo menos nítida que las mejores, pero merece la pena apilarla."
+
+#: static/js/album/quality.js:214
+msgid "Round stars and good focus."
+msgstr "Estrellas redondas y buen enfoque."
+
+#: static/js/album/quality.js:214
+msgid "Fine to stack."
+msgstr "Se puede apilar."
+
+#: static/js/album/quality.js:283
+#, python-brace-format
+msgid "{name}: FWHM {value} px"
+msgstr "{name}: FWHM {value} px"
+
+#: static/js/album/stack-dialog.js:40
+msgid "Winsorized sigma clipping"
+msgstr "Sigma clipping winsorizado"
+
+#: static/js/album/stack-dialog.js:41
+msgid "Sigma clipping"
+msgstr "Sigma clipping"
+
+#: static/js/album/stack-dialog.js:42
+msgid "Median"
+msgstr "Mediana"
+
+#: static/js/album/stack-dialog.js:43
+msgid "Average (no rejection)"
+msgstr "Media (sin rechazo)"
+
+#: static/js/album/stack-dialog.js:46
+msgid "Darks take away the camera's own glow and hot pixels. Take them with the cover on, at the same exposure and ISO as the lights."
+msgstr "Los darks eliminan el brillo propio de la cámara y los píxeles calientes. Hazlos con la tapa puesta, con la misma exposición e ISO que los lights."
+
+#: static/js/album/stack-dialog.js:47
+msgid "Bias frames are the shortest possible exposures with the cover on: they take away the camera's fixed pattern."
+msgstr "Los bias son las exposiciones más cortas posibles con la tapa puesta: eliminan el patrón fijo de la cámara."
+
+#: static/js/album/stack-dialog.js:48
+msgid "Flats remove vignetting and dust shadows. Take them of an evenly lit sky or panel without moving the focus."
+msgstr "Los flats eliminan el viñeteo y las sombras del polvo. Hazlos de un cielo o un panel iluminado de forma uniforme, sin tocar el enfoque."
+
+#: static/js/album/stack-dialog.js:49
+msgid "Dark flats match the flats' exposure with the cover on. The bias frames stand in for them."
+msgstr "Los dark flats tienen la misma exposición que los flats, con la tapa puesta. Los bias pueden sustituirlos."
+
+#: static/js/album/stack-dialog.js:98 static/js/album/stack-dialog.js:149
+#, python-brace-format
+msgid "No {type}"
+msgstr "Sin {type}"
+
+#: static/js/album/stack-dialog.js:100
+msgid "Same night"
+msgstr "La misma noche"
+
+#: static/js/album/stack-dialog.js:100
+#, python-brace-format
+msgid "From {night}"
+msgstr "De {night}"
+
+#: static/js/album/stack-dialog.js:101
+msgid "same exposure and ISO"
+msgstr "misma exposición e ISO"
+
+#: static/js/album/stack-dialog.js:101
+msgid "same ISO"
+msgstr "mismo ISO"
+
+#: static/js/album/stack-dialog.js:101
+msgid "same camera"
+msgstr "misma cámara"
+
+#: static/js/album/stack-dialog.js:102
+#, python-brace-format
+msgid "{when}, {what}"
+msgstr "{when}, {what}"
+
+#: static/js/album/stack-dialog.js:114
+msgid "1 light"
+msgstr "1 light"
+
+#: static/js/album/stack-dialog.js:114
+#, python-brace-format
+msgid "{n} lights"
+msgstr "{n} lights"
+
+#: static/js/album/stack-dialog.js:117
+#, python-brace-format
+msgid "{duration} total"
+msgstr "{duration} en total"
+
+#: static/js/album/stack-dialog.js:118
+#, python-brace-format
+msgid "{n} rejected"
+msgstr "{n} rechazadas"
+
+#: static/js/album/stack-dialog.js:119
+#, python-brace-format
+msgid "{n} look bad"
+msgstr "{n} parecen malas"
+
+#: static/js/album/stack-dialog.js:129
+#, python-brace-format
+msgid "None from this night; {frames} from {night} match."
+msgstr "Ninguno de esta noche; coinciden {frames} de {night}."
+
+#: static/js/album/stack-dialog.js:133
+msgid "Use them"
+msgstr "Usarlos"
+
+#: static/js/album/stack-dialog.js:134
+msgid "Change"
+msgstr "Cambiar"
+
+#: static/js/album/stack-dialog.js:141
+#, python-brace-format
+msgid "Choose {type}"
+msgstr "Elegir {type}"
+
+#: static/js/album/stack-dialog.js:157
+#, python-brace-format
+msgid "None in your album match these lights. {help}"
+msgstr "Ninguno de tu álbum coincide con estos lights. {help}"
+
+#: static/js/album/stack-dialog.js:256
+#, python-brace-format
+msgid "About {seconds} in this browser (it depends on your computer)"
+msgstr "Unos {seconds} en este navegador (depende de tu ordenador)"
+
+#: static/js/album/stack-dialog.js:257
+#, python-brace-format
+msgid "{size} to download"
+msgstr "{size} que descargar"
+
+#: static/js/album/stack-dialog.js:258
+#, python-brace-format
+msgid "{temp} of temporary space"
+msgstr "{temp} de espacio temporal"
+
+#: static/js/album/stack-dialog.js:259
+#, python-brace-format
+msgid "result {w} × {h}, 32-bit"
+msgstr "resultado de {w} × {h}, 32 bits"
+
+#: static/js/album/stack-dialog.js:266
+msgid "Quick mode: stacks the JPEGs, so only small files are downloaded. For the best result (exact calibration), untick it to use the RAWs."
+msgstr "Modo rápido: apila los JPEG, así que solo se descargan archivos pequeños. Para el mejor resultado (calibración exacta), desmárcalo y se usarán los RAW."
+
+#: static/js/album/stack-dialog.js:268
+msgid "Uses the RAW files, which are linear, so the darks and bias subtract exactly."
+msgstr "Usa los archivos RAW, que son lineales, así que los darks y los bias se restan con exactitud."
+
+#: static/js/album/stack-dialog.js:270
+#, python-brace-format
+msgid "{missing} of the lights have no RAW here yet (it's still on the telescope), so this stacks the JPEGs. JPEGs stack fine, but calibrating them is only approximate. "
+msgstr "{missing} de los lights todavía no tienen aquí su RAW (sigue en el telescopio), así que se apilarán los JPEG. Los JPEG se apilan bien, pero su calibración es solo aproximada. "
+
+#: static/js/album/stack-dialog.js:271
+msgid "Ask the telescope for the RAWs"
+msgstr "Pedir los RAW al telescopio"
+
+#: static/js/album/stack-dialog.js:273
+msgid "Stacks the JPEGs: they align and combine well, but calibration on JPEGs is only approximate."
+msgstr "Apila los JPEG: se alinean y combinan bien, pero la calibración de los JPEG es solo aproximada."
+
+#: static/js/album/stack-dialog.js:282
+msgid "Asked the telescope for the RAWs. They show up as they arrive; reopen this when they're in."
+msgstr "Se han pedido los RAW al telescopio. Aparecerán a medida que lleguen; vuelve a abrir esto cuando estén."
+
+#: static/js/album/stack-dialog.js:284
+#, python-brace-format
+msgid "{skipped} photo(s) didn't come from a telescope upload, so there's nothing to ask for."
+msgstr "{skipped} foto(s) no vienen de una subida del telescopio, así que no hay nada que pedir."
+
+#: static/js/album/stack-dialog.js:313
+msgid "There are no lights to stack."
+msgstr "No hay lights que apilar."
+
+#: static/js/album/stack-dialog.js:319
+#, python-brace-format
+msgid "Stacking {name}"
+msgstr "Apilando {name}"
+
+#: static/js/album/stack-dialog.js:320
+#, python-brace-format
+msgid "Stacking {name} in this tab. Keep it open until it finishes; it shows under Activity."
+msgstr "Apilando {name} en esta pestaña. Mantenla abierta hasta que termine; aparece en Actividad."
+
+#: static/js/album/stack-dialog.js:332
+#, python-brace-format
+msgid "{used} of {total} frames stacked"
+msgstr "{used} de {total} fotogramas apilados"
+
+#: static/js/album/stack-dialog.js:340
+#, python-brace-format
+msgid "{name} is stacked and added to the project {project}, and saved under Stacked images."
+msgstr "{name} se ha apilado, añadido al proyecto {project} y guardado en Imágenes apiladas."
+
+#: static/js/album/stack-dialog.js:341
+#, python-brace-format
+msgid "{name} is stacked, and saved under Stacked images."
+msgstr "{name} se ha apilado y guardado en Imágenes apiladas."
+
+#: static/js/album/stack-dialog.js:345
+#, python-brace-format
+msgid "Stacking failed: {message}"
+msgstr "El apilado ha fallado: {message}"
+
+#: static/js/album/stack-dialog.js:380
+msgid "Saved as your default stacking settings."
+msgstr "Guardado como tus ajustes de apilado predeterminados."
+
+#: static/js/album/stack-dialog.js:405
+msgid "Starts a project with these frames. Its alignment and combining settings stay fixed from now on, so later nights line up."
+msgstr "Crea un proyecto con estos fotogramas. Sus ajustes de alineación y combinación quedan fijos a partir de ahora, para que las noches siguientes encajen."
+
+#: static/js/album/stack-dialog.js:406
+#, python-brace-format
+msgid "{frames} frames so far{exposure}, {width} × {height}. These frames are lined up with its reference and added to its totals; frames already in it are skipped. Its settings ({size}, {method}) are used."
+msgstr "{frames} fotogramas hasta ahora{exposure}, {width} × {height}. Estos fotogramas se alinean con su referencia y se suman a sus totales; los que ya están en él se omiten. Se usan sus ajustes ({size}, {method})."
+
+#: static/js/album/stack-dialog.js:408
+msgid "half size"
+msgstr "mitad de tamaño"
+
+#: static/js/album/stack-dialog.js:408
+msgid "full size"
+msgstr "tamaño completo"
+
+#: static/js/album/stack-dialog.js:470 templates/album.html:358
+msgid "Stack"
+msgstr "Apilado"
+
+#: static/js/album/stack-dialog.js:484
+#, python-brace-format
+msgid "Stack {defaultName}"
+msgstr "Apilar {defaultName}"
+
+#: static/js/album/stack-dialog.js:489
+msgid "Best (sharpest, roundest)"
+msgstr "La mejor (la más nítida y redonda)"
+
+#: static/js/album/stack-dialog.js:491
+#, python-brace-format
+msgid " (FWHM {fwhm})"
+msgstr " (FWHM {fwhm})"
+
+#: static/js/album/stack-dialog.js:497
+#, python-brace-format
+msgid "{note} It shows under Activity."
+msgstr "{note} Aparece en Actividad."
+
+#: static/js/album/stack-dialog.js:498
+#, python-brace-format
+msgid "{reason} Your choices here are ready for it. Meanwhile \"Download the frames\" gets them all in one zip for Siril or DeepSkyStacker."
+msgstr "{reason} Tus opciones aquí quedan listas. Mientras tanto, «Descargar los fotogramas» los reúne todos en un zip para Siril o DeepSkyStacker."
+
+#: static/js/album/stacks.js:46 static/js/processing/projects.js:117
+#, python-brace-format
+msgid "Upload failed ({status})"
+msgstr "La subida ha fallado ({status})"
+
+#: static/js/album/stacks.js:55
+#, python-brace-format
+msgid "Saving {name}"
+msgstr "Guardando {name}"
+
+#: static/js/album/stacks.js:79
+msgid "Saving the preview"
+msgstr "Guardando la vista previa"
+
+#: static/js/album/stacks.js:86
+#, python-brace-format
+msgid "Uploading the master: {done} of {total}"
+msgstr "Subiendo el máster: {done} de {total}"
+
+#: static/js/album/stacks.js:89
+#, python-brace-format
+msgid "Saved ({size})"
+msgstr "Guardado ({size})"
+
+#: static/js/album/stacks.js:112
+msgid "No stacked images yet. Select some photos in Photos and choose Stack."
+msgstr "Todavía no hay imágenes apiladas. Selecciona algunas fotos en Fotos y elige Apilar."
+
+#: static/js/album/stacks.js:116
+#, python-brace-format
+msgid " · {duration} of light"
+msgstr " · {duration} de luz"
+
+#: static/js/album/stacks.js:117
+#, python-brace-format
+msgid "{used} of {total} frames"
+msgstr "{used} de {total} fotogramas"
+
+#: static/js/album/stacks.js:117
+#, python-brace-format
+msgid "{used} frames"
+msgstr "{used} fotogramas"
+
+#: static/js/album/stacks.js:119
+#, python-brace-format
+msgid "Edit {name}"
+msgstr "Editar {name}"
+
+#: static/js/album/stacks.js:124
+msgid "Edited"
+msgstr "Editada"
+
+#: static/js/album/stacks.js:128
+msgid "Edit"
+msgstr "Editar"
+
+#: static/js/album/stacks.js:129
+msgid "Download JPEG"
+msgstr "Descargar JPEG"
+
+#: static/js/album/stacks.js:130
+#, python-brace-format
+msgid "FITS ({size})"
+msgstr "FITS ({size})"
+
+#: static/js/album/stacks.js:131
+msgid "Rename"
+msgstr "Cambiar nombre"
+
+#: static/js/album/viewer.js:63
+#, python-brace-format
+msgid "Couldn't load {url}"
+msgstr "No se ha podido cargar {url}"
+
+#: static/js/album/viewer.js:164 static/js/album/viewer.js:263
+#: templates/album.html:133 templates/album.html:199 templates/album.html:478
+msgid "Reject"
+msgstr "Rechazar"
+
+#: static/js/album/viewer.js:182 templates/album.html:149
+#: templates/album.html:470
+msgid "Blink"
+msgstr "Parpadeo"
+
+#: static/js/album/viewer.js:182 templates/interface.html:336
+#: templates/interface.html:402
+msgid "Pause"
+msgstr "Pausa"
+
+#: static/js/capture-plan.js:12 static/js/interface.js:1183
+#: templates/interface.html:126 templates/interface.html:135
+msgid "Go to"
+msgstr "Ir a"
+
+#: static/js/capture-plan.js:14
+msgid "Moon, Jupiter… (or RA/Dec below)"
+msgstr "Luna, Júpiter… (o AR/Dec abajo)"
+
+#: static/js/capture-plan.js:14 static/js/interface.js:1105
+#: templates/album.html:65 templates/album.html:139 templates/interface.html:83
+#: templates/interface.html:107 templates/interface.html:138
+msgid "Target"
+msgstr "Objetivo"
+
+#: static/js/capture-plan.js:15
+msgid "Name for RA/Dec"
+msgstr "Nombre para AR/Dec"
+
+#: static/js/capture-plan.js:16
+msgid "RA °"
+msgstr "AR °"
+
+#: static/js/capture-plan.js:17
+msgid "Dec °"
+msgstr "Dec °"
+
+#: static/js/capture-plan.js:18
+msgid "Centre by plate solving"
+msgstr "Centrar por resolución astrométrica"
+
+#: static/js/capture-plan.js:23
+msgid "Bracket (Moon, planets, HDR)"
+msgstr "Horquillado (Luna, planetas, HDR)"
+
+#: static/js/capture-plan.js:26
+msgid "Exposures (s)"
+msgstr "Exposiciones (s)"
+
+#: static/js/capture-plan.js:27
+msgid "Repeat"
+msgstr "Repetir"
+
+#: static/js/album/quality.js:6 static/js/capture-plan.js:32
+msgid "Lights"
+msgstr "Lights"
+
+#: static/js/capture-plan.js:35 static/js/capture-plan.js:57
+#: static/js/capture-plan.js:76 static/js/capture-plan.js:85
+#: static/js/capture-plan.js:93 static/js/capture-plan.js:384
+#: static/js/capture-plan.js:401 templates/album.html:366
+#: templates/interface.html:538
+msgid "Frames"
+msgstr "Fotogramas"
+
+#: static/js/capture-plan.js:36 static/js/capture-plan.js:50
+#: static/js/capture-plan.js:77
+msgid "Exposure (s)"
+msgstr "Exposición (s)"
+
+#: static/js/capture-plan.js:37
+msgid "Gap (s)"
+msgstr "Intervalo (s)"
+
+#: static/js/capture-plan.js:38
+msgid "Dither every"
+msgstr "Dithering cada"
+
+#: static/js/capture-plan.js:39
+msgid "Dither (′)"
+msgstr "Dithering (′)"
+
+#: static/js/album/quality.js:7 static/js/capture-plan.js:44
+#: templates/interface.html:276
+msgid "Timelapse"
+msgstr "Timelapse"
+
+#: static/js/capture-plan.js:47 static/js/capture-plan.js:58
+msgid "Every (s)"
+msgstr "Cada (s)"
+
+#: static/js/capture-plan.js:48 static/js/capture-plan.js:112
+msgid "For (s)"
+msgstr "Durante (s)"
+
+#: static/js/capture-plan.js:49
+msgid "or frames"
+msgstr "o fotogramas"
+
+#: static/js/capture-plan.js:55
+msgid "Snapshots (live view)"
+msgstr "Instantáneas (vista en directo)"
+
+#: static/js/capture-plan.js:64
+msgid "Video (for stacking)"
+msgstr "Vídeo (para apilar)"
+
+#: static/js/capture-plan.js:66
+msgid "Length (s)"
+msgstr "Duración (s)"
+
+#: static/js/capture-plan.js:67 templates/album.html:96
+#: templates/interface.html:256
+msgid "Quality"
+msgstr "Calidad"
+
+#: static/js/capture-plan.js:73
+msgid "Darks (scope covered)"
+msgstr "Darks (telescopio tapado)"
+
+#: static/js/capture-plan.js:82
+msgid "Flats (even light)"
+msgstr "Flats (luz uniforme)"
+
+#: static/js/capture-plan.js:86
+msgid "Exposure (s or auto)"
+msgstr "Exposición (s o auto)"
+
+#: static/js/capture-plan.js:91
+msgid "Bias (scope covered)"
+msgstr "Bias (telescopio tapado)"
+
+#: static/js/capture-plan.js:97 static/js/capture-plan.js:279
+msgid "Wait"
+msgstr "Esperar"
+
+#: static/js/capture-plan.js:106 templates/interface.html:413
+msgid "Shutter"
+msgstr "Obturador"
+
+#: static/js/capture-plan.js:107 templates/interface.html:416
+msgid "Aperture"
+msgstr "Apertura"
+
+#: static/js/capture-plan.js:108 templates/album.html:299
+#: templates/album.html:421 templates/interface.html:417
+msgid "White balance"
+msgstr "Balance de blancos"
+
+#: static/js/capture-plan.js:109 templates/interface.html:418
+msgid "Format"
+msgstr "Formato"
+
+#: static/js/capture-plan.js:110
+msgid "Exp. comp."
+msgstr "Comp. exp."
+
+#: static/js/capture-plan.js:112
+msgid "Until (local time)"
+msgstr "Hasta (hora local)"
+
+#: static/js/capture-plan.js:112
+msgid "Until target altitude (°)"
+msgstr "Hasta la altitud del objetivo (°)"
+
+#: static/js/capture-plan.js:156
+msgid "Untitled plan"
+msgstr "Plan sin título"
+
+#: static/js/capture-plan.js:174
+msgid "New plan"
+msgstr "Plan nuevo"
+
+#: static/js/capture-plan.js:280
+msgid "Value"
+msgstr "Valor"
+
+#: static/js/capture-plan.js:291
+msgid "camera default"
+msgstr "predeterminado de la cámara"
+
+#: static/js/capture-plan.js:293 static/js/capture-plan.js:346
+msgid "Album label"
+msgstr "Etiqueta del álbum"
+
+#: static/js/capture-plan.js:293 static/js/capture-plan.js:346
+msgid "optional"
+msgstr "opcional"
+
+#: static/js/capture-plan.js:296
+#, python-brace-format
+msgid "Camera settings{set}"
+msgstr "Ajustes de cámara{set}"
+
+#: static/js/capture-plan.js:296
+#, python-brace-format
+msgid " ({set} set)"
+msgstr " ({set} indicados)"
+
+#: static/js/capture-plan.js:307
+msgid "Drag to reorder"
+msgstr "Arrastra para reordenar"
+
+#: static/js/capture-plan.js:328
+msgid "Duplicate"
+msgstr "Duplicar"
+
+#: static/js/album/projects-view.js:99 static/js/album/stacks.js:132
+#: static/js/capture-plan.js:330 static/js/capture-plan.js:448
+#: templates/album.html:201
+msgid "Delete"
+msgstr "Eliminar"
+
+#: static/js/capture-plan.js:351
+msgid "The plan pauses here until you press Cover fitted (or Skip)."
+msgstr "El plan se detiene aquí hasta que pulses Tapa puesta (u Omitir)."
+
+#: static/js/album/main.js:245 static/js/capture-plan.js:384
+#: static/js/capture-plan.js:400 templates/interface.html:538
+msgid "Time"
+msgstr "Tiempo"
+
+#: static/js/capture-plan.js:384 static/js/capture-plan.js:402
+#: templates/interface.html:538
+msgid "Storage"
+msgstr "Almacenamiento"
+
+#: static/js/capture-plan.js:400
+msgid " + altitude waits"
+msgstr " + esperas de altitud"
+
+#: static/js/capture-plan.js:403
+msgid "Overhead"
+msgstr "Tiempo extra"
+
+#: static/js/capture-plan.js:424
+msgid "Replace the current plan with this preset?"
+msgstr "¿Sustituir el plan actual por este preajuste?"
+
+#: static/js/capture-plan.js:438
+msgid "No saved plans yet"
+msgstr "Todavía no hay planes guardados"
+
+#: static/js/capture-plan.js:445
+#, python-brace-format
+msgid "Replace the current plan with \"{name}\"?"
+msgstr "¿Sustituir el plan actual por «{name}»?"
+
+#: static/js/capture-plan.js:451
+#, python-brace-format
+msgid "Delete the saved plan \"{name}\"?"
+msgstr "¿Eliminar el plan guardado «{name}»?"
+
+#: static/js/capture-plan.js:465
+#, python-brace-format
+msgid "Update your saved plan \"{name}\"? Cancel saves a new copy."
+msgstr "¿Actualizar tu plan guardado «{name}»? Cancelar guarda una copia nueva."
+
+#: static/js/capture-plan.js:479
+#, python-brace-format
+msgid "Saved \"{name}\" to your plans."
+msgstr "«{name}» se ha guardado en tus planes."
+
+#: static/js/capture-plan.js:488 static/js/capture-plan.js:518
+#: static/js/interface.js:63 static/js/interface.js:616
+#: static/js/interface.js:657 static/js/interface.js:817
+#: static/js/interface.js:1475 static/js/interface.js:1527
+msgid "Select a telescope first."
+msgstr "Selecciona primero un telescopio."
+
+#: static/js/capture-plan.js:493
+msgid "Checking the plan against the camera and sending it…"
+msgstr "Comprobando el plan con la cámara y enviándolo…"
+
+#: static/js/histogram.js:7
+msgid "Waiting for image data..."
+msgstr "Esperando los datos de la imagen..."
+
+#: static/js/histogram.js:132 templates/album.html:175
+#: templates/interface.html:453
+msgid "No image loaded."
+msgstr "No hay ninguna imagen cargada."
+
+#: static/js/histogram.js:163
+msgid "Unable to compute histogram."
+msgstr "No se ha podido calcular el histograma."
+
+#: static/js/histogram.js:165
+msgid "Unable to read image pixel data."
+msgstr "No se han podido leer los píxeles de la imagen."
+
+#: static/js/histogram.js:385
+#, python-brace-format
+msgid "Mean: {mean} | Peak bin: {peak} | Samples: {sampleCount}"
+msgstr "Media: {mean} | Máximo: {peak} | Muestras: {sampleCount}"
+
+#: static/js/interface-guide.js:13
+msgid "× 3 exposures"
+msgstr "× 3 exposiciones"
+
+#: static/js/album/quality.js:7 static/js/interface-guide.js:13
+msgid "Brackets"
+msgstr "Horquillados"
+
+#: static/js/interface-guide.js:14
+msgid "Short exposures freeze the turbulence. Each bracket is three exposures, so one of them is right whatever the phase."
+msgstr "Las exposiciones cortas congelan la turbulencia. Cada horquillado son tres exposiciones, así que una de ellas acierta sea cual sea la fase."
+
+#: static/js/interface-guide.js:17
+msgid "Video length (s)"
+msgstr "Duración del vídeo (s)"
+
+#: static/js/interface-guide.js:17 templates/interface.html:362
+msgid "A planet"
+msgstr "Un planeta"
+
+#: static/js/interface-guide.js:18
+msgid "Planets are small: zoom the live view in on it, then record a video. The album keeps the sharpest frames (lucky imaging)."
+msgstr "Los planetas son pequeños: amplía la vista en directo sobre él y graba un vídeo. El álbum se queda con los fotogramas más nítidos (lucky imaging)."
+
+#: static/js/interface-guide.js:21 templates/interface.html:363
+msgid "Bright nebula or cluster"
+msgstr "Nebulosa o cúmulo brillante"
+
+#: static/js/album/main.js:356 static/js/interface-guide.js:22
+#: static/js/interface-guide.js:26 static/js/interface-guide.js:30
+#: static/js/interface-guide.js:568 templates/album.html:46
+#: templates/interface.html:387
+msgid "Photos"
+msgstr "Fotos"
+
+#: static/js/interface-guide.js:25 templates/interface.html:364
+msgid "Galaxy or faint nebula"
+msgstr "Galaxia o nebulosa débil"
+
+#: static/js/interface-guide.js:26
+msgid "A minute per photo needs steady tracking: the test shot checks the stars are round."
+msgstr "Un minuto por foto exige un seguimiento estable: la foto de prueba comprueba que las estrellas salgan redondas."
+
+#: static/js/interface-guide.js:29 templates/interface.html:365
+msgid "A bright star"
+msgstr "Una estrella brillante"
+
+#: static/js/interface-guide.js:30
+msgid "Bright stars fill up fast: short exposures keep their colour, and split close doubles."
+msgstr "Las estrellas brillantes se saturan rápido: las exposiciones cortas conservan su color y separan las dobles cercanas."
+
+#: static/js/interface-guide.js:81 templates/interface.html:75
+msgid "Pick something that's up tonight"
+msgstr "Elige algo que esté en el cielo esta noche"
+
+#: static/js/album/jobs.js:45 static/js/interface-guide.js:82
+#: static/js/interface-guide.js:83
+msgid "Done"
+msgstr "Hecho"
+
+#: static/js/interface-guide.js:82 templates/interface.html:76
+msgid "Make the stars as small as they'll go"
+msgstr "Haz que las estrellas sean lo más pequeñas posible"
+
+#: static/js/interface-guide.js:83 templates/interface.html:77
+msgid "Take a test shot and read the checks"
+msgstr "Haz una foto de prueba y lee las comprobaciones"
+
+#: static/js/interface-guide.js:84
+#, python-brace-format
+msgid "{name}: {state}"
+msgstr "{name}: {state}"
+
+#: static/js/interface-guide.js:84 templates/interface.html:78
+msgid "Set how many photos, then start"
+msgstr "Indica cuántas fotos y empieza"
+
+#: static/js/interface-guide.js:105
+#, python-brace-format
+msgid "{size} across"
+msgstr "{size} de diámetro"
+
+#: static/js/interface-guide.js:115
+msgid "The telescope's location isn't set"
+msgstr "No se ha indicado la ubicación del telescopio"
+
+#: static/js/interface-guide.js:115
+msgid "Checking the sky…"
+msgstr "Comprobando el cielo…"
+
+#: static/js/interface-guide.js:119
+#, python-brace-format
+msgid "{alt}° and rising"
+msgstr "{alt}° y subiendo"
+
+#: static/js/interface-guide.js:119
+#, python-brace-format
+msgid "{alt}° and sinking"
+msgstr "{alt}° y bajando"
+
+#: static/js/interface-guide.js:120
+#, python-brace-format
+msgid "{bestTime} at {bestAlt}°"
+msgstr "{bestTime} a {bestAlt}°"
+
+#: static/js/interface-guide.js:121
+#, python-brace-format
+msgid "{duration} more"
+msgstr "{duration} más"
+
+#: static/js/interface-guide.js:121 static/js/interface.js:1108
+msgid "Not tonight"
+msgstr "Esta noche no"
+
+#: static/js/interface-guide.js:122
+#, no-python-format, python-brace-format
+msgid "{illumination}% lit, {moonSeparation}° away"
+msgstr "{illumination} % iluminada, a {moonSeparation}°"
+
+#: static/js/interface-guide.js:153
+#, python-brace-format
+msgid "Not good tonight: {dark}"
+msgstr "No es buena idea esta noche: {dark}"
+
+#: static/js/interface-guide.js:153
+msgid "not up while it is dark"
+msgstr "no está en el cielo mientras es de noche"
+
+#: static/js/interface-guide.js:153
+#, python-brace-format
+msgid "only reaches {bestAlt}° while it is dark"
+msgstr "solo llega a {bestAlt}° mientras es de noche"
+
+#: static/js/interface-guide.js:154
+msgid "Not good tonight: high for under an hour while it is dark"
+msgstr "No es buena idea esta noche: está alto menos de una hora mientras es de noche"
+
+#: static/js/interface-guide.js:156
+#, python-brace-format
+msgid "{alt}° now and rising"
+msgstr "{alt}° ahora y subiendo"
+
+#: static/js/interface-guide.js:156
+#, python-brace-format
+msgid "{alt}° now and sinking"
+msgstr "{alt}° ahora y bajando"
+
+#: static/js/interface-guide.js:157
+#, python-brace-format
+msgid "Up later: best {bestTime} at {bestAlt}°"
+msgstr "Sale más tarde: mejor a las {bestTime}, a {bestAlt}°"
+
+#: static/js/interface-guide.js:158
+#, python-brace-format
+msgid "Low ({alt}°)"
+msgstr "Bajo ({alt}°)"
+
+#: static/js/interface-guide.js:159
+msgid "Not well placed tonight"
+msgstr "Mal situado esta noche"
+
+#: static/js/interface-guide.js:164
+msgid "Choose a telescope first (top left)."
+msgstr "Elige primero un telescopio (arriba a la izquierda)."
+
+#: static/js/interface-guide.js:172 templates/interface.html:494
+msgid "Loading what's up tonight…"
+msgstr "Cargando lo que hay en el cielo esta noche…"
+
+#: static/js/interface-guide.js:176
+#, python-brace-format
+msgid "Sorted by how well placed they are tonight{end}."
+msgstr "Ordenados según lo bien situados que están esta noche{end}."
+
+#: static/js/interface-guide.js:176
+#, python-brace-format
+msgid " (dark {start} – {end})"
+msgstr " (noche cerrada {start} – {end})"
+
+#: static/js/interface-guide.js:177
+msgid "The telescope's location isn't set, so the list can't say what's up. Its owner can set it on the telescope's settings page."
+msgstr "No se ha indicado la ubicación del telescopio, así que la lista no puede saber qué hay en el cielo. Su propietario puede indicarla en la página de ajustes del telescopio."
+
+#: static/js/interface-guide.js:190
+msgid "Read about it on Wikipedia ↗"
+msgstr "Más información en Wikipedia ↗"
+
+#: static/js/interface-guide.js:193
+#, python-brace-format
+msgid "Couldn't load targets: {message}"
+msgstr "No se han podido cargar los objetivos: {message}"
+
+#: static/js/interface-guide.js:200 static/js/interface.js:1176
+msgid "Searching…"
+msgstr "Buscando…"
+
+#: static/js/interface-guide.js:203 static/js/interface.js:1179
+#, python-brace-format
+msgid "Nothing called “{text}” in the catalogue."
+msgstr "No hay nada llamado «{text}» en el catálogo."
+
+#: static/js/interface-guide.js:207
+msgid "Choose this"
+msgstr "Elegir este"
+
+#: static/js/interface-guide.js:209 static/js/interface.js:1191
+msgid "The search failed."
+msgstr "La búsqueda ha fallado."
+
+#: static/js/interface-guide.js:232
+#, python-brace-format
+msgid "Going to {designation}. The mount tracks it once it gets there."
+msgstr "Yendo a {designation}. La montura lo seguirá en cuanto llegue."
+
+#: static/js/interface-guide.js:234
+msgid "You can't move this telescope now: that needs a booking that covers now."
+msgstr "Ahora no puedes mover este telescopio: necesitas una reserva vigente en este momento."
+
+#: static/js/interface-guide.js:236
+#, python-brace-format
+msgid "{designation} is below the horizon. Go to it once it has risen."
+msgstr "{designation} está por debajo del horizonte. Ve a él cuando haya salido."
+
+#: static/js/interface-guide.js:298 templates/interface.html:367
+msgid "Choose one above"
+msgstr "Elige uno arriba"
+
+#: static/js/album/main.js:330 static/js/album/main.js:357
+#: static/js/album/main.js:590 static/js/album/main.js:617
+#: static/js/album/stack-dialog.js:116 static/js/album/viewer.js:161
+#: static/js/interface-guide.js:303 static/js/interface.js:1447
+#, python-brace-format
+msgid "ISO {iso}"
+msgstr "ISO {iso}"
+
+#: static/js/interface-guide.js:305
+#, python-brace-format
+msgid "Take a {exposureS} test shot"
+msgstr "Hacer una foto de prueba de {exposureS}"
+
+#: static/js/interface-guide.js:341
+msgid "Clouds, the cover still on, badly out of focus, or a target with no stars (the Moon or a planet)."
+msgstr "Nubes, la tapa todavía puesta, muy desenfocado o un objetivo sin estrellas (la Luna o un planeta)."
+
+#: static/js/album/quality.js:160 static/js/interface-guide.js:341
+msgid "Hardly any stars"
+msgstr "Casi no hay estrellas"
+
+#: static/js/interface-guide.js:345
+msgid "Stars are round"
+msgstr "Las estrellas son redondas"
+
+#: static/js/interface-guide.js:345
+#, python-brace-format
+msgid "Tracking is steady (eccentricity {ecc})."
+msgstr "El seguimiento es estable (excentricidad {ecc})."
+
+#: static/js/interface-guide.js:346
+msgid "Stars are slightly stretched"
+msgstr "Las estrellas están algo alargadas"
+
+#: static/js/interface-guide.js:346
+#, python-brace-format
+msgid "Eccentricity {ecc}. A shorter exposure, a better polar alignment or less wind helps."
+msgstr "Excentricidad {ecc}. Ayuda una exposición más corta, una mejor alineación polar o menos viento."
+
+#: static/js/interface-guide.js:347
+msgid "Stars are trailing"
+msgstr "Las estrellas salen movidas"
+
+#: static/js/interface-guide.js:347
+#, python-brace-format
+msgid "Eccentricity {ecc}. Check the mount is tracking and polar aligned, or shorten the exposure."
+msgstr "Excentricidad {ecc}. Comprueba que la montura está siguiendo y alineada con el polo, o acorta la exposición."
+
+#: static/js/interface-guide.js:352
+msgid "In focus"
+msgstr "Enfocado"
+
+#: static/js/interface-guide.js:352
+#, python-brace-format
+msgid "Stars are {size} across."
+msgstr "Las estrellas miden {size} de diámetro."
+
+#: static/js/interface-guide.js:353
+msgid "Focus could be sharper"
+msgstr "El enfoque podría ser más fino"
+
+#: static/js/interface-guide.js:353
+#, python-brace-format
+msgid "Stars are {size} across. Seeing may be poor, or refocus with the focus helper."
+msgstr "Las estrellas miden {size} de diámetro. Puede que el seeing sea malo, o vuelve a enfocar con el asistente de enfoque."
+
+#: static/js/interface-guide.js:354
+#, python-brace-format
+msgid "Stars are {size} across. Refocus before capturing."
+msgstr "Las estrellas miden {size} de diámetro. Vuelve a enfocar antes de capturar."
+
+#: static/js/album/quality.js:189 static/js/interface-guide.js:354
+msgid "Out of focus"
+msgstr "Desenfocado"
+
+#: static/js/interface-guide.js:359
+msgid "Underexposed"
+msgstr "Subexpuesta"
+
+#: static/js/interface-guide.js:359
+#, no-python-format, python-brace-format
+msgid "The sky sits at {pct}% of the histogram. Expose longer or raise the ISO so faint detail clears the noise."
+msgstr "El cielo está al {pct} % del histograma. Expón más tiempo o sube el ISO para que el detalle débil supere el ruido."
+
+#: static/js/interface-guide.js:360
+msgid "Overexposed"
+msgstr "Sobreexpuesta"
+
+#: static/js/interface-guide.js:360
+#, python-brace-format
+msgid "The sky sits at {pct}%. Shorten the exposure or lower the ISO; light pollution or twilight may be washing it out."
+msgstr "El cielo está al {pct} %. Acorta la exposición o baja el ISO; puede que la contaminación lumínica o el crepúsculo la estén lavando."
+
+#: static/js/interface-guide.js:361
+msgid "Exposure is right"
+msgstr "La exposición es correcta"
+
+#: static/js/interface-guide.js:361
+#, no-python-format, python-brace-format
+msgid "The sky sits at {pct}% of the histogram."
+msgstr "El cielo está al {pct} % del histograma."
+
+#: static/js/interface-guide.js:365
+msgid "Highlights are clipped"
+msgstr "Las altas luces están saturadas"
+
+#: static/js/interface-guide.js:365
+#, no-python-format, python-brace-format
+msgid "{clipped}% of the picture is pure white. Shorten the exposure."
+msgstr "El {clipped} % de la imagen es blanco puro. Acorta la exposición."
+
+#: static/js/interface-guide.js:366
+msgid "Many bright stars are clipped"
+msgstr "Muchas estrellas brillantes están saturadas"
+
+#: static/js/interface-guide.js:366
+msgid "Normal for long exposures; shorten it if star colour matters."
+msgstr "Es normal en exposiciones largas; acórtala si te importa el color de las estrellas."
+
+#: static/js/interface-guide.js:367
+msgid "Nothing important is clipped"
+msgstr "No hay nada importante saturado"
+
+#: static/js/interface-guide.js:367
+#, no-python-format, python-brace-format
+msgid "{clipped}% of pixels at full brightness."
+msgstr "{clipped} % de los píxeles al brillo máximo."
+
+#: static/js/interface-guide.js:416
+msgid "Needs fixing"
+msgstr "Hay que corregirlo"
+
+#: static/js/interface-guide.js:416
+msgid "Fix what the red check says, then take another test shot."
+msgstr "Corrige lo que indica la comprobación en rojo y haz otra foto de prueba."
+
+#: static/js/interface-guide.js:417
+msgid "Nearly there"
+msgstr "Casi listo"
+
+#: static/js/interface-guide.js:417
+msgid "Worth a look, but you can capture with this."
+msgstr "Merece un vistazo, pero puedes capturar así."
+
+#: static/js/interface-guide.js:418
+msgid "Looks good"
+msgstr "Tiene buena pinta"
+
+#: static/js/interface-guide.js:418
+msgid "You're ready to capture."
+msgstr "Ya puedes capturar."
+
+#: static/js/interface-guide.js:428
+msgid "Checking…"
+msgstr "Comprobando…"
+
+#: static/js/interface-guide.js:445
+msgid "Star shape and focus not measured yet"
+msgstr "Todavía no se han medido la forma de las estrellas ni el enfoque"
+
+#: static/js/interface-guide.js:445
+msgid "Measuring stars arrives with in-browser processing. Meanwhile zoom into the test shot in the album to check they look round and sharp."
+msgstr "La medición de estrellas llegará con el procesado en el navegador. Mientras tanto, amplía la foto de prueba en el álbum para comprobar que se ven redondas y nítidas."
+
+#: static/js/interface-guide.js:473 static/js/interface-guide.js:476
+#, python-brace-format
+msgid "Exposing… {countdown} s"
+msgstr "Exponiendo… {countdown} s"
+
+#: static/js/interface-guide.js:476
+msgid "Waiting for the photo to arrive…"
+msgstr "Esperando a que llegue la foto…"
+
+#: static/js/interface-guide.js:483
+#, python-brace-format
+msgid "The test shot failed: {message}"
+msgstr "La foto de prueba ha fallado: {message}"
+
+#: static/js/interface-guide.js:498
+msgid "The test shot hasn't arrived yet. It may still be uploading; it'll show up in the album."
+msgstr "La foto de prueba todavía no ha llegado. Puede que se esté subiendo; aparecerá en el álbum."
+
+#: static/js/interface-guide.js:588
+msgid "Choose a target first."
+msgstr "Elige primero un objetivo."
+
+#: static/js/interface-guide.js:588
+msgid "Choose what you are photographing first."
+msgstr "Elige primero qué vas a fotografiar."
+
+#: static/js/interface-guide.js:594
+#, python-brace-format
+msgid "About {seconds} and {bytes}."
+msgstr "Unos {seconds} y {bytes}."
+
+#: static/js/interface-guide.js:600
+#, python-brace-format
+msgid "That runs past your booking (ends {end}): take fewer photos."
+msgstr "Eso se pasa de tu reserva (termina a las {end}): haz menos fotos."
+
+#: static/js/interface-guide.js:601
+msgid "Ends well before your booking does."
+msgstr "Termina bastante antes que tu reserva."
+
+#: static/js/interface-guide.js:601
+#, python-brace-format
+msgid "Ends just before your booking ({end})."
+msgstr "Termina justo antes que tu reserva ({end})."
+
+#: static/js/interface-guide.js:603
+#, python-brace-format
+msgid "Someone's booking starts at {next}; the plan stops then."
+msgstr "La reserva de otra persona empieza a las {next}; el plan se detiene entonces."
+
+#: static/js/interface-guide.js:607
+#, python-brace-format
+msgid "{name} drops below 30° at {aboveTo}."
+msgstr "{name} baja de 30° a las {aboveTo}."
+
+#: static/js/interface-guide.js:612
+#, python-brace-format
+msgid "Couldn't estimate: {message}"
+msgstr "No se ha podido estimar: {message}"
+
+#: static/js/interface-guide.js:620
+msgid "You haven't focused or checked a test shot yet. Start capturing anyway?"
+msgstr "Todavía no has enfocado ni comprobado una foto de prueba. ¿Empezar a capturar de todos modos?"
+
+#: static/js/interface-guide.js:621
+msgid "You haven't focused yet. Start capturing anyway?"
+msgstr "Todavía no has enfocado. ¿Empezar a capturar de todos modos?"
+
+#: static/js/interface-guide.js:622
+msgid "You haven't checked a test shot yet. Start capturing anyway?"
+msgstr "Todavía no has comprobado una foto de prueba. ¿Empezar a capturar de todos modos?"
+
+#: static/js/album/jobs.js:32 static/js/interface-guide.js:627
+#: static/js/interface.js:492
+msgid "Starting…"
+msgstr "Iniciando…"
+
+#: static/js/interface-guide.js:630
+#, python-brace-format
+msgid "✓ started plan {name}"
+msgstr "✓ plan {name} iniciado"
+
+#: static/js/interface-guide.js:631
+msgid "Capturing. It keeps going if you close this page."
+msgstr "Capturando. Sigue aunque cierres esta página."
+
+#: static/js/interface-guide.js:638
+#, python-brace-format
+msgid "Couldn't start: {message}"
+msgstr "No se ha podido iniciar: {message}"
+
+#: static/js/interface-guide.js:641 templates/interface.html:392
+msgid "Start capturing"
+msgstr "Empezar a capturar"
+
+#: static/js/interface-guide.js:672
+msgid "Start live view, then click a bright star to zoom in on it."
+msgstr "Inicia la vista en directo y haz clic en una estrella brillante para ampliarla."
+
+#: static/js/interface-guide.js:673 templates/interface.html:318
+msgid "Turn the focuser slowly. Smaller is sharper; the green dot marks the best point."
+msgstr "Gira el enfocador despacio. Cuanto más pequeña, más nítida; el punto verde marca el mejor punto."
+
+#: static/js/interface-guide.js:679
+msgid "No stars found in the picture."
+msgstr "No se han encontrado estrellas en la imagen."
+
+#: static/js/interface-guide.js:680
+msgid "Point at a brighter star, or check the cover is off."
+msgstr "Apunta a una estrella más brillante o comprueba que has quitado la tapa."
+
+#: static/js/interface-guide.js:680
+msgid "Click a bright star to zoom in on it."
+msgstr "Haz clic en una estrella brillante para ampliarla."
+
+#: static/js/interface-guide.js:695
+msgid "Measuring…"
+msgstr "Midiendo…"
+
+#: static/js/interface-guide.js:696
+msgid "Turn the focuser slowly one way and watch the number."
+msgstr "Gira el enfocador despacio en un sentido y fíjate en el número."
+
+#: static/js/interface-guide.js:698
+#, python-brace-format
+msgid "That's the sharpest so far: {bestValue} px."
+msgstr "Es lo más nítido hasta ahora: {bestValue} px."
+
+#: static/js/interface-guide.js:699
+msgid "Keep turning slowly the same way; if it grows again, come back to here."
+msgstr "Sigue girando despacio en el mismo sentido; si vuelve a crecer, regresa a este punto."
+
+#: static/js/interface-guide.js:701
+#, python-brace-format
+msgid "Best so far {bestValue} px. You've just gone past it."
+msgstr "Mejor hasta ahora: {bestValue} px. Te lo acabas de pasar."
+
+#: static/js/interface-guide.js:702
+msgid "Turn the focuser back slowly. Smaller is sharper; the green dot marks the best point."
+msgstr "Gira el enfocador hacia atrás despacio. Cuanto más pequeña, más nítida; el punto verde marca el mejor punto."
+
+#: static/js/interface-guide.js:704
+msgid "Getting smaller: keep turning the same way."
+msgstr "Se está haciendo más pequeña: sigue girando en el mismo sentido."
+
+#: static/js/interface-guide.js:705 static/js/interface-guide.js:708
+#, python-brace-format
+msgid "Best so far {bestValue} px."
+msgstr "Mejor hasta ahora: {bestValue} px."
+
+#: static/js/interface-guide.js:707
+msgid "Getting bigger: turn the other way."
+msgstr "Se está haciendo más grande: gira en el otro sentido."
+
+#: static/js/interface-guide.js:710
+#, python-brace-format
+msgid "Steady at {now} px."
+msgstr "Estable en {now} px."
+
+#: static/js/interface-guide.js:711
+#, python-brace-format
+msgid "Best so far {bestValue} px. Small turns, then wait a moment for the picture to settle."
+msgstr "Mejor hasta ahora: {bestValue} px. Gira poco a poco y espera un momento a que la imagen se estabilice."
+
+#: static/js/interface-guide.js:779
+msgid "Stop capturing?"
+msgstr "¿Detener la captura?"
+
+#: static/js/interface.js:51
+msgid "You need to log in again to control the telescope."
+msgstr "Tienes que volver a iniciar sesión para controlar el telescopio."
+
+#: static/js/interface.js:53
+msgid "Not authenticated"
+msgstr "Sin autenticar"
+
+#: static/js/interface.js:76 static/js/interface.js:1285
+#: static/js/interface.js:1319
+msgid "failed"
+msgstr "ha fallado"
+
+#: static/js/interface.js:77
+#, python-brace-format
+msgid "{action} failed"
+msgstr "{action} ha fallado"
+
+#: static/js/interface.js:92
+msgid "Parking"
+msgstr "Aparcando"
+
+#: static/js/interface.js:92
+msgid "Dithering"
+msgstr "Dithering"
+
+#: static/js/interface.js:92
+msgid "Plate solving"
+msgstr "Resolución astrométrica"
+
+#: static/js/interface.js:92
+msgid "Centring"
+msgstr "Centrando"
+
+#: static/js/interface.js:92
+msgid "Polar alignment"
+msgstr "Alineación polar"
+
+#: static/js/interface.js:113 static/js/interface.js:115
+#, python-brace-format
+msgid "{label} failed: {error}"
+msgstr "{label} ha fallado: {error}"
+
+#: static/js/interface.js:114
+#, python-brace-format
+msgid "✗ {label} failed: {error}"
+msgstr "✗ {label} ha fallado: {error}"
+
+#: static/js/interface.js:117
+#, python-brace-format
+msgid "{label} done."
+msgstr "{label} hecho."
+
+#: static/js/interface.js:118
+#, python-brace-format
+msgid "✓ {label} done {status}"
+msgstr "✓ {label} hecho {status}"
+
+#: static/js/interface.js:125
+#, python-brace-format
+msgid "{label}: lost track of the job."
+msgstr "{label}: se ha perdido el seguimiento de la tarea."
+
+#: static/js/interface.js:142
+#, python-brace-format
+msgid "rot {rotationDeg}°"
+msgstr "rot. {rotationDeg}°"
+
+#: static/js/interface.js:144
+#, python-brace-format
+msgid "off by {off}′"
+msgstr "desviado {off}′"
+
+#: static/js/interface.js:145
+#, python-brace-format
+msgid "Last solve {time} · {parts}"
+msgstr "Última resolución {time} · {parts}"
+
+#: static/js/interface.js:168 static/js/interface.js:1139
+msgid "Unknown"
+msgstr "Desconocido"
+
+#: static/js/interface.js:170
+#, python-brace-format
+msgid "{n} s ago"
+msgstr "hace {n} s"
+
+#: static/js/interface.js:171
+#, python-brace-format
+msgid "{n} min ago"
+msgstr "hace {n} min"
+
+#: static/js/interface.js:172
+#, python-brace-format
+msgid "{n} h ago"
+msgstr "hace {n} h"
+
+#: static/js/interface.js:173
+#, python-brace-format
+msgid "{n} days ago"
+msgstr "hace {n} días"
+
+#: static/js/interface.js:191 templates/interface.html:47
+msgid "Select a telescope…"
+msgstr "Selecciona un telescopio…"
+
+#: static/js/interface.js:194
+msgid "online"
+msgstr "en línea"
+
+#: static/js/interface.js:194
+msgid "offline"
+msgstr "desconectado"
+
+#: static/js/interface.js:224
+#, python-brace-format
+msgid "Couldn't select the telescope: {message}"
+msgstr "No se ha podido seleccionar el telescopio: {message}"
+
+#: static/js/interface.js:236
+msgid "Couldn't select the telescope"
+msgstr "No se ha podido seleccionar el telescopio"
+
+#: static/js/interface.js:269
+msgid "You can see this telescope, but controlling it needs ownership or a booking that covers now."
+msgstr "Puedes ver este telescopio, pero para controlarlo tienes que ser su propietario o tener una reserva vigente en este momento."
+
+#: static/js/interface.js:298 templates/interface.html:49
+msgid "Choose a telescope"
+msgstr "Elige un telescopio"
+
+#: static/js/interface.js:303
+#, python-brace-format
+msgid "Your booking until {end}"
+msgstr "Tu reserva hasta las {end}"
+
+#: static/js/interface.js:305
+msgid "Owner"
+msgstr "Propietario"
+
+#: static/js/interface.js:307
+msgid "You can control it"
+msgstr "Puedes controlarlo"
+
+#: static/js/interface.js:309
+msgid "Viewing only"
+msgstr "Solo visualización"
+
+#: static/js/interface.js:309
+msgid "Controlling it needs ownership or a booking that covers now"
+msgstr "Para controlarlo tienes que ser su propietario o tener una reserva vigente en este momento"
+
+#: static/js/interface.js:329 static/js/interface.js:335
+#: templates/interface.html:108
+msgid "Mount"
+msgstr "Montura"
+
+#: static/js/interface.js:331
+msgid "Parked"
+msgstr "Aparcada"
+
+#: static/js/interface.js:340 static/js/interface.js:366
+msgid "Connected"
+msgstr "Conectada"
+
+#: static/js/interface.js:340 static/js/interface.js:366
+msgid "Not connected"
+msgstr "No conectada"
+
+#: static/js/album/main.js:616 static/js/interface.js:340
+#: static/js/interface.js:398 templates/interface.html:411
+msgid "Camera"
+msgstr "Cámara"
+
+#: static/js/interface.js:341
+msgid "Sensor"
+msgstr "Sensor"
+
+#: static/js/interface.js:345 static/js/interface.js:350
+#: templates/interface.html:166
+msgid "Live view"
+msgstr "Vista en directo"
+
+#: static/js/interface.js:347
+msgid "Paused (no viewers)"
+msgstr "En pausa (sin espectadores)"
+
+#: static/js/interface.js:347
+msgid "On"
+msgstr "Activada"
+
+#: static/js/interface.js:347 static/js/interface.js:741
+#: static/js/interface.js:810 templates/interface.html:288
+msgid "Off"
+msgstr "Desactivada"
+
+#: static/js/interface.js:353
+msgid "Watching"
+msgstr "Espectadores"
+
+#: static/js/interface.js:355
+msgid "Recording"
+msgstr "Grabando"
+
+#: static/js/interface.js:355
+#, python-brace-format
+msgid "{kind} · {frames} frames"
+msgstr "{kind} · {frames} fotogramas"
+
+#: static/js/interface.js:358 templates/interface.html:109
+#: templates/interface.html:548
+msgid "Uploads"
+msgstr "Subidas"
+
+#: static/js/interface.js:359
+#, python-brace-format
+msgid "{waiting} waiting · {failed} failed{lastError}"
+msgstr "{waiting} en espera · {failed} fallidas{lastError}"
+
+#: static/js/interface.js:362
+msgid "Clock"
+msgstr "Reloj"
+
+#: static/js/interface.js:362
+msgid "Trusted"
+msgstr "Fiable"
+
+#: static/js/interface.js:362
+msgid "Not trusted"
+msgstr "No fiable"
+
+#: static/js/interface.js:364
+msgid "Disk"
+msgstr "Disco"
+
+#: static/js/interface.js:364 static/js/interface.js:696
+#, python-brace-format
+msgid "{size} free"
+msgstr "{size} libres"
+
+#: static/js/interface.js:366
+msgid " · E-STOP"
+msgstr " · PARADA"
+
+#: static/js/interface.js:366 templates/interface.html:222
+msgid "Controller"
+msgstr "Controlador"
+
+#: static/js/interface.js:373 static/js/interface.js:428
+msgid "No status from the telescope yet"
+msgstr "Todavía no hay estado del telescopio"
+
+#: static/js/interface.js:374 static/js/interface.js:394
+#: templates/interface.html:51
+msgid "Camera —"
+msgstr "Cámara —"
+
+#: static/js/interface.js:380
+msgid "Emergency stop is on"
+msgstr "La parada de emergencia está activada"
+
+#: static/js/interface.js:382
+#, python-brace-format
+msgid "Mount: {error}"
+msgstr "Montura: {error}"
+
+#: static/js/interface.js:382 templates/interface.html:50
+msgid "Mount —"
+msgstr "Montura —"
+
+#: static/js/interface.js:384
+msgid "Mount parked"
+msgstr "Montura aparcada"
+
+#: static/js/interface.js:389
+#, python-brace-format
+msgid "Mount {state}{extra}"
+msgstr "Montura: {state}{extra}"
+
+#: static/js/interface.js:394
+#, python-brace-format
+msgid "Camera: {error}"
+msgstr "Cámara: {error}"
+
+#: static/js/interface.js:396
+msgid "Camera not connected"
+msgstr "Cámara no conectada"
+
+#: static/js/interface.js:398
+msgid "Camera ready"
+msgstr "Cámara lista"
+
+#: static/js/interface.js:404
+#, python-brace-format
+msgid "Clock {source}{offsetS}"
+msgstr "Reloj {source}{offsetS}"
+
+#: static/js/interface.js:409
+#, python-brace-format
+msgid "Disk {free} free"
+msgstr "Disco: {free} libres"
+
+#: static/js/interface.js:416
+#, python-brace-format
+msgid "Uploads {waiting} waiting{held}{failed}"
+msgstr "Subidas: {waiting} en espera{held}{failed}"
+
+#: static/js/interface.js:416
+#, python-brace-format
+msgid " · {held} RAWs held"
+msgstr " · {held} RAW retenidos"
+
+#: static/js/interface.js:416
+#, python-brace-format
+msgid " · {failed} failed"
+msgstr " · {failed} fallidas"
+
+#: static/js/interface.js:423
+#, python-brace-format
+msgid "updated {n} s ago"
+msgstr "actualizado hace {n} s"
+
+#: static/js/interface.js:459
+msgid "Status unavailable"
+msgstr "Estado no disponible"
+
+#: static/js/interface.js:477
+#, python-brace-format
+msgid "Step {stepIndex} of {steps}: {type}"
+msgstr "Paso {stepIndex} de {steps}: {type}"
+
+#: static/js/interface.js:479
+#, python-brace-format
+msgid " · frame {frame} of {count}"
+msgstr " · fotograma {frame} de {count}"
+
+#: static/js/album/main.js:619 static/js/interface.js:479
+#, python-brace-format
+msgid " · frame {frame}"
+msgstr " · fotograma {frame}"
+
+#: static/js/interface.js:485
+#, python-brace-format
+msgid "{duration} left"
+msgstr "quedan {duration}"
+
+#: static/js/interface.js:486
+#, python-brace-format
+msgid "ends {time}"
+msgstr "termina a las {time}"
+
+#: static/js/interface.js:489
+#, python-brace-format
+msgid "booking ends {time}"
+msgstr "la reserva termina a las {time}"
+
+#: static/js/interface.js:533 static/js/interface.js:629
+msgid "unknown error"
+msgstr "error desconocido"
+
+#: static/js/interface.js:546
+#, python-brace-format
+msgid "Couldn't pause the plan: {error}"
+msgstr "No se ha podido pausar el plan: {error}"
+
+#: static/js/interface.js:547
+#, python-brace-format
+msgid "Couldn't resume the plan: {error}"
+msgstr "No se ha podido reanudar el plan: {error}"
+
+#: static/js/interface.js:548
+#, python-brace-format
+msgid "Couldn't skip the step: {error}"
+msgstr "No se ha podido omitir el paso: {error}"
+
+#: static/js/interface.js:549
+#, python-brace-format
+msgid "Couldn't stop the plan: {error}"
+msgstr "No se ha podido detener el plan: {error}"
+
+#: static/js/interface.js:550
+#, python-brace-format
+msgid "Couldn't change the plan: {error}"
+msgstr "No se ha podido cambiar el plan: {error}"
+
+#: static/js/interface.js:562
+msgid "No plans run on this telescope yet."
+msgstr "Todavía no se ha ejecutado ningún plan en este telescopio."
+
+#: static/js/interface.js:593
+#, python-brace-format
+msgid "Camera settings unavailable: {message}"
+msgstr "Ajustes de cámara no disponibles: {message}"
+
+#: static/js/interface.js:629
+#, python-brace-format
+msgid "Camera setting not changed: {message}"
+msgstr "No se ha cambiado el ajuste de la cámara: {message}"
+
+#: static/js/interface.js:667
+msgid "Enter a bulb exposure between 0 and 900 seconds."
+msgstr "Introduce una exposición bulb de entre 0 y 900 segundos."
+
+#: static/js/interface.js:682
+msgid "The photo failed"
+msgstr "La foto ha fallado"
+
+#: static/js/interface.js:697
+#, python-brace-format
+msgid "Battery {battery} · Card {cardText}"
+msgstr "Batería {battery} · Tarjeta {cardText}"
+
+#: static/js/interface.js:730
+msgid "Live"
+msgstr "En directo"
+
+#: static/js/interface.js:736
+msgid "Connecting…"
+msgstr "Conectando…"
+
+#: static/js/interface.js:737
+msgid "Waiting for the telescope…"
+msgstr "Esperando al telescopio…"
+
+#: static/js/interface.js:738 static/js/interface.js:811
+#: templates/interface.html:286
+msgid "Live view off"
+msgstr "Vista en directo desactivada"
+
+#: static/js/interface.js:739 static/js/interface.js:841
+msgid "Live view unavailable"
+msgstr "Vista en directo no disponible"
+
+#: static/js/interface.js:741
+msgid "Connecting"
+msgstr "Conectando"
+
+#: static/js/interface.js:797
+msgid "Waiting for live view…"
+msgstr "Esperando la vista en directo…"
+
+#: static/js/interface.js:804
+msgctxt "button"
+msgid "Live view off"
+msgstr "Desactivar vista en directo"
+
+#: static/js/interface.js:804 templates/interface.html:250
+msgid "Live view on"
+msgstr "Activar vista en directo"
+
+#: static/js/interface.js:806
+msgid "Stop live view"
+msgstr "Detener la vista en directo"
+
+#: static/js/interface.js:806 templates/interface.html:296
+msgid "Start live view"
+msgstr "Iniciar la vista en directo"
+
+#: static/js/interface.js:808
+msgid "live"
+msgstr "en directo"
+
+#: static/js/interface.js:808 templates/interface.html:429
+msgid "live view off"
+msgstr "vista en directo desactivada"
+
+#: static/js/interface.js:820
+msgid "Starting live view…"
+msgstr "Iniciando la vista en directo…"
+
+#: static/js/interface.js:830
+#, python-brace-format
+msgid "Couldn't start live view: {message}"
+msgstr "No se ha podido iniciar la vista en directo: {message}"
+
+#: static/js/interface.js:855
+#, python-brace-format
+msgid "Couldn't stop live view: {message}"
+msgstr "No se ha podido detener la vista en directo: {message}"
+
+#: static/js/interface.js:886
+#, python-brace-format
+msgid "Full screen isn't available: {message}"
+msgstr "La pantalla completa no está disponible: {message}"
+
+#: static/js/interface.js:965
+#, python-brace-format
+msgid "Sky at {background}% · clipped {clippedPct}% · {stars} stars measured"
+msgstr "Cielo al {background} % · saturado {clippedPct} % · {stars} estrellas medidas"
+
+#: static/js/interface.js:985
+msgid " (clipped)"
+msgstr " (saturado)"
+
+#: static/js/interface.js:1005
+#, python-brace-format
+msgid "Last recording error: {error}"
+msgstr "Último error de grabación: {error}"
+
+#: static/js/interface.js:1008
+#, python-brace-format
+msgid "● Recording {kind}: {frames} frames{seconds}"
+msgstr "● Grabando {kind}: {frames} fotogramas{seconds}"
+
+#: static/js/interface.js:1010
+#, python-brace-format
+msgid "Saved {path}"
+msgstr "Guardado {path}"
+
+#: static/js/interface.js:1026
+#, python-brace-format
+msgid "{n} watching"
+msgstr "{n} viendo"
+
+#: static/js/interface.js:1065
+#, python-brace-format
+msgid "Sky: {message}"
+msgstr "Cielo: {message}"
+
+#: static/js/interface.js:1074
+msgid "Day"
+msgstr "Día"
+
+#: static/js/interface.js:1075
+msgid "Civil twilight"
+msgstr "Crepúsculo civil"
+
+#: static/js/interface.js:1076
+msgid "Nautical twilight"
+msgstr "Crepúsculo náutico"
+
+#: static/js/interface.js:1077
+msgid "Astronomical twilight"
+msgstr "Crepúsculo astronómico"
+
+#: static/js/interface.js:1078
+msgid "Astronomical night"
+msgstr "Noche astronómica"
+
+#: static/js/interface.js:1088
+msgid "Site unknown"
+msgstr "Lugar desconocido"
+
+#: static/js/interface.js:1089
+msgid "Sky"
+msgstr "Cielo"
+
+#: static/js/interface.js:1097
+#, python-brace-format
+msgid "Dark sky · night until {nightEnd}"
+msgstr "Cielo oscuro · noche hasta las {nightEnd}"
+
+#: static/js/interface.js:1097
+msgid "Dark sky"
+msgstr "Cielo oscuro"
+
+#: static/js/interface.js:1098
+#, python-brace-format
+msgid "{state} · dark from {nightStart}"
+msgstr "{state} · noche cerrada desde las {nightStart}"
+
+#: static/js/interface.js:1099
+msgid "No full darkness tonight"
+msgstr "Esta noche no llega a oscurecer del todo"
+
+#: static/js/interface.js:1100
+#, python-brace-format
+msgid "Sun {sunAlt}° · {state}"
+msgstr "Sol {sunAlt}° · {state}"
+
+#: static/js/interface.js:1106
+msgid "Alt / Az"
+msgstr "Alt. / Az."
+
+#: static/js/interface.js:1107
+msgid "Transit"
+msgstr "Tránsito"
+
+#: static/js/interface.js:1108 templates/interface.html:93
+msgid "Above 30°"
+msgstr "Por encima de 30°"
+
+#: static/js/interface.js:1109
+#, python-brace-format
+msgid "{illumination}% · {moonSeparation}° away"
+msgstr "{illumination} % · a {moonSeparation}°"
+
+#: static/js/interface.js:1109 static/js/interface.js:1111
+#: static/js/interface.js:1335 templates/interface.html:94
+#: templates/interface.html:132
+msgid "Moon"
+msgstr "Luna"
+
+#: static/js/interface.js:1111
+#, no-python-format, python-brace-format
+msgid "{illumination}% lit · {alt}"
+msgstr "{illumination} % iluminada · {alt}"
+
+#: static/js/interface.js:1111
+#, python-brace-format
+msgid "up, {alt}°"
+msgstr "en el cielo, {alt}°"
+
+#: static/js/interface.js:1111
+msgid "below the horizon"
+msgstr "bajo el horizonte"
+
+#: static/js/interface.js:1113
+msgid "Astro dark"
+msgstr "Noche astronómica"
+
+#: static/js/interface.js:1113
+msgid "None tonight"
+msgstr "Esta noche no hay"
+
+#: static/js/interface.js:1156
+msgid "Everything the catalogue says"
+msgstr "Todo lo que dice el catálogo"
+
+#: static/js/interface.js:1166
+#, python-brace-format
+msgid "RA {ra} · Dec {dec}{mag}"
+msgstr "AR {ra} · Dec {dec}{mag}"
+
+#: static/js/interface.js:1184 templates/interface.html:127
+msgid "Go to + centre"
+msgstr "Ir a + centrar"
+
+#: static/js/interface.js:1189
+msgid "Use as target"
+msgstr "Usar como objetivo"
+
+#: static/js/interface.js:1215
+msgid "That target has no coordinates to go to."
+msgstr "Ese objetivo no tiene coordenadas a las que ir."
+
+#: static/js/interface.js:1218
+#, python-brace-format
+msgid "… go to {name} (RA {ra}°, Dec {dec}°)"
+msgstr "… ir a {name} (AR {ra}°, Dec {dec}°)"
+
+#: static/js/interface.js:1227
+#, python-brace-format
+msgid "✓ tracking {name}"
+msgstr "✓ siguiendo {name}"
+
+#: static/js/interface.js:1231
+msgid "The go-to failed"
+msgstr "El go-to ha fallado"
+
+#: static/js/interface.js:1232
+#, python-brace-format
+msgid "✗ go to {name}: {message}"
+msgstr "✗ ir a {name}: {message}"
+
+#: static/js/interface.js:1237
+#, python-brace-format
+msgid "The go-to failed: {error}"
+msgstr "El go-to ha fallado: {error}"
+
+#: static/js/interface.js:1255
+msgid "Enter RA as h m s (or degrees) and Dec as ° ′ ″."
+msgstr "Introduce la AR como h m s (o en grados) y la Dec como ° ′ ″."
+
+#: static/js/interface.js:1266
+#, python-brace-format
+msgid "Tracking {name}"
+msgstr "Siguiendo {name}"
+
+#: static/js/interface.js:1270 templates/interface.html:140
+msgid "Not tracking anything"
+msgstr "No se está siguiendo nada"
+
+#: static/js/interface.js:1283
+msgid "✓ stopped tracking"
+msgstr "✓ seguimiento detenido"
+
+#: static/js/interface.js:1285
+#, python-brace-format
+msgid "✗ stop tracking: {message}"
+msgstr "✗ detener seguimiento: {message}"
+
+#: static/js/interface.js:1316
+msgid "idle"
+msgstr "en reposo"
+
+#: static/js/interface.js:1316
+msgid "tracking"
+msgstr "siguiendo"
+
+#: static/js/interface.js:1316
+msgid "slewing"
+msgstr "moviéndose"
+
+#: static/js/interface.js:1316
+msgid "parked"
+msgstr "aparcada"
+
+#: static/js/interface.js:1316
+msgid "parking"
+msgstr "aparcando"
+
+#: static/js/interface.js:1317
+msgid "stopped"
+msgstr "detenido"
+
+#: static/js/interface.js:1317
+msgid "homing"
+msgstr "buscando el origen"
+
+#: static/js/interface.js:1317
+msgid "error"
+msgstr "error"
+
+#: static/js/interface.js:1318
+msgid "sidereal"
+msgstr "sideral"
+
+#: static/js/interface.js:1318
+msgid "lunar"
+msgstr "lunar"
+
+#: static/js/interface.js:1318
+msgid "solar"
+msgstr "solar"
+
+#: static/js/interface.js:1318
+msgid "king"
+msgstr "King"
+
+#: static/js/interface.js:1318
+msgid "custom"
+msgstr "personalizada"
+
+#: static/js/interface.js:1319
+msgid "running"
+msgstr "en marcha"
+
+#: static/js/interface.js:1319
+msgid "waiting"
+msgstr "en espera"
+
+#: static/js/interface.js:1319
+msgid "paused"
+msgstr "en pausa"
+
+#: static/js/interface.js:1319
+msgid "done"
+msgstr "terminado"
+
+#: static/js/interface.js:1320
+msgid "starting"
+msgstr "iniciando"
+
+#: static/js/interface.js:1320
+msgid "queued"
+msgstr "en cola"
+
+#: static/js/album/editor.js:151 static/js/interface.js:1321
+#: static/js/processing/stack.js:30
+msgid "bias"
+msgstr "bias"
+
+#: static/js/album/quality.js:11 static/js/interface.js:1321
+#: static/js/processing/stack.js:30
+msgid "light"
+msgstr "light"
+
+#: static/js/album/quality.js:11 static/js/interface.js:1321
+#: static/js/processing/stack.js:30
+msgid "dark"
+msgstr "dark"
+
+#: static/js/album/quality.js:11 static/js/interface.js:1321
+#: static/js/processing/stack.js:30
+msgid "flat"
+msgstr "flat"
+
+#: static/js/album/quality.js:12 static/js/interface.js:1321
+msgid "test shot"
+msgstr "foto de prueba"
+
+#: static/js/album/quality.js:12 static/js/interface.js:1322
+msgid "snapshot"
+msgstr "instantánea"
+
+#: static/js/album/quality.js:13 static/js/interface.js:1322
+msgid "video"
+msgstr "vídeo"
+
+#: static/js/interface.js:1335
+msgid "Sun"
+msgstr "Sol"
+
+#: static/js/interface.js:1335 templates/interface.html:132
+msgid "Mercury"
+msgstr "Mercurio"
+
+#: static/js/interface.js:1336
+msgid "Pluto"
+msgstr "Plutón"
+
+#: static/js/interface.js:1336 templates/interface.html:133
+msgid "Uranus"
+msgstr "Urano"
+
+#: static/js/interface.js:1336 templates/interface.html:133
+msgid "Neptune"
+msgstr "Neptuno"
+
+#: static/js/interface.js:1365
+msgid "E-STOP sent"
+msgstr "PARADA enviada"
+
+#: static/js/interface.js:1366
+msgid "Emergency stop sent: every motor is stopping."
+msgstr "Parada de emergencia enviada: todos los motores se están deteniendo."
+
+#: static/js/interface.js:1372
+msgid "Clear the emergency stop? Make sure nothing is in the way of the mount."
+msgstr "¿Desactivar la parada de emergencia? Asegúrate de que nada se interpone en el camino de la montura."
+
+#: static/js/interface.js:1385
+msgid "Enter a custom rate in arcseconds per second."
+msgstr "Introduce una velocidad personalizada en segundos de arco por segundo."
+
+#: static/js/interface.js:1414
+#, python-brace-format
+msgid "Uploads: {error}"
+msgstr "Subidas: {error}"
+
+#: static/js/interface.js:1418
+#, python-brace-format
+msgid "Waiting {waiting}"
+msgstr "En espera {waiting}"
+
+#: static/js/interface.js:1418
+#, python-brace-format
+msgid "RAWs held {held}"
+msgstr "RAW retenidos {held}"
+
+#: static/js/interface.js:1419
+#, python-brace-format
+msgid "Failed {failed}"
+msgstr "Fallidas {failed}"
+
+#: static/js/interface.js:1419
+#, python-brace-format
+msgid "Sent {sent}"
+msgstr "Enviadas {sent}"
+
+#: static/js/interface.js:1420
+#, python-brace-format
+msgid ""
+"\n"
+"Sending {filename}"
+msgstr ""
+"\n"
+"Enviando {filename}"
+
+#: static/js/interface.js:1421
+#, python-brace-format
+msgid ""
+"\n"
+"Last error: {lastError}"
+msgstr ""
+"\n"
+"Último error: {lastError}"
+
+#: static/js/album/main.js:249 static/js/interface.js:1455
+msgid "Stars"
+msgstr "Estrellas"
+
+#: static/js/album/main.js:629 static/js/interface.js:1456
+msgid "FWHM / HFR"
+msgstr "FWHM / HFR"
+
+#: static/js/album/main.js:630 static/js/interface.js:1457
+msgid "Eccentricity"
+msgstr "Excentricidad"
+
+#: static/js/interface.js:1458
+msgid "Background / noise"
+msgstr "Fondo / ruido"
+
+#: static/js/interface.js:1459 static/js/interface.js:1462
+msgid "Clipped"
+msgstr "Saturado"
+
+#: static/js/interface.js:1461
+msgid "Sky level"
+msgstr "Nivel del cielo"
+
+#: static/js/album/main.js:585 static/js/album/main.js:634
+#: static/js/interface.js:1464 templates/album.html:158
+msgid "Measured"
+msgstr "Medida"
+
+#: static/js/album/main.js:634 static/js/interface.js:1464
+msgid "Not yet"
+msgstr "Todavía no"
+
+#: static/js/interface.js:1466
+msgid "Uploaded"
+msgstr "Subido"
+
+#: static/js/interface.js:1466
+msgid "On the telescope"
+msgstr "En el telescopio"
+
+#: static/js/interface.js:1480
+msgid "Motor controls open, ready for commands"
+msgstr "Controles del motor abiertos, listos para recibir órdenes"
+
+#: static/js/interface.js:1497
+msgid "Motor 1 (azimuth)"
+msgstr "Motor 1 (acimut)"
+
+#: static/js/interface.js:1497
+msgid "Motor 2 (altitude)"
+msgstr "Motor 2 (altitud)"
+
+#: static/js/interface.js:1508
+#, python-brace-format
+msgid "Switched to {selectedMotorId}"
+msgstr "Cambiado a {selectedMotorId}"
+
+#: static/js/interface.js:1513
+msgid "Stop all motor movement now?"
+msgstr "¿Detener ahora todo el movimiento de los motores?"
+
+#: static/js/interface.js:1514
+msgid "EMERGENCY STOP SENT"
+msgstr "PARADA DE EMERGENCIA ENVIADA"
+
+#: static/js/interface.js:1521
+msgid "Disable"
+msgstr "Desactivar"
+
+#: static/js/interface.js:1521 templates/interface.html:593
+msgid "Enable"
+msgstr "Activar"
+
+#: static/js/interface.js:1530
+#, python-brace-format
+msgid "Running {command} on {selectedMotorId}…"
+msgstr "Ejecutando {command} en {selectedMotorId}…"
+
+#: static/js/interface.js:1538
+msgid "Motor command failed"
+msgstr "La orden del motor ha fallado"
+
+#: static/js/interface.js:1539
+#, python-brace-format
+msgid "{command} done on {motor}"
+msgstr "{command} hecho en {motor}"
+
+#: static/js/interface.js:1544
+#, python-brace-format
+msgid "{command} failed on {motor}: {error}"
+msgstr "{command} ha fallado en {motor}: {error}"
+
+#: static/js/interface.js:1575
+#, python-brace-format
+msgid "Enter a valid value for {label}."
+msgstr "Introduce un valor válido para {label}."
+
+#: static/js/interface.js:1582 static/js/interface.js:1591
+#: static/js/interface.js:1607
+msgid "speed"
+msgstr "la velocidad"
+
+#: static/js/interface.js:1588 static/js/interface.js:1603
+msgid "Enable the motor first."
+msgstr "Activa primero el motor."
+
+#: static/js/interface.js:1593
+#, python-brace-format
+msgid "{speed} steps/s is fast. Carry on?"
+msgstr "{speed} pasos/s es rápido. ¿Continuar?"
+
+#: static/js/interface.js:1606
+msgid "number of steps"
+msgstr "el número de pasos"
+
+#: static/js/interface.js:1609
+#, python-brace-format
+msgid "Move {steps} steps? That's a large movement."
+msgstr "¿Mover {steps} pasos? Es un movimiento grande."
+
+#: static/js/interface.js:1618
+msgid "current"
+msgstr "la corriente"
+
+#: static/js/interface.js:1623
+msgid "acceleration"
+msgstr "la aceleración"
+
+#: static/js/interface.js:1636
+#, python-brace-format
+msgid "Motor status ({selectedMotorId}):"
+msgstr "Estado del motor ({selectedMotorId}):"
+
+#: static/js/interface.js:1655
+msgid "All motors:"
+msgstr "Todos los motores:"
+
+#: static/js/interface.js:1750
+msgid "Photo taken. It shows up here and in the album once it uploads."
+msgstr "Foto hecha. Aparecerá aquí y en el álbum cuando se suba."
+
+#: static/js/interface.js:1751
+#, python-brace-format
+msgid "The photo failed: {message}"
+msgstr "La foto ha fallado: {message}"
+
+#: static/js/interface.js:1761
+msgid "Stop the capture plan?"
+msgstr "¿Detener el plan de captura?"
+
+#: static/js/liveview-player.js:90
+msgid "Could not open live view"
+msgstr "No se ha podido abrir la vista en directo"
+
+#: static/js/liveview-player.js:94
+msgid "Could not reach the server"
+msgstr "No se ha podido conectar con el servidor"
+
+#: static/js/liveview-player.js:124
+msgid "Live view refused"
+msgstr "Vista en directo rechazada"
+
+#: static/js/liveview-player.js:171
+msgid "Live view: could not configure the H.264 decoder"
+msgstr "Vista en directo: no se ha podido configurar el decodificador H.264"
+
+#: static/js/liveview-player.js:187
+msgid "Live view decoder error"
+msgstr "Error del decodificador de la vista en directo"
+
+#: static/js/processing/client.js:29
+#, python-brace-format
+msgid "This browser can't run the processing (it lacks {missing}). A recent Chrome, Edge, Firefox or Safari can."
+msgstr "Este navegador no puede ejecutar el procesado (le falta {missing}). Un Chrome, Edge, Firefox o Safari reciente sí puede."
+
+#: static/js/processing/client.js:100
+#, python-brace-format
+msgid "Measured {done} of {total}"
+msgstr "Medidas {done} de {total}"
+
+#: static/js/processing/client.js:155
+msgid "Saving the project's totals"
+msgstr "Guardando los totales del proyecto"
+
+#: static/js/processing/client.js:159
+#, python-brace-format
+msgid "Uploading the project's totals ({sent} of {total} MB)"
+msgstr "Subiendo los totales del proyecto ({sent} de {total} MB)"
+
+#: static/js/processing/client.js:181
+msgid "None of the project's frames are in the album any more"
+msgstr "Ninguno de los fotogramas del proyecto sigue en el álbum"
+
+#: static/js/processing/client.js:210
+msgid "Rebuilt"
+msgstr "Reconstruido"
+
+#: static/js/processing/client.js:210
+#, python-brace-format
+msgid "Checkpoint saved ({n} frames done)"
+msgstr "Punto de control guardado ({n} fotogramas hechos)"
+
+#: static/js/processing/client.js:213
+msgid "Nothing left to rebuild"
+msgstr "No queda nada por reconstruir"
+
+#: static/js/processing/client.js:215
+#, python-brace-format
+msgid "{name} (rebuilt)"
+msgstr "{name} (reconstruido)"
+
+#: static/js/processing/combine.js:40
+#, python-brace-format
+msgid "{n} frames fit in memory"
+msgstr "{n} fotogramas caben en memoria"
+
+#: static/js/processing/combine.js:41
+#, python-brace-format
+msgid "{n} frames fit in this browser's storage"
+msgstr "{n} fotogramas caben en el almacenamiento de este navegador"
+
+#: static/js/processing/combine.js:42
+#, python-brace-format
+msgid "{n} frames are too many to hold at once, so they're added up as they come"
+msgstr "{n} fotogramas son demasiados para tenerlos a la vez, así que se van sumando a medida que llegan"
+
+#: static/js/processing/decode.js:96
+#, python-brace-format
+msgid "{name}: only Canon CR2 RAWs can be read in the browser; stack the JPEGs instead"
+msgstr "{name}: en el navegador solo se pueden leer los RAW Canon CR2; apila los JPEG en su lugar"
+
+#: static/js/processing/fetch-cache.js:38
+#, python-brace-format
+msgid "Couldn't download {file} ({status})"
+msgstr "No se ha podido descargar {file} ({status})"
+
+#: static/js/processing/lucky.js:80
+msgid "This browser can't play this video. MP4 (H.264) and WebM play everywhere; SER files work too."
+msgstr "Este navegador no puede reproducir este vídeo. MP4 (H.264) y WebM se reproducen en todas partes; los archivos SER también funcionan."
+
+#: static/js/processing/lucky.js:166
+msgid "Nothing to stack"
+msgstr "No hay nada que apilar"
+
+#: static/js/processing/lucky.js:222
+msgid "The frames aren't all the same size"
+msgstr "Los fotogramas no tienen todos el mismo tamaño"
+
+#: static/js/processing/lucky.js:227
+#, python-brace-format
+msgid "Scoring frames for sharpness ({n})"
+msgstr "Puntuando la nitidez de los fotogramas ({n})"
+
+#: static/js/processing/lucky.js:235
+msgid "Need at least two frames for lucky imaging"
+msgstr "El lucky imaging necesita al menos dos fotogramas"
+
+#: static/js/processing/lucky.js:241
+msgid "No usable frames (all too dark)"
+msgstr "No hay fotogramas utilizables (todos demasiado oscuros)"
+
+#: static/js/processing/lucky.js:268
+#, python-brace-format
+msgid "Stacking the best frames ({done} of {total})"
+msgstr "Apilando los mejores fotogramas ({done} de {total})"
+
+#: static/js/processing/lucky.js:271
+msgid "None of the chosen frames could be aligned"
+msgstr "No se ha podido alinear ninguno de los fotogramas elegidos"
+
+#: static/js/processing/lucky.js:275 static/js/processing/stack.js:465
+msgid "Writing the result"
+msgstr "Escribiendo el resultado"
+
+#: static/js/processing/lucky.js:302
+#, python-brace-format
+msgid "The video player skipped {skipped} frames; the rest were scored."
+msgstr "El reproductor de vídeo se saltó {skipped} fotogramas; el resto se puntuaron."
+
+#: static/js/processing/pool.js:59
+msgid "The processing pool is closed"
+msgstr "El grupo de procesado está cerrado"
+
+#: static/js/processing/pool.js:110
+#, python-brace-format
+msgid "A processing worker stopped ({message}). Try half-size (super-pixel) or fewer frames."
+msgstr "Un proceso de cálculo se ha detenido ({message}). Prueba con mitad de tamaño (superpíxel) o con menos fotogramas."
+
+#: static/js/processing/pool.js:110
+msgid "probably out of memory"
+msgstr "probablemente sin memoria"
+
+#: static/js/processing/projects.js:22
+#, python-brace-format
+msgid "Couldn't read the project's totals ({status})"
+msgstr "No se han podido leer los totales del proyecto ({status})"
+
+#: static/js/processing/session.js:27
+#, python-brace-format
+msgid "Couldn't load the stack's preview ({status})"
+msgstr "No se ha podido cargar la vista previa del apilado ({status})"
+
+#: static/js/processing/session.js:41
+msgid "The developed image"
+msgstr "La imagen revelada"
+
+#: static/js/processing/stack.js:138
+#, python-brace-format
+msgid "stars blurred (FWHM {fwhm} px, typical {typical})"
+msgstr "estrellas borrosas (FWHM {fwhm} px, lo habitual {typical})"
+
+#: static/js/processing/stack.js:139
+#, python-brace-format
+msgid "stars stretched (eccentricity {ecc})"
+msgstr "estrellas alargadas (excentricidad {ecc})"
+
+#: static/js/processing/stack.js:140
+#, python-brace-format
+msgid "few stars ({count}, typical {typical}): cloud or haze?"
+msgstr "pocas estrellas ({count}, lo habitual {typical}): ¿nubes o bruma?"
+
+#: static/js/processing/stack.js:145
+#, python-brace-format
+msgid "FWHM {fwhm} px over the {limit} px limit"
+msgstr "FWHM {fwhm} px, por encima del límite de {limit} px"
+
+#: static/js/processing/stack.js:146
+#, python-brace-format
+msgid "eccentricity {ecc} over the {limit} limit"
+msgstr "excentricidad {ecc}, por encima del límite de {limit}"
+
+#: static/js/processing/stack.js:147
+#, python-brace-format
+msgid "{count} stars, under the {limit} limit"
+msgstr "{count} estrellas, por debajo del límite de {limit}"
+
+#: static/js/processing/stack.js:154
+#, python-brace-format
+msgid "not among the sharpest {percent}% (FWHM {fwhm} px)"
+msgstr "no está entre el {percent} % más nítido (FWHM {fwhm} px)"
+
+#: static/js/processing/stack.js:202
+#, python-brace-format
+msgid "Reading {type} frames ({done} of {total})"
+msgstr "Leyendo fotogramas {type} ({done} de {total})"
+
+#: static/js/processing/stack.js:204
+#, python-brace-format
+msgid "Combining {n} {type} frames"
+msgstr "Combinando {n} fotogramas {type}"
+
+#: static/js/processing/stack.js:253
+#, python-brace-format
+msgid "{n} of the frames are already in the project, so they were left out"
+msgstr "{n} de los fotogramas ya están en el proyecto, así que se han descartado"
+
+#: static/js/processing/stack.js:256
+msgid "Every one of these frames is already in the project"
+msgstr "Todos estos fotogramas ya están en el proyecto"
+
+#: static/js/processing/stack.js:256
+msgid "No light frames to stack"
+msgstr "No hay lights que apilar"
+
+#: static/js/processing/stack.js:261
+msgid "The RAW files could not be read in the browser (only Canon CR2 can be), so the JPEGs were stacked instead."
+msgstr "No se han podido leer los archivos RAW en el navegador (solo se pueden los Canon CR2), así que se han apilado los JPEG."
+
+#: static/js/processing/stack.js:270
+#, python-brace-format
+msgid "Left out {n} light(s) that aren't {kind} like the first; lights must all be RAW or all JPEG"
+msgstr "Se han descartado {n} light(s) que no son {kind} como el primero; los lights deben ser todos RAW o todos JPEG"
+
+#: static/js/processing/stack.js:276
+#, python-brace-format
+msgid "Left out {n} {type} frame(s) that aren't {kind} like the lights"
+msgstr "Se han descartado {n} fotograma(s) {type} que no son {kind} como los lights"
+
+#: static/js/processing/stack.js:281
+msgid "Calibrating JPEGs is approximate: the camera's tone curve isn't linear. RAW files calibrate exactly."
+msgstr "Calibrar JPEG es aproximado: la curva tonal de la cámara no es lineal. Los archivos RAW se calibran con exactitud."
+
+#: static/js/processing/stack.js:283
+msgid "Keeping the master calibration frames isn't available in the browser yet."
+msgstr "Conservar los másteres de calibración todavía no está disponible en el navegador."
+
+#: static/js/processing/stack.js:310
+msgid "Flats were used without bias or dark flats; add bias frames for exact flat correction"
+msgstr "Se han usado flats sin bias ni dark flats; añade bias para una corrección de flats exacta"
+
+#: static/js/processing/stack.js:336
+#, python-brace-format
+msgid "Measuring stars ({done} of {total})"
+msgstr "Midiendo estrellas ({done} de {total})"
+
+#: static/js/processing/stack.js:340
+#, python-brace-format
+msgid "None of the light frames could be read{error}"
+msgstr "No se ha podido leer ninguno de los lights{error}"
+
+#: static/js/processing/stack.js:350
+#, python-brace-format
+msgid "This project is made from {source} files; these frames aren't"
+msgstr "Este proyecto está hecho con archivos {source}; estos fotogramas no lo son"
+
+#: static/js/processing/stack.js:353
+#, python-brace-format
+msgid "Only {stars} stars found in the best frame, too few to align. For the Moon or a planet, use lucky imaging instead."
+msgstr "Solo se han encontrado {stars} estrellas en el mejor fotograma, demasiado pocas para alinear. Para la Luna o un planeta, usa lucky imaging."
+
+#: static/js/processing/stack.js:372
+#, python-brace-format
+msgid "couldn't align: {message}"
+msgstr "no se ha podido alinear: {message}"
+
+#: static/js/processing/stack.js:380
+msgid "No frames could be aligned to the reference"
+msgstr "No se ha podido alinear ningún fotograma con la referencia"
+
+#: static/js/processing/stack.js:388
+#, python-brace-format
+msgid "These frames make a {outW} × {outH} image; the project is {width} × {height}"
+msgstr "Estos fotogramas forman una imagen de {outW} × {outH}; el proyecto es de {width} × {height}"
+
+#: static/js/processing/stack.js:392
+msgid "a project adds each night to its running totals"
+msgstr "un proyecto suma cada noche a sus totales acumulados"
+
+#: static/js/processing/stack.js:414
+#, python-brace-format
+msgid "Aligning frames ({done} of {total})"
+msgstr "Alineando fotogramas ({done} de {total})"
+
+#: static/js/processing/stack.js:458 static/js/processing/stack.js:459
+#, python-brace-format
+msgid "Combining {n} frames"
+msgstr "Combinando {n} fotogramas"
+
+#: static/js/workspace.js:73
+msgid "You need to log in again."
+msgstr "Tienes que volver a iniciar sesión."
+
+#: templates/album.html:3
+msgid "Album - SELENO"
+msgstr "Álbum - SELENO"
+
+#: templates/album.html:44 templates/album.html:45 templates/base.html:76
+#: templates/home.html:40 templates/home.html:53 templates/interface.html:458
+msgid "Album"
+msgstr "Álbum"
+
+#: templates/album.html:47 templates/album.html:210
+msgid "Stacked images"
+msgstr "Imágenes apiladas"
+
+#: templates/album.html:48
+msgid "Activity"
+msgstr "Actividad"
+
+#: templates/album.html:52
+msgid "Album mode"
+msgstr "Modo del álbum"
+
+#: templates/album.html:53 templates/interface.html:62
+msgid "Basic"
+msgstr "Básico"
+
+#: templates/album.html:54 templates/interface.html:63
+msgid "Advanced"
+msgstr "Avanzado"
+
+#: templates/album.html:62 templates/album.html:63
+msgid "Group by"
+msgstr "Agrupar por"
+
+#: templates/album.html:64
+msgid "Night"
+msgstr "Noche"
+
+#: templates/album.html:70
+msgid "Hide rejected"
+msgstr "Ocultar rechazadas"
+
+#: templates/album.html:72
+msgid "Layout"
+msgstr "Diseño"
+
+#: templates/album.html:73
+msgid "Grid"
+msgstr "Cuadrícula"
+
+#: templates/album.html:74
+msgid "Table"
+msgstr "Tabla"
+
+#: templates/album.html:80
+msgid "Photo groups"
+msgstr "Grupos de fotos"
+
+#: templates/album.html:86
+msgid "Loading your photos…"
+msgstr "Cargando tus fotos…"
+
+#: templates/album.html:89
+msgid "Plan zip"
+msgstr "Zip del plan"
+
+#: templates/album.html:90
+msgid "Download all"
+msgstr "Descargar todo"
+
+#: templates/album.html:99
+msgid "eccentricity"
+msgstr "excentricidad"
+
+#: templates/album.html:100
+msgid "background"
+msgstr "fondo"
+
+#: templates/album.html:103
+msgid "Frame quality over the group"
+msgstr "Calidad de los fotogramas del grupo"
+
+#: templates/album.html:105
+msgid "Reject frames where FWHM is over"
+msgstr "Rechazar fotogramas con FWHM mayor que"
+
+#: templates/album.html:105
+msgid "FWHM limit"
+msgstr "Límite de FWHM"
+
+#: templates/album.html:106
+msgid "px, eccentricity over"
+msgstr "px, excentricidad mayor que"
+
+#: templates/album.html:106
+msgid "Eccentricity limit"
+msgstr "Límite de excentricidad"
+
+#: templates/album.html:107
+msgid "or stars under"
+msgstr "o menos estrellas que"
+
+#: templates/album.html:107
+msgid "Star count limit"
+msgstr "Límite de número de estrellas"
+
+#: templates/album.html:108
+msgid "Reject 0 frames"
+msgstr "Rechazar 0 fotogramas"
+
+#: templates/album.html:109
+msgid "Suggest: median + 3σ"
+msgstr "Sugerir: mediana + 3σ"
+
+#: templates/album.html:117
+msgid "Selected photo"
+msgstr "Foto seleccionada"
+
+#: templates/album.html:120
+msgid "Click a photo to see it here with its details. Ctrl-click or Shift-click to select several; the bar at the bottom acts on them."
+msgstr "Haz clic en una foto para verla aquí con sus detalles. Con Ctrl+clic o Mayús+clic seleccionas varias; la barra inferior actúa sobre ellas."
+
+#: templates/album.html:124
+msgid "Preview of the selected photo"
+msgstr "Vista previa de la foto seleccionada"
+
+#: templates/album.html:132
+msgid "Keep this one (p)"
+msgstr "Conservar esta (p)"
+
+#: templates/album.html:132 templates/album.html:194
+msgid "Accept"
+msgstr "Aceptar"
+
+#: templates/album.html:133
+msgid "Leave it out of stacks (x)"
+msgstr "Excluirla de los apilados (x)"
+
+#: templates/album.html:134
+msgid "Clear flag"
+msgstr "Quitar marca"
+
+#: templates/album.html:140
+msgid "Notes"
+msgstr "Notas"
+
+#: templates/album.html:140
+msgid "Seeing, haze, anything worth remembering"
+msgstr "Seeing, bruma, cualquier cosa que merezca la pena recordar"
+
+#: templates/album.html:142 templates/album.html:341
+msgid "Save"
+msgstr "Guardar"
+
+#: templates/album.html:146
+msgid "Edit this photo"
+msgstr "Editar esta foto"
+
+#: templates/album.html:147
+msgid "Stack the sharpest frames of a planet or Moon video"
+msgstr "Apilar los fotogramas más nítidos de un vídeo de un planeta o de la Luna"
+
+#: templates/album.html:148
+msgid "View full size"
+msgstr "Ver a tamaño completo"
+
+#: templates/album.html:149
+msgid "Flick through the selected photos, or this night's lights"
+msgstr "Pasa rápidamente las fotos seleccionadas o los lights de esta noche"
+
+#: templates/album.html:150 templates/album.html:200 templates/album.html:347
+#: templates/downloads.html:40
+msgid "Download"
+msgstr "Descargar"
+
+#: templates/album.html:154
+msgid "Details"
+msgstr "Detalles"
+
+#: templates/album.html:162 templates/interface.html:440
+msgid "Histogram"
+msgstr "Histograma"
+
+#: templates/album.html:164 templates/interface.html:442
+msgid "Channel"
+msgstr "Canal"
+
+#: templates/album.html:166 templates/interface.html:443
+msgid "Luminance"
+msgstr "Luminancia"
+
+#: templates/album.html:167 templates/album.html:307
+#: templates/interface.html:445
+msgid "Red"
+msgstr "Rojo"
+
+#: templates/album.html:168 templates/interface.html:446
+msgid "Green"
+msgstr "Verde"
+
+#: templates/album.html:169 templates/album.html:308
+#: templates/interface.html:447
+msgid "Blue"
+msgstr "Azul"
+
+#: templates/album.html:171 templates/interface.html:449
+msgctxt "scale"
+msgid "Log"
+msgstr "Logarítmica"
+
+#: templates/album.html:179
+msgid "Everything in the file"
+msgstr "Todo lo que hay en el archivo"
+
+#: templates/album.html:187
+msgid "Selected photos"
+msgstr "Fotos seleccionadas"
+
+#: templates/album.html:188
+msgid "0 selected"
+msgstr "0 seleccionadas"
+
+#: templates/album.html:189 templates/interface.html:348
+msgid "Clear"
+msgstr "Limpiar"
+
+#: templates/album.html:192
+msgid "Set type"
+msgstr "Indicar tipo"
+
+#: templates/album.html:195
+msgid "Measure quality"
+msgstr "Medir calidad"
+
+#: templates/album.html:196
+msgid "Stack the sharpest of a burst of Moon or planet photos"
+msgstr "Apilar las más nítidas de una ráfaga de fotos de la Luna o de un planeta"
+
+#: templates/album.html:197
+msgid "Ask the telescope for RAWs"
+msgstr "Pedir los RAW al telescopio"
+
+#: templates/album.html:199
+msgid "Mark as bad"
+msgstr "Marcar como mala"
+
+#: templates/album.html:202
+msgid "Stack these"
+msgstr "Apilar estas"
+
+#: templates/album.html:202
+msgid "Stack…"
+msgstr "Apilar…"
+
+#: templates/album.html:211
+msgid "Stacks you've made, with their linear masters for editing again. Open one to edit it, or download the master to work on it in other software."
+msgstr "Los apilados que has hecho, con sus másteres lineales para volver a editarlos. Abre uno para editarlo o descarga el máster para trabajarlo en otro programa."
+
+#: templates/album.html:215
+msgid "Projects"
+msgstr "Proyectos"
+
+#: templates/album.html:216
+msgid "Long integrations built up night by night. Each night's frames are added to running totals kept on the server, so a project can grow to hundreds of hours. Choose a project in the stack dialog to add to it."
+msgstr "Integraciones largas que se construyen noche a noche. Los fotogramas de cada noche se suman a unos totales acumulados que se guardan en el servidor, así que un proyecto puede llegar a cientos de horas. Elige un proyecto en el diálogo de apilado para añadir a él."
+
+#: templates/album.html:217
+msgid "No projects yet."
+msgstr "Todavía no hay proyectos."
+
+#: templates/album.html:226
+msgid "Running in this browser"
+msgstr "En marcha en este navegador"
+
+#: templates/album.html:228
+msgid "Measuring and stacking run in this tab, on your computer. Keep the tab open until they finish; you can carry on using the album meanwhile."
+msgstr "La medición y el apilado se ejecutan en esta pestaña, en tu ordenador. Mantén la pestaña abierta hasta que terminen; mientras tanto puedes seguir usando el álbum."
+
+#: templates/album.html:231
+msgid "Finished"
+msgstr "Terminado"
+
+#: templates/album.html:240
+msgid "‹ Stacked images"
+msgstr "‹ Imágenes apiladas"
+
+#: templates/album.html:248
+msgid "Compare"
+msgstr "Comparar"
+
+#: templates/album.html:249
+msgid "After"
+msgstr "Después"
+
+#: templates/album.html:250
+msgid "Before"
+msgstr "Antes"
+
+#: templates/album.html:251
+msgid "Split"
+msgstr "Dividido"
+
+#: templates/album.html:253 templates/album.html:472
+#: templates/interface.html:289
+msgid "Zoom"
+msgstr "Zoom"
+
+#: templates/album.html:254 templates/album.html:473
+msgid "Fit"
+msgstr "Ajustar"
+
+#: templates/album.html:257
+msgid "Show background model"
+msgstr "Mostrar el modelo de fondo"
+
+#: templates/album.html:259
+msgid "Undo"
+msgstr "Deshacer"
+
+#: templates/album.html:260
+msgid "Redo"
+msgstr "Rehacer"
+
+#: templates/album.html:263
+msgid "The stacked image"
+msgstr "La imagen apilada"
+
+#: templates/album.html:271
+msgid "Auto"
+msgstr "Auto"
+
+#: templates/album.html:271
+msgid "Reset"
+msgstr "Restablecer"
+
+#: templates/album.html:275
+msgid "Adjust"
+msgstr "Ajustar"
+
+#: templates/album.html:276 templates/album.html:320
+msgid "Brightness"
+msgstr "Brillo"
+
+#: templates/album.html:277 templates/album.html:327
+msgid "Contrast"
+msgstr "Contraste"
+
+#: templates/album.html:278
+msgid "Colour saturation"
+msgstr "Saturación del color"
+
+#: templates/album.html:278 templates/album.html:298 templates/album.html:420
+msgid "Colour"
+msgstr "Color"
+
+#: templates/album.html:279
+msgid "Smoothing"
+msgstr "Suavizado"
+
+#: templates/album.html:279
+msgid "Noise reduction"
+msgstr "Reducción de ruido"
+
+#: templates/album.html:280
+msgid "Sharpening"
+msgstr "Nitidez"
+
+#: templates/album.html:281 templates/album.html:293
+msgid "Remove gradients (light pollution, Moon glow)"
+msgstr "Eliminar gradientes (contaminación lumínica, brillo de la Luna)"
+
+#: templates/album.html:284
+msgid "Crop"
+msgstr "Recortar"
+
+#: templates/album.html:285
+msgid "Crop to the area every frame covers"
+msgstr "Recortar al área que cubren todos los fotogramas"
+
+#: templates/album.html:289
+msgid "Background model"
+msgstr "Modelo de fondo"
+
+#: templates/album.html:290
+msgid "Flat"
+msgstr "Plano"
+
+#: templates/album.html:290
+msgid "Degree 1"
+msgstr "Grado 1"
+
+#: templates/album.html:290
+msgid "Degree 2"
+msgstr "Grado 2"
+
+#: templates/album.html:290
+msgid "Degree 3"
+msgstr "Grado 3"
+
+#: templates/album.html:290
+msgid "Degree 4"
+msgstr "Grado 4"
+
+#: templates/album.html:294
+msgid "Divide (vignetting) rather than subtract"
+msgstr "Dividir (viñeteo) en lugar de restar"
+
+#: templates/album.html:295
+msgid "Samples"
+msgstr "Muestras"
+
+#: templates/album.html:295
+msgid "Background samples"
+msgstr "Muestras de fondo"
+
+#: templates/album.html:300
+msgid "White from the stars"
+msgstr "Blanco a partir de las estrellas"
+
+#: templates/album.html:301
+msgid "White from the whole image"
+msgstr "Blanco a partir de toda la imagen"
+
+#: templates/album.html:302
+msgid "Set by hand"
+msgstr "Ajustar a mano"
+
+#: templates/album.html:303
+msgid "Leave as stacked"
+msgstr "Dejar como se apiló"
+
+#: templates/album.html:306
+msgid "Neutral grey background"
+msgstr "Fondo gris neutro"
+
+#: templates/album.html:307
+msgid "Red factor"
+msgstr "Factor de rojo"
+
+#: templates/album.html:308
+msgid "Blue factor"
+msgstr "Factor de azul"
+
+#: templates/album.html:312 templates/album.html:313
+msgid "Stretch"
+msgstr "Estirado"
+
+#: templates/album.html:314
+msgid "Auto (screen transfer)"
+msgstr "Auto (transferencia de pantalla)"
+
+#: templates/album.html:315
+msgid "Manual levels"
+msgstr "Niveles manuales"
+
+#: templates/album.html:316
+msgid "Arcsinh (keeps star colour)"
+msgstr "Arcsinh (conserva el color de las estrellas)"
+
+#: templates/album.html:317
+msgid "None"
+msgstr "Ninguno"
+
+#: templates/album.html:320
+msgid "Target sky brightness"
+msgstr "Brillo del cielo deseado"
+
+#: templates/album.html:321
+msgid "Black point"
+msgstr "Punto negro"
+
+#: templates/album.html:321
+msgid "Black point in sigma"
+msgstr "Punto negro en sigmas"
+
+#: templates/album.html:322
+msgid "Same stretch for every colour"
+msgstr "El mismo estirado para todos los colores"
+
+#: templates/album.html:323
+msgid "Levels black"
+msgstr "Negro de niveles"
+
+#: templates/album.html:323
+msgid "Manual black level"
+msgstr "Nivel de negro manual"
+
+#: templates/album.html:324
+msgid "Midtones"
+msgstr "Tonos medios"
+
+#: templates/album.html:324
+msgid "Manual midtones"
+msgstr "Tonos medios manuales"
+
+#: templates/album.html:325
+msgid "Levels white"
+msgstr "Blanco de niveles"
+
+#: templates/album.html:325
+msgid "Manual white level"
+msgstr "Nivel de blanco manual"
+
+#: templates/album.html:326
+msgid "Arcsinh"
+msgstr "Arcsinh"
+
+#: templates/album.html:326
+msgid "Arcsinh strength"
+msgstr "Intensidad de arcsinh"
+
+#: templates/album.html:330
+msgid "Detail"
+msgstr "Detalle"
+
+#: templates/album.html:331
+msgid "Saturation"
+msgstr "Saturación"
+
+#: templates/album.html:332
+msgid "Noise (colour)"
+msgstr "Ruido (color)"
+
+#: templates/album.html:332
+msgid "Colour noise reduction"
+msgstr "Reducción del ruido de color"
+
+#: templates/album.html:333
+msgid "Noise (detail)"
+msgstr "Ruido (detalle)"
+
+#: templates/album.html:333
+msgid "Detail noise reduction"
+msgstr "Reducción del ruido de detalle"
+
+#: templates/album.html:334
+msgid "Sharpen fine"
+msgstr "Nitidez fina"
+
+#: templates/album.html:334
+msgid "Sharpen fine detail"
+msgstr "Nitidez del detalle fino"
+
+#: templates/album.html:335
+msgid "Sharpen small"
+msgstr "Nitidez pequeña"
+
+#: templates/album.html:335
+msgid "Sharpen small detail"
+msgstr "Nitidez del detalle pequeño"
+
+#: templates/album.html:336
+msgid "Sharpen medium"
+msgstr "Nitidez media"
+
+#: templates/album.html:336
+msgid "Sharpen medium detail"
+msgstr "Nitidez del detalle medio"
+
+#: templates/album.html:337
+msgid "Sharpen large"
+msgstr "Nitidez grande"
+
+#: templates/album.html:337
+msgid "Sharpen large detail"
+msgstr "Nitidez del detalle grande"
+
+#: templates/album.html:343
+msgid "Save JPEG to album"
+msgstr "Guardar JPEG en el álbum"
+
+#: templates/album.html:359 templates/album.html:444
+#: templates/interface.html:215
+msgid "Name"
+msgstr "Nombre"
+
+#: templates/album.html:361 templates/album.html:440 templates/album.html:459
+#: templates/album.html:479 templates/base.html:146
+#: templates/interface.html:486 templates/interface.html:507
+#: templates/interface.html:566 templates/interface.html:579
+#: templates/interface.html:664
+msgid "Close"
+msgstr "Cerrar"
+
+#: templates/album.html:369 templates/interface.html:537
+msgid "Estimate"
+msgstr "Estimación"
+
+#: templates/album.html:376
+msgid "Which photos to use"
+msgstr "Qué fotos usar"
+
+#: templates/album.html:378
+msgid "Leave out the worst (recommended)"
+msgstr "Descartar las peores (recomendado)"
+
+#: templates/album.html:378
+msgid "Blurred, trailed or cloudy photos are left out, and say why."
+msgstr "Se descartan las fotos borrosas, movidas o con nubes, y se indica por qué."
+
+#: templates/album.html:379
+msgid "Only the sharpest half"
+msgstr "Solo la mitad más nítida"
+
+#: templates/album.html:379
+msgid "Sharper detail, at the cost of more noise."
+msgstr "Más detalle, a cambio de más ruido."
+
+#: templates/album.html:380
+msgid "Keep every photo"
+msgstr "Conservar todas las fotos"
+
+#: templates/album.html:380
+msgid "Except the ones you marked as bad."
+msgstr "Excepto las que marcaste como malas."
+
+#: templates/album.html:382
+msgid "Half size (faster, and kinder to slower computers)"
+msgstr "Mitad de tamaño (más rápido y mejor para ordenadores lentos)"
+
+#: templates/album.html:385
+msgid "Quick: stack the JPEGs instead of the RAWs (nothing big to download; calibration is only approximate)"
+msgstr "Rápido: apilar los JPEG en lugar de los RAW (no hay que descargar nada grande; la calibración es solo aproximada)"
+
+#: templates/album.html:386
+msgid "Add to a project (a long integration over many nights)"
+msgstr "Añadir a un proyecto (una integración larga a lo largo de muchas noches)"
+
+#: templates/album.html:387
+msgid "No, a stack on its own"
+msgstr "No, un apilado independiente"
+
+#: templates/album.html:387
+msgid "A new project, named as above"
+msgstr "Un proyecto nuevo, con el nombre de arriba"
+
+#: templates/album.html:392
+msgid "Calibration"
+msgstr "Calibración"
+
+#: templates/album.html:393
+msgid "Combine calibration frames"
+msgstr "Combinar las tomas de calibración"
+
+#: templates/album.html:394
+msgid "Dark exposure doesn't match"
+msgstr "La exposición de los darks no coincide"
+
+#: templates/album.html:394
+msgid "Scale with the bias"
+msgstr "Escalar con los bias"
+
+#: templates/album.html:394
+msgid "Use as they are"
+msgstr "Usarlos tal cual"
+
+#: templates/album.html:395
+msgid "Fix hot pixels found in the darks"
+msgstr "Corregir los píxeles calientes encontrados en los darks"
+
+#: templates/album.html:396
+msgid "Fix stray hot and cold pixels in each photo"
+msgstr "Corregir píxeles calientes y fríos sueltos en cada foto"
+
+#: templates/album.html:397
+msgid "Normalise flats per colour"
+msgstr "Normalizar los flats por color"
+
+#: templates/album.html:400 templates/interface.html:190
+msgid "Alignment"
+msgstr "Alineación"
+
+#: templates/album.html:401
+msgid "Reference photo"
+msgstr "Foto de referencia"
+
+#: templates/album.html:402
+msgid "Transform"
+msgstr "Transformación"
+
+#: templates/album.html:402
+msgid "Shift, rotate, scale"
+msgstr "Desplazar, rotar, escalar"
+
+#: templates/album.html:402
+msgid "Affine (shear too)"
+msgstr "Afín (también cizalla)"
+
+#: templates/album.html:403
+msgid "Star detection"
+msgstr "Detección de estrellas"
+
+#: templates/album.html:403
+msgid "3 σ (faint stars)"
+msgstr "3 σ (estrellas débiles)"
+
+#: templates/album.html:403
+msgid "5 σ (default)"
+msgstr "5 σ (predeterminado)"
+
+#: templates/album.html:403
+msgid "8 σ (bright stars only)"
+msgstr "8 σ (solo estrellas brillantes)"
+
+#: templates/album.html:404
+msgid "Interpolation"
+msgstr "Interpolación"
+
+#: templates/album.html:404
+msgid "Bicubic (sharper)"
+msgstr "Bicúbica (más nítida)"
+
+#: templates/album.html:404
+msgid "Bilinear (smoother)"
+msgstr "Bilineal (más suave)"
+
+#: templates/album.html:407
+msgid "Combining"
+msgstr "Combinación"
+
+#: templates/album.html:408
+msgid "Method"
+msgstr "Método"
+
+#: templates/album.html:410
+msgid "κ low"
+msgstr "κ bajo"
+
+#: templates/album.html:411
+msgid "κ high"
+msgstr "κ alto"
+
+#: templates/album.html:413
+msgid "Normalise frames"
+msgstr "Normalizar fotogramas"
+
+#: templates/album.html:413
+msgid "Background and spread"
+msgstr "Fondo y dispersión"
+
+#: templates/album.html:413
+msgid "Don't normalise"
+msgstr "No normalizar"
+
+#: templates/album.html:414
+msgid "Weight frames"
+msgstr "Ponderar fotogramas"
+
+#: templates/album.html:414
+msgid "By noise"
+msgstr "Por ruido"
+
+#: templates/album.html:414
+msgid "Equally"
+msgstr "Por igual"
+
+#: templates/album.html:415
+msgid "Leave out frames far worse than the rest"
+msgstr "Descartar los fotogramas mucho peores que el resto"
+
+#: templates/album.html:418
+msgid "Output"
+msgstr "Salida"
+
+#: templates/album.html:419
+msgid "Bilinear, full size"
+msgstr "Bilineal, tamaño completo"
+
+#: templates/album.html:419
+msgid "Super-pixel, half size"
+msgstr "Superpíxel, mitad de tamaño"
+
+#: templates/album.html:420
+msgid "White balance + camera matrix"
+msgstr "Balance de blancos + matriz de la cámara"
+
+#: templates/album.html:420
+msgid "White balance only"
+msgstr "Solo balance de blancos"
+
+#: templates/album.html:420
+msgid "Camera colours as they are"
+msgstr "Colores de la cámara tal cual"
+
+#: templates/album.html:421
+msgid "Daylight"
+msgstr "Luz de día"
+
+#: templates/album.html:421
+msgid "As shot"
+msgstr "Como se tomó"
+
+#: templates/album.html:422
+msgid "Crop to the area every photo covers"
+msgstr "Recortar al área que cubren todas las fotos"
+
+#: templates/album.html:423
+msgid "Keep the master calibration frames"
+msgstr "Conservar los másteres de calibración"
+
+#: templates/album.html:429
+msgid "Runs in this browser tab: keep it open until it finishes. It shows under Activity."
+msgstr "Se ejecuta en esta pestaña del navegador: mantenla abierta hasta que termine. Aparece en Actividad."
+
+#: templates/album.html:430
+msgid "All these frames in one zip, for other stacking software"
+msgstr "Todos estos fotogramas en un zip, para otros programas de apilado"
+
+#: templates/album.html:430
+msgid "Download the frames"
+msgstr "Descargar los fotogramas"
+
+#: templates/album.html:431
+msgid "Save as default"
+msgstr "Guardar como predeterminado"
+
+#: templates/album.html:432
+msgid "Start stacking"
+msgstr "Empezar a apilar"
+
+#: templates/album.html:445
+#, python-format
+msgid "Keep the sharpest %(percent)s"
+msgstr "Conservar el %(percent)s más nítido"
+
+#: templates/album.html:448
+msgid "Area"
+msgstr "Zona"
+
+#: templates/album.html:448
+msgid "Around the planet (found automatically)"
+msgstr "Alrededor del planeta (se detecta automáticamente)"
+
+#: templates/album.html:448
+msgid "The whole frame (the Moon)"
+msgstr "El fotograma entero (la Luna)"
+
+#: templates/album.html:449
+msgid "Runs in this browser tab. For a video, keep the tab in view: browsers stop playing video in hidden tabs."
+msgstr "Se ejecuta en esta pestaña del navegador. Si es un vídeo, mantén la pestaña visible: los navegadores dejan de reproducir vídeo en las pestañas ocultas."
+
+#: templates/album.html:453 templates/interface.html:612
+msgid "Start"
+msgstr "Iniciar"
+
+#: templates/album.html:459
+msgid "Choose frames"
+msgstr "Elegir fotogramas"
+
+#: templates/album.html:464
+msgid "Photo viewer"
+msgstr "Visor de fotos"
+
+#: templates/album.html:469
+msgid "Previous (←)"
+msgstr "Anterior (←)"
+
+#: templates/album.html:470
+msgid "Blink (space)"
+msgstr "Parpadeo (espacio)"
+
+#: templates/album.html:471
+msgid "Next (→)"
+msgstr "Siguiente (→)"
+
+#: templates/album.html:477
+msgid "Brighten faint detail on screen (s)"
+msgstr "Aclarar en pantalla el detalle débil (s)"
+
+#: templates/album.html:477
+msgid "Auto stretch"
+msgstr "Estirado automático"
+
+#: templates/album.html:478
+msgid "Reject (x)"
+msgstr "Rechazar (x)"
+
+#: templates/album.html:479
+msgid "Close (Esc)"
+msgstr "Cerrar (Esc)"
+
+#: templates/base.html:62
+msgid "Toggle navigation"
+msgstr "Mostrar u ocultar la navegación"
+
+#: templates/base.html:67
+msgid "Home"
+msgstr "Inicio"
+
+#: templates/base.html:69 templates/home.html:32 templates/home.html:45
+msgid "Interface"
+msgstr "Interfaz"
+
+#: templates/base.html:71 templates/home.html:19
+msgid "Star Map"
+msgstr "Mapa estelar"
+
+#: templates/base.html:73 templates/home.html:36 templates/home.html:49
+msgid "Book"
+msgstr "Reservar"
+
+#: templates/base.html:82
+msgid "Language"
+msgstr "Idioma"
+
+#: templates/base.html:92
+msgid "Toggle dark mode"
+msgstr "Activar o desactivar el modo oscuro"
+
+#: templates/base.html:94 templates/landing.html:48
+msgid "Theme"
+msgstr "Tema"
+
+#: templates/base.html:103
+msgid "Profile"
+msgstr "Perfil"
+
+#: templates/base.html:104
+msgid "Edit Profile"
+msgstr "Editar perfil"
+
+#: templates/base.html:108
+msgid "Trusted Devices"
+msgstr "Dispositivos de confianza"
+
+#: templates/base.html:115
+msgid "Account Info"
+msgstr "Información de la cuenta"
+
+#: templates/base.html:117
+msgid "My Telescopes"
+msgstr "Mis telescopios"
+
+#: templates/base.html:118
+msgid "My Bookings"
+msgstr "Mis reservas"
+
+#: templates/base.html:119
+msgid "Owner Booking Queue"
+msgstr "Cola de reservas del propietario"
+
+#: templates/base.html:122
+msgid "Admin Panel"
+msgstr "Panel de administración"
+
+#: templates/base.html:125
+msgid "Logout"
+msgstr "Cerrar sesión"
+
+#: templates/base.html:129 templates/login.html:7 templates/login.html:32
+msgid "Login"
+msgstr "Iniciar sesión"
+
+#: templates/base.html:130 templates/register.html:7 templates/register.html:39
+msgid "Register"
+msgstr "Registrarse"
+
+#: templates/base.html:159
+msgid "About"
+msgstr "Acerca de"
+
+#: templates/base.html:161
+msgid "Licence"
+msgstr "Licencia"
+
+#: templates/base.html:163
+msgid "Privacy"
+msgstr "Privacidad"
+
+#: templates/base.html:165
+msgid "Terms"
+msgstr "Términos"
+
+#: templates/base.html:167 templates/home.html:66
+msgid "Support"
+msgstr "Soporte"
+
+#: templates/base.html:169
+msgid "SELENO observatory platform"
+msgstr "Plataforma de observatorio SELENO"
+
+#: templates/downloads.html:3 templates/downloads.html:10
+#: templates/home.html:62
+msgid "Downloads"
+msgstr "Descargas"
+
+#: templates/downloads.html:11
+msgid "Select a version to download. Each file is a zipped release."
+msgstr "Selecciona una versión para descargarla. Cada archivo es una versión comprimida en ZIP."
+
+#: templates/downloads.html:16
+msgid "Latest:"
+msgstr "Última:"
+
+#: templates/downloads.html:18
+msgid "Download Latest"
+msgstr "Descargar la última"
+
+#: templates/downloads.html:27
+msgid "Version"
+msgstr "Versión"
+
+#: templates/downloads.html:28
+msgid "Updated"
+msgstr "Actualizada"
+
+#: templates/downloads.html:49
+msgid "No downloads are available yet."
+msgstr "Todavía no hay descargas disponibles."
+
+#: templates/forgot_password.html:3
+msgid "Forgot Password - Telescope Control"
+msgstr "Contraseña olvidada - Control de telescopios"
+
+#: templates/forgot_password.html:7
+msgid "Forgot Your Password?"
+msgstr "¿Has olvidado tu contraseña?"
+
+#: templates/forgot_password.html:8
+msgid "Enter your email address to receive a link to reset your password."
+msgstr "Introduce tu correo electrónico para recibir un enlace con el que restablecer tu contraseña."
+
+#: templates/forgot_password.html:14
+msgid "Email Address"
+msgstr "Correo electrónico"
+
+#: templates/forgot_password.html:25
+msgid "Send Reset Link"
+msgstr "Enviar enlace de restablecimiento"
+
+#: templates/home.html:3
+msgid "Home - SELENO"
+msgstr "Inicio - SELENO"
+
+#: templates/home.html:10
+msgid "Observatory Command Center"
+msgstr "Centro de mando del observatorio"
+
+#: templates/home.html:11
+msgid "Everything you need for tonight's session."
+msgstr "Todo lo que necesitas para la sesión de esta noche."
+
+#: templates/home.html:12
+msgid "Launch capture workflows, monitor telescope status, plan sky targets, and manage bookings from one clean dashboard."
+msgstr "Inicia capturas, supervisa el estado del telescopio, planifica objetivos en el cielo y gestiona reservas desde un único panel."
+
+#: templates/home.html:15 templates/home.html:17
+msgid "Open Interface"
+msgstr "Abrir interfaz"
+
+#: templates/home.html:29
+msgid "Primary navigation"
+msgstr "Navegación principal"
+
+#: templates/home.html:33 templates/home.html:46
+msgid "Live view, camera controls, telescope targeting, and tracking tools."
+msgstr "Vista en directo, controles de cámara, apuntado del telescopio y herramientas de seguimiento."
+
+#: templates/home.html:37 templates/home.html:50
+msgid "Reserve telescope time, review bookings, and manage owner requests."
+msgstr "Reserva tiempo de telescopio, revisa tus reservas y gestiona las solicitudes como propietario."
+
+#: templates/home.html:41 templates/home.html:54
+msgid "Browse and manage astrophotography captured during your sessions."
+msgstr "Explora y gestiona la astrofotografía capturada durante tus sesiones."
+
+#: templates/home.html:58
+msgid "World Map"
+msgstr "Mapa mundial"
+
+#: templates/home.html:59
+msgid "Check weather and sky brightness layers before you plan observations."
+msgstr "Consulta las capas de meteorología y brillo del cielo antes de planificar tus observaciones."
+
+#: templates/home.html:63
+msgid "Access current releases and client packages for your environment."
+msgstr "Accede a las versiones actuales y a los paquetes de cliente para tu entorno."
+
+#: templates/home.html:67
+msgid "Open support tickets and get help when something needs attention."
+msgstr "Abre incidencias de soporte y recibe ayuda cuando algo necesite atención."
+
+#: templates/interface.html:3
+msgid "Interface - SELENO"
+msgstr "Interfaz - SELENO"
+
+#: templates/interface.html:49
+msgid "What you can do with this telescope"
+msgstr "Lo que puedes hacer con este telescopio"
+
+#: templates/interface.html:52
+msgid "Clock —"
+msgstr "Reloj —"
+
+#: templates/interface.html:53
+msgid "Disk —"
+msgstr "Disco —"
+
+#: templates/interface.html:54
+msgid "Uploads —"
+msgstr "Subidas —"
+
+#: templates/interface.html:55
+msgid "Sky —"
+msgstr "Cielo —"
+
+#: templates/interface.html:58
+msgid "Stop every motor now"
+msgstr "Detener ahora todos los motores"
+
+#: templates/interface.html:59
+msgid "Stop the mount"
+msgstr "Detener la montura"
+
+#: templates/interface.html:59
+msgid "E-STOP"
+msgstr "PARADA"
+
+#: templates/interface.html:61
+msgid "Interface mode"
+msgstr "Modo de la interfaz"
+
+#: templates/interface.html:73
+msgid "Your session"
+msgstr "Tu sesión"
+
+#: templates/interface.html:75 templates/interface.html:86
+#: templates/interface.html:485
+msgid "Choose a target"
+msgstr "Elige un objetivo"
+
+#: templates/interface.html:76 templates/interface.html:429
+msgid "Focus"
+msgstr "Enfoque"
+
+#: templates/interface.html:77
+msgid "Check the exposure"
+msgstr "Comprueba la exposición"
+
+#: templates/interface.html:78 templates/interface.html:385
+msgid "Capture"
+msgstr "Captura"
+
+#: templates/interface.html:85
+msgid "Choose what to photograph. The list shows what's well placed from this telescope tonight."
+msgstr "Elige qué fotografiar. La lista muestra lo que está bien situado esta noche desde este telescopio."
+
+#: templates/interface.html:91
+msgid "Height now"
+msgstr "Altura ahora"
+
+#: templates/interface.html:92
+msgid "Highest"
+msgstr "Altura máxima"
+
+#: templates/interface.html:97
+msgid "Change target"
+msgstr "Cambiar de objetivo"
+
+#: templates/interface.html:98
+msgid "Go to it"
+msgstr "Ir a él"
+
+#: templates/interface.html:99
+msgid "Plate solve and nudge the mount until the target is centred"
+msgstr "Hacer resolución astrométrica y mover la montura hasta centrar el objetivo"
+
+#: templates/interface.html:99
+msgid "Centre it"
+msgstr "Centrarlo"
+
+#: templates/interface.html:106
+msgid "Telescope controls"
+msgstr "Controles del telescopio"
+
+#: templates/interface.html:110
+msgid "Device"
+msgstr "Dispositivo"
+
+#: templates/interface.html:114
+msgid "Search the catalogue"
+msgstr "Buscar en el catálogo"
+
+#: templates/interface.html:117 templates/interface.html:491
+msgid "Search"
+msgstr "Buscar"
+
+#: templates/interface.html:122
+msgid "RA (h m s or °)"
+msgstr "AR (h m s o °)"
+
+#: templates/interface.html:123
+msgid "Dec (° ′ ″)"
+msgstr "Dec (° ′ ″)"
+
+#: templates/interface.html:129
+msgid "Moon or planet"
+msgstr "Luna o planeta"
+
+#: templates/interface.html:138
+msgid "None yet"
+msgstr "Ninguno todavía"
+
+#: templates/interface.html:142 templates/interface.html:151
+msgid "Stop tracking"
+msgstr "Detener el seguimiento"
+
+#: templates/interface.html:148
+msgid "Park"
+msgstr "Aparcar"
+
+#: templates/interface.html:149
+msgid "Unpark"
+msgstr "Desaparcar"
+
+#: templates/interface.html:150
+msgid "Make the current position the park position?"
+msgstr "¿Usar la posición actual como posición de aparcamiento?"
+
+#: templates/interface.html:150
+msgid "Set park"
+msgstr "Fijar aparcamiento"
+
+#: templates/interface.html:154
+msgid "Tracking rate"
+msgstr "Velocidad de seguimiento"
+
+#: templates/interface.html:156
+msgid "Sidereal"
+msgstr "Sideral"
+
+#: templates/interface.html:157
+msgid "Lunar"
+msgstr "Lunar"
+
+#: templates/interface.html:158
+msgid "Solar"
+msgstr "Solar"
+
+#: templates/interface.html:159
+msgid "King"
+msgstr "King"
+
+#: templates/interface.html:160
+msgid "Custom"
+msgstr "Personalizada"
+
+#: templates/interface.html:163
+msgid "Solve from"
+msgstr "Resolver a partir de"
+
+#: templates/interface.html:164
+msgid "Image to plate solve"
+msgstr "Imagen para la resolución astrométrica"
+
+#: templates/interface.html:165
+msgid "Default"
+msgstr "Predeterminada"
+
+#: templates/interface.html:167
+msgid "Photo"
+msgstr "Foto"
+
+#: templates/interface.html:172
+msgid "Custom rate in arcseconds per second"
+msgstr "Velocidad personalizada en segundos de arco por segundo"
+
+#: templates/interface.html:173
+msgid "Set rate"
+msgstr "Fijar velocidad"
+
+#: templates/interface.html:176
+msgid "Solve & sync"
+msgstr "Resolver y sincronizar"
+
+#: templates/interface.html:177
+msgid "Centre"
+msgstr "Centrar"
+
+#: templates/interface.html:180
+msgid "Polar align, step"
+msgstr "Alineación polar, paso"
+
+#: templates/interface.html:182
+msgid "Polar align"
+msgstr "Alineación polar"
+
+#: templates/interface.html:185 templates/interface.html:187
+msgid "Dither"
+msgstr "Dithering"
+
+#: templates/interface.html:191
+msgid "Mount state"
+msgstr "Estado de la montura"
+
+#: templates/interface.html:192
+msgid "Clear the alignment?"
+msgstr "¿Borrar la alineación?"
+
+#: templates/interface.html:192
+msgid "Clear alignment"
+msgstr "Borrar alineación"
+
+#: templates/interface.html:195
+msgid "E-stop status"
+msgstr "Estado de la parada"
+
+#: templates/interface.html:196
+msgid "Clear e-stop"
+msgstr "Desactivar la parada"
+
+#: templates/interface.html:197
+msgid "Motor controls…"
+msgstr "Controles del motor…"
+
+#: templates/interface.html:204
+msgid "Queue not loaded."
+msgstr "Cola sin cargar."
+
+#: templates/interface.html:206 templates/interface.html:420
+msgid "Refresh"
+msgstr "Actualizar"
+
+#: templates/interface.html:207
+msgid "Send held RAWs"
+msgstr "Enviar los RAW retenidos"
+
+#: templates/interface.html:208
+msgid "Retry failed"
+msgstr "Reintentar las fallidas"
+
+#: templates/interface.html:209
+msgid "Upload photos taken offline"
+msgstr "Subir las fotos hechas sin conexión"
+
+#: templates/interface.html:218
+msgid "Last seen"
+msgstr "Última conexión"
+
+#: templates/interface.html:221
+msgid "Pi status"
+msgstr "Estado de la Pi"
+
+#: templates/interface.html:223
+msgid "Drivers"
+msgstr "Controladores de motor"
+
+#: templates/interface.html:224
+msgid "Set the Pi clock to the server's time?"
+msgstr "¿Poner el reloj de la Pi en hora con el servidor?"
+
+#: templates/interface.html:224
+msgid "Set clock"
+msgstr "Poner en hora"
+
+#: templates/interface.html:227
+msgid "Lowest altitude (°)"
+msgstr "Altitud mínima (°)"
+
+#: templates/interface.html:228
+msgid "Horizon profile"
+msgstr "Perfil del horizonte"
+
+#: templates/interface.html:230
+msgid "Stop tracking when the target sets"
+msgstr "Detener el seguimiento cuando el objetivo se ponga"
+
+#: templates/interface.html:232
+msgid "Set horizon"
+msgstr "Fijar horizonte"
+
+#: templates/interface.html:234
+msgid "Update the Pi software now? It restarts afterwards."
+msgstr "¿Actualizar ahora el software de la Pi? Después se reinicia."
+
+#: templates/interface.html:234
+msgid "Update Pi"
+msgstr "Actualizar la Pi"
+
+#: templates/interface.html:235
+msgid "Update the controller firmware now? The mount stops while it flashes."
+msgstr "¿Actualizar ahora el firmware del controlador? La montura se detiene mientras se graba."
+
+#: templates/interface.html:235
+msgid "Update controller"
+msgstr "Actualizar el controlador"
+
+#: templates/interface.html:237
+msgid "Updates only run if the Pi's own config allows them."
+msgstr "Las actualizaciones solo se ejecutan si la configuración de la propia Pi las permite."
+
+#: templates/interface.html:242
+msgid "Telescope status"
+msgstr "Estado del telescopio"
+
+#: templates/interface.html:243
+msgid "Select a telescope"
+msgstr "Selecciona un telescopio"
+
+#: templates/interface.html:251
+msgid "Codec"
+msgstr "Códec"
+
+#: templates/interface.html:252
+msgid "Auto codec"
+msgstr "Códec automático"
+
+#: templates/interface.html:257
+msgid "Low"
+msgstr "Baja"
+
+#: templates/interface.html:258
+msgid "Medium"
+msgstr "Media"
+
+#: templates/interface.html:259
+msgid "High"
+msgstr "Alta"
+
+#: templates/interface.html:261
+msgid "Overlay"
+msgstr "Superposición"
+
+#: templates/interface.html:262
+msgid "No overlay"
+msgstr "Sin superposición"
+
+#: templates/interface.html:263
+msgid "Crosshair"
+msgstr "Retícula"
+
+#: templates/interface.html:264
+msgid "Crosshair + circle"
+msgstr "Retícula + círculo"
+
+#: templates/interface.html:265
+msgid "Thirds grid"
+msgstr "Cuadrícula de tercios"
+
+#: templates/interface.html:266
+msgid "Measured stars"
+msgstr "Estrellas medidas"
+
+#: templates/interface.html:268
+msgid "Brightens the picture on your screen only"
+msgstr "Aclara la imagen solo en tu pantalla"
+
+#: templates/interface.html:268 templates/interface.html:269
+msgid "Display stretch"
+msgstr "Estirado de pantalla"
+
+#: templates/interface.html:271
+msgid "Focus peaking"
+msgstr "Focus peaking"
+
+#: templates/interface.html:273
+msgid "Save the current live view frame to the album"
+msgstr "Guardar en el álbum el fotograma actual de la vista en directo"
+
+#: templates/interface.html:273
+msgid "Snapshot"
+msgstr "Instantánea"
+
+#: templates/interface.html:274
+msgid "Recording kind"
+msgstr "Tipo de grabación"
+
+#: templates/interface.html:278
+msgid "every s"
+msgstr "cada s"
+
+#: templates/interface.html:278
+msgid "Timelapse interval"
+msgstr "Intervalo del timelapse"
+
+#: templates/interface.html:279
+msgid "Record"
+msgstr "Grabar"
+
+#: templates/interface.html:280
+msgid "Stop recording"
+msgstr "Detener la grabación"
+
+#: templates/interface.html:284
+msgid "Click to zoom there"
+msgstr "Haz clic para ampliar ahí"
+
+#: templates/interface.html:297
+msgid "Full screen"
+msgstr "Pantalla completa"
+
+#: templates/interface.html:300
+msgid "Click a star to zoom in on it"
+msgstr "Haz clic en una estrella para ampliarla"
+
+#: templates/interface.html:312
+msgid "Star size (HFR)"
+msgstr "Tamaño de estrella (HFR)"
+
+#: templates/interface.html:315
+msgid "Star size over the last minutes"
+msgstr "Tamaño de estrella en los últimos minutos"
+
+#: templates/interface.html:317
+msgid "Start live view and zoom in on a star."
+msgstr "Inicia la vista en directo y amplía una estrella."
+
+#: templates/interface.html:320
+msgid "Focus is good"
+msgstr "El enfoque es bueno"
+
+#: templates/interface.html:326 templates/interface.html:329
+#: templates/interface.html:506
+msgid "Capture plan"
+msgstr "Plan de captura"
+
+#: templates/interface.html:327
+msgid "No plan running. A plan runs a list of steps on the telescope (go-tos, lights, darks, video) and carries on if the connection drops."
+msgstr "No hay ningún plan en marcha. Un plan ejecuta una lista de pasos en el telescopio (go-tos, lights, darks, vídeo) y continúa aunque se corte la conexión."
+
+#: templates/interface.html:332
+msgid "Fit the scope cover for the dark or bias frames, then press <b>Cover fitted</b>."
+msgstr "Pon la tapa del telescopio para los darks o los bias y pulsa <b>Tapa puesta</b>."
+
+#: templates/interface.html:335 templates/interface.html:401
+msgid "Cover fitted"
+msgstr "Tapa puesta"
+
+#: templates/interface.html:337 templates/interface.html:403
+msgid "Resume"
+msgstr "Reanudar"
+
+#: templates/interface.html:338
+msgid "Skip step"
+msgstr "Omitir paso"
+
+#: templates/interface.html:339 templates/interface.html:404
+#: templates/interface.html:613
+msgid "Stop"
+msgstr "Detener"
+
+#: templates/interface.html:340
+msgid "Open builder"
+msgstr "Abrir el editor"
+
+#: templates/interface.html:343
+msgid "Recent plans on this telescope"
+msgstr "Planes recientes en este telescopio"
+
+#: templates/interface.html:348
+msgid "Log"
+msgstr "Registro"
+
+#: templates/interface.html:359
+msgid "What are you photographing?"
+msgstr "¿Qué vas a fotografiar?"
+
+#: templates/interface.html:367 templates/interface.html:625
+msgid "Settings"
+msgstr "Ajustes"
+
+#: templates/interface.html:369
+msgid "Take a test shot"
+msgstr "Hacer una foto de prueba"
+
+#: templates/interface.html:373
+msgid "Last test shot"
+msgstr "Última foto de prueba"
+
+#: templates/interface.html:374
+msgid "Take a test shot and it shows up here with plain checks: are the stars round, is it in focus, is the exposure right."
+msgstr "Haz una foto de prueba y aparecerá aquí con comprobaciones sencillas: si las estrellas son redondas, si está enfocada y si la exposición es correcta."
+
+#: templates/interface.html:377
+msgid "The last test shot"
+msgstr "La última foto de prueba"
+
+#: templates/interface.html:388
+#, python-format
+msgid "Take darks afterwards (%(count)s)"
+msgstr "Hacer darks después (%(count)s)"
+
+#: templates/interface.html:389
+#, python-format
+msgid "Take bias frames (%(count)s)"
+msgstr "Hacer bias (%(count)s)"
+
+#: templates/interface.html:390
+msgid "Nudge the mount between photos"
+msgstr "Mover un poco la montura entre fotos"
+
+#: templates/interface.html:391
+msgid "Choose a target and an exposure first."
+msgstr "Elige primero un objetivo y una exposición."
+
+#: templates/interface.html:393
+msgid "Build a custom plan instead…"
+msgstr "Crear un plan personalizado…"
+
+#: templates/interface.html:399
+msgid "Fit the scope cover now: the darks and bias need the telescope covered. Then press <b>Cover fitted</b>."
+msgstr "Pon ahora la tapa del telescopio: los darks y los bias necesitan el telescopio tapado. Después pulsa <b>Tapa puesta</b>."
+
+#: templates/interface.html:411
+msgid "Battery — · Card —"
+msgstr "Batería — · Tarjeta —"
+
+#: templates/interface.html:414
+msgid "Bulb seconds"
+msgstr "Segundos en bulb"
+
+#: templates/interface.html:419
+msgid "Exposure comp."
+msgstr "Comp. de exposición"
+
+#: templates/interface.html:420
+msgid "Battery and card"
+msgstr "Batería y tarjeta"
+
+#: templates/interface.html:423
+msgid "Take photo"
+msgstr "Hacer foto"
+
+#: templates/interface.html:424
+msgid "Take a photo and check it"
+msgstr "Hacer una foto y comprobarla"
+
+#: templates/interface.html:424
+msgid "Test shot"
+msgstr "Foto de prueba"
+
+#: templates/interface.html:430
+msgid "Half-flux radius over time"
+msgstr "Radio de media intensidad a lo largo del tiempo"
+
+#: templates/interface.html:432
+msgid "HFR now / best"
+msgstr "HFR ahora / mejor"
+
+#: templates/interface.html:434
+msgid "Brightest star peak"
+msgstr "Pico de la estrella más brillante"
+
+#: templates/interface.html:436
+msgid "Reset graph"
+msgstr "Reiniciar gráfico"
+
+#: templates/interface.html:458
+msgid "Last frame"
+msgstr "Último fotograma"
+
+#: templates/interface.html:459
+msgid "Nothing from this telescope yet."
+msgstr "Todavía no hay nada de este telescopio."
+
+#: templates/interface.html:462
+msgid "The newest frame"
+msgstr "El fotograma más reciente"
+
+#: templates/interface.html:474
+msgid "Tonight"
+msgstr "Esta noche"
+
+#: templates/interface.html:475
+msgid "Photos appear here as they arrive."
+msgstr "Las fotos aparecen aquí a medida que llegan."
+
+#: templates/interface.html:477
+msgid "Open tonight's photos in the album"
+msgstr "Abrir en el álbum las fotos de esta noche"
+
+#: templates/interface.html:490
+msgid "Or search: M27, NGC 891, Vega…"
+msgstr "O busca: M27, NGC 891, Vega…"
+
+#: templates/interface.html:490
+msgid "Search for a target"
+msgstr "Buscar un objetivo"
+
+#: templates/interface.html:514
+msgid "Plan name"
+msgstr "Nombre del plan"
+
+#: templates/interface.html:519
+msgid "Add step"
+msgstr "Añadir paso"
+
+#: templates/interface.html:523
+msgid "Presets"
+msgstr "Preajustes"
+
+#: templates/interface.html:527
+msgid "My plans"
+msgstr "Mis planes"
+
+#: templates/interface.html:533
+msgid "No steps yet. Add a step or start from a preset."
+msgstr "Todavía no hay pasos. Añade un paso o empieza con un preajuste."
+
+#: templates/interface.html:539
+msgid "Each frame adds an overhead learned from this telescope's finished plans."
+msgstr "Cada fotograma añade un tiempo extra aprendido de los planes terminados de este telescopio."
+
+#: templates/interface.html:542
+msgid "Options"
+msgstr "Opciones"
+
+#: templates/interface.html:543
+msgid "If a step fails"
+msgstr "Si un paso falla"
+
+#: templates/interface.html:545
+msgid "Skip the step and carry on"
+msgstr "Omitir el paso y continuar"
+
+#: templates/interface.html:546
+msgid "Stop the plan"
+msgstr "Detener el plan"
+
+#: templates/interface.html:550
+msgid "JPEGs first, RAWs when asked"
+msgstr "Primero los JPEG, los RAW cuando se pidan"
+
+#: templates/interface.html:551
+msgid "Everything as it's taken"
+msgstr "Todo según se va tomando"
+
+#: templates/interface.html:552
+msgid "Keep everything on the Pi"
+msgstr "Guardarlo todo en la Pi"
+
+#: templates/interface.html:556
+msgid "Park when the plan ends"
+msgstr "Aparcar al terminar el plan"
+
+#: templates/interface.html:565
+msgid "Save to my plans"
+msgstr "Guardar en mis planes"
+
+#: templates/interface.html:567
+msgid "Start plan"
+msgstr "Iniciar el plan"
+
+#: templates/interface.html:578
+msgid "Motor controls"
+msgstr "Controles del motor"
+
+#: templates/interface.html:584
+msgid "Basic controls"
+msgstr "Controles básicos"
+
+#: templates/interface.html:586
+msgid "Motor"
+msgstr "Motor"
+
+#: templates/interface.html:588
+msgid "Motor 1 (default)"
+msgstr "Motor 1 (predeterminado)"
+
+#: templates/interface.html:592
+msgid "Motor enable"
+msgstr "Activar el motor"
+
+#: templates/interface.html:596
+msgid "Direction"
+msgstr "Dirección"
+
+#: templates/interface.html:598
+msgid "Forward"
+msgstr "Adelante"
+
+#: templates/interface.html:599
+msgid "Reverse"
+msgstr "Atrás"
+
+#: templates/interface.html:603
+msgid "Speed (steps/s)"
+msgstr "Velocidad (pasos/s)"
+
+#: templates/interface.html:606 templates/interface.html:637
+#: templates/interface.html:644
+msgid "Set"
+msgstr "Fijar"
+
+#: templates/interface.html:610
+msgid "Movement"
+msgstr "Movimiento"
+
+#: templates/interface.html:617
+msgid "Move steps"
+msgstr "Mover pasos"
+
+#: templates/interface.html:620
+msgid "Move"
+msgstr "Mover"
+
+#: templates/interface.html:627
+msgid "Microsteps"
+msgstr "Micropasos"
+
+#: templates/interface.html:634
+msgid "Current (mA)"
+msgstr "Corriente (mA)"
+
+#: templates/interface.html:641
+msgid "Acceleration (steps/s²)"
+msgstr "Aceleración (pasos/s²)"
+
+#: templates/interface.html:648
+msgid "Motor mode"
+msgstr "Modo del motor"
+
+#: templates/interface.html:650
+msgid "Stealth (quiet)"
+msgstr "Stealth (silencioso)"
+
+#: templates/interface.html:651
+msgid "Spread (performance)"
+msgstr "Spread (rendimiento)"
+
+#: templates/interface.html:655
+msgid "Status"
+msgstr "Estado"
+
+#: templates/interface.html:656
+msgid "All motors' status"
+msgstr "Estado de todos los motores"
+
+#: templates/interface.html:660
+msgid "Status and log"
+msgstr "Estado y registro"
+
+#: templates/interface.html:661
+msgid "Ready for motor commands…"
+msgstr "Listo para recibir órdenes del motor…"
+
+#: templates/interface.html:665
+msgid "Stop all motors"
+msgstr "Detener todos los motores"
+
+#: templates/landing.html:7
+msgid "SELENO Landing"
+msgstr "SELENO – Bienvenida"
+
+#: templates/landing.html:44
+msgid "Toggle light and dark mode"
+msgstr "Cambiar entre modo claro y oscuro"
+
+#: templates/landing.html:53
+msgid "Skip intro"
+msgstr "Saltar introducción"
+
+#: templates/landing.html:63
+msgid "Remote astronomy, redesigned"
+msgstr "Astronomía remota, reinventada"
+
+#: templates/landing.html:64
+msgid "Command your telescope network from across the globe."
+msgstr "Controla tu red de telescopios desde cualquier parte del mundo."
+
+#: templates/landing.html:65
+msgid "SELENO allows you to control your telescopes, at any time, from anywhere."
+msgstr "SELENO te permite controlar tus telescopios en cualquier momento y desde cualquier lugar."
+
+#: templates/landing.html:75
+msgid "Track and align"
+msgstr "Seguimiento y alineación"
+
+#: templates/landing.html:76
+msgid "Point, center, and monitor automatically, or manually"
+msgstr "Apunta, centra y supervisa de forma automática o manual"
+
+#: templates/landing.html:77
+msgid "Allow SELENO to perform automated observation runs of the night's sky, or experiment with refined manual control on a specific object."
+msgstr "Deja que SELENO realice sesiones de observación automáticas del cielo nocturno, o experimenta con un control manual preciso sobre un objeto concreto."
+
+#: templates/landing.html:87
+msgid "Capture and curate"
+msgstr "Captura y organiza"
+
+#: templates/landing.html:88
+msgid "Turn nightly sessions into a gallery."
+msgstr "Convierte tus sesiones nocturnas en una galería."
+
+#: templates/landing.html:89
+msgid "Review your astrophotography and telescope telemetry in one unified center built for nightly use."
+msgstr "Revisa tu astrofotografía y la telemetría del telescopio en un único centro pensado para el uso nocturno."
+
+#: templates/landing.html:99
+msgid "Ready to launch"
+msgstr "Todo listo"
+
+#: templates/landing.html:100
+msgid "Scroll to enter your control dashboard."
+msgstr "Desplázate para entrar en tu panel de control."
+
+#: templates/landing.html:101
+msgid "When you reach the end of this sequence, we automatically move you to the main home page."
+msgstr "Al llegar al final de esta secuencia, te llevaremos automáticamente a la página de inicio."
+
+#: templates/landing.html:102
+msgid "Enter home now"
+msgstr "Ir al inicio ahora"
+
+#: templates/login.html:3
+msgid "Login - Telescope Control"
+msgstr "Iniciar sesión - Control de telescopios"
+
+#: templates/login.html:13 templates/register.html:13
+msgid "Username"
+msgstr "Nombre de usuario"
+
+#: templates/login.html:18 templates/register.html:23
+msgid "Password"
+msgstr "Contraseña"
+
+#: templates/login.html:25
+msgid "Trust this device for 30 days (skip 2FA)"
+msgstr "Confiar en este dispositivo durante 30 días (sin 2FA)"
+
+#: templates/login.html:28
+msgid "Only check this on your personal devices. This will remember this device and skip 2FA for 30 days."
+msgstr "Marca esta opción solo en tus dispositivos personales. Se recordará este dispositivo y no se pedirá el código 2FA durante 30 días."
+
+#: templates/login.html:37
+msgid "Forgot your password?"
+msgstr "¿Has olvidado tu contraseña?"
+
+#: templates/login_2fa.html:3
+msgid "2FA Login - Telescope Control"
+msgstr "Inicio de sesión 2FA - Control de telescopios"
+
+#: templates/login_2fa.html:7
+msgid "2FA Login"
+msgstr "Inicio de sesión 2FA"
+
+#: templates/login_2fa.html:13
+msgid "2FA Code"
+msgstr "Código 2FA"
+
+#: templates/login_2fa.html:17
+msgid "Submit"
+msgstr "Enviar"
+
+#: templates/register.html:3
+msgid "Register - Telescope Control"
+msgstr "Registro - Control de telescopios"
+
+#: templates/register.html:18
+msgid "Email"
+msgstr "Correo electrónico"
+
+#: templates/register.html:36
+#, python-format
+msgid "I agree to the <a href=\"%(url)s\" target=\"_blank\" rel=\"noopener noreferrer\">Terms of Service</a>."
+msgstr "Acepto las <a href=\"%(url)s\" target=\"_blank\" rel=\"noopener noreferrer\">Condiciones del servicio</a>."
+
+#: templates/reset_password.html:3 templates/reset_password.html:12
+msgid "Reset Password"
+msgstr "Restablecer contraseña"
+
+#: templates/reset_password.html:6
+msgid "Reset Your Password"
+msgstr "Restablece tu contraseña"
+
+#: templates/reset_password.html:9
+msgid "New Password:"
+msgstr "Nueva contraseña:"
+
+#~ msgid " · ${Number(m.fwhm_arcsec).toFixed(1)}″"
+#~ msgstr ""
+
+#~ msgid ", ${Seleno.fmt.duration(p.exposure_total_s)}"
+#~ msgstr ""
+
+#~ msgid ": ${measured[0].error}"
+#~ msgstr ""
+
+#~ msgid "dropdown-item-text small text-muted"
+#~ msgstr ""
+
+#~ msgid " · ISO "
+#~ msgstr " · ISO "
+

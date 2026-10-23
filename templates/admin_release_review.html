@@ -6,13 +6,6 @@
 <div class="container mt-4">
     <h2>Client Release Review Queue</h2>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} mt-2">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
 
     <div class="card mt-3">
         <div class="card-header bg-dark text-white">Queued Releases</div>

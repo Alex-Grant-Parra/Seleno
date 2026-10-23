@@ -8,6 +8,7 @@ from flask_login import current_user
 
 from app import sky
 from app.telescope_access import get_telescope_row, requested_telescope_id, telescope_access_error
+from flask_babel import gettext as _
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def telescope_site(row):
 
     if row.latitude is not None and row.longitude is not None:
         return row.latitude, row.longitude, "telescope"
-    _, status = get_latest_status(row.telescope_id)
+    _unused, status = get_latest_status(row.telescope_id)
     site = (status or {}).get("site") if isinstance(status, dict) else None
     if isinstance(site, dict):
         lat, lon = _float(site.get("lat", site.get("latitude"))), _float(site.get("lon", site.get("longitude")))
@@ -68,7 +69,7 @@ def _guarded_telescope():
 
 def _no_site():
     return jsonify({"status": "success", "site": None,
-                    "message": "This telescope's location isn't known yet. Its owner can set it on the telescope's settings page."})
+                    "message": _("This telescope's location isn't known yet. Its owner can set it on the telescope's settings page.")})
 
 
 def planet_positions(when):
@@ -99,7 +100,7 @@ def resolve_target(name, ra=None, dec=None, when=None):
         return None
     key = name.strip().lower()
     if key == "moon":
-        moon_ra, moon_dec, _, _ = sky.moon_position(sky.julian_day(when))
+        moon_ra, moon_dec, _unused, _unused2 = sky.moon_position(sky.julian_day(when))
         return {"name": "Moon", "ra": moon_ra, "dec": moon_dec, "moving": True}
     if key in PLANETS:
         planets = planet_positions(when)
@@ -135,12 +136,18 @@ def sky_now():
         label = (request.args.get("label") or "").strip()[:120]
         target = resolve_target(name or label, ra, dec, when)
         if target is None:
-            return jsonify({"status": "error", "message": f"Couldn't find {name}"}), 404
+            return jsonify({"status": "error", "message": _("Couldn't find %(name)s", name=name)}), 404
     min_alt = _float(request.args.get("min_alt"))
     min_alt = 30.0 if min_alt is None else max(0.0, min(80.0, min_alt))
     summary = sky.sky_summary(lat, lon, when, target=target, min_alt=min_alt)
     summary["site"] = {"lat": round(lat, SITE_DECIMALS), "lon": round(lon, SITE_DECIMALS), "source": source}
     return jsonify({"status": "success", **summary})
+
+
+def _text(value):
+    """Featured target text in the visitor's language. Text edited in the database
+    has no translation, so it shows as written."""
+    return _(value) if value else value
 
 
 @interface_api_bp.route("/targets")
@@ -162,11 +169,11 @@ def targets_now():
         logger.exception("Planet positions failed")
     night = moon = None
     jd = sky.julian_day(when)
-    moon_ra, moon_dec, _, _ = sky.moon_position(jd)
+    moon_ra, moon_dec, _unused, _unused2 = sky.moon_position(jd)
     if site is not None:
-        lat, lon, _ = site
+        lat, lon, _unused = site
         night = sky.night_window(lat, lon, when)
-        fraction, _, phase = sky.moon_phase(jd)
+        fraction, _unused, phase = sky.moon_phase(jd)
         moon = {"alt": round(sky.moon_altitude(lat, lon, jd), 1), "illumination": round(fraction, 3), "phase": phase}
     out = []
     for target in rows:
@@ -182,11 +189,13 @@ def targets_now():
             continue
         entry = {
             "designation": target.designation,
-            "name": target.name,
-            "kind": target.kind,
+            # Shown in the visitor's language; track_name stays English for the telescope
+            "name": _text(target.name),
+            "track_name": target.name,
+            "kind": _text(target.kind),
             "preset": target.preset,
             "size_arcmin": target.size_arcmin,
-            "blurb": target.blurb,
+            "blurb": _text(target.blurb),
             "wiki": target.wiki,
             "ra": round(coords[0], 4),
             "dec": round(coords[1], 4),

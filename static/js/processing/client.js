@@ -10,6 +10,14 @@ import { runLucky } from './lucky.js';
 import { openSession } from './session.js';
 import { commitProject, createProject, getProject, loadTotals, projectSettings, totalsBlobs, uploadTotals } from './projects.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 export function support() {
     const need = [
         ['Worker', typeof Worker !== 'undefined'],
@@ -18,7 +26,7 @@ export function support() {
     ];
     const missing = need.filter(([, ok]) => !ok).map(([name]) => name);
     if (missing.length) {
-        return { ok: false, reason: `This browser can't run the processing (it lacks ${missing.join(', ')}). A recent Chrome, Edge, Firefox or Safari can.` };
+        return { ok: false, reason: _('This browser can\'t run the processing (it lacks {missing}). A recent Chrome, Edge, Firefox or Safari can.', { missing: missing.join(', ') }) };
     }
     return { ok: true, reason: '' };
 }
@@ -89,7 +97,7 @@ export async function measure(frames, { onProgress = null, signal = null } = {})
                 if (error.name === 'AbortError') throw error;
                 out[f.name] = { error: error.message };
             })
-            .finally(() => { if (onProgress) onProgress({ fraction: ++done / frames.length, message: `Measured ${done} of ${frames.length}` }); })));
+            .finally(() => { if (onProgress) onProgress({ fraction: ++done / frames.length, message: _('Measured {done} of {total}', { done, total: frames.length }) }); })));
     } finally {
         pool.close();
     }
@@ -144,11 +152,11 @@ async function projectNight(spec, job, { onProgress, signal }) {
             settings: projectSettings(result.settings, PROJECT_FIXED), reference: result.projectReference
         });
     }
-    if (onProgress) onProgress({ fraction: 0.86, message: "Saving the project's totals" });
+    if (onProgress) onProgress({ fraction: 0.86, message: _("Saving the project's totals") });
     const blobs = await totalsBlobs(result.combiner, { frames: result.frames_used, name: project.name });
     await result.combiner.dispose();
     const files = await uploadTotals(project.id, blobs, {
-        signal, onProgress: (f, sent, total) => onProgress && onProgress({ fraction: 0.86 + 0.13 * f, message: `Uploading the project's totals (${Math.round(sent / 1048576)} of ${Math.round(total / 1048576)} MB)` })
+        signal, onProgress: (f, sent, total) => onProgress && onProgress({ fraction: 0.86 + 0.13 * f, message: _('Uploading the project\'s totals ({sent} of {total} MB)', { sent: Math.round(sent / 1048576), total: Math.round(total / 1048576) }) })
     });
     project = await commitProject(project.id, {
         mode: 'night', frames: result.night.frames, considered: result.night.considered, exposure_s: result.night.exposure_s,
@@ -170,7 +178,7 @@ export async function rebuildProject(projectId, batches, { onProgress = null, si
     const accepted = [...(state.accepted || [])];
     let exposure = state.exposure_s || 0;
     const todo = batches.filter(b => b.frames.light.some(e => !done.has(e.name)));
-    if (!todo.length && !done.size) throw new Error('None of the project\'s frames are in the album any more');
+    if (!todo.length && !done.size) throw new Error(_('None of the project\'s frames are in the album any more'));
     const useSettings = { ...(project.settings || {}), ...(settings || {}) };
     const job = await jobContext({ pixels: (project.width || 5616) * (project.height || 3744), signal });
     let last = null;
@@ -199,12 +207,12 @@ export async function rebuildProject(projectId, batches, { onProgress = null, si
             project = await commitProject(project.id, final
                 ? { mode: 'rebuilt', frames: accepted, considered: [...done], exposure_s: exposure, settings: useSettings, files }
                 : { mode: 'checkpoint', done: [...done], accepted, total: batches.reduce((s, b) => s + b.frames.light.length, 0), exposure_s: exposure, settings: useSettings, files });
-            if (onProgress) onProgress({ fraction: span[1], message: final ? 'Rebuilt' : `Checkpoint saved (${done.size} frames done)` });
+            if (onProgress) onProgress({ fraction: span[1], message: final ? _('Rebuilt') : _('Checkpoint saved ({n} frames done)', { n: done.size }) });
             last = result;
         }
-        if (!last) throw new Error('Nothing left to rebuild');
+        if (!last) throw new Error(_('Nothing left to rebuild'));
         last.project = project;
-        last.name = `${project.name} (rebuilt)`;
+        last.name = _('{name} (rebuilt)', { name: project.name });
         return forSaving(last, job);
     } catch (error) {
         await job.cleanup();

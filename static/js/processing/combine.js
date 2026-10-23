@@ -16,6 +16,14 @@ import { encodeHalf, decodeHalf } from './half.js';
 import { stripRowsFor } from './integrate.js';
 import { encodeStrip, fitsDataBytes, fitsHeader, stripPlacement } from './fits.js';
 
+// Messages in the page's language when its translations are loaded (window._),
+// otherwise English: in Node tests and inside workers
+const _ = (text, vars) => {
+    if (typeof globalThis._ === 'function') return globalThis._(text, vars);
+    return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : text;
+};
+
+
 const MB = 1024 ** 2;
 export const REFERENCE_FRAMES = 24;
 const STREAM_BYTES_PER_PIXEL = 38;      // sums and weights (float32 x 6), coverage, limits (float16 x 6)
@@ -29,9 +37,9 @@ export function chooseMode({ n, width, height, memoryBudget, diskFree, opfs, for
     const per = frameBytes(width, height);
     const result = width * height * 3 * 4;
     if (force) return { mode: force, why: 'chosen' };
-    if (n * per + result <= memoryBudget * 0.6) return { mode: 'memory', why: `${n} frames fit in memory` };
-    if (opfs && n * per + 2 * result + 1.5 * 1024 ** 3 <= diskFree) return { mode: 'disk', why: `${n} frames fit in this browser's storage` };
-    return { mode: 'stream', why: `${n} frames are too many to hold at once, so they're added up as they come` };
+    if (n * per + result <= memoryBudget * 0.6) return { mode: 'memory', why: _('{n} frames fit in memory', { n }) };
+    if (opfs && n * per + 2 * result + 1.5 * 1024 ** 3 <= diskFree) return { mode: 'disk', why: _('{n} frames fit in this browser\'s storage', { n }) };
+    return { mode: 'stream', why: _('{n} frames are too many to hold at once, so they\'re added up as they come', { n }) };
 }
 
 // --- frame sets ------------------------------------------------------------------------
@@ -186,7 +194,7 @@ export class StreamCombine {
         const bytes = width * height * STREAM_BYTES_PER_PIXEL;
         const shards = Math.max(1, Math.min(pool.size, Math.ceil(bytes / (300 * MB))));
         const rows = Math.ceil(height / shards);
-        this.shards = Array.from({ length: shards }, (_, i) => ({ id: `shard-${i}-${Date.now()}`, worker: i, y0: i * rows, y1: Math.min(height, (i + 1) * rows) }))
+        this.shards = Array.from({ length: shards }, (_unused, i) => ({ id: `shard-${i}-${Date.now()}`, worker: i, y0: i * rows, y1: Math.min(height, (i + 1) * rows) }))
             .filter(s => s.y1 > s.y0);
         const per = frameBytes(width, height);
         this.referenceFrames = Math.max(3, Math.min(referenceFrames, opfs ? referenceFrames : Math.floor(memoryBudget * 0.4 / per)));

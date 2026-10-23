@@ -37,6 +37,9 @@ from app.db import db
 db.init_app(app)
 login_manager = LoginManager(app)
 
+from app.i18n import init_i18n
+init_i18n(app)
+
 from models.user import User
 from models.tables import Telescope as TelescopeRow
 from models.booking import TelescopeBooking
