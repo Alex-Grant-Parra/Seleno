@@ -37,6 +37,10 @@ const ALIGN_PLANET_MAG = 2.5;
 const ALIGN_MIN_SEPARATION = 15 * DEG2RAD; // two objects closer than this can't fix all three axes
 const ALIGN_STEADY_ANGLE = 1.0 * DEG2RAD;  // phone movement allowed while locking
 const MOON_HORIZONTAL_PARALLAX_DEG = 0.9507;
+const ALIGN_STORAGE_KEY = 'starMapAlignment';
+const ALIGN_STORAGE_MAX_AGE_MS = 12 * 3600 * 1000;
+const ALIGN_REANCHOR_SETTLE_MS = 2000;     // compass settling time before re-anchoring
+const ALIGN_SAME_FRAME_DEG = 3;            // smaller compass shifts are noise, not a new frame
 
 // --- State -----------------------------------------------------------------
 let orientActive = false;          // the sensors are driving the view
@@ -58,6 +62,9 @@ let orientDeclinationRad = 0;      // east positive
 let orientDeclinationKey = '';
 let orientAlignment = null;        // { A: driver -> true ENU, pairs, residualDeg }
 let orientAlignPairs = [];
+let orientPendingAlign = null;     // alignment from an earlier sensor frame, waiting for the compass to carry it over
+let orientCompassSince = 0;        // first compass sample in the current sensor frame
+let orientFirstFrame = true;
 let orientWatchdog = null;
 let orientWakeLock = null;
 let orientBlend = null;            // { fromQ, start } while roll eases out after leaving
@@ -265,8 +272,26 @@ function ingestDriverSample(q, now, source) {
     }
 }
 
+// A new sensor frame can differ from the old one only by a turn about the
+// vertical (gravity fixes the rest). The compass heading of both frames gives
+// that turn, so an alignment carries over instead of being lost.
 function resetSensorFrame(source) {
-    const hadAlignment = !!orientAlignment;
+    let pending = null;
+    if (orientPendingAlign) {
+        // Still waiting to carry over from an earlier frame: keep its reference
+        pending = orientPendingAlign;
+    } else if (orientAlignment) {
+        pending = {
+            alignment: orientAlignment,
+            pairs: orientAlignPairs,
+            offset: orientCompassOffset,
+            sameSession: true
+        };
+    } else if (orientFirstFrame) {
+        pending = loadSavedAlignment();
+    }
+    orientFirstFrame = false;
+
     orientSource = source;
     orientSmoothQ = null;
     orientRawQ = null;
@@ -274,15 +299,79 @@ function resetSensorFrame(source) {
     // A compass-referenced driver is already in the magnetic frame
     orientCompassOffset = source === 'absolute' ? 0 : null;
     orientCompassVec = null;
+    orientCompassSince = 0;
     orientAlignment = null;
     orientAlignPairs = [];
-    if (hadAlignment && orientActive) console.log('Orientation sensor frame restarted; alignment cleared');
+    orientPendingAlign = null;
+
+    if (!pending) return;
+    if (pending.sameSession) {
+        // Most pauses don't restart the frame: keep using the alignment until
+        // the compass says otherwise
+        orientAlignment = pending.alignment;
+        orientAlignPairs = pending.pairs;
+    }
+    if (pending.offset != null) {
+        orientPendingAlign = pending;
+        tryReanchorAlignment(performance.now());
+    }
+}
+
+// Rotate a pending alignment into the current sensor frame once the compass
+// heading of that frame is known
+function tryReanchorAlignment(now) {
+    const p = orientPendingAlign;
+    if (!p || orientCompassOffset == null) return;
+    if (orientSource !== 'absolute' && now - orientCompassSince < ALIGN_REANCHOR_SETTLE_MS) return;
+    let delta = wrapAngle(orientCompassOffset - p.offset);
+    if (p.sameSession && Math.abs(delta) < ALIGN_SAME_FRAME_DEG * DEG2RAD) delta = 0;
+    const Y = enuYawMatrix(delta);
+    const Yt = transpose3(Y);
+    orientAlignment = { ...p.alignment, A: mul3x3(p.alignment.A, Y) };
+    orientAlignPairs = p.pairs.map(pair => ({ ...pair, m: mulMat3Vec3(Yt, pair.m) }));
+    orientPendingAlign = null;
+    saveAlignment();
+    if (orientActive) {
+        applyOrientationToView();
+        refreshOrientStatus();
+        updateOrientUI();
+    }
+}
+
+// Saved with the compass heading of its frame, so it survives a page reload
+function saveAlignment() {
+    if (!orientAlignment || orientCompassOffset == null) return;
+    try {
+        localStorage.setItem(ALIGN_STORAGE_KEY, JSON.stringify({
+            alignment: orientAlignment,
+            pairs: orientAlignPairs,
+            offset: orientCompassOffset,
+            savedAt: Date.now()
+        }));
+    } catch (e) { /* storage unavailable */ }
+}
+
+function loadSavedAlignment() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(ALIGN_STORAGE_KEY) || 'null');
+        if (!saved || !saved.alignment || !Array.isArray(saved.alignment.A)
+            || typeof saved.offset !== 'number' || !Array.isArray(saved.pairs)) return null;
+        if (Date.now() - saved.savedAt > ALIGN_STORAGE_MAX_AGE_MS) return null;
+        return { alignment: saved.alignment, pairs: saved.pairs, offset: saved.offset, sameSession: false };
+    } catch (e) {
+        return null;
+    }
+}
+
+function forgetSavedAlignment() {
+    try { localStorage.removeItem(ALIGN_STORAGE_KEY); } catch (e) { /* storage unavailable */ }
 }
 
 // Fold one heading-offset sample into the slow circular filter
 function addCompassSample(offset, now) {
     if (!orientCompassVec) {
         orientCompassVec = [Math.cos(offset), Math.sin(offset)];
+        orientCompassSince = now;
     } else {
         const dt = Math.min(1, Math.max(0, (now - orientCompassTime) / 1000));
         const a = 1 - Math.exp(-dt / ORIENT_COMPASS_TAU);
@@ -291,6 +380,7 @@ function addCompassSample(offset, now) {
     }
     orientCompassTime = now;
     orientCompassOffset = Math.atan2(orientCompassVec[1], orientCompassVec[0]);
+    tryReanchorAlignment(now);
 }
 
 // Android: compare the compass-referenced orientation with the gyro one. Their
@@ -725,6 +815,8 @@ function lockAlignment() {
     const { altDeg, azDeg } = alignTargetAltAz(alignTarget, new Date());
     orientAlignPairs.push({ name: alignTarget.name, m: aimedDirection(q), t: altAzToENU(altDeg, azDeg) });
     orientAlignment = solveAlignment(orientAlignPairs);
+    orientPendingAlign = null;
+    saveAlignment();
     closeAlignCamera();
     applyOrientationToView();
     refreshOrientStatus();
@@ -769,6 +861,8 @@ function solveAlignment(pairs) {
 function clearAlignment() {
     orientAlignment = null;
     orientAlignPairs = [];
+    orientPendingAlign = null;
+    forgetSavedAlignment();
     applyOrientationToView();
     refreshOrientStatus();
     updateOrientUI();
@@ -839,6 +933,10 @@ function refreshOrientStatus() {
         text = orientAlignment.residualDeg == null
             ? `Aligned on ${orientAlignment.names[0]} · align on a 2nd object for full accuracy`
             : `Aligned on ${orientAlignment.names.join(' + ')} (±${Math.max(0.1, orientAlignment.residualDeg).toFixed(1)}°)`;
+    } else if (orientPendingAlign) {
+        text = orientHasIOSCompass
+            ? `Restoring alignment on ${orientPendingAlign.alignment.names.join(' + ')} · hold the phone flat for a moment`
+            : `Restoring alignment on ${orientPendingAlign.alignment.names.join(' + ')}…`;
     } else if (orientCompassOffset == null) {
         text = orientHasIOSCompass
             ? 'Hold the phone flat for a moment to find north'
@@ -857,7 +955,7 @@ function updateOrientUI() {
         orientToggleBtn.setAttribute('aria-pressed', orientActive ? 'true' : 'false');
     }
     if (orientBar) orientBar.hidden = !orientActive;
-    if (orientUnalignBtn) orientUnalignBtn.hidden = !orientAlignment;
+    if (orientUnalignBtn) orientUnalignBtn.hidden = !orientAlignment && !orientPendingAlign;
 }
 
 if (orientToggleBtn && typeof DeviceOrientationEvent !== 'undefined' && isTouchDevice) {
@@ -886,6 +984,7 @@ for (const input of [latInput, lonInput]) {
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         closeAlignCamera();
+        saveAlignment(); // with the latest compass heading
     } else if (orientActive) {
         requestOrientWakeLock();
     }

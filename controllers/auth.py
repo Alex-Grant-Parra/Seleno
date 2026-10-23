@@ -119,13 +119,13 @@ def login():
             
             if is_local:
                 # Skip 2FA for local connections (localhost, 127.0.0.1, private IPs)
-                login_user(user)
+                login_user(user, remember=True)
                 flash(_('Login successful! (2FA bypassed for local connection)'), 'success')
                 sec_logger.info(json.dumps({'event': 'login_success', 'user_id': user.id, 'method': 'local_bypass'}))
                 return redirect(url_for('home.home'))
             elif is_trusted:
                 # Skip 2FA for trusted devices
-                login_user(user)
+                login_user(user, remember=True)
                 flash(_('Login successful! (Trusted device: %(device)s)', device=device_name), 'success')
                 sec_logger.info(json.dumps({'event': 'login_success', 'user_id': user.id, 'method': 'trusted_device', 'device': device_name}))
                 return redirect(url_for('home.home'))
@@ -154,8 +154,10 @@ def logout():
         sec_logger.info(json.dumps({'event': 'logout', 'user_id': current_user.get_id() if current_user else None}))
     except Exception:
         pass
+    # Clear the session first: logout_user() leaves a flag in it that tells
+    # Flask-Login to delete the remember-me cookie.
+    session.clear()
     logout_user()
-    session.clear()  # Clear the session
     flash(_('Logged out successfully'), 'info')
     return resp
 
@@ -208,7 +210,7 @@ def register():
         db.session.add(new_user)
         db.session.commit()
 
-        login_user(new_user)
+        login_user(new_user, remember=True)
         flash(_('Account created and logged in successfully!'), 'success')
         session['_flashes'] = []  # Clear flash messages manually
         return redirect(url_for('home.home'))
@@ -331,14 +333,14 @@ def login_2fa():
                 resp = redirect(url_for('home.home'))
                 resp.set_cookie('trusted_device_token', token, max_age=30*24*60*60, httponly=True, samesite='Lax')
                 flash(_('Login successful! Device "%(device)s" is now trusted for 30 days.', device=device_name), 'success')
-                login_user(user)
+                login_user(user, remember=True)
                 session.pop('user_id', None)  # Remove user_id from session
                 session.pop('trust_device', None)  # Remove trust_device from session
                 return resp
             else:
                 flash(_('Login successful!'), 'success')
             
-            login_user(user)
+            login_user(user, remember=True)
             session.pop('user_id', None)  # Remove user_id from session
             session.pop('trust_device', None)  # Remove trust_device from session
             return redirect(url_for('home.home'))

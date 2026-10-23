@@ -25,7 +25,7 @@ from app.db import db
 import subprocess
 import atexit
 from waitress import serve  
-from datetime import datetime
+from datetime import datetime, timedelta
 import ipaddress
 from security import SecurityMiddleware, register_security_error_handlers
 
@@ -109,6 +109,12 @@ app.config["MAIL_AUTH_SMTP_PORT"] = int(os.getenv("MAIL_AUTH_SMTP_PORT", "0") or
 app.config["MAIL_AUTH_SMTP_USE_TLS"] = os.getenv("MAIL_AUTH_SMTP_USE_TLS", "True").lower() in ("1","true","yes")
 app.config["MAIL_AUTH_SMTP_USERNAME"] = os.getenv("MAIL_AUTH_SMTP_USERNAME")
 app.config["MAIL_AUTH_SMTP_PASSWORD"] = os.getenv("MAIL_AUTH_SMTP_PASSWORD")
+
+# Keep users logged in across browser/PC restarts (remember-me cookie)
+app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
+app.config["REMEMBER_COOKIE_HTTPONLY"] = True
+app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
+app.config["REMEMBER_COOKIE_REFRESH_EACH_REQUEST"] = True
 
 # Flask-Login & Email Configurations
 login_manager = LoginManager()
@@ -393,12 +399,14 @@ def enforce_enabled_account():
                         sec_logger.info('force_logout_disabled_account')
 
                     # Log the user out and clear session
+                    # Clear the session before logout_user() so its
+                    # "delete remember-me cookie" flag survives.
                     try:
-                        logout_user()
+                        session.clear()
                     except Exception:
                         pass
                     try:
-                        session.clear()
+                        logout_user()
                     except Exception:
                         pass
                     flash('Your account has been disabled. You have been logged out.', 'warning')
