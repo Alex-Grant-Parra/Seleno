@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_language }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>3D Planetarium</title>
+    <title>{{ _('3D Planetarium') }}</title>
     <style>
         html, body {
             margin: 0; padding: 0; overflow: hidden; background: #000;
@@ -480,162 +480,162 @@
     </style>
 </head>
 <body>
-<div id="loading">Loading planetarium...</div>
+<div id="loading">{{ _('Loading planetarium...') }}</div>
 <canvas id="planetarium"></canvas>
-<button id="ui-toggle" type="button" aria-label="Toggle controls" aria-expanded="false" aria-controls="controls">☰</button>
-<button id="orient-toggle" type="button" aria-label="Point your phone at the sky" aria-pressed="false" title="Point your phone at the sky" hidden>🧭</button>
+<button id="ui-toggle" type="button" aria-label="{{ _('Toggle controls') }}" aria-expanded="false" aria-controls="controls">☰</button>
+<button id="orient-toggle" type="button" aria-label="{{ _('Point your phone at the sky') }}" aria-pressed="false" title="{{ _('Point your phone at the sky') }}" hidden>🧭</button>
 <div id="orient-bar" hidden>
     <span id="orient-status" aria-live="polite"></span>
     <div class="orient-actions">
-        <button id="orient-align-btn" type="button">Align</button>
-        <button id="orient-unalign-btn" type="button" hidden>Use compass</button>
+        <button id="orient-align-btn" type="button">{{ _('Align') }}</button>
+        <button id="orient-unalign-btn" type="button" hidden>{{ _('Use compass') }}</button>
     </div>
 </div>
-<div id="info">Drag to rotate. Click a star/planet for info.</div>
+<div id="info">{{ _('Drag to rotate. Click a star/planet for info.') }}</div>
 <div id="tracking-info">
-    <div class="tracking-header">🎯 Tracking Status</div>
+    <div class="tracking-header">🎯 {{ _('Tracking Status') }}</div>
     <div class="tracking-content" id="tracking-content">
-        <em>No object being tracked</em>
+        <em>{{ _('No object being tracked') }}</em>
     </div>
-    <button id="stop-tracking-btn" onclick="stopTracking()">⏹️ Stop Tracking</button>
+    <button id="stop-tracking-btn" onclick="stopTracking()">⏹️ {{ _('Stop Tracking') }}</button>
 </div>
 <div id="controls">
     <label for="mag-filter" class="slider-label">
-        <span>Mag ≤ <span id="mag-value">6</span></span>
+        <span>{{ _('Mag ≤') }} <span id="mag-value">6</span></span>
         <input type="range" id="mag-filter">
     </label>
     <label for="auto-magnitude-zoom">
-        <input type="checkbox" id="auto-magnitude-zoom" checked> <span>Auto-adjust magnitude on zoom</span>
+        <input type="checkbox" id="auto-magnitude-zoom" checked> <span>{{ _('Auto-adjust magnitude on zoom') }}</span>
     </label>
-    <label for="latitude"><span>Latitude:</span>
+    <label for="latitude"><span>{{ _('Latitude:') }}</span>
         <input type="number" id="latitude" min="-90" max="90" step="0.01" value="0">
     </label>
-    <label for="longitude"><span>Longitude:</span>
+    <label for="longitude"><span>{{ _('Longitude:') }}</span>
         <input type="number" id="longitude" min="-180" max="180" step="0.01" value="0">
     </label>
     <div>
-        <label for="time-control" style="display:block; margin-top: 4px;">Time (local):</label>
+        <label for="time-control" style="display:block; margin-top: 4px;">{{ _('Time (local):') }}</label>
         <div style="display:flex; gap: 6px; align-items:center;">
             <input type="datetime-local" id="time-control" step="1" style="flex:1; padding: 4px; background:#222; color:#fff; border:1px solid #555; border-radius:3px;">
-            <button id="time-now" title="Set to current time" style="padding:4px 8px;">Now</button>
+            <button id="time-now" title="{{ _('Set to current time') }}" style="padding:4px 8px;">{{ _('Now') }}</button>
         </div>
         <div style="margin-top: 4px;">
             <label for="live-time" style="font-size: 0.9em;">
-                <input type="checkbox" id="live-time"> <span>Live Time</span>
+                <input type="checkbox" id="live-time"> <span>{{ _('Live Time') }}</span>
             </label>
         </div>
         <div style="font-size: 0.85em; color:#bbb; margin-top:4px;">
-            Grid shows Hour Angle (HA) using your longitude and the selected time.
+            {{ _('Grid shows Hour Angle (HA) using your longitude and the selected time.') }}
             <span id="time-segment-indicator" style="display:none; color:#4CAF50; font-weight:bold; margin-left:8px;"></span>
         </div>
     </div>
     <div class="control-group">
-        <label for="show-stars"><input type="checkbox" id="show-stars" checked> <span>Stars</span></label>
-        <label for="show-planets"><input type="checkbox" id="show-planets" checked> <span>Planets</span></label>
+        <label for="show-stars"><input type="checkbox" id="show-stars" checked> <span>{{ _('Stars') }}</span></label>
+        <label for="show-planets"><input type="checkbox" id="show-planets" checked> <span>{{ _('Planets') }}</span></label>
     </div>
     <div class="control-group">
-        <label for="show-star-names" title="Label named objects: the 407 stars with an official IAU proper name, plus named clusters, nebulae and galaxies. Brightest first.">
-            <input type="checkbox" id="show-star-names"> <span>Star names</span>
+        <label for="show-star-names" title="{{ _('Label named objects: the 407 stars with an official IAU proper name, plus named clusters, nebulae and galaxies. Brightest first.') }}">
+            <input type="checkbox" id="show-star-names"> <span>{{ _('Star names') }}</span>
         </label>
-        <label for="show-constellations" title="Figures for the 24 most prominent constellations. Every vertex sits on a star in this catalogue.">
-            <input type="checkbox" id="show-constellations"> <span>Constellations</span>
+        <label for="show-constellations" title="{{ _('Figures for the 24 most prominent constellations. Every vertex sits on a star in this catalogue.') }}">
+            <input type="checkbox" id="show-constellations"> <span>{{ _('Constellations') }}</span>
         </label>
-        <label for="show-constellation-names" title="Label each figure with its constellation name">
-            <input type="checkbox" id="show-constellation-names" checked> <span>Constellation names</span>
+        <label for="show-constellation-names" title="{{ _('Label each figure with its constellation name') }}">
+            <input type="checkbox" id="show-constellation-names" checked> <span>{{ _('Constellation names') }}</span>
         </label>
     </div>
     <div class="control-group">
-        <label for="show-horizon-grid"><input type="checkbox" id="show-horizon-grid"> <span>Horizon Grid</span></label>
-        <label for="show-equatorial-grid"><input type="checkbox" id="show-equatorial-grid"> <span>Equatorial Grid</span></label>
-        <label for="show-ecliptic"><input type="checkbox" id="show-ecliptic"> <span>Ecliptic</span></label>
+        <label for="show-horizon-grid"><input type="checkbox" id="show-horizon-grid"> <span>{{ _('Horizon Grid') }}</span></label>
+        <label for="show-equatorial-grid"><input type="checkbox" id="show-equatorial-grid"> <span>{{ _('Equatorial Grid') }}</span></label>
+        <label for="show-ecliptic"><input type="checkbox" id="show-ecliptic"> <span>{{ _('Ecliptic') }}</span></label>
     </div>
     <div class="control-group">
-        <label for="show-radec-cursor"><input type="checkbox" id="show-radec-cursor"> <span>RA/DEC at cursor</span></label>
-        <label for="show-azel-cursor"><input type="checkbox" id="show-azel-cursor"> <span>Az/Elv at cursor</span></label>
+        <label for="show-radec-cursor"><input type="checkbox" id="show-radec-cursor"> <span>{{ _('RA/DEC at cursor') }}</span></label>
+        <label for="show-azel-cursor"><input type="checkbox" id="show-azel-cursor"> <span>{{ _('Az/Elv at cursor') }}</span></label>
     </div>
     <div class="control-group">
-        <label for="flip-vertical"><input type="checkbox" id="flip-vertical"> <span>Invert controls</span></label>
+        <label for="flip-vertical"><input type="checkbox" id="flip-vertical"> <span>{{ _('Invert controls') }}</span></label>
     </div>
     <div style="margin-top: 8px;">
-        <label>Search Object:</label>
-        <input type="text" id="search-object" placeholder="HD, NGC, IC, M, or planet name" style="width: 100%; padding: 4px; margin: 4px 0; border: 1px solid #555; background: #222; color: #fff; border-radius: 3px;">
+        <label>{{ _('Search Object:') }}</label>
+        <input type="text" id="search-object" placeholder="{{ _('HD, NGC, IC, M, or planet name') }}" style="width: 100%; padding: 4px; margin: 4px 0; border: 1px solid #555; background: #222; color: #fff; border-radius: 3px;">
         <div style="display: flex; gap: 4px;">
-            <button id="search-btn" style="flex: 1; padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;">Search</button>
-            <button id="clear-search-btn" style="flex: 1; padding: 4px 8px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;">Clear</button>
+            <button id="search-btn" style="flex: 1; padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;">{{ _('Search') }}</button>
+            <button id="clear-search-btn" style="flex: 1; padding: 4px 8px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;">{{ _('Clear') }}</button>
         </div>
     </div>
     <details id="advanced-map-settings">
-        <summary>Advanced settings</summary>
+        <summary>{{ _('Advanced settings') }}</summary>
         <div class="advanced-control">
-            <label for="show-unknown-mag" title="Catalogue objects with no recorded V-Mag. They are drawn separately, in blue.">
-                <span><input type="checkbox" id="show-unknown-mag"> Unknown magnitude<span id="unknown-mag-count"></span></span>
+            <label for="show-unknown-mag" title="{{ _('Catalogue objects with no recorded V-Mag. They are drawn separately, in blue.') }}">
+                <span><input type="checkbox" id="show-unknown-mag"> {{ _('Unknown magnitude') }}<span id="unknown-mag-count"></span></span>
             </label>
             <div class="advanced-control-row">
-                <label><input type="checkbox" id="show-below-horizon" checked> <span>Below-horizon tint</span></label>
+                <label><input type="checkbox" id="show-below-horizon" checked> <span>{{ _('Below-horizon tint') }}</span></label>
                 <span class="advanced-control-inline">
-                    <input type="number" id="horizon-tint-opacity" min="0" max="1" step="0.01" value="0.10" title="Tint opacity">
-                    <button type="button" id="horizon-tint-apply">Apply</button>
+                    <input type="number" id="horizon-tint-opacity" min="0" max="1" step="0.01" value="0.10" title="{{ _('Tint opacity') }}">
+                    <button type="button" id="horizon-tint-apply">{{ _('Apply') }}</button>
                 </span>
             </div>
             <label for="show-render-stats">
-                <span><input type="checkbox" id="show-render-stats"> Render stats</span>
+                <span><input type="checkbox" id="show-render-stats"> {{ _('Render stats') }}</span>
             </label>
-            <label for="magnitude-zoom-ratio" title="Magnitude limit added when zoom doubles on this device">
-                <span>Zoom/magnitude ratio</span>
+            <label for="magnitude-zoom-ratio" title="{{ _('Magnitude limit added when zoom doubles on this device') }}">
+                <span>{{ _('Zoom/magnitude ratio') }}</span>
                 <input type="number" id="magnitude-zoom-ratio" min="0" max="20" step="0.05">
             </label>
         </div>
     </details>
-    <button id="reset-view">Reset View</button>
-    <button id="help-btn">Help</button>
+    <button id="reset-view">{{ _('Reset View') }}</button>
+    <button id="help-btn">{{ _('Help') }}</button>
 </div>
 <div id="help-modal">
     <div id="help-content">
-        <b>3D Planetarium Controls</b><br><br>
+        <b>{{ _('3D Planetarium Controls') }}</b><br><br>
         <ul>
-            <li>Drag mouse to rotate the sky</li>
-            <li>Scroll wheel to zoom in/out (auto-adjusts magnitude to show fainter stars when zoomed in)</li>
-            <li>Click a star/planet for info</li>
-            <li>Right-click magnitude slider for custom values</li>
-            <li class="touch-only">Touch: swipe with one finger to rotate the sky</li>
-            <li class="touch-only">Touch: pinch with two fingers to zoom in/out</li>
-            <li class="touch-only">Touch: tap a star/planet for info</li>
-            <li class="touch-only">Touch: use the ☰ button to show/hide these controls</li>
-            <li class="touch-only">Touch: press and hold the magnitude slider for custom values</li>
-            <li class="touch-only">Phone: tap 🧭 and hold your phone up to the sky - the map follows where the back of the phone points. Tap Align and centre a bright object in the camera to correct the compass; align on a second object for the best accuracy. Pinch still zooms; dragging hands control back to your finger</li>
-            <li>Adjust magnitude filter to show/hide faint stars</li>
-            <li>Toggle "Auto-adjust magnitude on zoom" to link zoom level with star visibility</li>
-            <li>Set your latitude/longitude for local sky orientation</li>
-            <li>Toggle stars/planets visibility</li>
-            <li>Toggle horizon grid (altitude/azimuth with N/E/S/W)</li>
-            <li>Toggle equatorial grid (HA/DEC: Hour Angle and Declination)</li>
-            <li>Toggle the ecliptic line</li>
-            <li>Toggle constellation figures for the 24 most prominent constellations, with optional names. The line data comes from d3-celestial and every vertex has been snapped onto a star in this catalogue, so the figures meet the stars they are drawn from</li>
-            <li>Toggle star names to label named objects - 407 stars carrying an official IAU proper name, plus the named clusters, nebulae and galaxies in this catalogue. Search accepts those names too (try "Mizar", "Algol" or "Andromeda Galaxy")</li>
-            <li>Tick "Unknown magnitude" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against</li>
-            <li>Tick "Render stats" for a readout of how many objects the last frame drew and how long it took</li>
-            <li>Reset view to default orientation and zoom</li>
-            <li>Use the Time control to preview the sky at any date/time; the grid labels show Hour Angle (HA).</li>
-            <li>Tip: Focus the Time box and press Arrow Up/Down to adjust with rollover. Move the caret over year/month/day/hour/minute to change that unit. If caret isn't available, use Shift (hour), Ctrl (day), Alt (month), or Ctrl+Shift (year).</li>
+            <li>{{ _('Drag mouse to rotate the sky') }}</li>
+            <li>{{ _('Scroll wheel to zoom in/out (auto-adjusts magnitude to show fainter stars when zoomed in)') }}</li>
+            <li>{{ _('Click a star/planet for info') }}</li>
+            <li>{{ _('Right-click magnitude slider for custom values') }}</li>
+            <li class="touch-only">{{ _('Touch: swipe with one finger to rotate the sky') }}</li>
+            <li class="touch-only">{{ _('Touch: pinch with two fingers to zoom in/out') }}</li>
+            <li class="touch-only">{{ _('Touch: tap a star/planet for info') }}</li>
+            <li class="touch-only">{{ _('Touch: use the ☰ button to show/hide these controls') }}</li>
+            <li class="touch-only">{{ _('Touch: press and hold the magnitude slider for custom values') }}</li>
+            <li class="touch-only">{{ _('Phone: tap 🧭 and hold your phone up to the sky - the map follows where the back of the phone points. Tap Align and centre a bright object in the camera to correct the compass; align on a second object for the best accuracy. Pinch still zooms; dragging hands control back to your finger') }}</li>
+            <li>{{ _('Adjust magnitude filter to show/hide faint stars') }}</li>
+            <li>{{ _('Toggle "Auto-adjust magnitude on zoom" to link zoom level with star visibility') }}</li>
+            <li>{{ _('Set your latitude/longitude for local sky orientation') }}</li>
+            <li>{{ _('Toggle stars/planets visibility') }}</li>
+            <li>{{ _('Toggle horizon grid (altitude/azimuth with N/E/S/W)') }}</li>
+            <li>{{ _('Toggle equatorial grid (HA/DEC: Hour Angle and Declination)') }}</li>
+            <li>{{ _('Toggle the ecliptic line') }}</li>
+            <li>{{ _('Toggle constellation figures for the 24 most prominent constellations, with optional names. The line data comes from d3-celestial and every vertex has been snapped onto a star in this catalogue, so the figures meet the stars they are drawn from') }}</li>
+            <li>{{ _('Toggle star names to label named objects - 407 stars carrying an official IAU proper name, plus the named clusters, nebulae and galaxies in this catalogue. Search accepts those names too (try "Mizar", "Algol" or "Andromeda Galaxy")') }}</li>
+            <li>{{ _('Tick "Unknown magnitude" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against') }}</li>
+            <li>{{ _('Tick "Render stats" for a readout of how many objects the last frame drew and how long it took') }}</li>
+            <li>{{ _('Reset view to default orientation and zoom') }}</li>
+            <li>{{ _('Use the Time control to preview the sky at any date/time; the grid labels show Hour Angle (HA).') }}</li>
+            <li>{{ _("Tip: Focus the Time box and press Arrow Up/Down to adjust with rollover. Move the caret over year/month/day/hour/minute to change that unit. If caret isn't available, use Shift (hour), Ctrl (day), Alt (month), or Ctrl+Shift (year).") }}</li>
         </ul>
-        <button id="close-help">Close</button>
+        <button id="close-help">{{ _('Close') }}</button>
     </div>
 </div>
 <div id="mag-context-menu">
-    <div style="margin-bottom: 8px; font-size: 0.9em;">Set Magnitude Limit:</div>
-    <input type="number" id="mag-custom-input" step="0.1" min="-2" max="15" placeholder="e.g. 6.5">
+    <div style="margin-bottom: 8px; font-size: 0.9em;">{{ _('Set Magnitude Limit:') }}</div>
+    <input type="number" id="mag-custom-input" step="0.1" min="-2" max="15" placeholder="{{ _('e.g. 6.5') }}">
     <div style="margin-top: 8px;">
-        <button id="mag-apply">Apply</button>
-        <button id="mag-cancel">Cancel</button>
+        <button id="mag-apply">{{ _('Apply') }}</button>
+        <button id="mag-cancel">{{ _('Cancel') }}</button>
     </div>
 </div>
 <!-- Cursor coordinate labels -->
 <div id="align-picker" hidden>
     <div class="align-sheet" role="dialog" aria-modal="true" aria-labelledby="align-picker-title">
-        <b id="align-picker-title">Align on a bright object</b>
-        <p>Pick one you can see. You'll centre it in the camera, which corrects the compass. Aligning on a second object, well away from the first, fixes all three axes.</p>
+        <b id="align-picker-title">{{ _('Align on a bright object') }}</b>
+        <p>{{ _("Pick one you can see. You'll centre it in the camera, which corrects the compass. Aligning on a second object, well away from the first, fixes all three axes.") }}</p>
         <ul id="align-candidates"></ul>
-        <button id="align-picker-cancel" type="button">Cancel</button>
+        <button id="align-picker-cancel" type="button">{{ _('Cancel') }}</button>
     </div>
 </div>
 <div id="align-camera" hidden>
@@ -643,8 +643,8 @@
     <div class="align-crosshair" aria-hidden="true"></div>
     <div id="align-hint" aria-live="polite"></div>
     <div class="align-actions">
-        <button id="align-cancel" type="button">Cancel</button>
-        <button id="align-lock" type="button">Lock</button>
+        <button id="align-cancel" type="button">{{ _('Cancel') }}</button>
+        <button id="align-lock" type="button">{{ _('Lock') }}</button>
     </div>
 </div>
 <div id="cursor-coords"></div>
@@ -653,30 +653,16 @@
 <!-- Small bottom-right throbber for star loading/processing -->
 <div id="star-loading-indicator" aria-live="polite" aria-atomic="true">
     <div class="star-spinner" role="status" aria-hidden="true"></div>
-    <div id="star-loading-label">Loading stars…</div>
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    <div id="star-loading-label">{{ _('Loading stars…') }}</div>
 </div>
+<script src="{{ catalog_url(current_language) }}"></script>
 <script type="application/json" id="stars-data">[]</script>
 <script type="application/json" id="telescope-data">{{ selected_telescope | tojson }}</script>
 <script src="{{ url_for('static', filename='js/csrf-protection.js') }}" defer></script>
 <!-- Star map scripts share one global scope and must load in this order
      (controls.js last: it wires up functions defined in the others).
      Cache-busting query param to ensure latest JS is fetched. -->
-{% set star_map_js_version = '2026-10-11-1' %}
+{% set star_map_js_version = '2026-10-24-1' %}
 {% for module in ['core', 'astronomy', 'time_control', 'catalogue', 'planets', 'overlays',
                   'render', 'input', 'object_info', 'telescope', 'search', 'device_orientation',
                   'controls'] %}

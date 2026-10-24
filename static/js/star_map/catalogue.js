@@ -296,11 +296,11 @@ async function loadRemainingStarBands() {
 function updateStarLoadingProgress(band) {
     if (!starLoadingLabel) return;
     if (!band || !starCount) {
-        starLoadingLabel.textContent = 'Loading stars…';
+        starLoadingLabel.textContent = _('Loading stars…');
         return;
     }
     const pct = Math.min(100, Math.round((band.end / starCount) * 100));
-    starLoadingLabel.textContent = `Loading stars… ${pct}%`;
+    starLoadingLabel.textContent = _('Loading stars… {pct}%', { pct });
 }
 
 // Kept for callers that ask for a deeper magnitude than is loaded yet: with

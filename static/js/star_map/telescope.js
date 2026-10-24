@@ -114,19 +114,19 @@ function updateTrackingPanel(trackingData) {
     if (!trackingData) {
         // Hide panel when no tracking
         trackingInfoDiv.style.display = 'none';
-        trackingContent.innerHTML = '<em>No object being tracked</em>';
+        trackingContent.innerHTML = '<em>' + _('No object being tracked') + '</em>';
         return;
     }
     
     // Show panel and update content
     trackingInfoDiv.style.display = 'block';
     trackingContent.innerHTML = `
-        <div><strong>Object:</strong> ${trackingData.name}</div>
-        <div><strong>RA:</strong> ${trackingData.ra.toFixed(4)}°</div>
-        <div><strong>DEC:</strong> ${trackingData.dec.toFixed(4)}°</div>
+        <div><strong>${_('Object:')}</strong> ${trackingData.name}</div>
+        <div><strong>${_('RA:')}</strong> ${trackingData.ra.toFixed(4)}°</div>
+        <div><strong>${_('DEC:')}</strong> ${trackingData.dec.toFixed(4)}°</div>
         ${(trackingData.mag !== undefined && trackingData.mag !== null && !Number.isNaN(trackingData.mag))
-            ? `<div><strong>Magnitude:</strong> ${trackingData.mag.toFixed(2)}</div>`
-            : '<div><strong>Magnitude:</strong> not recorded</div>'}
+            ? `<div><strong>${_('Magnitude:')}</strong> ${trackingData.mag.toFixed(2)}</div>`
+            : `<div><strong>${_('Magnitude:')}</strong> ${_('not recorded')}</div>`}
     `;
 }
 
@@ -148,14 +148,14 @@ function stopTracking() {
             // Clear sessionStorage
             sessionStorage.removeItem('currentTracking');
             console.log('✓ Tracking stopped successfully');
-            alert('🛑 Tracking stopped successfully');
+            alert('🛑 ' + _('Tracking stopped successfully'));
         } else {
-            throw new Error(data.message || "Failed to stop tracking");
+            throw new Error(data.message || _("Failed to stop tracking"));
         }
     })
     .catch(error => {
         console.error('✗ Error stopping tracking:', error);
-        alert(`❌ Failed to stop tracking: ${error.message}`);
+        alert('❌ ' + _('Failed to stop tracking: {message}', { message: error.message }));
         
         // Still clear the panel even if command failed
         updateTrackingPanel(null);
@@ -250,7 +250,7 @@ function trackObject(name, ra, dec, mag) {
                     updateTrackingPanel(trackingData);
                     
                     // Show success message instead of redirecting
-                    alert(`✓ Now tracking ${name}`);
+                    alert('✓ ' + _('Now tracking {name}', { name }));
                 } else if (data.redirect) {
                     // No telescope selected - inform user
                     alert('Please select a telescope in the Interface page to begin tracking');

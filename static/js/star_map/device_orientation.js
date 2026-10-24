@@ -482,7 +482,7 @@ async function startOrientationMode() {
         let result = 'denied';
         try { result = await DeviceOrientationEvent.requestPermission(); } catch (e) { console.warn(e); }
         if (result !== 'granted') {
-            alert('Motion sensor access was not allowed. To use phone pointing, allow "Motion & Orientation Access" for this site in Safari settings and try again.');
+            alert(_('Motion sensor access was not allowed. To use phone pointing, allow "Motion & Orientation Access" for this site in Safari settings and try again.'));
             return;
         }
     }
@@ -503,7 +503,7 @@ async function startOrientationMode() {
         orientWatchdog = null;
         if (orientActive && !orientSmoothQ) {
             stopOrientationMode({ immediate: true });
-            alert('This device is not reporting its orientation, so phone pointing is unavailable.');
+            alert(_('This device is not reporting its orientation, so phone pointing is unavailable.'));
         }
     }, 2500);
 
@@ -634,7 +634,8 @@ function altAzToENU(altDeg, azDeg) {
 }
 
 function compassPoint(azDeg) {
-    return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((azDeg % 360) + 360) % 360 / 45) % 8];
+    return [_p('compass', 'N'), _p('compass', 'NE'), _p('compass', 'E'), _p('compass', 'SE'),
+            _p('compass', 'S'), _p('compass', 'SW'), _p('compass', 'W'), _p('compass', 'NW')][Math.round(((azDeg % 360) + 360) % 360 / 45) % 8];
 }
 
 // Bright objects currently well placed for aligning on, brightest first
@@ -664,13 +665,13 @@ async function alignmentCandidates() {
 
 async function openAlignPicker() {
     if (!alignPicker) return;
-    alignCandidatesList.innerHTML = '<li class="align-empty">Finding bright objects…</li>';
+    alignCandidatesList.innerHTML = '<li class="align-empty">' + _('Finding bright objects…') + '</li>';
     alignPicker.hidden = false;
     const candidates = await alignmentCandidates();
     if (alignPicker.hidden) return; // cancelled while loading
     alignCandidatesList.innerHTML = '';
     if (candidates.length === 0) {
-        alignCandidatesList.innerHTML = `<li class="align-empty">Nothing bright enough is between ${ALIGN_MIN_ALT}° and ${ALIGN_MAX_ALT}° above the horizon right now.</li>`;
+        alignCandidatesList.innerHTML = '<li class="align-empty">' + _('Nothing bright enough is between {min}° and {max}° above the horizon right now.', { min: ALIGN_MIN_ALT, max: ALIGN_MAX_ALT }) + '</li>';
         return;
     }
     const aligned = new Set(orientAlignPairs.map(p => p.name));
@@ -683,7 +684,7 @@ async function openAlignPicker() {
         name.textContent = target.name + (aligned.has(target.name) ? ' ✓' : '');
         const where = document.createElement('span');
         where.className = 'align-where';
-        where.textContent = `${compassPoint(target.azDeg)}, ${Math.round(target.altDeg)}° up · mag ${target.mag.toFixed(1)}`;
+        where.textContent = _('{dir}, {alt}° up · mag {mag}', { dir: compassPoint(target.azDeg), alt: Math.round(target.altDeg), mag: target.mag.toFixed(1) });
         btn.append(name, where);
         btn.addEventListener('click', () => {
             closeAlignPicker();
@@ -751,9 +752,9 @@ function updateAlignHint() {
     alignHintFrame = requestAnimationFrame(updateAlignHint);
 
     const { altDeg, azDeg } = alignTargetAltAz(alignTarget, new Date());
-    const lines = [`${alignTarget.name}: ${compassPoint(azDeg)}, ${Math.round(altDeg)}° above the horizon`];
+    const lines = [_('{name}: {dir}, {alt}° above the horizon', { name: alignTarget.name, dir: compassPoint(azDeg), alt: Math.round(altDeg) })];
     if (alignAimAxis === 'top') {
-        lines.push('No camera: point the top edge of the phone straight at it, sighting along the edge, then tap Lock.');
+        lines.push(_('No camera: point the top edge of the phone straight at it, sighting along the edge, then tap Lock.'));
     } else if (orientSmoothQ && (orientAlignment || orientCompassOffset != null)) {
         const F = deviceToWorldMatrix(orientSmoothQ);
         const t = altAzToENU(altDeg, azDeg);
@@ -762,16 +763,16 @@ function updateAlignHint() {
         const fwd = -(F[0][2] * t[0] + F[1][2] * t[1] + F[2][2] * t[2]);
         const off = Math.acos(Math.max(-1, Math.min(1, fwd))) / DEG2RAD;
         if (off < 8) {
-            lines.push('It should be close: put it exactly in the crosshair, hold still and tap Lock.');
+            lines.push(_('It should be close: put it exactly in the crosshair, hold still and tap Lock.'));
         } else {
             const h = Math.atan2(right, fwd) / DEG2RAD, v = Math.atan2(up, fwd) / DEG2RAD;
             const parts = [];
-            if (Math.abs(h) >= 3) parts.push(`${Math.round(Math.abs(h))}° ${h > 0 ? 'right' : 'left'}`);
-            if (Math.abs(v) >= 3) parts.push(`${Math.round(Math.abs(v))}° ${v > 0 ? 'up' : 'down'}`);
-            lines.push(`Compass estimate: about ${parts.join(', ') || `${Math.round(off)}° away`}.`);
+            if (Math.abs(h) >= 3) parts.push(h > 0 ? _('{deg}° right', { deg: Math.round(Math.abs(h)) }) : _('{deg}° left', { deg: Math.round(Math.abs(h)) }));
+            if (Math.abs(v) >= 3) parts.push(v > 0 ? _('{deg}° up', { deg: Math.round(Math.abs(v)) }) : _('{deg}° down', { deg: Math.round(Math.abs(v)) }));
+            lines.push(_('Compass estimate: about {where}.', { where: parts.join(', ') || _('{deg}° away', { deg: Math.round(off) }) }));
         }
     } else {
-        lines.push('Centre it in the crosshair, hold still and tap Lock.');
+        lines.push(_('Centre it in the crosshair, hold still and tap Lock.'));
     }
     const text = lines.join('\n');
     if (alignHint.textContent !== text) alignHint.textContent = text;
@@ -809,7 +810,7 @@ function lockAlignment() {
     const now = performance.now();
     const q = captureSteadyQuat(now - alignPressTime < 2000 ? alignPressTime : now);
     if (!q) {
-        alignHint.textContent = 'The phone moved while locking. Hold it steady on the target and tap Lock again.';
+        alignHint.textContent = _('The phone moved while locking. Hold it steady on the target and tap Lock again.');
         return;
     }
     const { altDeg, azDeg } = alignTargetAltAz(alignTarget, new Date());
@@ -928,23 +929,23 @@ function refreshOrientStatus() {
     if (!orientStatus) return;
     let text;
     if (!orientSmoothQ) {
-        text = 'Waiting for the motion sensors…';
+        text = _('Waiting for the motion sensors…');
     } else if (orientAlignment) {
         text = orientAlignment.residualDeg == null
-            ? `Aligned on ${orientAlignment.names[0]} · align on a 2nd object for full accuracy`
-            : `Aligned on ${orientAlignment.names.join(' + ')} (±${Math.max(0.1, orientAlignment.residualDeg).toFixed(1)}°)`;
+            ? _('Aligned on {name} · align on a 2nd object for full accuracy', { name: orientAlignment.names[0] })
+            : _('Aligned on {names} (±{err}°)', { names: orientAlignment.names.join(' + '), err: Math.max(0.1, orientAlignment.residualDeg).toFixed(1) });
     } else if (orientPendingAlign) {
         text = orientHasIOSCompass
-            ? `Restoring alignment on ${orientPendingAlign.alignment.names.join(' + ')} · hold the phone flat for a moment`
-            : `Restoring alignment on ${orientPendingAlign.alignment.names.join(' + ')}…`;
+            ? _('Restoring alignment on {names} · hold the phone flat for a moment', { names: orientPendingAlign.alignment.names.join(' + ') })
+            : _('Restoring alignment on {names}…', { names: orientPendingAlign.alignment.names.join(' + ') });
     } else if (orientCompassOffset == null) {
         text = orientHasIOSCompass
-            ? 'Hold the phone flat for a moment to find north'
-            : 'No compass reading yet · tap Align to set north';
+            ? _('Hold the phone flat for a moment to find north')
+            : _('No compass reading yet · tap Align to set north');
     } else if (orientCompassAccuracy != null) {
-        text = `Compass ±${Math.round(orientCompassAccuracy)}° · tap Align for accuracy`;
+        text = _('Compass ±{deg}° · tap Align for accuracy', { deg: Math.round(orientCompassAccuracy) });
     } else {
-        text = 'Compass only · tap Align for accuracy';
+        text = _('Compass only · tap Align for accuracy');
     }
     if (orientStatus.textContent !== text) orientStatus.textContent = text;
 }

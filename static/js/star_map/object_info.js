@@ -4,8 +4,8 @@
 // Default hint shown in the info panel when nothing is selected
 function defaultInfoText() {
     return isTouchDevice
-        ? "Swipe to rotate. Pinch to zoom. Tap a star/planet for info."
-        : "Drag to rotate. Click a star/planet for info.";
+        ? _("Swipe to rotate. Pinch to zoom. Tap a star/planet for info.")
+        : _("Drag to rotate. Click a star/planet for info.");
 }
 
 // Render the info panel for a picked object. `data` is the /star_info payload
@@ -14,7 +14,7 @@ function showObjectInfoPanel(obj, data, ha) {
     const raHMS = decimalToHMS(obj.ra);
     const decDMS = decimalToDMS(obj.dec);
     const displayMagFormatted = (obj.mag == null || Number.isNaN(obj.mag))
-        ? "not recorded"
+        ? _("not recorded")
         : obj.mag.toFixed(2);
 
     // The proper name is already on the client, so it goes in on the first
@@ -43,9 +43,9 @@ function showObjectInfoPanel(obj, data, ha) {
     title.textContent = displayName;
     info.append(
         title, document.createElement('br'),
-        `RA: ${raHMS}`, document.createElement('br'),
-        `DEC: ${decDMS}`, document.createElement('br'),
-        `V-Mag: ${displayMagFormatted}`, document.createElement('br')
+        _('RA: {ra}', { ra: raHMS }), document.createElement('br'),
+        _('DEC: {dec}', { dec: decDMS }), document.createElement('br'),
+        _('V-Mag: {mag}', { mag: displayMagFormatted }), document.createElement('br')
     );
 
     const buttons = document.createElement('div');
@@ -58,8 +58,8 @@ function showObjectInfoPanel(obj, data, ha) {
         return btn;
     };
     buttons.append(
-        makeButton('Track', '#4CAF50', () => trackObject(obj.name, obj.ra, obj.dec, obj.mag)),
-        makeButton('Advanced Info', '#007bff', () => showStarInfoModal(window.currentStarData))
+        makeButton(_('Track'), '#4CAF50', () => trackObject(obj.name, obj.ra, obj.dec, obj.mag)),
+        makeButton(_('Advanced Info'), '#007bff', () => showStarInfoModal(window.currentStarData))
     );
     info.appendChild(buttons);
 }
@@ -204,49 +204,49 @@ function extractCommonName(commonNames) {
 }
 
 function generateAdvancedInfo(star) {
-    let advancedHtml = "<h6 style='margin-bottom: 1rem; color: #007bff;'>📋 Detailed Information</h6>";
+    let advancedHtml = "<h6 style='margin-bottom: 1rem; color: #007bff;'>📋 " + _("Detailed Information") + "</h6>";
     
     // Create a table of all available properties
     const excludeKeys = ['name', 'Name', 'friendlyName'];
     const propertyMappings = {
-        'ra': 'RA (decimal degrees)',
-        'RA': 'RA (decimal degrees)',
-        'dec': 'DEC (decimal degrees)',
-        'DEC': 'DEC (decimal degrees)',
-        'hourAngle': 'Hour Angle (degrees)',
-        'phase_name': 'Phase Name',
-        'phase_angle_deg': 'Phase Angle (degrees)',
-        'moon_illumination_fraction': 'Moon Illumination Fraction',
-        'moon_elongation_deg': 'Moon Elongation (degrees)',
-        'mag': 'Visual Magnitude',
-        'V-Mag': 'Visual Magnitude', 
-        'B-Mag': 'Blue Magnitude',
-        'U-Mag': 'Ultraviolet Magnitude',
-        'R-Mag': 'Red Magnitude',
-        'I-Mag': 'Infrared Magnitude',
-        'J-Mag': 'J-band Magnitude',
-        'H-Mag': 'H-band Magnitude',
-        'K-Mag': 'K-band Magnitude',
-        'commonNames': 'All Names',
-        'Common names': 'All Names',
-        'SpectralType': 'Spectral Type',
-        'spectralType': 'Spectral Type',
-        'Parallax': 'Parallax (mas)',
-        'parallax': 'Parallax (mas)',
-        'ProperMotionRA': 'Proper Motion RA (mas/yr)',
-        'ProperMotionDec': 'Proper Motion DEC (mas/yr)',
-        'RadialVelocity': 'Radial Velocity (km/s)',
-        'Distance': 'Distance (pc)',
-        'Luminosity': 'Luminosity',
-        'Temperature': 'Temperature (K)',
-        'Mass': 'Mass (Solar masses)',
-        'Radius': 'Radius (Solar radii)',
-        'Age': 'Age (Gyr)',
-        'Metallicity': 'Metallicity [Fe/H]'
+        'ra': _('RA (decimal degrees)'),
+        'RA': _('RA (decimal degrees)'),
+        'dec': _('DEC (decimal degrees)'),
+        'DEC': _('DEC (decimal degrees)'),
+        'hourAngle': _('Hour Angle (degrees)'),
+        'phase_name': _('Phase Name'),
+        'phase_angle_deg': _('Phase Angle (degrees)'),
+        'moon_illumination_fraction': _('Moon Illumination Fraction'),
+        'moon_elongation_deg': _('Moon Elongation (degrees)'),
+        'mag': _('Visual Magnitude'),
+        'V-Mag': _('Visual Magnitude'), 
+        'B-Mag': _('Blue Magnitude'),
+        'U-Mag': _('Ultraviolet Magnitude'),
+        'R-Mag': _('Red Magnitude'),
+        'I-Mag': _('Infrared Magnitude'),
+        'J-Mag': _('J-band Magnitude'),
+        'H-Mag': _('H-band Magnitude'),
+        'K-Mag': _('K-band Magnitude'),
+        'commonNames': _('All Names'),
+        'Common names': _('All Names'),
+        'SpectralType': _('Spectral Type'),
+        'spectralType': _('Spectral Type'),
+        'Parallax': _('Parallax (mas)'),
+        'parallax': _('Parallax (mas)'),
+        'ProperMotionRA': _('Proper Motion RA (mas/yr)'),
+        'ProperMotionDec': _('Proper Motion DEC (mas/yr)'),
+        'RadialVelocity': _('Radial Velocity (km/s)'),
+        'Distance': _('Distance (pc)'),
+        'Luminosity': _('Luminosity'),
+        'Temperature': _('Temperature (K)'),
+        'Mass': _('Mass (Solar masses)'),
+        'Radius': _('Radius (Solar radii)'),
+        'Age': _('Age (Gyr)'),
+        'Metallicity': _('Metallicity [Fe/H]')
     };
     
     advancedHtml += '<div class="table-responsive"><table class="table table-sm table-hover" style="color: inherit;">';
-    advancedHtml += '<thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>';
+    advancedHtml += '<thead><tr><th>' + _('Property') + '</th><th>' + _('Value') + '</th></tr></thead><tbody>';
     
     for (const [key, value] of Object.entries(star)) {
         if (excludeKeys.includes(key) || value === null || value === undefined || value === "") continue;
@@ -265,7 +265,7 @@ function generateAdvancedInfo(star) {
     advancedHtml += '</tbody></table></div>';
     
     if (Object.keys(star).filter(key => !excludeKeys.includes(key)).length === 0) {
-        advancedHtml = "<p class='text-muted'>No additional information available for this object.</p>";
+        advancedHtml = "<p class='text-muted'>" + _("No additional information available for this object.") + "</p>";
     }
     
     return advancedHtml;
@@ -278,12 +278,12 @@ function toggleAdvancedObjectInfo() {
     if (advancedInfo && toggleBtn) {
         if (advancedInfo.style.display === "none") {
             advancedInfo.style.display = "block";
-            toggleBtn.innerHTML = "📊 Hide Advanced Information";
+            toggleBtn.innerHTML = "📊 " + _("Hide Advanced Information");
             toggleBtn.classList.remove("btn-outline-secondary");
             toggleBtn.classList.add("btn-outline-primary");
         } else {
             advancedInfo.style.display = "none";
-            toggleBtn.innerHTML = "📊 Show Advanced Information";
+            toggleBtn.innerHTML = "📊 " + _("Show Advanced Information");
             toggleBtn.classList.remove("btn-outline-primary");
             toggleBtn.classList.add("btn-outline-secondary");
         }
@@ -295,7 +295,7 @@ function showStarInfoModal(star) {
     if (existingModal) existingModal.remove();
 
     // Extract basic information with proper fallbacks
-    const name = star.name || star.Name || "Unknown";
+    const name = star.name || star.Name || _("Unknown");
     const commonName = star.friendlyName || extractCommonName(star.commonNames || star['Common names']) || "";
     const raDecimal = parseFloat(star.ra !== undefined ? star.ra : star.RA || 0);
     const decDecimal = parseFloat(star.dec !== undefined ? star.dec : star.DEC || 0);
@@ -305,7 +305,7 @@ function showStarInfoModal(star) {
     if (magnitude === null || magnitude === undefined || Number.isNaN(magnitude)) {
         // The catalogue has no V-Mag for this object (NULL, or an HD 20/30/40/50
         // placeholder) - say that rather than showing a fabricated number
-        magnitude = "not recorded";
+        magnitude = _("not recorded");
     }
 
     // Create modal with enhanced styling
@@ -333,30 +333,30 @@ function showStarInfoModal(star) {
 
     modal.innerHTML = `
         <div class="modal-header" style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 1rem; border-bottom: none;">
-            <h5 class="modal-title" style="margin: 0; font-weight: 600;">🌟 Object Information</h5>
+            <h5 class="modal-title" style="margin: 0; font-weight: 600;">🌟 ${_('Object Information')}</h5>
             <button type="button" class="btn-close" id="closeStarInfo" style="filter: invert(1); background: none; border: none; font-size: 1.5rem; cursor: pointer; color: white; line-height: 1; padding: 0; width: 32px; height: 32px; touch-action: manipulation;">&times;</button>
         </div>
         <div class="modal-body" style="padding: 1.5rem;">
             <!-- Basic Information -->
             <div class="basic-info">
                 <div class="info-item" style="margin-bottom: 1rem;">
-                    <strong>Identifier:</strong> <span style="color: #007bff;">${name}</span>${commonName ? `  <span style="color: #28a745;">(${commonName})</span>` : ''}
+                    <strong>${_('Identifier:')}</strong> <span style="color: #007bff;">${name}</span>${commonName ? `  <span style="color: #28a745;">(${commonName})</span>` : ''}
                 </div>
                 <div class="info-item" style="margin-bottom: 1rem;">
-                    <strong>RA:</strong> <span style="color: #17a2b8;">${raHMS}</span>
+                    <strong>${_('RA:')}</strong> <span style="color: #17a2b8;">${raHMS}</span>
                 </div>
                 <div class="info-item" style="margin-bottom: 1rem;">
-                    <strong>DEC:</strong> <span style="color: #17a2b8;">${decDMS}</span>
+                    <strong>${_('DEC:')}</strong> <span style="color: #17a2b8;">${decDMS}</span>
                 </div>
                 <div class="info-item" style="margin-bottom: 1rem;">
-                    <strong>Magnitude:</strong> <span style="color: #17a2b8;">${magnitude}</span>
+                    <strong>${_('Magnitude:')}</strong> <span style="color: #17a2b8;">${magnitude}</span>
                 </div>
             </div>
             
             <!-- Advanced Info Toggle -->
             <div class="advanced-toggle" style="margin: 1.5rem 0;">
                 <button id="toggleAdvancedInfo" class="btn btn-outline-secondary btn-sm w-100" onclick="toggleAdvancedObjectInfo()" style="padding: 12px 8px; touch-action: manipulation; border: 1px solid #6c757d; background: white; color: #6c757d; border-radius: 4px; cursor: pointer; width: 100%;">
-                    📊 Show Advanced Information
+                    📊 ${_('Show Advanced Information')}
                 </button>
             </div>
             
@@ -366,8 +366,8 @@ function showStarInfoModal(star) {
             </div>
         </div>
         <div class="modal-footer" style="padding: 1rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; justify-content: space-between; gap: 8px;">
-            <button id="trackObjectBtnModal" class="btn btn-success" style="padding: 12px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">🎯 Track Object</button>
-            <button id="closeStarInfoFooter" class="btn btn-secondary" style="padding: 12px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">Close</button>
+            <button id="trackObjectBtnModal" class="btn btn-success" style="padding: 12px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">🎯 ${_('Track Object')}</button>
+            <button id="closeStarInfoFooter" class="btn btn-secondary" style="padding: 12px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">${_('Close')}</button>
         </div>
     `;
 

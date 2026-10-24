@@ -371,7 +371,7 @@ function draw() {
             
             const raStr = `${raH}h${raM}m${raS.toFixed(1)}s`;
             const decStr = `${decSign}${decD}°${decM}'${decS.toFixed(1)}"`;
-            ctx.fillText(`Telescope: ${raStr}`, cx + crossSize + 10, cy - 10);
+            ctx.fillText(_('Telescope: {ra}', { ra: raStr }), cx + crossSize + 10, cy - 10);
             ctx.fillText(decStr, cx + crossSize + 10, cy + 5);
         }
     }
@@ -397,6 +397,6 @@ function updateRenderStats() {
     const total = starCount ? starCount.toLocaleString() : '?';
     const fps = lastDrawStats.ms > 0 ? (1000 / lastDrawStats.ms).toFixed(0) : '-';
     renderStatsDiv.textContent =
-        `${lastDrawStats.drawn.toLocaleString()} drawn${lastDrawStats.capped ? ' (moving)' : ''} · `
-        + `${lastDrawStats.ms.toFixed(1)} ms (${fps}/s) · ${loaded}/${total} loaded`;
+        _('{n} drawn', { n: lastDrawStats.drawn.toLocaleString() }) + (lastDrawStats.capped ? ' ' + _('(moving)') : '') + ' · '
+        + `${lastDrawStats.ms.toFixed(1)} ms (${fps}/s) · ` + _('{loaded}/{total} loaded', { loaded, total });
 }

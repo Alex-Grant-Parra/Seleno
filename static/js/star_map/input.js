@@ -33,13 +33,13 @@ function updateCursorCoords(screenX, screenY, opts = {}) {
             const decM = Math.floor((decAbs - decD) * 60);
             const decS = Math.floor(((decAbs - decD) * 60 - decM) * 60);
             
-            html += `<div>RA: ${raH}h ${raM}m ${raS}s</div>`;
-            html += `<div>DEC: ${decSign}${decD}° ${decM}' ${decS}"</div>`;
+            html += `<div>${_('RA: {ra}', { ra: `${raH}h ${raM}m ${raS}s` })}</div>`;
+            html += `<div>${_('DEC: {dec}', { dec: `${decSign}${decD}° ${decM}' ${decS}"` })}</div>`;
         }
         
         if (showAzEl) {
-            html += `<div>Az: ${coords.azDeg.toFixed(2)}°</div>`;
-            html += `<div>Elv: ${coords.altDeg.toFixed(2)}°</div>`;
+            html += `<div>${_('Az: {az}°', { az: coords.azDeg.toFixed(2) })}</div>`;
+            html += `<div>${_('Elv: {alt}°', { alt: coords.altDeg.toFixed(2) })}</div>`;
         }
         
         cursorCoordsDiv.innerHTML = html;

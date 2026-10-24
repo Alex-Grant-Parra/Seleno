@@ -9,7 +9,7 @@
 // Helper function to check for authentication errors in fetch responses
 function checkAuthResponse(response) {
     if (response.status === 401) {
-        alert('You must be logged in to control the telescope.');
+        alert(_('You must be logged in to control the telescope.'));
         window.location.href = '/login';
         throw new Error('Not authenticated');
     }

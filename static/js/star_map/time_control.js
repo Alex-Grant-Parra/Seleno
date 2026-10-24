@@ -199,11 +199,11 @@ function updateTimeSegmentIndicator(segment) {
     if (!timeSegmentIndicator) return;
     
     const labels = {
-        'year': 'Year',
-        'month': 'Month',
-        'day': 'Day',
-        'hour': 'Hour',
-        'minute': 'Minute'
+        'year': _('Year'),
+        'month': _('Month'),
+        'day': _('Day'),
+        'hour': _('Hour'),
+        'minute': _('Minute')
     };
     
     if (segment && labels[segment]) {

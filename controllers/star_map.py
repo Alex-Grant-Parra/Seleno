@@ -1,5 +1,6 @@
 import logging
 from flask import Blueprint, Response, jsonify, render_template, request, session
+from flask_babel import gettext as _
 from datetime import datetime, timezone
 from typing import Optional
 from models import star_catalog
@@ -254,7 +255,7 @@ def get_star_bands():
     bands = []
     cursor = 0
     for edge in edges:
-        _, hi = catalog.band_range(catalog.min_mag, edge)
+        _lo, hi = catalog.band_range(catalog.min_mag, edge)
         if hi <= cursor:
             continue
         bands.append({"start": cursor, "end": hi, "count": hi - cursor,
@@ -469,7 +470,7 @@ def track_star():
         return jsonify({
             "status": "error",
             "error": "Must be logged in",
-            "message": "Must be logged in to control telescope"
+            "message": _("Must be logged in to control telescope")
         }), 401
 
     data = request.get_json()
@@ -493,7 +494,7 @@ def track_star():
             "status": "error",
             "error": "No telescope selected",
             "redirect": True,
-            "message": "Please select a telescope in the Interface page to begin tracking"
+            "message": _("Please select a telescope in the Interface page to begin tracking")
         }), 422
 
     guard = _require_telescope_control_access(telescope_id)
@@ -552,7 +553,7 @@ def track_star():
         return jsonify({
             "status": "error",
             "error": "Tracking command failed",
-            "message": "Failed to send tracking command"
+            "message": _("Failed to send tracking command")
         }), 500
 
 @star_map_bp.route("/get_tracking_status", methods=["GET"])
@@ -590,7 +591,7 @@ def stop_tracking():
         return jsonify({
             "status": "error",
             "error": "No telescope selected",
-            "message": "No telescope selected"
+            "message": _("No telescope selected")
         }), 422
 
     guard = _require_telescope_control_access(telescope_id)
@@ -622,7 +623,7 @@ def stop_tracking():
         
         return jsonify({
             "status": "stopped",
-            "message": "Tracking stopped successfully",
+            "message": _("Tracking stopped successfully"),
             "telescope_id": telescope_id,
             "result": result
         })
@@ -634,7 +635,7 @@ def stop_tracking():
         return jsonify({
             "status": "error",
             "error": "Stop tracking command failed",
-            "message": "Failed to stop tracking"
+            "message": _("Failed to stop tracking")
         }), 500
 
 @star_map_bp.route("/api/telescope_position", methods=["GET"])
@@ -648,7 +649,7 @@ def get_telescope_position():
         return jsonify({
             "status": "error",
             "error": "No telescope selected",
-            "message": "No telescope selected"
+            "message": _("No telescope selected")
         }), 422
 
     guard = _require_telescope_control_access(telescope_id)
@@ -712,7 +713,7 @@ def get_telescope_position():
                 return jsonify({
                     "status": "error",
                     "error": "Failed to parse coordinates as numbers",
-                    "message": "Telescope returned non-numeric coordinates",
+                    "message": _("Telescope returned non-numeric coordinates"),
                     "telescope_id": telescope_id
                 }), 500
         else:
@@ -728,7 +729,7 @@ def get_telescope_position():
         return jsonify({
             "status": "error",
             "error": "Failed to get telescope position",
-            "message": "Failed to get telescope position"
+            "message": _("Failed to get telescope position")
         }), 500
 
 @star_map_bp.route("/api/debug/session", methods=["GET"])

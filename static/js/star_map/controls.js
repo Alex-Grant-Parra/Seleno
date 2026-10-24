@@ -247,7 +247,7 @@ magApplyBtn.addEventListener('click', () => {
         magValue.textContent = customValue.toFixed(1);
         draw();
     } else {
-        alert(`Please enter a magnitude value between ${minMag.toFixed(1)} and ${maxMag.toFixed(1)}`);
+        alert(_('Please enter a magnitude value between {min} and {max}', { min: minMag.toFixed(1), max: maxMag.toFixed(1) }));
         return;
     }
     hideContextMenu();

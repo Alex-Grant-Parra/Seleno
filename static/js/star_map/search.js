@@ -9,14 +9,14 @@ let searchHighlightUntil = 0; // the ring pulses until this time, then sits stil
 function searchObject() {
     const searchValue = searchInput.value.trim();
     if (!searchValue) {
-        alert('Please enter a search term.');
+        alert(_('Please enter a search term.'));
         return;
     }
 
     // Check if searching for "telescope"
-    if (searchValue.toLowerCase() === 'telescope') {
+    if (['telescope', _('telescope').toLowerCase()].includes(searchValue.toLowerCase())) {
         if (!isTelescopeSelected()) {
-            alert('No telescope selected. Please select a telescope first.');
+            alert(_('No telescope selected. Please select a telescope first.'));
             return;
         }
         
@@ -36,17 +36,17 @@ function searchObject() {
                         performTelescopeSearch();
                     } else {
                         console.warn('Telescope position search failed:', data.message || 'Unknown error');
-                        alert(`Telescope position not available: ${data.message || 'No telescope selected or unable to contact telescope'}`);
+                        alert(_('Telescope position not available: {reason}', { reason: data.message || _('No telescope selected or unable to contact telescope') }));
                     }
                 })
                 .catch(err => {
                     console.error('Telescope search error:', err);
-                    alert('Error fetching telescope position. Check browser console for details.');
+                    alert(_('Error fetching telescope position. Check browser console for details.'));
                 });
         } else if (telescopePosition) {
             performTelescopeSearch();
         } else {
-            alert('Telescope position not available. Make sure a telescope is selected.');
+            alert(_('Telescope position not available. Make sure a telescope is selected.'));
         }
         return;
     }
@@ -174,7 +174,7 @@ function searchObject() {
             const raHMS = decimalToHMS(foundObject.ra);
             const decDMS = decimalToDMS(foundObject.dec);
             const displayMagFormatted = (foundObject.mag == null || Number.isNaN(foundObject.mag))
-                ? "not recorded"
+                ? _("not recorded")
                 : foundObject.mag.toFixed(2);
             
             const displayName = foundObject.friendlyName 
@@ -185,18 +185,18 @@ function searchObject() {
             window.currentStarData = { ...foundObject, hourAngle: ha2 };
                 
             document.getElementById('info').innerHTML = 
-                `<b>🔍 ${displayName}</b><br>RA: ${raHMS}<br>DEC: ${decDMS}<br>V-Mag: ${displayMagFormatted}<br>
+                `<b>🔍 ${displayName}</b><br>${_('RA: {ra}', { ra: raHMS })}<br>${_('DEC: {dec}', { dec: decDMS })}<br>${_('V-Mag: {mag}', { mag: displayMagFormatted })}<br>
                  <div style="margin-top: 5px; display: flex; gap: 4px;">
-                    <button onclick="trackObject('${foundObject.name}', ${foundObject.ra}, ${foundObject.dec}, ${foundObject.mag})" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Track</button>
-                    <button onclick="showStarInfoModal(window.currentStarData)" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Advanced Info</button>
+                    <button onclick="trackObject('${foundObject.name}', ${foundObject.ra}, ${foundObject.dec}, ${foundObject.mag})" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Track')}</button>
+                    <button onclick="showStarInfoModal(window.currentStarData)" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Advanced Info')}</button>
                  </div>`;
         } else {
-            alert(data.message || 'Object not found.');
+            alert(data.message || _('Object not found.'));
         }
     })
     .catch(error => {
         console.error('Search error:', error);
-        alert('Search failed. Please try again.');
+        alert(_('Search failed. Please try again.'));
     });
 }
 
@@ -306,13 +306,13 @@ function clearSearch() {
 function performTelescopeSearch() {
     if (!telescopePosition) {
         console.error('performTelescopeSearch called but telescopePosition is null');
-        alert('Telescope position not available.');
+        alert(_('Telescope position not available.'));
         return;
     }
     
     // Create a searchedObject from telescopePosition
     const telescopeObj = {
-        name: 'Telescope',
+        name: _('Telescope'),
         ra: telescopePosition.ra,
         dec: telescopePosition.dec,
         mag: -99, // Very bright so it shows up
@@ -331,9 +331,9 @@ function performTelescopeSearch() {
     window.currentStarData = { ...telescopeObj };
     
     document.getElementById('info').innerHTML = 
-        `<b>🔍 Telescope Position</b><br>RA: ${raHMS}<br>DEC: ${decDMS}<br>
+        `<b>🔍 ${_('Telescope Position')}</b><br>${_('RA: {ra}', { ra: raHMS })}<br>${_('DEC: {dec}', { dec: decDMS })}<br>
          <div style="margin-top: 5px; display: flex; gap: 4px;">
-            <button onclick="clearSearch()" style="padding: 4px 8px; background: #999; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">Clear</button>
+            <button onclick="clearSearch()" style="padding: 4px 8px; background: #999; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Clear')}</button>
          </div>`;
     
     draw();

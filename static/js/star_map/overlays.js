@@ -293,10 +293,10 @@ function drawHorizonGrid(lat, lon) {
 
     // Draw and label cardinal directions
     const cardinals = [
-        { az: 0, label: "N" },
-        { az: 90, label: "E" },
-        { az: 180, label: "S" },
-        { az: 270, label: "W" }
+        { az: 0, label: _p('compass', 'N') },
+        { az: 90, label: _p('compass', 'E') },
+        { az: 180, label: _p('compass', 'S') },
+        { az: 270, label: _p('compass', 'W') }
     ];
     
     ctx.font = "16px sans-serif";
@@ -439,8 +439,8 @@ function drawEquatorialGrid() {
                 const [cx, cy] = project([x, y, z]);
                 let haHours = ha / 15;
                 let label;
-                if (Math.abs(haHours) < 0.5) label = 'HA 0h';
-                else label = `HA ${(haHours > 0 ? '+' : '')}${Math.round(haHours)}h`;
+                if (Math.abs(haHours) < 0.5) label = _('HA {h}h', { h: 0 });
+                else label = _('HA {h}h', { h: (haHours > 0 ? '+' : '') + Math.round(haHours) });
                 ctx.fillText(label, cx - 18, cy + 15);
             }
         }
