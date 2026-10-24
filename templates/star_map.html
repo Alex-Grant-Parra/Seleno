@@ -477,6 +477,25 @@
             display: flex; gap: 12px;
         }
         #align-camera .align-actions button { flex: 1; min-height: 52px; font-size: 17px; }
+        /* Search suggestions: in the panel's flow, so a scrolling panel never clips them */
+        #search-suggestions {
+            list-style: none; margin: 0 0 4px; padding: 2px 0; max-height: 240px; overflow-y: auto;
+            background: #1a1a1a; border: 1px solid #555; border-radius: 3px;
+        }
+        #search-suggestions li {
+            padding: 5px 8px; cursor: pointer; display: flex; justify-content: space-between;
+            gap: 8px; align-items: baseline;
+        }
+        #search-suggestions li[aria-selected="true"], #search-suggestions li:hover { background: #2f4f2f; }
+        #search-suggestions .hint, .search-note { color: #aaa; font-size: 0.85em; }
+        #search-suggestions .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+        .search-note { margin-top: 4px; }
+        .search-choices { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+        .search-choices button {
+            padding: 3px 8px; background: #333; color: #fff; border: 1px solid #666;
+            border-radius: 3px; cursor: pointer; font-size: 0.9em;
+        }
+        .search-choices button:hover { background: #2f4f2f; }
     </style>
 </head>
 <body>
@@ -558,7 +577,10 @@
     </div>
     <div style="margin-top: 8px;">
         <label>{{ _('Search Object:') }}</label>
-        <input type="text" id="search-object" placeholder="{{ _('HD, NGC, IC, M, or planet name') }}" style="width: 100%; padding: 4px; margin: 4px 0; border: 1px solid #555; background: #222; color: #fff; border-radius: 3px;">
+        <input type="text" id="search-object" placeholder="{{ _('Name, constellation, planet, HD, NGC, IC or M') }}" autocomplete="off" spellcheck="false"
+               role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-suggestions"
+               style="width: 100%; padding: 4px; margin: 4px 0; border: 1px solid #555; background: #222; color: #fff; border-radius: 3px;">
+        <ul id="search-suggestions" role="listbox" aria-label="{{ _('Suggestions') }}" hidden></ul>
         <div style="display: flex; gap: 4px;">
             <button id="search-btn" style="flex: 1; padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;">{{ _('Search') }}</button>
             <button id="clear-search-btn" style="flex: 1; padding: 4px 8px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer;">{{ _('Clear') }}</button>
@@ -612,6 +634,7 @@
             <li>{{ _('Toggle the ecliptic line') }}</li>
             <li>{{ _('Toggle constellation figures for the 24 most prominent constellations, with optional names. The line data comes from d3-celestial and every vertex has been snapped onto a star in this catalogue, so the figures meet the stars they are drawn from') }}</li>
             <li>{{ _('Toggle star names to label named objects - 407 stars carrying an official IAU proper name, plus the named clusters, nebulae and galaxies in this catalogue. Search accepts those names too (try "Mizar", "Algol" or "Andromeda Galaxy")') }}</li>
+            <li>{{ _('Search finds names in every language the map offers and forgives small typos ("Betelguese" finds Betelgeuse). Suggestions appear as you type: pick one with the arrow keys and Enter, or click it. Catalogue numbers (HD, NGC, IC, M) must be exact, so "M13" never turns into M31') }}</li>
             <li>{{ _('Tick "Unknown magnitude" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against') }}</li>
             <li>{{ _('Tick "Render stats" for a readout of how many objects the last frame drew and how long it took') }}</li>
             <li>{{ _('Reset view to default orientation and zoom') }}</li>
@@ -662,7 +685,7 @@
 <!-- Star map scripts share one global scope and must load in this order
      (controls.js last: it wires up functions defined in the others).
      Cache-busting query param to ensure latest JS is fetched. -->
-{% set star_map_js_version = '2026-10-24-2' %}
+{% set star_map_js_version = '2026-10-24-3' %}
 {% for module in ['core', 'astronomy', 'time_control', 'catalogue', 'planets', 'overlays',
                   'render', 'input', 'object_info', 'telescope', 'search', 'device_orientation',
                   'controls'] %}

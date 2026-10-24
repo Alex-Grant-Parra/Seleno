@@ -136,13 +136,7 @@ if (searchBtn) searchBtn.addEventListener('click', searchObject);
 else console.warn('searchBtn not found');
 if (clearSearchBtn) clearSearchBtn.addEventListener('click', clearSearch);
 else console.warn('clearSearchBtn not found');
-searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        searchObject();
-    } else if (e.key === 'Escape') {
-        clearSearch();
-    }
-});
+searchInput.addEventListener('keydown', handleSearchKeydown);
 
 // Global Ctrl+F handler to focus search box instead of browser search
 document.addEventListener('keydown', (e) => {

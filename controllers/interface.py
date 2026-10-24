@@ -131,94 +131,95 @@ def _catalog_search_result(entry):
     return result
 
 
+# Alternatives listed under a search result, and how far ahead (in score) a
+# close spelling must be to count as a clear winner: one word fewer left out
+_SEARCH_ALTERNATIVES = 4
+_CLEAR_LEAD = star_catalog.FUZZY_EXTRA_WORD
+
+
+def _search_match(match):
+    """A star_catalog.search() match as the client lists it."""
+    return {key: match[key] for key in ("kind", "key", "name", "matched", "match")}
+
+
+def _search_object_data(kind, key, lang):
+    """The search result's detail data for one object, or None."""
+    if kind == "body":
+        now = datetime.utcnow()
+        celestial = getAllCelestialData(now.year, now.month, now.day, now.hour, now.minute, now.second)
+        if key not in celestial:
+            return None
+        data = format_celestial_data(key, celestial[key])
+        data["label"] = star_catalog.object_label("body", key, lang)
+        return data
+    if kind == "constellation":
+        position = star_catalog.constellation_position(key)
+        if position is None:
+            return None
+        name = star_catalog.object_label("constellation", key, lang)
+        return {"Name": name, "RA": position[0], "DEC": position[1], "V-Mag": None,
+                "type": "constellation", "constellation": key, "label": name}
+    entry = star_catalog.lookup(key)
+    return _catalog_search_result(entry) if entry else None
+
+
 @interface_bp.route("/search_object", methods=["POST"])
 def search_object():
-    data = request.json
-    search_value = data.get("searchValue", "").strip()
+    """Find an object by name (in any language, forgiving small typos), by
+    catalogue number (exact only), or by {"pick": {kind, key}} from a list.
 
-    print(f"Received search query: {search_value}")
+    A clear best match comes back as "success" with its data, how the query
+    matched it, and a few other matches. When several objects match about
+    equally well, it comes back as "choose" with the list instead."""
+    data = request.json or {}
+    query = str(data.get("searchValue", "")).strip()[:120]
+    lang = request_language()
+    pick = data.get("pick") if isinstance(data.get("pick"), dict) else None
 
-    result = None
-
-    searchableCelestials = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"]
-    try:
-        norm = search_value.strip()
-        # "Luna", "Júpiter"... name the same bodies as "moon", "jupiter"
-        body = norm.lower() if norm.lower() in searchableCelestials else star_catalog.find_body(norm)
-        if body in searchableCelestials:
-            search_value = body
-            now = datetime.utcnow()
-            CelestialData = getAllCelestialData(now.year, now.month, now.day, now.hour, now.minute, now.second)
-
-            if search_value in CelestialData:
-                formattedData = format_celestial_data(search_value, CelestialData[search_value])
-                formattedData["label"] = star_catalog.body_name(search_value, request_language()) or formattedData["Name"]
-                print(formattedData)
-                result = formattedData
-            else:
-                print("Celestial object not found.")
-
-        else:
-            # Designations in any common spelling (HD 48915, NGC224, M31), then
-            # names: exact alias first (so "Deneb" doesn't land on Denebola),
-            # then a name prefix, then a substring of any alias
-            entry = star_catalog.lookup(norm)
-            if entry is None:
-                print(f"Searching by common name across the catalogue: {norm}")
-                designation = star_catalog.find_by_proper_name(norm)
-                entry = star_catalog.lookup(designation) if designation else None
-            if entry is None:
-                print("Object not found")
-                return jsonify({"status": "error", "message": _("Object not found")})
-            result = _catalog_search_result(entry)
-
-    except ValueError as e:
-        print(f"Error during search: {e}")
-        return jsonify({"status": "error", "message": _("Invalid search format")})
-
-    if result:
-        # Check if result is a dictionary
-        if isinstance(result, dict):
-            result_data = result
-        else:
-            result_data = {column: getattr(result, column) for column in result.__table__.columns.keys()}
-
-        name = result_data.get('Name', "Null")
-        ra = float(result_data.get('RA', 0))  # Default to 0 if RA is missing or None
-        dec = float(result_data.get('DEC', 0))  # Default to 0 if DEC is missing or None
-        mag = result_data.get('V-Mag', 0)  # Default to 0 if V-Mag is missing or None
-
-        # Bayer letter, variable-star ID and displayed name from the catalogue
-        try:
-            record = star_catalog.star_name_record(name) or {}
-        except Exception:
-            record = {}
-
-        if record.get('bayer'):
-            result_data['bayer'] = record['bayer']
-        if record.get('var'):
-            result_data['variableId'] = record['var']
-
-        # Extract friendly common name (non-HD variant) if available
-        friendly_name = None if result_data.get('label') else star_catalog.display_name(name, request_language())
-        if not friendly_name:
-            common_names_raw = result_data.get('commonNames', '') or result_data.get('Common names', '')
-            friendly_name = extract_friendly_common_name(common_names_raw)
-        if friendly_name:
-            result_data['friendlyName'] = friendly_name
-
-
-        # session["selectedObject"] = { # Adds to flask's session
-        #     "name": name,
-        #     "ra": ra,
-        #     "dec": dec,
-        #     "mag": mag
-        # }
-        return jsonify({"status": "success", "data": result_data})
+    if pick and pick.get("kind") in ("catalog", "body", "constellation") and pick.get("key"):
+        kind, key = pick["kind"], str(pick["key"])
+        best, alternatives = None, []
     else:
-        print("Object not found")
+        matches = star_catalog.search(query, lang, limit=_SEARCH_ALTERNATIVES + 1)
+        if not matches:
+            return jsonify({"status": "error", "message": _("Object not found")})
+        best, rest = matches[0], matches[1:]
+        clear = (best["match"] != "fuzzy" or not rest
+                 or best["score"] - rest[0]["score"] >= _CLEAR_LEAD)
+        if not clear:
+            return jsonify({"status": "choose", "query": query,
+                            "matches": [_search_match(m) for m in matches]})
+        # A close spelling only lists other close spellings; a proper match
+        # doesn't drag in near-misses ("Mizar" doesn't offer "Izar")
+        alternatives = [_search_match(m) for m in rest
+                        if best["match"] == "fuzzy" or m["match"] != "fuzzy"]
+        kind, key = best["kind"], best["key"]
+
+    result_data = _search_object_data(kind, key, lang)
+    if result_data is None:
         return jsonify({"status": "error", "message": _("Object not found")})
-    
+
+    name = result_data.get("Name", "Null")
+    record = star_catalog.star_name_record(name) if kind == "catalog" else None
+    record = record or {}
+    if record.get("bayer"):
+        result_data["bayer"] = record["bayer"]
+    if record.get("var"):
+        result_data["variableId"] = record["var"]
+
+    # Displayed name next to the designation: in the visitor's language, else
+    # the first proper name in the catalogue's names column
+    if kind == "catalog":
+        friendly_name = star_catalog.display_name(name, lang) or extract_friendly_common_name(
+            result_data.get("commonNames", "") or result_data.get("Common names", ""))
+        if friendly_name:
+            result_data["friendlyName"] = friendly_name
+
+    result_data["kind"] = kind
+    if best:
+        result_data["match"] = {"query": query, "matched": best["matched"], "match": best["match"]}
+    result_data["alternatives"] = alternatives
+    return jsonify({"status": "success", "data": result_data})
 
 
 def format_celestial_data(name, data):

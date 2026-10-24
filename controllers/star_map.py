@@ -323,6 +323,22 @@ def get_star_names():
     return cache_by_language(resp)
 
 
+@star_map_bp.route("/api/search_suggest")
+def search_suggest():
+    """Up to 8 objects for the search box's suggestions as the visitor types:
+    names in any language (forgiving small typos) or an exact catalogue
+    number. Each has its kind, key, displayed name (in ?lang=) and the name
+    the query matched."""
+    query = (request.args.get("q") or "").strip()[:120]
+    if len(query) < 2:
+        return jsonify({"query": query, "matches": []})
+    matches = star_catalog.search(query, request_language(), limit=8)
+    resp = jsonify({"query": query, "matches": [
+        {key: m[key] for key in ("kind", "key", "name", "matched", "match")} for m in matches]})
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return cache_by_language(resp)
+
+
 @star_map_bp.route("/api/stars_meta")
 def get_stars_meta():
     # Magnitude extremes across the star tables, from the cached catalogue.

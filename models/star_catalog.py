@@ -36,6 +36,14 @@ row there replaces the displayed name for its language and adds search terms
 for everyone, so "Sirio" finds Sirius whatever language the visitor uses.
 Objects without a row keep their English name. They are read with the rest of
 the catalogue, so edits show after a server restart.
+
+Search
+------
+search() scores a query against every name in every language (see the "Name
+search" section): exact names first, then the start of a name, its words in
+any order, part of it, and finally close spellings ("Betelguese"). Catalogue
+numbers only ever match exactly. find_by_proper_name() is the strict version,
+without close spellings, for resolving telescope targets.
 """
 
 import array
@@ -139,30 +147,6 @@ def star_name_record(designation):
     return get_star_names().get(designation)
 
 
-def find_by_proper_name(query):
-    """Catalogue designation for a name, matched ignoring case and accents.
-
-    Any alias in any language counts as an exact match ("Toliman" finds the
-    star displayed as "Rigil Kentaurus B", "Sirio" finds Sirius); failing that,
-    a prefix of a displayed name does ("alpha cen" finds "Alpha Centauri A"),
-    and failing that, any alias containing the query ("andromeda" finds
-    "Andromeda Galaxy"). Henry Draper stars are tried before NGC, and NGC
-    before IC.
-    """
-    needle = fold(query)
-    if not needle:
-        return None
-    prefix_hit = substring_hit = None
-    for designation, names, aliases in get_catalog().search_index:
-        if needle in aliases:
-            return designation
-        if prefix_hit is None and any(name.startswith(needle) for name in names):
-            prefix_hit = designation
-        if substring_hit is None and any(needle in alias for alias in aliases):
-            substring_hit = designation
-    return prefix_hit or substring_hit
-
-
 def localized_name(table, key, lang):
     """An object's name in `lang` from ObjectNamesTable, or None to keep English."""
     entry = get_catalog().translations.get(lang, {}).get((table, key))
@@ -178,18 +162,6 @@ def display_name(designation, lang):
 def body_name(key, lang):
     """A solar-system body's name in `lang` ("moon" -> "Luna"), or None."""
     return localized_name("SolarSystem", str(key or "").lower(), lang)
-
-
-def find_body(query):
-    """The ephemeris key ("moon") for a body's name in any language, or None."""
-    needle = fold(query)
-    if not needle:
-        return None
-    for names in get_catalog().translations.values():
-        for (table, key), entry in names.items():
-            if table == "SolarSystem" and needle in [fold(n) for n in [entry["name"], *entry["aliases"]]]:
-                return key
-    return None
 
 
 def lookup(query):
@@ -222,6 +194,338 @@ def get_constellations(lang=None):
         name = localized_name("ConstellationsTable", figure["id"], lang)
         named.append({**figure, "name": name} if name else figure)
     return named
+
+
+# ---------------------------------------------------------------------------
+# Name search
+#
+# One index holds every name an object answers to, in every language: the
+# catalogue tables' names and aliases, ObjectNamesTable's names, the planets'
+# and the constellations'. A query is scored against each name (exact, start
+# of the name, start of its words in any order, part of it, then a close
+# spelling), and each object keeps its best score. Nothing here is specific to
+# a language: a new language only needs its rows in ObjectNamesTable (and,
+# optionally, its small words in SEARCH_STOPWORDS).
+#
+# Catalogue numbers (HD 48915, NGC 224, IC 434, M31) never take part: they
+# only ever match exactly, through lookup(), so "M13" can't turn into M31.
+# ---------------------------------------------------------------------------
+
+# English names of the bodies the ephemeris knows, by its keys
+SOLAR_SYSTEM = {"sun": "Sun", "moon": "Moon", "mercury": "Mercury", "venus": "Venus",
+                "mars": "Mars", "jupiter": "Jupiter", "saturn": "Saturn", "uranus": "Uranus",
+                "neptune": "Neptune", "pluto": "Pluto"}
+
+# Rough brightness, used only to rank the bodies among equally good matches
+_BODY_MAGS = {"sun": -26.7, "moon": -12.7, "venus": -4.4, "jupiter": -2.5, "mars": -1.5,
+              "mercury": -0.5, "saturn": 0.5, "uranus": 5.7, "neptune": 7.8, "pluto": 14.4}
+_CONSTELLATION_MAG = 0.0
+
+# Small words that don't have to match ("galaxia andromeda" finds "Galaxia de
+# Andrómeda"). Every language's list applies to every query, since people
+# search in more than one language.
+SEARCH_STOPWORDS = {
+    "en": {"the", "of", "a"},
+    "es": {"el", "la", "los", "las", "de", "del", "y"},
+}
+_STOPWORDS = frozenset(word for words in SEARCH_STOPWORDS.values() for word in words)
+
+# Match kinds, best first, with their scores. A close spelling scores
+# SCORE_FUZZY, less FUZZY_STEP for each letter changed and FUZZY_EXTRA_WORD
+# for each word of the name the query left out, so "jupter" is Jupiter rather
+# than Jupiter's Ghost Nebula.
+SCORES = {"exact": 100, "prefix": 90, "words": 80, "substring": 70}
+SCORE_FUZZY = 60
+FUZZY_STEP = 5
+FUZZY_EXTRA_WORD = 2
+
+# Queries that are a catalogue number, in any spelling: "M31", "m 31",
+# "Messier 31", "NGC0224", "hd 48915", "IC434"
+_NUMBER_QUERY = re.compile(r"(hd|ngc|ic|m|messier)\s*-?\s*0*(\d+)\s*([a-z]?)")
+
+
+def search_text(text):
+    """A name as the search compares it: folded, apostrophes dropped, other
+    punctuation as spaces ("Barnard's Star" -> "barnards star")."""
+    folded = re.sub(r"['’`]", "", fold(text))
+    return " ".join(re.sub(r"[\W_]+", " ", folded).split())
+
+
+def _content_words(text):
+    words = text.split()
+    return [w for w in words if w not in _STOPWORDS] or words
+
+
+def catalogue_number(query):
+    """The designation lookup() takes for a catalogue-number query
+    ("Messier 31" -> "M31"), or None when the query is a name."""
+    match = _NUMBER_QUERY.fullmatch(fold(query))
+    if not match:
+        return None
+    prefix = "M" if match.group(1) in ("m", "messier") else match.group(1).upper()
+    return f"{prefix}{match.group(2)}{match.group(3).upper()}"
+
+
+def allowed_typos(word):
+    """Letters a query word may get wrong: none up to 4 letters, then 1, then 2
+    from 9. Words with digits ("47", "61") must be exact."""
+    if any(c.isdigit() for c in word):
+        return 0
+    n = len(word)
+    return 0 if n <= 4 else 1 if n <= 8 else 2
+
+
+def edit_distance(a, b, limit):
+    """Letters changed, added, removed or swapped (two neighbours) to turn `a`
+    into `b`; anything over `limit` comes back as limit + 1."""
+    if abs(len(a) - len(b)) > limit:
+        return limit + 1
+    if a == b:
+        return 0
+    before, row = None, list(range(len(b) + 1))
+    for i in range(1, len(a) + 1):
+        current = [i] + [0] * len(b)
+        for j in range(1, len(b) + 1):
+            cost = 0 if a[i - 1] == b[j - 1] else 1
+            best = min(row[j] + 1, current[j - 1] + 1, row[j - 1] + cost)
+            if (before is not None and i > 1 and j > 1
+                    and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]):
+                best = min(best, before[j - 2] + 1)
+            current[j] = best
+        if min(current) > limit:
+            return limit + 1
+        before, row = row, current
+    return min(row[-1], limit + 1)
+
+
+class SearchIndex:
+    """Every searchable name, plus each word's spellings for typo matching."""
+
+    __slots__ = ("entries", "words_by_length")
+
+    def __init__(self, entries):
+        # entries: [(kind, key, original name, lang, rank)]; rank orders
+        # equally good matches (brighter first)
+        self.entries = []
+        seen = set()
+        vocabulary = set()
+        for order, (kind, key, name, lang, rank) in enumerate(entries):
+            text = search_text(name)
+            if not text or (kind, key, text, lang) in seen:
+                continue
+            seen.add((kind, key, text, lang))
+            words = _content_words(text)
+            vocabulary.update(words)
+            self.entries.append((kind, key, name, lang, rank, order, text, tuple(words)))
+        self.words_by_length = {}
+        for word in vocabulary:
+            self.words_by_length.setdefault(len(word), []).append(word)
+
+    def close_words(self, word):
+        """{indexed word: letters changed} for the words within reach of `word`."""
+        limit = allowed_typos(word)
+        close = {}
+        if not limit:
+            return close
+        for length in range(len(word) - limit, len(word) + limit + 1):
+            for candidate in self.words_by_length.get(length, ()):
+                d = edit_distance(word, candidate, limit)
+                if d <= limit:
+                    close[candidate] = d
+        return close
+
+
+def _match_words(query_words, words, test):
+    """Pair each query word with a different word of the name; the sum of
+    test()'s costs, or None if some query word has no partner."""
+    used = set()
+    total = 0
+    for q in query_words:
+        best = None
+        for j, word in enumerate(words):
+            if j in used:
+                continue
+            cost = test(q, word)
+            if cost is not None and (best is None or cost < best[1]):
+                best = (j, cost)
+                if cost == 0:
+                    break
+        if best is None:
+            return None
+        used.add(best[0])
+        total += best[1]
+    return total
+
+
+def _starts(q, word):
+    if any(c.isdigit() for c in q):
+        return 0 if q == word else None
+    return 0 if word.startswith(q) else None
+
+
+def _score(query, query_words, close, text, words, fuzzy):
+    """(score, kind of match) for one indexed name, or None."""
+    if text == query:
+        return SCORES["exact"], "exact"
+    # A number at the end of the query is a whole number: "caldwell 1" is
+    # not the start of "caldwell 14"
+    numeric = query[-1].isdigit()
+    if text.startswith(query + " " if numeric else query):
+        return SCORES["prefix"], "prefix"
+    if _match_words(query_words, words, _starts) is not None:
+        return SCORES["words"], "words"
+    if len(query) >= 3 and (f" {query} " in f" {text} " if numeric else query in text):
+        return SCORES["substring"], "substring"
+    if not fuzzy:
+        return None
+
+    def near(q, word):
+        if _starts(q, word) is not None:
+            return 0
+        return close[q].get(word)
+
+    typos = _match_words(query_words, words, near)
+    if typos:
+        extra = max(0, len(words) - len(query_words))
+        return SCORE_FUZZY - FUZZY_STEP * typos - FUZZY_EXTRA_WORD * extra, "fuzzy"
+    return None
+
+
+def object_label(kind, key, lang):
+    """An object's displayed name in `lang`: a catalogue designation's name
+    (or the designation itself), a body's ("moon" -> "Luna"), a constellation's."""
+    if kind == "body":
+        return body_name(key, lang) or SOLAR_SYSTEM.get(key, str(key).capitalize())
+    if kind == "constellation":
+        name = localized_name("ConstellationsTable", key, lang)
+        if name:
+            return name
+        for figure in get_catalog().constellations:
+            if figure["id"] == key:
+                return figure["name"]
+        return key
+    return display_name(key, lang) or key
+
+
+def search(query, lang=None, limit=8, fuzzy=True, kinds=None):
+    """The objects a name points to, best first, as dicts:
+
+        kind      "catalog", "body" or "constellation"
+        key       the designation (HD48915), ephemeris key (moon) or abbreviation (Ori)
+        name      the object's displayed name in `lang`
+        matched   the name the query matched, in whatever language it is
+        match     number (a catalogue number) | exact | prefix | words | substring | fuzzy
+        score     as in SCORES; a close spelling scores less per typo
+
+    A catalogue-number query only ever returns that object (or nothing).
+    Equally good matches put names in `lang` first, then brighter objects.
+    `fuzzy=False` leaves out close spellings; `kinds` limits the kinds searched.
+    """
+    lang = lang or "en"
+    designation = catalogue_number(query)
+    if designation:
+        catalog = get_catalog()
+        i = catalog.find(designation)
+        if i is None or (kinds and "catalog" not in kinds):
+            return []
+        key = catalog.names[i]
+        return [{"kind": "catalog", "key": key, "name": object_label("catalog", key, lang),
+                 "matched": designation, "match": "number", "score": SCORES["exact"]}]
+
+    text = search_text(query)
+    if not text:
+        return []
+    index = get_catalog().search_index
+    query_words = _content_words(text)
+    close = {q: index.close_words(q) for q in query_words} if fuzzy else {}
+
+    best = {}
+    for kind, key, name, entry_lang, rank, order, entry_text, words in index.entries:
+        if kinds and kind not in kinds:
+            continue
+        scored = _score(text, query_words, close, entry_text, words, fuzzy)
+        if scored is None:
+            continue
+        score, match = scored
+        sort_key = (-score, 0 if entry_lang == lang else 1, rank, order)
+        current = best.get((kind, key))
+        if current is None or sort_key < current[0]:
+            best[(kind, key)] = (sort_key, name, match, score)
+
+    ranked = sorted(best.items(), key=lambda item: item[1][0])[:limit]
+    return [{"kind": kind, "key": key, "name": object_label(kind, key, lang),
+             "matched": name, "match": match, "score": score}
+            for (kind, key), (_sort, name, match, score) in ranked]
+
+
+def find_by_proper_name(query):
+    """Catalogue designation for a name, matched ignoring case and accents, or
+    None. Strict: no close spellings, because this resolves telescope targets."""
+    found = search(query, fuzzy=False, kinds=("catalog",), limit=1)
+    return found[0]["key"] if found else None
+
+
+def find_body(query):
+    """The ephemeris key ("moon") for a body's exact name in any language, or None."""
+    found = search(query, fuzzy=False, kinds=("body",), limit=1)
+    return found[0]["key"] if found and found[0]["match"] == "exact" else None
+
+
+def constellation_position(key):
+    """(ra, dec) in degrees where a constellation's name is drawn, or None."""
+    for figure in get_catalog().constellations:
+        if figure["id"] != key:
+            continue
+        if figure.get("anchor"):
+            return tuple(figure["anchor"])
+        # No label position: the middle of its stars, averaged as vectors so
+        # figures crossing RA 0 don't land on the far side of the sky
+        x = y = z = 0.0
+        for line in figure["lines"]:
+            for ra, dec in line:
+                r, d = math.radians(ra), math.radians(dec)
+                x += math.cos(d) * math.cos(r)
+                y += math.cos(d) * math.sin(r)
+                z += math.sin(d)
+        if not (x or y or z):
+            return None
+        return (math.degrees(math.atan2(y, x)) % 360.0,
+                math.degrees(math.atan2(z, math.hypot(x, y))))
+    return None
+
+
+def _search_entries(names, mag, index, name_records, translations, constellations):
+    """(kind, key, name, lang, rank) for every name SearchIndex should hold."""
+    def catalog_rank(designation):
+        i = index.get(normalize_designation(designation))
+        value = mag[i] if i is not None else float("nan")
+        return 99.0 if value != value else value
+
+    entries = []
+    for designation, record in name_records.items():
+        rank = catalog_rank(designation)
+        for alias in record.get("aliases", ()):
+            if not is_designation(alias):
+                entries.append(("catalog", designation, alias, "en", rank))
+    for key, name in SOLAR_SYSTEM.items():
+        entries.append(("body", key, name, "en", _BODY_MAGS.get(key, 30.0)))
+    for figure in constellations:
+        entries.append(("constellation", figure["id"], figure["name"], "en", _CONSTELLATION_MAG))
+    shown = {figure["id"] for figure in constellations}
+    for lang, by_object in translations.items():
+        for (table, key), entry in by_object.items():
+            if table == "SolarSystem":
+                kind, rank = "body", _BODY_MAGS.get(key, 30.0)
+            elif table == "ConstellationsTable":
+                if key not in shown:
+                    continue
+                kind, rank = "constellation", _CONSTELLATION_MAG
+            else:
+                kind, rank = "catalog", catalog_rank(key)
+            for name in [entry["name"], *entry["aliases"]]:
+                if not is_designation(name):
+                    entries.append((kind, key, name, lang, rank))
+    return entries
 
 
 def _load_name_records():
@@ -263,26 +567,6 @@ def _load_translations():
     for table, key, lang, name, aliases in rows:
         translations.setdefault(lang, {})[(table, key)] = {"name": name, "aliases": split_aliases(aliases)}
     return translations
-
-
-def _build_search_index(name_records, translations):
-    """[(designation, folded displayed names, folded aliases)] for name search,
-    every language's names included, in name_records order (HD, NGC, IC)."""
-    extra = {}
-    for names in translations.values():
-        for (table, key), entry in names.items():
-            if table in ("HDSTARTable", "NGCtable", "IndexTable"):
-                extra.setdefault(key, []).append(entry)
-    index = []
-    for designation in list(name_records) + [d for d in extra if d not in name_records]:
-        record = name_records.get(designation, {})
-        names = [record["name"]] if record.get("name") else []
-        aliases = list(record.get("aliases", ()))
-        for entry in extra.get(designation, ()):
-            names.append(entry["name"])
-            aliases += [entry["name"], *entry["aliases"]]
-        index.append((designation, [fold(n) for n in names], [fold(a) for a in aliases]))
-    return index
 
 
 def _load_messier():
@@ -374,7 +658,8 @@ class StarCatalog:
                 self.index[f"M{number}"] = i
                 self.name_records.setdefault(designation, {"aliases": []})["messier"] = f"M{number}"
         self.translations = translations or {}
-        self.search_index = _build_search_index(self.name_records, self.translations)
+        self.search_index = SearchIndex(_search_entries(
+            names, mag, self.index, self.name_records, self.translations, self.constellations))
 
     def find(self, query):
         """Position of the object a designation names, or None."""

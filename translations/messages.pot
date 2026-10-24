@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SELENO VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-10-24 09:05+0100\n"
+"POT-Creation-Date: 2026-10-24 09:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -72,7 +72,7 @@ msgstr ""
 msgid "Good conditions for this target"
 msgstr ""
 
-#: app/telescope_access.py:106 controllers/star_map.py:473
+#: app/telescope_access.py:106 controllers/star_map.py:495
 msgid "Must be logged in to control telescope"
 msgstr ""
 
@@ -80,14 +80,14 @@ msgstr ""
 msgid "Limited accounts cannot control telescopes."
 msgstr ""
 
-#: app/telescope_access.py:110 controllers/interface.py:398
-#: controllers/star_map.py:594 controllers/star_map.py:652
+#: app/telescope_access.py:110 controllers/interface.py:403
+#: controllers/star_map.py:616 controllers/star_map.py:674
 #: static/js/interface.js:64 static/js/interface.js:658
 #: static/js/interface.js:1528
 msgid "No telescope selected"
 msgstr ""
 
-#: app/telescope_access.py:114 controllers/interface.py:365
+#: app/telescope_access.py:114 controllers/interface.py:370
 msgid "Telescope not found"
 msgstr ""
 
@@ -336,91 +336,87 @@ msgstr ""
 msgid "You can save up to %(MAX_SAVED_PLANS)s plans"
 msgstr ""
 
-#: controllers/interface.py:98
+#: controllers/interface.py:99
 msgid "No camera setting given"
 msgstr ""
 
-#: controllers/interface.py:99
+#: controllers/interface.py:100
 msgid "Settings updated"
 msgstr ""
 
-#: controllers/interface.py:168 controllers/interface.py:216
+#: controllers/interface.py:185 controllers/interface.py:200
 msgid "Object not found"
 msgstr ""
 
-#: controllers/interface.py:173
-msgid "Invalid search format"
-msgstr ""
-
-#: controllers/interface.py:276
+#: controllers/interface.py:281
 msgid "Failed to get camera choices"
 msgstr ""
 
-#: controllers/interface.py:296
+#: controllers/interface.py:301
 msgid "Bulb exposures run from 0 to 900 s"
 msgstr ""
 
-#: controllers/interface.py:311
+#: controllers/interface.py:316
 msgid "Failed to take photo"
 msgstr ""
 
-#: controllers/interface.py:336
+#: controllers/interface.py:341
 msgid "Failed to get telescopes"
 msgstr ""
 
-#: controllers/interface.py:352
+#: controllers/interface.py:357
 msgid "Must be logged in to select telescope"
 msgstr ""
 
-#: controllers/interface.py:359 controllers/interface.py:419
-#: controllers/interface.py:439 controllers/interface.py:470
+#: controllers/interface.py:364 controllers/interface.py:424
+#: controllers/interface.py:444 controllers/interface.py:475
 msgid "Telescope ID is required"
 msgstr ""
 
-#: controllers/interface.py:378
+#: controllers/interface.py:383
 #, python-format
 msgid "Selected telescope: %(telescope_id)s"
 msgstr ""
 
-#: controllers/interface.py:385
+#: controllers/interface.py:390
 msgid "Failed to select telescope"
 msgstr ""
 
-#: controllers/interface.py:405
+#: controllers/interface.py:410
 msgid "Must be logged in to manage telescopes"
 msgstr ""
 
-#: controllers/interface.py:407 controllers/interface.py:464
+#: controllers/interface.py:412 controllers/interface.py:469
 msgid "Admin access required"
 msgstr ""
 
-#: controllers/interface.py:429
+#: controllers/interface.py:434
 msgid "Failed to add telescope"
 msgstr ""
 
-#: controllers/interface.py:456
+#: controllers/interface.py:461
 msgid "Failed to remove telescope"
 msgstr ""
 
-#: controllers/interface.py:496
+#: controllers/interface.py:501
 msgid "Failed to start live view"
 msgstr ""
 
-#: controllers/interface.py:513
+#: controllers/interface.py:518
 msgid "Failed to stop live view"
 msgstr ""
 
-#: controllers/interface.py:702
+#: controllers/interface.py:707
 #, python-format
 msgid "Unknown action: %(action)s"
 msgstr ""
 
-#: controllers/interface.py:764
+#: controllers/interface.py:769
 #, python-format
 msgid "Unknown motor command: %(command)s"
 msgstr ""
 
-#: controllers/interface.py:786
+#: controllers/interface.py:791
 msgid "Failed to execute motor command"
 msgstr ""
 
@@ -428,7 +424,7 @@ msgstr ""
 msgid "This telescope's location isn't known yet. Its owner can set it on the telescope's settings page."
 msgstr ""
 
-#: controllers/interface_api.py:139
+#: controllers/interface_api.py:140
 #, python-format
 msgid "Couldn't find %(name)s"
 msgstr ""
@@ -450,27 +446,27 @@ msgstr ""
 msgid "Too much to record"
 msgstr ""
 
-#: controllers/star_map.py:497
+#: controllers/star_map.py:519
 msgid "Please select a telescope in the Interface page to begin tracking"
 msgstr ""
 
-#: controllers/star_map.py:556
+#: controllers/star_map.py:578
 msgid "Failed to send tracking command"
 msgstr ""
 
-#: controllers/star_map.py:626 static/js/star_map/telescope.js:151
+#: controllers/star_map.py:648 static/js/star_map/telescope.js:151
 msgid "Tracking stopped successfully"
 msgstr ""
 
-#: controllers/star_map.py:638 static/js/star_map/telescope.js:153
+#: controllers/star_map.py:660 static/js/star_map/telescope.js:153
 msgid "Failed to stop tracking"
 msgstr ""
 
-#: controllers/star_map.py:716
+#: controllers/star_map.py:738
 msgid "Telescope returned non-numeric coordinates"
 msgstr ""
 
-#: controllers/star_map.py:732
+#: controllers/star_map.py:754
 msgid "Failed to get telescope position"
 msgstr ""
 
@@ -1011,8 +1007,8 @@ msgstr ""
 msgid "Nothing running."
 msgstr ""
 
-#: static/js/album/jobs.js:76 templates/star_map.html:629
-#: templates/star_map.html:638 templates/star_map.html:646
+#: static/js/album/jobs.js:76 templates/star_map.html:652
+#: templates/star_map.html:661 templates/star_map.html:669
 msgid "Cancel"
 msgstr ""
 
@@ -1302,7 +1298,7 @@ msgid "Plan"
 msgstr ""
 
 #: static/js/album/main.js:620 static/js/album/main.js:753
-#: static/js/album/stack-dialog.js:283 static/js/star_map/search.js:315
+#: static/js/album/stack-dialog.js:283 static/js/star_map/search.js:527
 #: templates/interface.html:44 templates/interface.html:45
 #: templates/interface.html:46
 msgid "Telescope"
@@ -2251,7 +2247,7 @@ msgstr ""
 msgid "New plan"
 msgstr ""
 
-#: static/js/capture-plan.js:280 static/js/star_map/object_info.js:249
+#: static/js/capture-plan.js:280 static/js/star_map/object_info.js:253
 msgid "Value"
 msgstr ""
 
@@ -3012,7 +3008,7 @@ msgid "Last solve {time} · {parts}"
 msgstr ""
 
 #: static/js/interface.js:168 static/js/interface.js:1139
-#: static/js/star_map/object_info.js:298
+#: static/js/star_map/object_info.js:302
 msgid "Unknown"
 msgstr ""
 
@@ -3800,7 +3796,7 @@ msgid ""
 msgstr ""
 
 #: static/js/album/main.js:249 static/js/interface.js:1455
-#: templates/star_map.html:533
+#: templates/star_map.html:552
 msgid "Stars"
 msgstr ""
 
@@ -4239,7 +4235,7 @@ msgstr ""
 msgid "Combining {n} frames"
 msgstr ""
 
-#: static/js/star_map/catalogue.js:299 templates/star_map.html:656
+#: static/js/star_map/catalogue.js:299 templates/star_map.html:679
 msgid "Loading stars…"
 msgstr ""
 
@@ -4248,7 +4244,7 @@ msgstr ""
 msgid "Loading stars… {pct}%"
 msgstr ""
 
-#: static/js/star_map/controls.js:250
+#: static/js/star_map/controls.js:244
 #, python-brace-format
 msgid "Please enter a magnitude value between {min} and {max}"
 msgstr ""
@@ -4415,14 +4411,14 @@ msgstr ""
 msgid "Compass only · tap Align for accuracy"
 msgstr ""
 
-#: static/js/star_map/input.js:36 static/js/star_map/object_info.js:46
-#: static/js/star_map/search.js:188 static/js/star_map/search.js:334
+#: static/js/star_map/input.js:36 static/js/star_map/object_info.js:50
+#: static/js/star_map/search.js:368 static/js/star_map/search.js:546
 #, python-brace-format
 msgid "RA: {ra}"
 msgstr ""
 
-#: static/js/star_map/input.js:37 static/js/star_map/object_info.js:47
-#: static/js/star_map/search.js:188 static/js/star_map/search.js:334
+#: static/js/star_map/input.js:37 static/js/star_map/object_info.js:51
+#: static/js/star_map/search.js:368 static/js/star_map/search.js:546
 #, python-brace-format
 msgid "DEC: {dec}"
 msgstr ""
@@ -4441,191 +4437,191 @@ msgstr ""
 msgid "Swipe to rotate. Pinch to zoom. Tap a star/planet for info."
 msgstr ""
 
-#: static/js/star_map/object_info.js:8 templates/star_map.html:494
+#: static/js/star_map/object_info.js:8 templates/star_map.html:513
 msgid "Drag to rotate. Click a star/planet for info."
 msgstr ""
 
-#: static/js/star_map/object_info.js:17 static/js/star_map/object_info.js:308
-#: static/js/star_map/search.js:177 static/js/star_map/telescope.js:129
+#: static/js/star_map/object_info.js:17 static/js/star_map/object_info.js:312
+#: static/js/star_map/search.js:351 static/js/star_map/telescope.js:129
 msgid "not recorded"
 msgstr ""
 
-#: static/js/star_map/object_info.js:48 static/js/star_map/search.js:188
+#: static/js/star_map/object_info.js:52 static/js/star_map/search.js:368
 #, python-brace-format
 msgid "V-Mag: {mag}"
 msgstr ""
 
-#: static/js/star_map/object_info.js:61 static/js/star_map/search.js:190
+#: static/js/star_map/object_info.js:65 static/js/star_map/search.js:364
 msgid "Track"
 msgstr ""
 
-#: static/js/star_map/object_info.js:62 static/js/star_map/search.js:191
+#: static/js/star_map/object_info.js:66 static/js/star_map/search.js:365
 msgid "Advanced Info"
 msgstr ""
 
-#: static/js/star_map/object_info.js:207
+#: static/js/star_map/object_info.js:211
 msgid "Detailed Information"
 msgstr ""
 
-#: static/js/star_map/object_info.js:212 static/js/star_map/object_info.js:213
+#: static/js/star_map/object_info.js:216 static/js/star_map/object_info.js:217
 msgid "RA (decimal degrees)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:214 static/js/star_map/object_info.js:215
+#: static/js/star_map/object_info.js:218 static/js/star_map/object_info.js:219
 msgid "DEC (decimal degrees)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:216
+#: static/js/star_map/object_info.js:220
 msgid "Hour Angle (degrees)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:217
+#: static/js/star_map/object_info.js:221
 msgid "Phase Name"
 msgstr ""
 
-#: static/js/star_map/object_info.js:218
+#: static/js/star_map/object_info.js:222
 msgid "Phase Angle (degrees)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:219
+#: static/js/star_map/object_info.js:223
 msgid "Moon Illumination Fraction"
 msgstr ""
 
-#: static/js/star_map/object_info.js:220
+#: static/js/star_map/object_info.js:224
 msgid "Moon Elongation (degrees)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:221 static/js/star_map/object_info.js:222
+#: static/js/star_map/object_info.js:225 static/js/star_map/object_info.js:226
 msgid "Visual Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:223
+#: static/js/star_map/object_info.js:227
 msgid "Blue Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:224
+#: static/js/star_map/object_info.js:228
 msgid "Ultraviolet Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:225
+#: static/js/star_map/object_info.js:229
 msgid "Red Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:226
+#: static/js/star_map/object_info.js:230
 msgid "Infrared Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:227
+#: static/js/star_map/object_info.js:231
 msgid "J-band Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:228
+#: static/js/star_map/object_info.js:232
 msgid "H-band Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:229
+#: static/js/star_map/object_info.js:233
 msgid "K-band Magnitude"
 msgstr ""
 
-#: static/js/star_map/object_info.js:230 static/js/star_map/object_info.js:231
+#: static/js/star_map/object_info.js:234 static/js/star_map/object_info.js:235
 msgid "All Names"
 msgstr ""
 
-#: static/js/star_map/object_info.js:232 static/js/star_map/object_info.js:233
+#: static/js/star_map/object_info.js:236 static/js/star_map/object_info.js:237
 msgid "Spectral Type"
 msgstr ""
 
-#: static/js/star_map/object_info.js:234 static/js/star_map/object_info.js:235
+#: static/js/star_map/object_info.js:238 static/js/star_map/object_info.js:239
 msgid "Parallax (mas)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:236
+#: static/js/star_map/object_info.js:240
 msgid "Proper Motion RA (mas/yr)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:237
+#: static/js/star_map/object_info.js:241
 msgid "Proper Motion DEC (mas/yr)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:238
+#: static/js/star_map/object_info.js:242
 msgid "Radial Velocity (km/s)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:239
+#: static/js/star_map/object_info.js:243
 msgid "Distance (pc)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:240
+#: static/js/star_map/object_info.js:244
 msgid "Luminosity"
 msgstr ""
 
-#: static/js/star_map/object_info.js:241
+#: static/js/star_map/object_info.js:245
 msgid "Temperature (K)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:242
+#: static/js/star_map/object_info.js:246
 msgid "Mass (Solar masses)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:243
+#: static/js/star_map/object_info.js:247
 msgid "Radius (Solar radii)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:244
+#: static/js/star_map/object_info.js:248
 msgid "Age (Gyr)"
 msgstr ""
 
-#: static/js/star_map/object_info.js:245
+#: static/js/star_map/object_info.js:249
 msgid "Metallicity [Fe/H]"
 msgstr ""
 
-#: static/js/star_map/object_info.js:249
+#: static/js/star_map/object_info.js:253
 msgid "Property"
 msgstr ""
 
-#: static/js/star_map/object_info.js:268
+#: static/js/star_map/object_info.js:272
 msgid "No additional information available for this object."
 msgstr ""
 
-#: static/js/star_map/object_info.js:281
+#: static/js/star_map/object_info.js:285
 msgid "Hide Advanced Information"
 msgstr ""
 
-#: static/js/star_map/object_info.js:286 static/js/star_map/object_info.js:359
+#: static/js/star_map/object_info.js:290 static/js/star_map/object_info.js:363
 msgid "Show Advanced Information"
 msgstr ""
 
-#: static/js/star_map/object_info.js:336
+#: static/js/star_map/object_info.js:340
 msgid "Object Information"
 msgstr ""
 
-#: static/js/star_map/object_info.js:343
+#: static/js/star_map/object_info.js:347
 msgid "Identifier:"
 msgstr ""
 
-#: static/js/star_map/object_info.js:346 static/js/star_map/telescope.js:125
+#: static/js/star_map/object_info.js:350 static/js/star_map/telescope.js:125
 msgid "RA:"
 msgstr ""
 
-#: static/js/star_map/object_info.js:349 static/js/star_map/telescope.js:126
+#: static/js/star_map/object_info.js:353 static/js/star_map/telescope.js:126
 msgid "DEC:"
 msgstr ""
 
-#: static/js/star_map/object_info.js:352 static/js/star_map/telescope.js:128
+#: static/js/star_map/object_info.js:356 static/js/star_map/telescope.js:128
 #: static/js/star_map/telescope.js:129
 msgid "Magnitude:"
 msgstr ""
 
-#: static/js/star_map/object_info.js:369
+#: static/js/star_map/object_info.js:373
 msgid "Track Object"
 msgstr ""
 
-#: static/js/star_map/object_info.js:370 templates/album.html:361
+#: static/js/star_map/object_info.js:374 templates/album.html:361
 #: templates/album.html:440 templates/album.html:459 templates/album.html:479
 #: templates/base.html:146 templates/interface.html:486
 #: templates/interface.html:507 templates/interface.html:566
 #: templates/interface.html:579 templates/interface.html:664
-#: templates/star_map.html:621
+#: templates/star_map.html:644
 msgid "Close"
 msgstr ""
 
@@ -4653,57 +4649,85 @@ msgstr ""
 msgid "{loaded}/{total} loaded"
 msgstr ""
 
-#: static/js/star_map/search.js:12
-msgid "Please enter a search term."
-msgstr ""
-
-#: static/js/star_map/search.js:17
+#: static/js/star_map/search.js:25
 msgid "telescope"
 msgstr ""
 
-#: static/js/star_map/search.js:19
+#: static/js/star_map/search.js:34
+msgid "Solar System"
+msgstr ""
+
+#: static/js/star_map/search.js:35 static/js/star_map/search.js:367
+msgid "Constellation"
+msgstr ""
+
+#: static/js/star_map/search.js:175
+msgid "Please enter a search term."
+msgstr ""
+
+#: static/js/star_map/search.js:182
 msgid "No telescope selected. Please select a telescope first."
 msgstr ""
 
-#: static/js/star_map/search.js:39
+#: static/js/star_map/search.js:202
 #, python-brace-format
 msgid "Telescope position not available: {reason}"
 msgstr ""
 
-#: static/js/star_map/search.js:39
+#: static/js/star_map/search.js:202
 msgid "No telescope selected or unable to contact telescope"
 msgstr ""
 
-#: static/js/star_map/search.js:44
+#: static/js/star_map/search.js:207
 msgid "Error fetching telescope position. Check browser console for details."
 msgstr ""
 
-#: static/js/star_map/search.js:49
+#: static/js/star_map/search.js:212
 msgid "Telescope position not available. Make sure a telescope is selected."
 msgstr ""
 
-#: static/js/star_map/search.js:194
-msgid "Object not found."
-msgstr ""
-
-#: static/js/star_map/search.js:199
-msgid "Search failed. Please try again."
-msgstr ""
-
-#: static/js/star_map/search.js:309
-msgid "Telescope position not available."
-msgstr ""
-
-#: static/js/star_map/search.js:334
-msgid "Telescope Position"
-msgstr ""
-
-#: static/js/star_map/search.js:336 templates/album.html:189
-#: templates/interface.html:348 templates/star_map.html:564
+#: static/js/star_map/search.js:363 static/js/star_map/search.js:409
+#: static/js/star_map/search.js:548 templates/album.html:189
+#: templates/interface.html:348 templates/star_map.html:586
 msgid "Clear"
 msgstr ""
 
-#: static/js/star_map/telescope.js:117 templates/star_map.html:498
+#: static/js/star_map/search.js:375
+msgid "Object not found."
+msgstr ""
+
+#: static/js/star_map/search.js:380
+msgid "Search failed. Please try again."
+msgstr ""
+
+#: static/js/star_map/search.js:390
+#, python-brace-format
+msgid "Closest match for “{query}”"
+msgstr ""
+
+#: static/js/star_map/search.js:393
+#, python-brace-format
+msgid "Found by its name “{name}”"
+msgstr ""
+
+#: static/js/star_map/search.js:397
+msgid "Other matches:"
+msgstr ""
+
+#: static/js/star_map/search.js:406
+#, python-brace-format
+msgid "No exact match for “{query}”. Did you mean:"
+msgstr ""
+
+#: static/js/star_map/search.js:521
+msgid "Telescope position not available."
+msgstr ""
+
+#: static/js/star_map/search.js:546
+msgid "Telescope Position"
+msgstr ""
+
+#: static/js/star_map/telescope.js:117 templates/star_map.html:517
 msgid "No object being tracked"
 msgstr ""
 
@@ -5912,7 +5936,7 @@ msgid "Search the catalogue"
 msgstr ""
 
 #: templates/interface.html:117 templates/interface.html:491
-#: templates/star_map.html:563
+#: templates/star_map.html:585
 msgid "Search"
 msgstr ""
 
@@ -6702,291 +6726,299 @@ msgstr ""
 msgid "3D Planetarium"
 msgstr ""
 
-#: templates/star_map.html:483
+#: templates/star_map.html:502
 msgid "Loading planetarium..."
 msgstr ""
 
-#: templates/star_map.html:485
+#: templates/star_map.html:504
 msgid "Toggle controls"
 msgstr ""
 
-#: templates/star_map.html:486
+#: templates/star_map.html:505
 msgid "Point your phone at the sky"
 msgstr ""
 
-#: templates/star_map.html:490
+#: templates/star_map.html:509
 msgid "Align"
 msgstr ""
 
-#: templates/star_map.html:491
+#: templates/star_map.html:510
 msgid "Use compass"
 msgstr ""
 
-#: templates/star_map.html:496
+#: templates/star_map.html:515
 msgid "Tracking Status"
 msgstr ""
 
-#: templates/star_map.html:500
+#: templates/star_map.html:519
 msgid "Stop Tracking"
 msgstr ""
 
-#: templates/star_map.html:504
+#: templates/star_map.html:523
 msgid "Mag ≤"
 msgstr ""
 
-#: templates/star_map.html:508
+#: templates/star_map.html:527
 msgid "Auto-adjust magnitude on zoom"
 msgstr ""
 
-#: templates/star_map.html:510
+#: templates/star_map.html:529
 msgid "Latitude:"
 msgstr ""
 
-#: templates/star_map.html:513
+#: templates/star_map.html:532
 msgid "Longitude:"
 msgstr ""
 
-#: templates/star_map.html:517
+#: templates/star_map.html:536
 msgid "Time (local):"
 msgstr ""
 
-#: templates/star_map.html:520
+#: templates/star_map.html:539
 msgid "Set to current time"
 msgstr ""
 
-#: templates/star_map.html:520
+#: templates/star_map.html:539
 msgid "Now"
 msgstr ""
 
-#: templates/star_map.html:524
+#: templates/star_map.html:543
 msgid "Live Time"
 msgstr ""
 
-#: templates/star_map.html:528
+#: templates/star_map.html:547
 msgid "Grid shows Hour Angle (HA) using your longitude and the selected time."
 msgstr ""
 
-#: templates/star_map.html:534
+#: templates/star_map.html:553
 msgid "Planets"
 msgstr ""
 
-#: templates/star_map.html:537
+#: templates/star_map.html:556
 msgid "Label named objects: the 407 stars with an official IAU proper name, plus named clusters, nebulae and galaxies. Brightest first."
 msgstr ""
 
-#: templates/star_map.html:538
+#: templates/star_map.html:557
 msgid "Star names"
 msgstr ""
 
-#: templates/star_map.html:540
+#: templates/star_map.html:559
 msgid "Figures for the 24 most prominent constellations. Every vertex sits on a star in this catalogue."
 msgstr ""
 
-#: templates/star_map.html:541
+#: templates/star_map.html:560
 msgid "Constellations"
 msgstr ""
 
-#: templates/star_map.html:543
+#: templates/star_map.html:562
 msgid "Label each figure with its constellation name"
 msgstr ""
 
-#: templates/star_map.html:544
+#: templates/star_map.html:563
 msgid "Constellation names"
 msgstr ""
 
-#: templates/star_map.html:548
+#: templates/star_map.html:567
 msgid "Horizon Grid"
 msgstr ""
 
-#: templates/star_map.html:549
+#: templates/star_map.html:568
 msgid "Equatorial Grid"
 msgstr ""
 
-#: templates/star_map.html:550
+#: templates/star_map.html:569
 msgid "Ecliptic"
 msgstr ""
 
-#: templates/star_map.html:553
+#: templates/star_map.html:572
 msgid "RA/DEC at cursor"
 msgstr ""
 
-#: templates/star_map.html:554
+#: templates/star_map.html:573
 msgid "Az/Elv at cursor"
 msgstr ""
 
-#: templates/star_map.html:557
+#: templates/star_map.html:576
 msgid "Invert controls"
 msgstr ""
 
-#: templates/star_map.html:560
+#: templates/star_map.html:579
 msgid "Search Object:"
 msgstr ""
 
-#: templates/star_map.html:561
-msgid "HD, NGC, IC, M, or planet name"
-msgstr ""
-
-#: templates/star_map.html:568
-msgid "Advanced settings"
-msgstr ""
-
-#: templates/star_map.html:570
-msgid "Catalogue objects with no recorded V-Mag. They are drawn separately, in blue."
-msgstr ""
-
-#: templates/star_map.html:571
-msgid "Unknown magnitude"
-msgstr ""
-
-#: templates/star_map.html:574
-msgid "Below-horizon tint"
-msgstr ""
-
-#: templates/star_map.html:576
-msgid "Tint opacity"
-msgstr ""
-
-#: templates/star_map.html:577 templates/star_map.html:628
-msgid "Apply"
-msgstr ""
-
-#: templates/star_map.html:581
-msgid "Render stats"
+#: templates/star_map.html:580
+msgid "Name, constellation, planet, HD, NGC, IC or M"
 msgstr ""
 
 #: templates/star_map.html:583
-msgid "Magnitude limit added when zoom doubles on this device"
-msgstr ""
-
-#: templates/star_map.html:584
-msgid "Zoom/magnitude ratio"
-msgstr ""
-
-#: templates/star_map.html:589
-msgid "Reset View"
+msgid "Suggestions"
 msgstr ""
 
 #: templates/star_map.html:590
-msgid "Help"
+msgid "Advanced settings"
 msgstr ""
 
-#: templates/star_map.html:594
-msgid "3D Planetarium Controls"
+#: templates/star_map.html:592
+msgid "Catalogue objects with no recorded V-Mag. They are drawn separately, in blue."
+msgstr ""
+
+#: templates/star_map.html:593
+msgid "Unknown magnitude"
 msgstr ""
 
 #: templates/star_map.html:596
-msgid "Drag mouse to rotate the sky"
-msgstr ""
-
-#: templates/star_map.html:597
-msgid "Scroll wheel to zoom in/out (auto-adjusts magnitude to show fainter stars when zoomed in)"
+msgid "Below-horizon tint"
 msgstr ""
 
 #: templates/star_map.html:598
-msgid "Click a star/planet for info"
+msgid "Tint opacity"
 msgstr ""
 
-#: templates/star_map.html:599
-msgid "Right-click magnitude slider for custom values"
-msgstr ""
-
-#: templates/star_map.html:600
-msgid "Touch: swipe with one finger to rotate the sky"
-msgstr ""
-
-#: templates/star_map.html:601
-msgid "Touch: pinch with two fingers to zoom in/out"
-msgstr ""
-
-#: templates/star_map.html:602
-msgid "Touch: tap a star/planet for info"
+#: templates/star_map.html:599 templates/star_map.html:651
+msgid "Apply"
 msgstr ""
 
 #: templates/star_map.html:603
-msgid "Touch: use the ☰ button to show/hide these controls"
-msgstr ""
-
-#: templates/star_map.html:604
-msgid "Touch: press and hold the magnitude slider for custom values"
+msgid "Render stats"
 msgstr ""
 
 #: templates/star_map.html:605
-msgid "Phone: tap 🧭 and hold your phone up to the sky - the map follows where the back of the phone points. Tap Align and centre a bright object in the camera to correct the compass; align on a second object for the best accuracy. Pinch still zooms; dragging hands control back to your finger"
+msgid "Magnitude limit added when zoom doubles on this device"
 msgstr ""
 
 #: templates/star_map.html:606
-msgid "Adjust magnitude filter to show/hide faint stars"
-msgstr ""
-
-#: templates/star_map.html:607
-msgid "Toggle \"Auto-adjust magnitude on zoom\" to link zoom level with star visibility"
-msgstr ""
-
-#: templates/star_map.html:608
-msgid "Set your latitude/longitude for local sky orientation"
-msgstr ""
-
-#: templates/star_map.html:609
-msgid "Toggle stars/planets visibility"
-msgstr ""
-
-#: templates/star_map.html:610
-msgid "Toggle horizon grid (altitude/azimuth with N/E/S/W)"
+msgid "Zoom/magnitude ratio"
 msgstr ""
 
 #: templates/star_map.html:611
-msgid "Toggle equatorial grid (HA/DEC: Hour Angle and Declination)"
+msgid "Reset View"
 msgstr ""
 
 #: templates/star_map.html:612
-msgid "Toggle the ecliptic line"
-msgstr ""
-
-#: templates/star_map.html:613
-msgid "Toggle constellation figures for the 24 most prominent constellations, with optional names. The line data comes from d3-celestial and every vertex has been snapped onto a star in this catalogue, so the figures meet the stars they are drawn from"
-msgstr ""
-
-#: templates/star_map.html:614
-msgid "Toggle star names to label named objects - 407 stars carrying an official IAU proper name, plus the named clusters, nebulae and galaxies in this catalogue. Search accepts those names too (try \"Mizar\", \"Algol\" or \"Andromeda Galaxy\")"
-msgstr ""
-
-#: templates/star_map.html:615
-msgid "Tick \"Unknown magnitude\" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against"
+msgid "Help"
 msgstr ""
 
 #: templates/star_map.html:616
-msgid "Tick \"Render stats\" for a readout of how many objects the last frame drew and how long it took"
-msgstr ""
-
-#: templates/star_map.html:617
-msgid "Reset view to default orientation and zoom"
+msgid "3D Planetarium Controls"
 msgstr ""
 
 #: templates/star_map.html:618
-msgid "Use the Time control to preview the sky at any date/time; the grid labels show Hour Angle (HA)."
+msgid "Drag mouse to rotate the sky"
 msgstr ""
 
 #: templates/star_map.html:619
-msgid "Tip: Focus the Time box and press Arrow Up/Down to adjust with rollover. Move the caret over year/month/day/hour/minute to change that unit. If caret isn't available, use Shift (hour), Ctrl (day), Alt (month), or Ctrl+Shift (year)."
+msgid "Scroll wheel to zoom in/out (auto-adjusts magnitude to show fainter stars when zoomed in)"
+msgstr ""
+
+#: templates/star_map.html:620
+msgid "Click a star/planet for info"
+msgstr ""
+
+#: templates/star_map.html:621
+msgid "Right-click magnitude slider for custom values"
+msgstr ""
+
+#: templates/star_map.html:622
+msgid "Touch: swipe with one finger to rotate the sky"
+msgstr ""
+
+#: templates/star_map.html:623
+msgid "Touch: pinch with two fingers to zoom in/out"
+msgstr ""
+
+#: templates/star_map.html:624
+msgid "Touch: tap a star/planet for info"
 msgstr ""
 
 #: templates/star_map.html:625
-msgid "Set Magnitude Limit:"
+msgid "Touch: use the ☰ button to show/hide these controls"
 msgstr ""
 
 #: templates/star_map.html:626
-msgid "e.g. 6.5"
+msgid "Touch: press and hold the magnitude slider for custom values"
+msgstr ""
+
+#: templates/star_map.html:627
+msgid "Phone: tap 🧭 and hold your phone up to the sky - the map follows where the back of the phone points. Tap Align and centre a bright object in the camera to correct the compass; align on a second object for the best accuracy. Pinch still zooms; dragging hands control back to your finger"
+msgstr ""
+
+#: templates/star_map.html:628
+msgid "Adjust magnitude filter to show/hide faint stars"
+msgstr ""
+
+#: templates/star_map.html:629
+msgid "Toggle \"Auto-adjust magnitude on zoom\" to link zoom level with star visibility"
+msgstr ""
+
+#: templates/star_map.html:630
+msgid "Set your latitude/longitude for local sky orientation"
+msgstr ""
+
+#: templates/star_map.html:631
+msgid "Toggle stars/planets visibility"
+msgstr ""
+
+#: templates/star_map.html:632
+msgid "Toggle horizon grid (altitude/azimuth with N/E/S/W)"
+msgstr ""
+
+#: templates/star_map.html:633
+msgid "Toggle equatorial grid (HA/DEC: Hour Angle and Declination)"
+msgstr ""
+
+#: templates/star_map.html:634
+msgid "Toggle the ecliptic line"
 msgstr ""
 
 #: templates/star_map.html:635
-msgid "Align on a bright object"
+msgid "Toggle constellation figures for the 24 most prominent constellations, with optional names. The line data comes from d3-celestial and every vertex has been snapped onto a star in this catalogue, so the figures meet the stars they are drawn from"
 msgstr ""
 
 #: templates/star_map.html:636
+msgid "Toggle star names to label named objects - 407 stars carrying an official IAU proper name, plus the named clusters, nebulae and galaxies in this catalogue. Search accepts those names too (try \"Mizar\", \"Algol\" or \"Andromeda Galaxy\")"
+msgstr ""
+
+#: templates/star_map.html:637
+msgid "Search finds names in every language the map offers and forgives small typos (\"Betelguese\" finds Betelgeuse). Suggestions appear as you type: pick one with the arrow keys and Enter, or click it. Catalogue numbers (HD, NGC, IC, M) must be exact, so \"M13\" never turns into M31"
+msgstr ""
+
+#: templates/star_map.html:638
+msgid "Tick \"Unknown magnitude\" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against"
+msgstr ""
+
+#: templates/star_map.html:639
+msgid "Tick \"Render stats\" for a readout of how many objects the last frame drew and how long it took"
+msgstr ""
+
+#: templates/star_map.html:640
+msgid "Reset view to default orientation and zoom"
+msgstr ""
+
+#: templates/star_map.html:641
+msgid "Use the Time control to preview the sky at any date/time; the grid labels show Hour Angle (HA)."
+msgstr ""
+
+#: templates/star_map.html:642
+msgid "Tip: Focus the Time box and press Arrow Up/Down to adjust with rollover. Move the caret over year/month/day/hour/minute to change that unit. If caret isn't available, use Shift (hour), Ctrl (day), Alt (month), or Ctrl+Shift (year)."
+msgstr ""
+
+#: templates/star_map.html:648
+msgid "Set Magnitude Limit:"
+msgstr ""
+
+#: templates/star_map.html:649
+msgid "e.g. 6.5"
+msgstr ""
+
+#: templates/star_map.html:658
+msgid "Align on a bright object"
+msgstr ""
+
+#: templates/star_map.html:659
 msgid "Pick one you can see. You'll centre it in the camera, which corrects the compass. Aligning on a second object, well away from the first, fixes all three axes."
 msgstr ""
 
-#: templates/star_map.html:647
+#: templates/star_map.html:670
 msgid "Lock"
 msgstr ""
 

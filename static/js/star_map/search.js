@@ -1,20 +1,183 @@
-// Star map - object search and flying the view to a result.
+// Star map - object search, its suggestions, and flying the view to a result.
 
 // Search state
 let searchedObject = null;
 let highlightAnimation = 0;
 let searchHighlightUntil = 0; // the ring pulses until this time, then sits still
 
-// Function to search for objects
-function searchObject() {
+const searchSuggestions = document.getElementById('search-suggestions');
+let suggestTimer = 0;
+let suggestSeq = 0;      // drops answers to queries the box no longer holds
+let suggestItems = [];
+let suggestActive = -1;
+
+// Lower case without accents, as the server compares names ("Orión" = "orion")
+function searchFold(text) {
+    return String(text || '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
+
+function escapeSearchHtml(text) {
+    return String(text == null ? '' : text).replace(/[&<>"']/g,
+        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function isTelescopeQuery(text) {
+    return ['telescope', _('telescope').toLowerCase()].includes(String(text).trim().toLowerCase());
+}
+
+// What a match is, for the grey hint beside it: the name it matched when that
+// isn't the name shown (another language, an alias), otherwise its kind
+function searchMatchHint(match) {
+    if (match.match !== 'number' && match.matched && searchFold(match.matched) !== searchFold(match.name)) {
+        return match.matched;
+    }
+    if (match.kind === 'body') return _('Solar System');
+    if (match.kind === 'constellation') return _('Constellation');
+    return match.key !== match.name ? match.key : '';
+}
+
+// Buttons for a list of matches; wireSearchChoices() makes them search
+function searchChoicesHtml(matches) {
+    return `<div class="search-choices">${matches.map(m => {
+        const hint = searchMatchHint(m);
+        return `<button type="button" data-pick-kind="${escapeSearchHtml(m.kind)}" data-pick-key="${escapeSearchHtml(m.key)}"`
+            + ` data-pick-name="${escapeSearchHtml(m.name)}"${hint ? ` title="${escapeSearchHtml(hint)}"` : ''}>`
+            + `${escapeSearchHtml(m.name)}</button>`;
+    }).join('')}</div>`;
+}
+
+function wireSearchChoices(container) {
+    container.querySelectorAll('[data-pick-kind]').forEach(button => {
+        button.addEventListener('click', () => {
+            searchInput.value = button.dataset.pickName;
+            searchObject({ kind: button.dataset.pickKind, key: button.dataset.pickKey });
+        });
+    });
+}
+
+// ---- Suggestions as you type -------------------------------------------
+
+function closeSearchSuggestions() {
+    clearTimeout(suggestTimer);
+    suggestSeq++;
+    suggestItems = [];
+    suggestActive = -1;
+    if (!searchSuggestions) return;
+    searchSuggestions.hidden = true;
+    searchSuggestions.innerHTML = '';
+    searchInput.setAttribute('aria-expanded', 'false');
+    searchInput.removeAttribute('aria-activedescendant');
+}
+
+function requestSearchSuggestions() {
+    clearTimeout(suggestTimer);
+    const query = searchInput.value.trim();
+    if (!searchSuggestions || query.length < 2 || isTelescopeQuery(query)) {
+        closeSearchSuggestions();
+        return;
+    }
+    suggestTimer = setTimeout(() => {
+        const seq = ++suggestSeq;
+        const lang = encodeURIComponent(window.I18N_LANG || 'en');
+        fetch(`/api/search_suggest?q=${encodeURIComponent(query)}&lang=${lang}`)
+            .then(r => r.json())
+            .then(data => {
+                if (seq === suggestSeq && searchInput.value.trim() === query) {
+                    renderSearchSuggestions(data.matches || []);
+                }
+            })
+            .catch(err => console.warn('Search suggestions failed:', err));
+    }, 150);
+}
+
+function renderSearchSuggestions(matches) {
+    suggestItems = matches;
+    suggestActive = -1;
+    searchSuggestions.innerHTML = '';
+    if (!matches.length) {
+        closeSearchSuggestions();
+        return;
+    }
+    matches.forEach((match, i) => {
+        const item = document.createElement('li');
+        item.id = `search-suggestion-${i}`;
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', 'false');
+        const name = document.createElement('span');
+        name.textContent = match.name;
+        item.appendChild(name);
+        const hint = searchMatchHint(match);
+        if (hint) {
+            const hintEl = document.createElement('span');
+            hintEl.className = 'hint';
+            hintEl.textContent = hint;
+            item.appendChild(hintEl);
+        }
+        // Keep the focus in the box, so a tap doesn't close the list first
+        item.addEventListener('pointerdown', e => e.preventDefault());
+        item.addEventListener('mousedown', e => e.preventDefault());
+        item.addEventListener('click', () => pickSearchSuggestion(i));
+        searchSuggestions.appendChild(item);
+    });
+    searchSuggestions.hidden = false;
+    searchInput.setAttribute('aria-expanded', 'true');
+}
+
+function highlightSearchSuggestion(i) {
+    suggestActive = i;
+    searchSuggestions.querySelectorAll('li').forEach((item, j) => {
+        item.setAttribute('aria-selected', j === i ? 'true' : 'false');
+        if (j === i) item.scrollIntoView({ block: 'nearest' });
+    });
+    if (i >= 0) searchInput.setAttribute('aria-activedescendant', `search-suggestion-${i}`);
+    else searchInput.removeAttribute('aria-activedescendant');
+}
+
+function pickSearchSuggestion(i) {
+    const match = suggestItems[i];
+    if (!match) return;
+    searchInput.value = match.name;
+    searchObject({ kind: match.kind, key: match.key });
+}
+
+// Keys in the search box: arrows move through the suggestions, Enter picks
+// the highlighted one (or searches), Escape closes the list (or clears)
+function handleSearchKeydown(e) {
+    const open = searchSuggestions && !searchSuggestions.hidden && suggestItems.length;
+    if (open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        const next = suggestActive + step;
+        highlightSearchSuggestion(next < -1 ? suggestItems.length - 1 : next >= suggestItems.length ? -1 : next);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (open && suggestActive >= 0) pickSearchSuggestion(suggestActive);
+        else searchObject();
+    } else if (e.key === 'Escape') {
+        if (open) closeSearchSuggestions();
+        else clearSearch();
+    }
+}
+
+if (searchSuggestions) {
+    searchInput.addEventListener('input', requestSearchSuggestions);
+    searchInput.addEventListener('blur', () => setTimeout(closeSearchSuggestions, 150));
+}
+
+// ---- Searching -----------------------------------------------------------
+
+// Search for what the box holds, or for `pick` ({kind, key}) chosen from a list
+function searchObject(pick) {
+    if (!pick || !pick.kind) pick = null; // a click handler passes its event
+    closeSearchSuggestions();
     const searchValue = searchInput.value.trim();
-    if (!searchValue) {
+    if (!pick && !searchValue) {
         alert(_('Please enter a search term.'));
         return;
     }
 
     // Check if searching for "telescope"
-    if (['telescope', _('telescope').toLowerCase()].includes(searchValue.toLowerCase())) {
+    if (!pick && isTelescopeQuery(searchValue)) {
         if (!isTelescopeSelected()) {
             alert(_('No telescope selected. Please select a telescope first.'));
             return;
@@ -56,24 +219,30 @@ function searchObject() {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ searchValue: searchValue })
+        body: JSON.stringify(pick ? { searchValue, pick } : { searchValue })
     })
     .then(response => response.json())
     .then(data => {
+        if (data.status === 'choose' && data.matches && data.matches.length) {
+            showSearchChoices(data.query, data.matches);
+            return;
+        }
         if (data.status === 'success' && data.data) {
             const objData = data.data;
             // Find the object in our stars array or use the search result
             let foundObject = null;
             
             // First try the solar-system objects, then the star catalogue
-            for (const obj of stars) {
+            // (a constellation is neither: it gets a marker of its own below)
+            const isConstellation = objData.kind === 'constellation';
+            for (const obj of (isConstellation ? [] : stars)) {
                 if (obj.name && objData.Name && 
                     obj.name.toLowerCase() === objData.Name.toLowerCase()) {
                     foundObject = obj;
                     break;
                 }
             }
-            if (!foundObject && objData.Name) {
+            if (!foundObject && objData.Name && !isConstellation) {
                 const catalogIndex = findStarByName(objData.Name);
                 if (catalogIndex >= 0) {
                     foundObject = starObjectAt(catalogIndex);
@@ -91,6 +260,7 @@ function searchObject() {
                         ? null
                         : objData['V-Mag'],
                     type: objData.type || 'star',
+                    label: objData.label || null,
                     friendlyName: objData.friendlyName || null,
                     phase_name: objData.phase_name || null,
                     phase_angle_deg: (objData.phase_angle_deg !== undefined && objData.phase_angle_deg !== null)
@@ -121,7 +291,11 @@ function searchObject() {
             moveToObject(foundObject);
             
             // Automatically adjust settings so the found object is actually visible
-            if ((foundObject.mag == null || Number.isNaN(foundObject.mag))
+            if (isConstellation && showConstellations && !showConstellations.checked) {
+                showConstellations.checked = true;
+                showConstellations.dispatchEvent(new Event('change'));
+            }
+            if (!isConstellation && (foundObject.mag == null || Number.isNaN(foundObject.mag))
                 && showUnknownMag && !showUnknownMag.checked) {
                 showUnknownMag.checked = true;
                 loadRemainingStarBands();
@@ -130,7 +304,7 @@ function searchObject() {
             const currentMagLimit = parseFloat(magFilter.value);
             
             // If the object is fainter than current limit, increase the magnitude limit
-            if (objectMag > currentMagLimit) {
+            if (!isConstellation && objectMag > currentMagLimit) {
                 const newMagLimit = Math.ceil(objectMag) + 0.3;
                 const maxSliderMag = parseFloat(magFilter.max) || 20;
                 const clampedMagLimit = Math.min(newMagLimit, maxSliderMag);
@@ -184,12 +358,19 @@ function searchObject() {
             // Store the full data for advanced info modal 
             window.currentStarData = { ...foundObject, hourAngle: ha2 };
                 
-            document.getElementById('info').innerHTML = 
-                `<b>🔍 ${displayName}</b><br>${_('RA: {ra}', { ra: raHMS })}<br>${_('DEC: {dec}', { dec: decDMS })}<br>${_('V-Mag: {mag}', { mag: displayMagFormatted })}<br>
-                 <div style="margin-top: 5px; display: flex; gap: 4px;">
-                    <button onclick="trackObject('${foundObject.name}', ${foundObject.ra}, ${foundObject.dec}, ${foundObject.mag})" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Track')}</button>
-                    <button onclick="showStarInfoModal(window.currentStarData)" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Advanced Info')}</button>
-                 </div>`;
+            const info = document.getElementById('info');
+            const buttons = isConstellation
+                ? `<button onclick="clearSearch()" style="padding: 4px 8px; background: #999; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Clear')}</button>`
+                : `<button onclick="trackObject('${foundObject.name}', ${foundObject.ra}, ${foundObject.dec}, ${foundObject.mag})" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Track')}</button>
+                    <button onclick="showStarInfoModal(window.currentStarData)" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Advanced Info')}</button>`;
+            const details = isConstellation
+                ? `${_('Constellation')}<br>`
+                : `${_('RA: {ra}', { ra: raHMS })}<br>${_('DEC: {dec}', { dec: decDMS })}<br>${_('V-Mag: {mag}', { mag: displayMagFormatted })}<br>`;
+            info.innerHTML =
+                `<b>🔍 ${escapeSearchHtml(displayName)}</b><br>${details}
+                 ${searchResultNoteHtml(objData, [foundObject.friendlyName, foundObject.label || objData.label, foundObject.name])}
+                 <div style="margin-top: 5px; display: flex; gap: 4px;">${buttons}</div>`;
+            wireSearchChoices(info);
         } else {
             alert(data.message || _('Object not found.'));
         }
@@ -198,6 +379,36 @@ function searchObject() {
         console.error('Search error:', error);
         alert(_('Search failed. Please try again.'));
     });
+}
+
+// How the search found its result, when that isn't obvious from the name
+// shown, and the other objects it could have meant
+function searchResultNoteHtml(objData, shownNames) {
+    const match = objData.match;
+    let html = '';
+    if (match && match.match === 'fuzzy') {
+        html += `<div class="search-note">${escapeSearchHtml(_('Closest match for “{query}”', { query: match.query }))}</div>`;
+    } else if (match && match.match !== 'number' && match.matched
+               && !shownNames.some(name => name && searchFold(name) === searchFold(match.matched))) {
+        html += `<div class="search-note">${escapeSearchHtml(_('Found by its name “{name}”', { name: match.matched }))}</div>`;
+    }
+    const others = objData.alternatives || [];
+    if (others.length) {
+        html += `<div class="search-note">${escapeSearchHtml(_('Other matches:'))}</div>${searchChoicesHtml(others)}`;
+    }
+    return html;
+}
+
+// Several objects matched about equally well: list them instead of guessing
+function showSearchChoices(query, matches) {
+    const info = document.getElementById('info');
+    info.innerHTML =
+        `<b>🔍 ${escapeSearchHtml(_('No exact match for “{query}”. Did you mean:', { query }))}</b>
+         ${searchChoicesHtml(matches)}
+         <div style="margin-top: 5px; display: flex; gap: 4px;">
+            <button onclick="clearSearch()" style="padding: 4px 8px; background: #999; color: white; border: none; border-radius: 3px; cursor: pointer; flex: 1;">${_('Clear')}</button>
+         </div>`;
+    wireSearchChoices(info);
 }
 
 // Function to move camera to look at an object
@@ -296,6 +507,7 @@ function moveToObject(obj) {
 
 // Function to clear search
 function clearSearch() {
+    closeSearchSuggestions();
     searchedObject = null;
     searchInput.value = '';
     document.getElementById('info').innerHTML = defaultInfoText();
