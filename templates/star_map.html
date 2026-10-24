@@ -662,7 +662,7 @@
 <!-- Star map scripts share one global scope and must load in this order
      (controls.js last: it wires up functions defined in the others).
      Cache-busting query param to ensure latest JS is fetched. -->
-{% set star_map_js_version = '2026-10-24-1' %}
+{% set star_map_js_version = '2026-10-24-2' %}
 {% for module in ['core', 'astronomy', 'time_control', 'catalogue', 'planets', 'overlays',
                   'render', 'input', 'object_info', 'telescope', 'search', 'device_orientation',
                   'controls'] %}

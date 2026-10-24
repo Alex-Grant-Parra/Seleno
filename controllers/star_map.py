@@ -1,6 +1,7 @@
 import logging
 from flask import Blueprint, Response, jsonify, render_template, request, session
 from flask_babel import gettext as _
+from app.i18n import cache_by_language, request_language
 from datetime import datetime, timezone
 from typing import Optional
 from models import star_catalog
@@ -285,10 +286,10 @@ def get_constellations():
     """Constellation figures for the star map, from ConstellationsTable and
     ConstellationLinesTable. Each line is returned as the coordinates of the two
     catalogue stars it joins."""
-    figures = star_catalog.get_constellations()
+    figures = star_catalog.get_constellations(request_language())
     resp = jsonify({"count": len(figures), "constellations": figures})
     resp.headers["Cache-Control"] = "public, max-age=86400"
-    return resp
+    return cache_by_language(resp)
 
 
 @star_map_bp.route("/api/star_names")
@@ -300,9 +301,10 @@ def get_star_names():
     client can label the brightest ones without another lookup.
     """
     catalog = star_catalog.get_catalog()
+    lang = request_language()
     entries = []
     for designation, record in star_catalog.get_star_names().items():
-        proper = record.get("name")
+        proper = star_catalog.display_name(designation, lang)
         if not proper:
             continue
         i = catalog.find(designation)
@@ -318,7 +320,7 @@ def get_star_names():
     entries.sort(key=lambda e: (e["mag"] is None, e["mag"] if e["mag"] is not None else 0))
     resp = jsonify({"count": len(entries), "stars": entries})
     resp.headers["Cache-Control"] = "public, max-age=86400"
-    return resp
+    return cache_by_language(resp)
 
 
 @star_map_bp.route("/api/stars_meta")
@@ -386,6 +388,7 @@ def get_planets():
         _dt = datetime.utcnow()
 
     celestial_data = getAllCelestialData(_dt.year, _dt.month, _dt.day, _dt.hour, _dt.minute, _dt.second)
+    lang = request_language()
     planets = []
     for obj_name, coords in celestial_data.items():
         ra_h, ra_m, ra_s = coords["ra"]
@@ -396,7 +399,8 @@ def get_planets():
         dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
         obj_payload = {
-            "name": obj_name.capitalize(),
+            "name": obj_name.capitalize(),  # the ID: tracking and /star_info use it
+            "label": star_catalog.body_name(obj_name, lang) or obj_name.capitalize(),
             "ra": ra_deg,
             "dec": dec_deg,
             "mag": mag,
@@ -428,6 +432,7 @@ def star_info(star_name):
 
         obj_payload = {
             "name": star_name.capitalize(),
+            "label": star_catalog.body_name(obj_name_lower, request_language()) or star_name.capitalize(),
             "ra": ra_deg,
             "dec": dec_deg,
             "mag": mag,
@@ -457,8 +462,9 @@ def star_info(star_name):
             response_data["bayer"] = record["bayer"]
         if record.get("var"):
             response_data["variableId"] = record["var"]
-        if record.get("name"):
-            response_data['friendlyName'] = record["name"]
+        friendly = star_catalog.display_name(entry["name"], request_language())
+        if friendly:
+            response_data['friendlyName'] = friendly
         return jsonify(response_data)
 
     return jsonify({"error": "Star not found"}), 404

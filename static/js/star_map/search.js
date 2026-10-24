@@ -179,7 +179,7 @@ function searchObject() {
             
             const displayName = foundObject.friendlyName 
                 ? `${foundObject.name} (${foundObject.friendlyName})`
-                : foundObject.name;
+                : (foundObject.label || objData.label || foundObject.name);
                 
             // Store the full data for advanced info modal 
             window.currentStarData = { ...foundObject, hourAngle: ha2 };

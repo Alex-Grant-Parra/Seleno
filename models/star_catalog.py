@@ -30,6 +30,12 @@ Constellation figures come from ConstellationsTable/ConstellationLinesTable
 (scripts/import_constellations.py), whose lines reference stars by designation.
 Both are built together with the arrays, so they share the catalogue's cache
 and are picked up on the next server start after an import.
+
+Names in other languages come from ObjectNamesTable (see models/tables.py). A
+row there replaces the displayed name for its language and adds search terms
+for everyone, so "Sirio" finds Sirius whatever language the visitor uses.
+Objects without a row keep their English name. They are read with the rest of
+the catalogue, so edits show after a server restart.
 """
 
 import array
@@ -39,13 +45,14 @@ import os
 import re
 import struct
 import threading
+import unicodedata
 from bisect import bisect_left, bisect_right
 
 from sqlalchemy import or_
 
 from app.db import db
 from models.tables import (ConstellationLinesTable, ConstellationsTable,
-                           HDSTARtable, IndexTable, NGCtable)
+                           HDSTARtable, IndexTable, NGCtable, ObjectNamesTable)
 
 # Magnitudes HDSTARTable uses as "not recorded" placeholders. IndexTable and
 # NGCtable magnitudes are genuine all the way out to ~20.4, so the substitution
@@ -95,6 +102,21 @@ def split_aliases(cell):
     return [part.strip() for part in str(cell or "").split(",") if part.strip()]
 
 
+def fold(text):
+    """Lower case without accents, for matching: "orion" finds "Orión"."""
+    decomposed = unicodedata.normalize("NFKD", str(text or ""))
+    return "".join(c for c in decomposed if not unicodedata.combining(c)).casefold().strip()
+
+
+def catalogue_table(designation):
+    """The catalogue table a designation comes from, as ObjectNamesTable names it."""
+    upper = str(designation or "").upper()
+    for prefix, table in (("HD", "HDSTARTable"), ("NGC", "NGCtable"), ("IC", "IndexTable")):
+        if upper.startswith(prefix):
+            return table
+    return None
+
+
 def is_designation(alias):
     """Catalogue numbers such as 'HD 34029' or 'M31', as opposed to names."""
     upper = alias.upper().replace(" ", "")
@@ -118,28 +140,56 @@ def star_name_record(designation):
 
 
 def find_by_proper_name(query):
-    """Catalogue designation for a name, matched case-insensitively.
+    """Catalogue designation for a name, matched ignoring case and accents.
 
-    Any alias counts as an exact match ("Toliman" finds the star displayed as
-    "Rigil Kentaurus B"); failing that, a prefix of the displayed name does
-    ("alpha cen" finds "Alpha Centauri A"), and failing that, any alias
-    containing the query ("andromeda" finds "Andromeda Galaxy"). Henry Draper
-    stars are tried before NGC, and NGC before IC.
+    Any alias in any language counts as an exact match ("Toliman" finds the
+    star displayed as "Rigil Kentaurus B", "Sirio" finds Sirius); failing that,
+    a prefix of a displayed name does ("alpha cen" finds "Alpha Centauri A"),
+    and failing that, any alias containing the query ("andromeda" finds
+    "Andromeda Galaxy"). Henry Draper stars are tried before NGC, and NGC
+    before IC.
     """
-    needle = (query or "").strip().lower()
+    needle = fold(query)
     if not needle:
         return None
     prefix_hit = substring_hit = None
-    for designation, record in get_star_names().items():
-        aliases = [alias.lower() for alias in record.get("aliases", ())]
+    for designation, names, aliases in get_catalog().search_index:
         if needle in aliases:
             return designation
-        name = (record.get("name") or "").lower()
-        if prefix_hit is None and name and name.startswith(needle):
+        if prefix_hit is None and any(name.startswith(needle) for name in names):
             prefix_hit = designation
         if substring_hit is None and any(needle in alias for alias in aliases):
             substring_hit = designation
     return prefix_hit or substring_hit
+
+
+def localized_name(table, key, lang):
+    """An object's name in `lang` from ObjectNamesTable, or None to keep English."""
+    entry = get_catalog().translations.get(lang, {}).get((table, key))
+    return entry["name"] if entry else None
+
+
+def display_name(designation, lang):
+    """A catalogue object's displayed name in `lang`, falling back to English."""
+    record = star_name_record(designation) or {}
+    return localized_name(catalogue_table(designation), designation, lang) or record.get("name")
+
+
+def body_name(key, lang):
+    """A solar-system body's name in `lang` ("moon" -> "Luna"), or None."""
+    return localized_name("SolarSystem", str(key or "").lower(), lang)
+
+
+def find_body(query):
+    """The ephemeris key ("moon") for a body's name in any language, or None."""
+    needle = fold(query)
+    if not needle:
+        return None
+    for names in get_catalog().translations.values():
+        for (table, key), entry in names.items():
+            if table == "SolarSystem" and needle in [fold(n) for n in [entry["name"], *entry["aliases"]]]:
+                return key
+    return None
 
 
 def lookup(query):
@@ -161,9 +211,17 @@ def lookup(query):
     }
 
 
-def get_constellations():
-    """Constellation figures with their lines resolved to coordinates."""
-    return get_catalog().constellations
+def get_constellations(lang=None):
+    """Constellation figures with their lines resolved to coordinates, named
+    in `lang` where ObjectNamesTable has a name for it."""
+    figures = get_catalog().constellations
+    if not lang:
+        return figures
+    named = []
+    for figure in figures:
+        name = localized_name("ConstellationsTable", figure["id"], lang)
+        named.append({**figure, "name": name} if name else figure)
+    return named
 
 
 def _load_name_records():
@@ -190,6 +248,41 @@ def _load_name_records():
             if len(record) > 1 or aliases:
                 records[row[0]] = record
     return records
+
+
+def _load_translations():
+    """lang -> {(ObjectTable, ObjectKey): {name, aliases}} from ObjectNamesTable."""
+    translations = {}
+    try:
+        rows = db.session.query(ObjectNamesTable.ObjectTable, ObjectNamesTable.ObjectKey,
+                                ObjectNamesTable.Lang, ObjectNamesTable.Name,
+                                ObjectNamesTable.Aliases).all()
+    except Exception as exc:
+        print(f"star_catalog: could not read ObjectNamesTable: {exc}")
+        return translations
+    for table, key, lang, name, aliases in rows:
+        translations.setdefault(lang, {})[(table, key)] = {"name": name, "aliases": split_aliases(aliases)}
+    return translations
+
+
+def _build_search_index(name_records, translations):
+    """[(designation, folded displayed names, folded aliases)] for name search,
+    every language's names included, in name_records order (HD, NGC, IC)."""
+    extra = {}
+    for names in translations.values():
+        for (table, key), entry in names.items():
+            if table in ("HDSTARTable", "NGCtable", "IndexTable"):
+                extra.setdefault(key, []).append(entry)
+    index = []
+    for designation in list(name_records) + [d for d in extra if d not in name_records]:
+        record = name_records.get(designation, {})
+        names = [record["name"]] if record.get("name") else []
+        aliases = list(record.get("aliases", ()))
+        for entry in extra.get(designation, ()):
+            names.append(entry["name"])
+            aliases += [entry["name"], *entry["aliases"]]
+        index.append((designation, [fold(n) for n in names], [fold(a) for a in aliases]))
+    return index
 
 
 def _load_messier():
@@ -252,10 +345,11 @@ class StarCatalog:
     """Flat, magnitude-sorted view of every catalogue object."""
 
     __slots__ = ("names", "ra", "dec", "mag", "count", "known_count", "min_mag",
-                 "max_mag", "version", "name_records", "constellations", "index")
+                 "max_mag", "version", "name_records", "constellations", "index",
+                 "translations", "search_index")
 
     def __init__(self, names, ra, dec, mag, known_count, version,
-                 name_records=None, constellations=None, messier=None):
+                 name_records=None, constellations=None, messier=None, translations=None):
         self.names = names
         self.ra = ra
         self.dec = dec
@@ -279,6 +373,8 @@ class StarCatalog:
             if i is not None:
                 self.index[f"M{number}"] = i
                 self.name_records.setdefault(designation, {"aliases": []})["messier"] = f"M{number}"
+        self.translations = translations or {}
+        self.search_index = _build_search_index(self.name_records, self.translations)
 
     def find(self, query):
         """Position of the object a designation names, or None."""
@@ -388,6 +484,7 @@ def build_catalog():
         name_records=_load_name_records(),
         constellations=_resolve_constellations(figures, figure_lines, figure_coordinates),
         messier=_load_messier(),
+        translations=_load_translations(),
     )
 
 

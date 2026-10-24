@@ -21,9 +21,10 @@ function showObjectInfoPanel(obj, data, ha) {
     // paint rather than a round trip later.
     const local = starNameById.get(obj.name);
     const friendlyName = (data && data.friendlyName) || (local && local.name) || null;
+    const ownName = obj.label || (data && data.label) || (data && data.name) || obj.name;
     const displayName = friendlyName
         ? `${(data && data.name) || obj.name} (${friendlyName})`
-        : ((data && data.name) ? data.name : obj.name);
+        : ownName;
     const btnPadding = isTouchDevice ? '10px 8px' : '4px 8px';
 
     // Store the full data for the advanced info modal with additional context
@@ -32,6 +33,9 @@ function showObjectInfoPanel(obj, data, ha) {
         : { name: obj.name, ra: obj.ra, dec: obj.dec, mag: obj.mag, hourAngle: ha };
     if (!window.currentStarData.friendlyName && friendlyName) {
         window.currentStarData.friendlyName = friendlyName;
+    }
+    if (!window.currentStarData.friendlyName && ownName !== obj.name) {
+        window.currentStarData.friendlyName = ownName; // a planet's name in the page's language
     }
     if (!window.currentStarData.bayer && local && local.bayer) {
         window.currentStarData.bayer = local.bayer;
@@ -207,7 +211,7 @@ function generateAdvancedInfo(star) {
     let advancedHtml = "<h6 style='margin-bottom: 1rem; color: #007bff;'>📋 " + _("Detailed Information") + "</h6>";
     
     // Create a table of all available properties
-    const excludeKeys = ['name', 'Name', 'friendlyName'];
+    const excludeKeys = ['name', 'Name', 'friendlyName', 'label'];
     const propertyMappings = {
         'ra': _('RA (decimal degrees)'),
         'RA': _('RA (decimal degrees)'),

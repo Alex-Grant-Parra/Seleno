@@ -40,6 +40,26 @@ def select_locale():
     return request.accept_languages.best_match(LANGUAGES.keys()) or DEFAULT_LANGUAGE
 
 
+def request_language():
+    """The language to answer in: a valid ?lang= first (cached responses carry
+    it in their URL), then the visitor's choice."""
+    if not has_request_context():
+        return DEFAULT_LANGUAGE
+    requested = request.args.get("lang")
+    if requested in LANGUAGES:
+        return requested
+    return str(get_locale() or DEFAULT_LANGUAGE)
+
+
+def cache_by_language(resp):
+    """For a cacheable response whose text depends on the language: without
+    ?lang= in the URL it depends on the cookie, so caches must keep them apart."""
+    if request.args.get("lang") not in LANGUAGES:
+        resp.headers.add("Vary", "Cookie")
+        resp.headers.add("Vary", "Accept-Language")
+    return resp
+
+
 def compile_catalogs():
     """Rebuild any .mo that is older than its .po, so edits show after a restart."""
     from babel.messages.mofile import write_mo

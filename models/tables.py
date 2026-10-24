@@ -252,6 +252,36 @@ class ConstellationLinesTable(BaseTable):
     StarB = db.Column(db.String(255), nullable=False)
 
 
+# Names for sky objects in languages other than English. English stays in the
+# catalogue tables' own name columns; a row here overrides it for one language.
+# Each row points at the object it names:
+#   ObjectTable  ObjectKey
+#   HDSTARTable  its Name, e.g. "HD48915"
+#   NGCtable     its Name, e.g. "NGC0224"
+#   IndexTable   its Name, e.g. "IC0434"
+#   ConstellationsTable  its Abbr, e.g. "UMa"
+#   SolarSystem  a body as the ephemeris names it, e.g. "moon" (there is no
+#                table for these: PlanetsTable has no Moon or Pluto)
+# scripts/object_names.py lists the rows and reports any whose ObjectKey
+# matches nothing.
+OBJECT_NAME_TABLES = ('HDSTARTable', 'NGCtable', 'IndexTable', 'ConstellationsTable', 'SolarSystem')
+
+
+class ObjectNamesTable(BaseTable):
+    __tablename__ = 'ObjectNamesTable'
+    __table_args__ = (
+        db.UniqueConstraint('ObjectTable', 'ObjectKey', 'Lang', name='uq_object_name'),
+        {'extend_existing': True},
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    ObjectTable = db.Column(db.String(32), nullable=False)    # one of OBJECT_NAME_TABLES
+    ObjectKey = db.Column(db.String(255), nullable=False)     # that table's key for the object
+    Lang = db.Column(db.String(8), nullable=False)            # e.g. "es"
+    Name = db.Column(db.String(255), nullable=False)          # displayed name, e.g. "Sirio"
+    Aliases = db.Column(db.Text, nullable=True)               # more search terms, comma-separated
+
+
 # Star-map metadata added to HDSTARTable by scripts/import_star_names.py:
 #   bayer      - Bayer designation, e.g. "β Per"
 #   variableId - variable-star designation, e.g. "Bet Per"
@@ -267,13 +297,14 @@ HD_STAR_MAP_COLUMNS = {
 
 
 def ensure_star_catalogue_schema(engine=None):
-    """Create the constellation tables and add the star-map columns to
+    """Create the constellation and object-name tables and add the star-map columns to
     HDSTARTable if they are missing. Safe to call repeatedly."""
     from sqlalchemy import inspect, text
 
     engine = engine or db.engine
     ConstellationsTable.__table__.create(bind=engine, checkfirst=True)
     ConstellationLinesTable.__table__.create(bind=engine, checkfirst=True)
+    ObjectNamesTable.__table__.create(bind=engine, checkfirst=True)
 
     inspector = inspect(engine)
     if 'HDSTARTable' not in inspector.get_table_names():

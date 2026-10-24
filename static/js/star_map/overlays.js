@@ -68,7 +68,7 @@ function loadConstellations() {
     if (constellationFigures) return Promise.resolve(constellationFigures);
     if (constellationLoadPromise) return constellationLoadPromise;
 
-    constellationLoadPromise = fetch('/api/constellations')
+    constellationLoadPromise = fetch(`/api/constellations?lang=${encodeURIComponent(window.I18N_LANG || 'en')}`)
         .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();

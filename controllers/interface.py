@@ -20,6 +20,7 @@ from app.telescope_access import (
 )
 from models import star_catalog
 from flask_babel import gettext as _
+from app.i18n import request_language
 
 logger = logging.getLogger(__name__)
 
@@ -142,13 +143,16 @@ def search_object():
     searchableCelestials = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"]
     try:
         norm = search_value.strip()
-        if norm.lower() in searchableCelestials:
-            search_value = norm.lower()
+        # "Luna", "Júpiter"... name the same bodies as "moon", "jupiter"
+        body = norm.lower() if norm.lower() in searchableCelestials else star_catalog.find_body(norm)
+        if body in searchableCelestials:
+            search_value = body
             now = datetime.utcnow()
             CelestialData = getAllCelestialData(now.year, now.month, now.day, now.hour, now.minute, now.second)
 
             if search_value in CelestialData:
                 formattedData = format_celestial_data(search_value, CelestialData[search_value])
+                formattedData["label"] = star_catalog.body_name(search_value, request_language()) or formattedData["Name"]
                 print(formattedData)
                 result = formattedData
             else:
@@ -196,7 +200,7 @@ def search_object():
             result_data['variableId'] = record['var']
 
         # Extract friendly common name (non-HD variant) if available
-        friendly_name = record.get('name')
+        friendly_name = None if result_data.get('label') else star_catalog.display_name(name, request_language())
         if not friendly_name:
             common_names_raw = result_data.get('commonNames', '') or result_data.get('Common names', '')
             friendly_name = extract_friendly_common_name(common_names_raw)

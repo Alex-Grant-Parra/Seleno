@@ -99,6 +99,7 @@ def resolve_target(name, ra=None, dec=None, when=None):
     if not name:
         return None
     key = name.strip().lower()
+    key = key if key == "moon" or key in PLANETS else (star_catalog.find_body(name) or key)
     if key == "moon":
         moon_ra, moon_dec, _unused, _unused2 = sky.moon_position(sky.julian_day(when))
         return {"name": "Moon", "ra": moon_ra, "dec": moon_dec, "moving": True}

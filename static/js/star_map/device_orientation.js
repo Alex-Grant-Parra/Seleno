@@ -646,7 +646,7 @@ async function alignmentCandidates() {
     for (const p of planetsList) {
         if (p.name === 'Sun') continue;
         if (p.name !== 'Moon' && (p.mag == null || p.mag > ALIGN_PLANET_MAG)) continue;
-        found.push({ name: p.name, ra: p.ra, dec: p.dec, mag: p.name === 'Moon' ? -12 : p.mag });
+        found.push({ name: p.name, label: p.label, ra: p.ra, dec: p.dec, mag: p.name === 'Moon' ? -12 : p.mag });
     }
     await loadStarNames();
     if (starNameEntries && starRA) {
@@ -681,7 +681,7 @@ async function openAlignPicker() {
         btn.type = 'button';
         const name = document.createElement('span');
         name.className = 'align-name';
-        name.textContent = target.name + (aligned.has(target.name) ? ' ✓' : '');
+        name.textContent = (target.label || target.name) + (aligned.has(target.name) ? ' ✓' : '');
         const where = document.createElement('span');
         where.className = 'align-where';
         where.textContent = _('{dir}, {alt}° up · mag {mag}', { dir: compassPoint(target.azDeg), alt: Math.round(target.altDeg), mag: target.mag.toFixed(1) });
@@ -752,7 +752,7 @@ function updateAlignHint() {
     alignHintFrame = requestAnimationFrame(updateAlignHint);
 
     const { altDeg, azDeg } = alignTargetAltAz(alignTarget, new Date());
-    const lines = [_('{name}: {dir}, {alt}° above the horizon', { name: alignTarget.name, dir: compassPoint(azDeg), alt: Math.round(altDeg) })];
+    const lines = [_('{name}: {dir}, {alt}° above the horizon', { name: alignTarget.label || alignTarget.name, dir: compassPoint(azDeg), alt: Math.round(altDeg) })];
     if (alignAimAxis === 'top') {
         lines.push(_('No camera: point the top edge of the phone straight at it, sighting along the edge, then tap Lock.'));
     } else if (orientSmoothQ && (orientAlignment || orientCompassOffset != null)) {
@@ -919,7 +919,7 @@ function drawOrientationOverlay(Mview) {
             ctx.font = '12px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(`${searchedObject.name} ${off}°`, ax - dx * 34, ay - dy * 30);
+            ctx.fillText(`${searchedObject.label || searchedObject.name} ${off}°`, ax - dx * 34, ay - dy * 30);
         }
     }
     ctx.restore();
@@ -932,12 +932,12 @@ function refreshOrientStatus() {
         text = _('Waiting for the motion sensors…');
     } else if (orientAlignment) {
         text = orientAlignment.residualDeg == null
-            ? _('Aligned on {name} · align on a 2nd object for full accuracy', { name: orientAlignment.names[0] })
-            : _('Aligned on {names} (±{err}°)', { names: orientAlignment.names.join(' + '), err: Math.max(0.1, orientAlignment.residualDeg).toFixed(1) });
+            ? _('Aligned on {name} · align on a 2nd object for full accuracy', { name: bodyLabel(orientAlignment.names[0]) })
+            : _('Aligned on {names} (±{err}°)', { names: orientAlignment.names.map(bodyLabel).join(' + '), err: Math.max(0.1, orientAlignment.residualDeg).toFixed(1) });
     } else if (orientPendingAlign) {
         text = orientHasIOSCompass
-            ? _('Restoring alignment on {names} · hold the phone flat for a moment', { names: orientPendingAlign.alignment.names.join(' + ') })
-            : _('Restoring alignment on {names}…', { names: orientPendingAlign.alignment.names.join(' + ') });
+            ? _('Restoring alignment on {names} · hold the phone flat for a moment', { names: orientPendingAlign.alignment.names.map(bodyLabel).join(' + ') })
+            : _('Restoring alignment on {names}…', { names: orientPendingAlign.alignment.names.map(bodyLabel).join(' + ') });
     } else if (orientCompassOffset == null) {
         text = orientHasIOSCompass
             ? _('Hold the phone flat for a moment to find north')

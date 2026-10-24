@@ -121,7 +121,7 @@ function updateTrackingPanel(trackingData) {
     // Show panel and update content
     trackingInfoDiv.style.display = 'block';
     trackingContent.innerHTML = `
-        <div><strong>${_('Object:')}</strong> ${trackingData.name}</div>
+        <div><strong>${_('Object:')}</strong> ${bodyLabel(trackingData.name)}</div>
         <div><strong>${_('RA:')}</strong> ${trackingData.ra.toFixed(4)}°</div>
         <div><strong>${_('DEC:')}</strong> ${trackingData.dec.toFixed(4)}°</div>
         ${(trackingData.mag !== undefined && trackingData.mag !== null && !Number.isNaN(trackingData.mag))

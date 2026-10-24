@@ -27,7 +27,8 @@ function replacePlanetsInScene(newPlanets) {
     for (const p of newPlanets) {
         if (!p || typeof p.ra !== 'number' || typeof p.dec !== 'number') continue;
         const obj = {
-            name: p.name,
+            name: p.name,              // the ID: 'Moon', 'Mars'...
+            label: p.label || p.name,  // the displayed name, in the page's language
             ra: p.ra,   // degrees
             dec: p.dec, // degrees
             mag: p.mag,
@@ -71,6 +72,13 @@ function schedulePlanetsRefresh() {
 
 // Planets are kept as a small object list; stars live in the typed arrays
 let planetsList = [];    // updated when planets are replaced
+
+// Displayed name for an object ID: "Moon" -> "Luna" in Spanish. Anything that
+// is not a solar-system body comes back unchanged.
+function bodyLabel(name) {
+    const body = planetsList.find(p => p.name === name);
+    return (body && body.label) || name;
+}
 
 function updatePlanetsList() {
     planetsList = [];

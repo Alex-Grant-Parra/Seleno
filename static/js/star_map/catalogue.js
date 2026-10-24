@@ -173,7 +173,7 @@ function loadStarNames() {
     if (starNameEntries) return Promise.resolve(starNameEntries);
     if (starNameLoadPromise) return starNameLoadPromise;
 
-    starNameLoadPromise = fetch('/api/star_names')
+    starNameLoadPromise = fetch(`/api/star_names?lang=${encodeURIComponent(window.I18N_LANG || 'en')}`)
         .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
