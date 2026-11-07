@@ -1,0 +1,31 @@
+# Page switches
+# ------------
+# Set a page to "off" to show an "Under Construction" page instead of it.
+# Changes apply straight away - no server restart needed.
+#
+# A path also covers everything under it, so "/album = off" disables
+# /album/plans, /album/photos and so on. The most specific line wins,
+# so you can turn "/about" on but "/about/tos" off.
+# "/" only means the landing page itself, not the whole site.
+#
+# Admins still see the real page (with a banner), so you can preview work.
+# Login, logout, admin pages and static files can never be switched off.
+
+/               = on      # Landing page
+/home           = on      # Home
+/StarMap        = on      # Star map
+/map            = on      # Light pollution map
+/album          = on      # Album
+/book           = on      # Book a telescope
+/interface      = on      # Telescope control interface
+/process        = on      # Image processing
+/telescopes     = on      # My telescopes
+/downloads      = on      # Downloads
+/about          = off      # About
+/about/licence  = on      # Licence
+/about/tos      = on      # Terms of service
+/about/privacy  = on      # Privacy policy
+/contact        = on      # Contact form
+/support        = on      # Support tickets
+/profile        = on      # Profile
+/payments       = on      # Payments

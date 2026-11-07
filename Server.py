@@ -416,6 +416,23 @@ def enforce_enabled_account():
     except Exception:
         return None
 
+
+# Pages switched off in config/pages.txt show "Under Construction" (admins still get through)
+from app.page_toggles import is_page_disabled
+
+@app.before_request
+def under_construction():
+    if not is_page_disabled(request.path):
+        return None
+    if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False):
+        if request.method == 'GET' and 'text/html' in (request.headers.get('Accept') or ''):
+            flash('This page is switched off for visitors (config/pages.txt).', 'warning')
+        return None
+    from flask import render_template
+    if request.method != 'GET' or request.accept_mimetypes.best == 'application/json':
+        return jsonify({'error': 'under_construction'}), 503
+    return render_template('errors/under_construction.html'), 503
+
 # Initialize database tables
 with app.app_context():
     db.create_all()
