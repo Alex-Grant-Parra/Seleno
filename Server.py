@@ -167,7 +167,7 @@ try:
             print(f"[CSRF ERROR] {e.description} (failed to log details: {log_e})")
 
         # Prefer JSON response for API-like requests
-        wants_json = 'application/json' in (request.headers.get('Accept') or '') or request.path.startswith('/upload')
+        wants_json = 'application/json' in (request.headers.get('Accept') or '')
         if wants_json:
             return jsonify({
                 "status": "error",

@@ -435,7 +435,7 @@ def _finish_upload(row):
     suffix = 0
     while os.path.exists(dest):
         if _file_sha256(dest) == digest:
-            break  # the same file arrived some other way (the old /upload route)
+            break  # the same file is already there
         suffix += 1
         filename = f"{stem}_{suffix}{dot}{ext}"
         dest = os.path.join(owner_dir, filename)

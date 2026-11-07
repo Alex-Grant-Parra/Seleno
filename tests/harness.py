@@ -79,7 +79,7 @@ tus_mod.PARTIAL_DIR = os.path.join(TMP, "partial")
 album_mod.CAMERA_PHOTOS_BASE_DIR = PHOTOS
 
 for bp in (interface_mod.interface_bp, star_map_mod.star_map_bp, album_mod.album_bp,
-           capture_mod.capture_bp, tus_mod.telescope_uploads_bp, upload_mod.upload_bp,
+           capture_mod.capture_bp, tus_mod.telescope_uploads_bp,
            album_api_mod.album_api_bp, interface_api_mod.interface_api_bp, projects_api_mod.projects_api_bp):
     app.register_blueprint(bp)
 

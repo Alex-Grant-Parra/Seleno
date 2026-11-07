@@ -1,19 +1,259 @@
 {% extends "base.html" %}
 
-{% block title %}About - SELENO{% endblock %}
+{% block title %}{{ _('About - SELENO') }}{% endblock %}
+{% block body_class %}about-page-body{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='about.css') }}">
+{% endblock %}
+
+{#
+    Placeholders: every slot below renders as a dashed box with a "TODO" label so
+    nothing unfinished can pass for real content. Replace the macro call with your
+    own markup when the text or media is ready. Suggested drafts sit in an HTML
+    comment next to each text slot.
+#}
+{% macro text_slot(hint) -%}
+<p class="about-slot about-slot-text"><span class="about-slot-tag">TODO</span> {{ hint }}</p>
+{%- endmacro %}
+
+{% macro media_slot(hint, ratio='16 / 9') -%}
+<div class="about-slot about-slot-media" style="aspect-ratio: {{ ratio }};" role="img" aria-label="{{ hint }} (placeholder)">
+    <span class="about-slot-tag">TODO</span>
+    <span>{{ hint }}</span>
+</div>
+{%- endmacro %}
 
 {% block content %}
-<div class="container text-center mt-5">
-    <h1 class="display-4 fw-bold">About SELENO</h1>
-    <p class="lead">This app allows you to control your telescope remotely and capture images of the night sky.</p>
-    <p class="lead">
-        <a href="{{ url_for('about.licence_page') }}">Software Licence</a><br>
-        <a href="{{ url_for('about.tos') }}">Terms of Service</a><br>
-        <a href="{{ url_for('about.privacy') }}">Privacy Policy</a><br>
-        <a href="https://github.com/Alex-Grant-Parra/SELENO" target="_blank">GitHub Repository (Server)</a><br>
-        <a href="https://github.com/Alex-Grant-Parra/Telescope-Project-Client" target="_blank">GitHub Repository (Client)</a><br>
-        <a href="https://esahubble.org/" target="_blank">Video sources - ESA Hubble</a><br>
-        <a href="http://gphoto.org/proj/libgphoto2/support.php" target ="_blank">Camera support - GPhoto2</a>
-    </p>
+<div class="about-page">
+
+    {# 1. Hero #}
+    <section class="about-hero" aria-labelledby="about-title">
+        <div class="about-hero-copy">
+            <p class="about-eyebrow">{{ _('About SELENO') }}</p>
+            <h1 id="about-title">{{ _('Seleno: explore the night sky, and control a telescope from anywhere.') }}</h1>
+            <p class="about-hero-sub">{{ _('A free star map, remote telescope control and an astrophotography album in one place. Works online, or offline under the stars.') }}</p>
+            <p class="about-status-badge">
+                <span class="about-status-dot" aria-hidden="true"></span>
+                {{ _('Software and firmware complete. Hardware in final assembly. First light coming soon.') }}
+            </p>
+            <div class="about-hero-actions">
+                <a class="btn btn-primary" href="{{ url_for('star_map.star_map') }}">{{ _('Try the star map') }}</a>
+                <a class="about-text-link" href="#A-deeper-look">{{ _('For engineers and recruiters') }} <span aria-hidden="true">↓</span></a>
+            </div>
+        </div>
+        <div class="about-hero-media">
+            {{ media_slot('Hero image or GIF: the star map, or the telescope on the bench', '4 / 3') }}
+        </div>
+    </section>
+
+    {# 2. What it is #}
+    <section class="about-section" aria-labelledby="what-title">
+        <h2 id="what-title">{{ _('What it is') }}</h2>
+        <!-- Draft: Seleno combines an interactive star map, remote telescope control and an image album with stacking and processing. Find something in the sky, point a telescope at it, and process the photos, all in one site. Works over the internet or offline in person. -->
+        {{ text_slot('Short paragraph: what Seleno is, in plain English.') }}
+    </section>
+
+    {# 3. Who it is for #}
+    <section class="about-section" aria-labelledby="who-title">
+        <h2 id="who-title">{{ _('Who it is for') }}</h2>
+        <div class="about-grid about-grid-2">
+            <article class="about-card">
+                <i class="fas fa-seedling about-card-icon" aria-hidden="true"></i>
+                <h3>{{ _('Beginners') }}</h3>
+                <!-- Draft: Start with the star map and be guided to your first target. -->
+                {{ text_slot('One or two sentences for beginners.') }}
+            </article>
+            <article class="about-card">
+                <i class="fas fa-camera-retro about-card-icon" aria-hidden="true"></i>
+                <h3>{{ _('Advanced astrophotographers') }}</h3>
+                <!-- Draft: Remote mount control, plus stacking and processing of your images. -->
+                {{ text_slot('One or two sentences for experienced imagers.') }}
+            </article>
+        </div>
+    </section>
+
+    {# 4. What you can do #}
+    <section class="about-section" aria-labelledby="do-title">
+        <h2 id="do-title">{{ _('What you can do') }}</h2>
+        <div class="about-grid about-grid-3">
+            <article class="about-card about-feature">
+                {{ media_slot('Screenshot or GIF of the star map') }}
+                <h3>{{ _('Explore') }}</h3>
+                <!-- Draft: An interactive star map with more than 110,000 objects. -->
+                {{ text_slot('One line about the star map.') }}
+                <a class="about-card-link" href="{{ url_for('star_map.star_map') }}">{{ _('Open the star map') }} <span aria-hidden="true">→</span></a>
+            </article>
+            <article class="about-card about-feature">
+                {{ media_slot('Screenshot or GIF of the telescope interface') }}
+                <h3>{{ _('Control') }}</h3>
+                <!-- Draft: Point and steer a telescope, from across the world or right next to it. -->
+                {{ text_slot('One line about telescope control.') }}
+            </article>
+            <article class="about-card about-feature">
+                {{ media_slot('Screenshot or GIF of the album and stacking') }}
+                <h3>{{ _('Create') }}</h3>
+                <!-- Draft: Keep your photos in an album, then stack and process them into a finished image. -->
+                {{ text_slot('One line about the album and processing.') }}
+            </article>
+        </div>
+    </section>
+
+    {# 5. Build status #}
+    <section class="about-section" aria-labelledby="status-title">
+        <h2 id="status-title">{{ _('Build status') }}</h2>
+        <ol class="about-status-strip">
+            <li class="about-step is-done">
+                <span class="about-step-marker" aria-hidden="true"><i class="fas fa-check"></i></span>
+                <span class="about-step-name">{{ _('Software and firmware') }}</span>
+                <span class="about-step-state">{{ _('Done') }}</span>
+            </li>
+            <li class="about-step is-active">
+                <span class="about-step-marker" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
+                <span class="about-step-name">{{ _('Hardware assembly') }}</span>
+                <span class="about-step-state">{{ _('In progress') }}</span>
+            </li>
+            <li class="about-step is-next">
+                <span class="about-step-marker" aria-hidden="true"><i class="fas fa-star"></i></span>
+                <span class="about-step-name">{{ _('First light') }}</span>
+                <span class="about-step-state">{{ _('Next') }}</span>
+            </li>
+        </ol>
+    </section>
+
+    {# 6. Follow the build #}
+    <section class="about-section" aria-labelledby="follow-title">
+        <h2 id="follow-title">{{ _('Follow the build') }}</h2>
+        <div class="about-card about-follow">
+            <div>
+                <h3 class="about-follow-label">{{ _('Latest') }}</h3>
+                <ul class="about-log">
+                    <li>{{ _('Printing the mount parts this week.') }}</li>
+                </ul>
+            </div>
+            <!-- TODO: link a build log page, or add a sign up form. Not wired to any service yet. -->
+            {{ text_slot('Build log link or email sign up goes here.') }}
+        </div>
+    </section>
+
+    {# 7. A deeper look #}
+    <section class="about-section about-hood" id="A-deeper-look" tabindex="-1" aria-labelledby="hood-title">
+        <p class="about-eyebrow">{{ _('A deeper look') }}</p>
+        <h2 id="hood-title">{{ _('For engineers and recruiters') }}</h2>
+        <!-- Draft: Seleno is a full stack project I designed and built end to end, from the circuit board to the website. -->
+        {{ text_slot('Intro sentence: full stack project, designed and built end to end.') }}
+
+        <figure class="about-diagram">
+            {% set arch = [
+                ('Browser', 'Star map, interface'),
+                ('Flask server', 'VPS, Cloudflare Tunnel'),
+                ('Telescope node', 'Raspberry Pi Zero 2 W'),
+                ('ESP32', 'Firmware'),
+                ('Motors', 'TMC2209 steppers'),
+            ] %}
+            {% set links = ['HTTPS', 'WebSockets', 'UART', 'Step / dir'] %}
+            {# Wide layout #}
+            <svg class="about-diagram-wide" viewBox="0 0 1000 150" role="img" aria-labelledby="arch-wide-title">
+                <title id="arch-wide-title">Architecture: the browser talks to the Flask server over HTTPS, the server talks to the Raspberry Pi Zero 2 W telescope node over WebSockets, the Pi talks to the ESP32 over UART, and the ESP32 drives the motors.</title>
+                <defs>
+                    <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                        <path d="M0,0 L10,5 L0,10 z" class="arch-arrowhead"/>
+                    </marker>
+                </defs>
+                {% for name, sub in arch %}
+                {% set x = loop.index0 * 205 %}
+                <g transform="translate({{ x }}, 35)">
+                    <rect class="arch-box" width="180" height="80" rx="14"/>
+                    <text class="arch-name" x="90" y="36" text-anchor="middle">{{ name }}</text>
+                    <text class="arch-sub" x="90" y="58" text-anchor="middle">{{ sub }}</text>
+                </g>
+                {% if not loop.last %}
+                <line class="arch-line" x1="{{ x + 182 }}" y1="75" x2="{{ x + 203 }}" y2="75" marker-end="url(#arch-arrow)"/>
+                <text class="arch-link" x="{{ x + 192 }}" y="22" text-anchor="middle">{{ links[loop.index0] }}</text>
+                {% endif %}
+                {% endfor %}
+            </svg>
+            {# Narrow layout, shown on phones #}
+            <svg class="about-diagram-tall" viewBox="0 0 320 560" role="img" aria-labelledby="arch-tall-title">
+                <title id="arch-tall-title">Architecture: Browser to Flask server over HTTPS, to Raspberry Pi Zero 2 W over WebSockets, to ESP32 over UART, to the motors.</title>
+                <defs>
+                    <marker id="arch-arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                        <path d="M0,0 L10,5 L0,10 z" class="arch-arrowhead"/>
+                    </marker>
+                </defs>
+                {% for name, sub in arch %}
+                {% set y = loop.index0 * 115 %}
+                <g transform="translate(40, {{ y }})">
+                    <rect class="arch-box" width="240" height="72" rx="14"/>
+                    <text class="arch-name" x="120" y="32" text-anchor="middle">{{ name }}</text>
+                    <text class="arch-sub" x="120" y="54" text-anchor="middle">{{ sub }}</text>
+                </g>
+                {% if not loop.last %}
+                <line class="arch-line" x1="160" y1="{{ y + 74 }}" x2="160" y2="{{ y + 113 }}" marker-end="url(#arch-arrow-v)"/>
+                <text class="arch-link" x="172" y="{{ y + 98 }}">{{ links[loop.index0] }}</text>
+                {% endif %}
+                {% endfor %}
+            </svg>
+            <figcaption>{{ _('How a command travels from your browser to the telescope motors.') }}</figcaption>
+        </figure>
+
+        <div class="about-grid about-grid-2 about-hood-grid">
+            <article class="about-card">
+                <h3><i class="fas fa-server" aria-hidden="true"></i> Software</h3>
+                <!-- Draft: Flask server talks over WebSockets to Raspberry Pi Zero 2 W nodes on each telescope. The Pi talks over UART to an ESP32 that drives the motors. -->
+                {{ text_slot('Server, telescope nodes and firmware.') }}
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-microchip" aria-hidden="true"></i> Hardware</h3>
+                <!-- Draft: Custom 4 layer PCB designed in KiCad (85 x 50 mm), with TMC2209 stepper drivers, an IMU, an LCD and an on board power stage. Ordered from JLCPCB and hand assembled with SMD parts. -->
+                {{ text_slot('The custom PCB and how it was made.') }}
+                {{ media_slot('PCB photo or render', '3 / 2') }}
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-meteor" aria-hidden="true"></i> Astronomy engine</h3>
+                <!-- Draft: Custom N body engine written by me for planetary and lunar positions. The star map renders 110,000+ objects. -->
+                {{ text_slot('The N body engine and the star map renderer.') }}
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-shield-halved" aria-hidden="true"></i> Security and deployment</h3>
+                <!-- Draft: TOTP two factor login, Fernet encryption, bcrypt, CSRF protection, SQLite. Hosted on a VPS behind a Cloudflare Tunnel so the server IP is not exposed. -->
+                {{ text_slot('Authentication, encryption and hosting.') }}
+            </article>
+            <article class="about-card about-card-wide">
+                <h3><i class="fas fa-graduation-cap" aria-hidden="true"></i> Origin</h3>
+                <!-- Draft: Began as my A Level Computer Science project and has kept growing since. -->
+                {{ text_slot('Where the project started.') }}
+            </article>
+        </div>
+
+        <ul class="about-links">
+            <li><a class="btn btn-ghost" href="https://github.com/Alex-Grant-Parra/SELENO" target="_blank" rel="noopener"><i class="fab fa-github" aria-hidden="true"></i> GitHub (server)</a></li>
+            <li><a class="btn btn-ghost" href="https://github.com/Alex-Grant-Parra/Telescope-Project-Client" target="_blank" rel="noopener"><i class="fab fa-github" aria-hidden="true"></i> GitHub (client)</a></li>
+            {# TODO: replace each href="#" with the real link, then drop the about-link-todo class #}
+            <li><a class="btn btn-ghost about-link-todo" href="#" aria-disabled="true"><i class="fas fa-play" aria-hidden="true"></i> Demo video <span class="about-slot-tag">TODO</span></a></li>
+            <li><a class="btn btn-ghost about-link-todo" href="#" aria-disabled="true"><i class="fas fa-file-pdf" aria-hidden="true"></i> KiCad schematic <span class="about-slot-tag">TODO</span></a></li>
+            <li><a class="btn btn-ghost about-link-todo" href="#" aria-disabled="true"><i class="fas fa-cube" aria-hidden="true"></i> CAD renders <span class="about-slot-tag">TODO</span></a></li>
+        </ul>
+    </section>
+
+    {# 8. About me #}
+    <section class="about-section" aria-labelledby="me-title">
+        <h2 id="me-title">{{ _('About me') }}</h2>
+        <div class="about-card about-me">
+            {{ media_slot('Photo of me', '1 / 1') }}
+            <div>
+                <!-- Draft: I'm Alex, a [TODO: who you are / what you study]. I built Seleno because [TODO: why]. I enjoy work that crosses hardware and software, and I'm looking for [TODO: what kind of role]. -->
+                {{ text_slot('Two or three sentence bio, first person.') }}
+            </div>
+        </div>
+    </section>
+
+    {# 9. Contact #}
+    <section class="about-section about-contact" aria-labelledby="contact-title">
+        <h2 id="contact-title">{{ _('Get in touch') }}</h2>
+        <p><a class="btn btn-primary" href="mailto:support@seleno.org"><i class="fas fa-envelope" aria-hidden="true"></i> support@seleno.org</a></p>
+        <p class="about-muted">{{ _('Or use the') }} <a href="{{ url_for('contact.support_home') }}">{{ _('support page') }}</a>.</p>
+    </section>
+
 </div>
 {% endblock %}

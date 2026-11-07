@@ -1,0 +1,455 @@
+/* About page. Uses the design tokens from style.css. */
+
+.about-page {
+    display: grid;
+    gap: var(--space-7);
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.about-section h2 {
+    font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+    margin-bottom: var(--space-4);
+}
+
+.about-section h3 {
+    font-size: 1.08rem;
+    margin-bottom: var(--space-2);
+}
+
+.about-eyebrow {
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    font-size: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.about-muted {
+    color: var(--text-muted);
+}
+
+/* Placeholders */
+.about-slot {
+    border: 2px dashed color-mix(in oklab, var(--warning) 60%, var(--line));
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklab, var(--warning) 7%, transparent);
+    color: var(--text-muted);
+    font-size: 0.92rem;
+}
+
+.about-slot-text {
+    padding: 0.6rem 0.8rem;
+    margin: 0 0 var(--space-3);
+}
+
+.about-slot-media {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    text-align: center;
+    padding: var(--space-3);
+    width: 100%;
+    margin-bottom: var(--space-3);
+}
+
+.about-slot-tag {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-pill);
+    background: var(--warning);
+    color: #1f1500;
+    vertical-align: middle;
+}
+
+/* Hero */
+.about-hero {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: var(--space-5);
+    align-items: center;
+    padding: clamp(1.6rem, 4vw, 3.2rem);
+    border-radius: var(--radius-lg);
+    background: radial-gradient(circle at 85% 20%, rgba(14, 165, 233, 0.25), transparent 50%),
+                radial-gradient(circle at 10% 90%, rgba(15, 118, 110, 0.3), transparent 50%),
+                #02060f;
+    border: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+    box-shadow: var(--shadow-hard);
+    color: #eef7ff;
+}
+
+.about-hero .about-eyebrow {
+    color: #7dd3fc;
+}
+
+.about-hero h1 {
+    color: #f7fbff;
+    font-size: clamp(1.7rem, 3.6vw, 2.8rem);
+    margin-bottom: var(--space-3);
+}
+
+.about-hero-sub {
+    color: rgba(236, 246, 255, 0.86);
+    font-size: 1.08rem;
+    max-width: 52ch;
+    margin-bottom: var(--space-4);
+}
+
+.about-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(125, 211, 252, 0.35);
+    background: rgba(125, 211, 252, 0.08);
+    color: #dff4ff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: var(--space-4);
+}
+
+.about-status-dot {
+    flex: none;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: #fbbf24;
+    box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.2);
+}
+
+.about-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.about-text-link {
+    color: #7dd3fc;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.about-text-link:hover,
+.about-text-link:focus {
+    color: #f7fbff;
+}
+
+.about-hero .about-slot {
+    color: rgba(236, 246, 255, 0.75);
+    margin: 0;
+}
+
+/* Cards */
+.about-grid {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.about-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.about-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.about-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-soft);
+}
+
+.about-card > :last-child {
+    margin-bottom: 0;
+}
+
+.about-card-wide {
+    grid-column: 1 / -1;
+}
+
+.about-card-icon {
+    font-size: 1.4rem;
+    color: var(--primary);
+    margin-bottom: var(--space-2);
+}
+
+.about-card h3 i {
+    color: var(--primary);
+    margin-right: 0.35rem;
+}
+
+.about-card-link {
+    font-weight: 700;
+}
+
+/* Build status strip */
+.about-status-strip {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    counter-reset: step;
+}
+
+.about-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    background: var(--bg-elevated);
+}
+
+.about-step-marker {
+    grid-row: 1 / span 2;
+    display: grid;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    color: var(--text-muted);
+}
+
+.about-step-name {
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+}
+
+.about-step-state {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.about-step.is-done {
+    border-color: color-mix(in oklab, var(--success) 50%, var(--line));
+}
+
+.about-step.is-done .about-step-marker {
+    background: var(--success);
+    border-color: var(--success);
+    color: #ffffff;
+}
+
+.about-step.is-done .about-step-state {
+    color: var(--success);
+}
+
+.about-step.is-active {
+    border-color: color-mix(in oklab, var(--warning) 60%, var(--line));
+}
+
+.about-step.is-active .about-step-marker {
+    border-color: var(--warning);
+    color: var(--warning);
+}
+
+.about-step.is-active .about-step-state {
+    color: color-mix(in oklab, var(--warning) 75%, var(--text));
+}
+
+.about-step.is-next {
+    border-style: dashed;
+}
+
+/* Follow the build */
+.about-follow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+    align-items: start;
+}
+
+.about-follow-label {
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.about-log {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+/* Under the hood */
+.about-hood {
+    scroll-margin-top: 5rem;
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--line);
+}
+
+.about-hood:focus {
+    outline: none;
+}
+
+.about-hood:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 8px;
+    border-radius: var(--radius-sm);
+}
+
+.about-diagram {
+    margin: var(--space-5) 0;
+    padding: var(--space-4);
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.about-diagram svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.about-diagram-tall {
+    display: none !important;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.about-diagram figcaption {
+    margin-top: var(--space-3);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.arch-box {
+    fill: var(--bg-soft);
+    stroke: color-mix(in oklab, var(--primary) 55%, var(--line));
+    stroke-width: 2;
+}
+
+.arch-name {
+    fill: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    font-size: 17px;
+}
+
+.arch-sub {
+    fill: var(--text-muted);
+    font-size: 13px;
+}
+
+.arch-line {
+    stroke: var(--accent);
+    stroke-width: 2;
+}
+
+.arch-arrowhead {
+    fill: var(--accent);
+}
+
+.arch-link {
+    fill: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.about-hood-grid {
+    margin-bottom: var(--space-4);
+}
+
+.about-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.about-link-todo {
+    opacity: 0.75;
+    pointer-events: none;
+}
+
+/* About me */
+.about-me {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: var(--space-4);
+    align-items: center;
+}
+
+.about-me .about-slot-media {
+    margin: 0;
+    border-radius: 50%;
+}
+
+/* Contact and credits */
+.about-contact {
+    text-align: center;
+}
+
+.about-credits {
+    font-size: 0.92rem;
+}
+
+.about-credits h2 {
+    font-size: 1.05rem;
+}
+
+.about-credits ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+}
+
+@media (max-width: 900px) {
+    .about-hero,
+    .about-grid-3,
+    .about-status-strip,
+    .about-follow {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .about-page {
+        gap: var(--space-6);
+    }
+
+    .about-grid-2,
+    .about-me {
+        grid-template-columns: 1fr;
+    }
+
+    .about-me .about-slot-media {
+        max-width: 160px;
+        margin: 0 auto;
+    }
+
+    .about-diagram-wide {
+        display: none !important;
+    }
+
+    .about-diagram-tall {
+        display: block !important;
+    }
+}
