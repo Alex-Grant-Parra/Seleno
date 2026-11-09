@@ -21,11 +21,11 @@
 /process        = on      # Image processing
 /telescopes     = on      # My telescopes
 /downloads      = on      # Downloads
-/about          = off      # About
+/about          = on      # About
 /about/licence  = on      # Licence
 /about/tos      = on      # Terms of service
 /about/privacy  = on      # Privacy policy
 /contact        = on      # Contact form
 /support        = on      # Support tickets
 /profile        = on      # Profile
-/payments       = on      # Payments
+/payments       = off      # Payments

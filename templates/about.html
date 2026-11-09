@@ -18,7 +18,7 @@
 {%- endmacro %}
 
 {% macro media_slot(hint, ratio='16 / 9') -%}
-<div class="about-slot about-slot-media" style="aspect-ratio: {{ ratio }};" role="img" aria-label="{{ hint }} (placeholder)">
+<div class="about-slot about-slot-media"{{ {'style': 'aspect-ratio: ' ~ ratio ~ ';'}|xmlattr }} role="img" aria-label="{{ hint }} (placeholder)">
     <span class="about-slot-tag">TODO</span>
     <span>{{ hint }}</span>
 </div>
@@ -50,8 +50,12 @@
     {# 2. What it is #}
     <section class="about-section" aria-labelledby="what-title">
         <h2 id="what-title">{{ _('What it is') }}</h2>
-        <!-- Draft: Seleno combines an interactive star map, remote telescope control and an image album with stacking and processing. Find something in the sky, point a telescope at it, and process the photos, all in one site. Works over the internet or offline in person. -->
-        {{ text_slot('Short paragraph: what Seleno is, in plain English.') }}
+        <p>{{ _("Seleno is a complete telescope system: the control software, plus the motor mounts and electronics that drive the telescope. Together they let you control a network of telescopes, at any time, from anywhere on the globe. Image the planet, star, nebula or galaxy of your choice from the comfort of your own home.") }}</p>
+        <p>{{ _("Seleno's automated system runs observation programmes without human intervention, capturing all the different frames and image types needed to produce stunning astrophotography. A live camera view, fine camera settings, histograms and individual motor controls are also available from the interface.") }}</p>
+        <p>{{ _("A core focus of Seleno is making astrophotography more accessible to the wider population, who may be interested in space but struggle with the complex systems currently available. An advanced mode is also available for more experienced users.") }}</p>
+        <p>{{ _("Seleno's star map makes finding and tracking objects simple. Search for an object by name, and the telescope will slew to face it and track it across the sky, keeping up with the rotation of the earth.") }}</p>
+        <p>{{ _("Seleno doesn't need the internet at the telescope, either. Each telescope has a small built in screen and buttons, so it can be set up and operated on the spot, even at a remote dark site with no signal.") }}</p>
+        <p>{{ _("Finally, a booking system lets you rent time on telescopes around the globe, so the object you want to image is always up from at least one of them.") }}</p>
     </section>
 
     {# 3. Who it is for #}
@@ -78,23 +82,21 @@
         <h2 id="do-title">{{ _('What you can do') }}</h2>
         <div class="about-grid about-grid-3">
             <article class="about-card about-feature">
-                {{ media_slot('Screenshot or GIF of the star map') }}
+                <img src="{{ url_for('static', filename='about/star-map.png') }}" alt="{{ _('The Seleno star map, showing Orion, Taurus and Canis Major with constellation lines and coordinate grids') }}" width="1200" height="597" loading="lazy" style="display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border-radius: 0.5rem;">
+
                 <h3>{{ _('Explore') }}</h3>
-                <!-- Draft: An interactive star map with more than 110,000 objects. -->
-                {{ text_slot('One line about the star map.') }}
+                <p>{{ _("Search over 110,000 stars, planets and deep sky objects, and find your next target in seconds.") }}</p>
                 <a class="about-card-link" href="{{ url_for('star_map.star_map') }}">{{ _('Open the star map') }} <span aria-hidden="true">→</span></a>
             </article>
             <article class="about-card about-feature">
                 {{ media_slot('Screenshot or GIF of the telescope interface') }}
                 <h3>{{ _('Control') }}</h3>
-                <!-- Draft: Point and steer a telescope, from across the world or right next to it. -->
-                {{ text_slot('One line about telescope control.') }}
+                <p>{{ _("Run a whole observation programme on autopilot while you get on with your evening.") }}</p>
             </article>
             <article class="about-card about-feature">
                 {{ media_slot('Screenshot or GIF of the album and stacking') }}
                 <h3>{{ _('Create') }}</h3>
-                <!-- Draft: Keep your photos in an album, then stack and process them into a finished image. -->
-                {{ text_slot('One line about the album and processing.') }}
+                <p>{{ _("Turn hours of raw exposures into one stunning image of a galaxy, nebula or planet.") }}</p>
             </article>
         </div>
     </section>
