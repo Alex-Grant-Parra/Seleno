@@ -18,6 +18,7 @@ from cryptography.fernet import Fernet
 os.environ.setdefault("ENCRYPTION_KEY", Fernet.generate_key().decode())
 
 TMP = tempfile.mkdtemp(prefix="seleno-test-")
+os.environ.setdefault("WEATHER_CACHE_DB", os.path.join(TMP, "weather_cache.db"))
 
 from flask import Flask, jsonify
 from flask_login import LoginManager

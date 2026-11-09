@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='map.css') }}">
 {% endblock %}
 
+{% block body_class %}map-body{% endblock %}
+
 {% block content %}
 <section class="map-page">
     <header class="map-header">
@@ -23,99 +25,96 @@
     <div class="map-wrap">
         <div id="world-map" class="map-canvas" role="img" aria-label="World map showing weather and sky brightness layers"></div>
 
-        <aside class="map-panel" aria-label="Map layer controls">
-            <div class="map-panel-section">
-                <h2>Pin by coords</h2>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <input id="coord-search" type="text" placeholder="e.g. 51.4769, 0.0005" aria-label="Coordinates (lat, lon)" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;">
-                    <button id="coord-go" style="padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:inherit;">Pin</button>
-                </div>
-            </div>
-            <div class="map-panel-section">
-                <h2>Layers</h2>
-                <label class="layer-toggle">
-                    <input type="checkbox" data-layer="bortle">
-                    <span>Bortle scale</span>
-                </label>
-                <label class="layer-toggle">
-                    <input type="checkbox" data-layer="rain">
-                    <span>Rain</span>
-                </label>
-                <label class="layer-toggle">
-                    <input type="checkbox" data-layer="wind">
-                    <span>Wind</span>
-                </label>
-                <label class="layer-toggle">
-                    <input type="checkbox" data-layer="temperature">
-                    <span>Temperature</span>
-                </label>
-            </div>
-            <div class="map-panel-section">
-                <h2>Opacity</h2>
-                <label class="range-control">
-                    <span>Weather</span>
-                    <input id="weather-opacity" type="range" min="0.2" max="1" step="0.05" value="0.7">
-                </label>
-                <label class="range-control">
-                    <span>Bortle</span>
-                    <input id="bortle-opacity" type="range" min="0.2" max="1" step="0.05" value="0.6">
-                </label>
-            </div>
-            <div class="map-panel-section map-status" id="map-status" role="status" aria-live="polite"></div>
-        </aside>
+        <!-- Coordinate search: floating bar over the top of the map -->
+        <form class="map-search" id="coord-form" role="search" autocomplete="off">
+            <i class="fa-solid fa-magnifying-glass map-search-icon" aria-hidden="true"></i>
+            <input id="coord-search" type="text" placeholder="Latitude, longitude" title="For example: 51.4769, 0.0005" aria-label="Coordinates (lat, lon)" enterkeyhint="go" spellcheck="false">
+            <button id="coord-go" type="submit" class="map-search-go" aria-label="Pin these coordinates">
+                <span class="map-search-go-text">Pin</span>
+                <i class="fa-solid fa-arrow-right map-search-go-icon" aria-hidden="true"></i>
+            </button>
+            <button id="locate-me" type="button" class="map-locate" aria-label="Go to my location" title="Go to my location">
+                <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+            </button>
+        </form>
 
-        <div class="map-legend" aria-label="Bortle scale legend">
-            <div class="legend-title">Bortle scale</div>
-            <div class="legend-grid">
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-1"></span>
-                    <span>1</span>
+        <!-- On desktop the children float over the map on their own.
+             On phones this becomes a bottom sheet that swipes up for more. -->
+        <div class="map-sheet" id="map-sheet">
+            <button type="button" class="map-sheet-handle" id="map-sheet-handle" aria-expanded="false" aria-controls="map-sheet" aria-label="Show more map options">
+                <span class="map-sheet-grip" aria-hidden="true"></span>
+            </button>
+
+            <aside class="map-panel" aria-label="Map layer controls">
+                <div class="map-panel-section map-layers">
+                    <h2>Layers</h2>
+                    <div class="layer-list">
+                        <label class="layer-toggle">
+                            <input type="checkbox" data-layer="bortle" aria-label="Bortle scale">
+                            <i class="fa-solid fa-moon layer-icon" aria-hidden="true"></i>
+                            <span class="label-long" aria-hidden="true">Bortle scale</span><span class="label-short" aria-hidden="true">Bortle</span>
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" data-layer="rain" aria-label="Rain">
+                            <i class="fa-solid fa-cloud-rain layer-icon" aria-hidden="true"></i>
+                            <span class="label-long" aria-hidden="true">Rain</span><span class="label-short" aria-hidden="true">Rain</span>
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" data-layer="wind" aria-label="Wind">
+                            <i class="fa-solid fa-wind layer-icon" aria-hidden="true"></i>
+                            <span class="label-long" aria-hidden="true">Wind</span><span class="label-short" aria-hidden="true">Wind</span>
+                        </label>
+                        <label class="layer-toggle">
+                            <input type="checkbox" data-layer="temperature" aria-label="Temperature">
+                            <i class="fa-solid fa-temperature-half layer-icon" aria-hidden="true"></i>
+                            <span class="label-long" aria-hidden="true">Temperature</span><span class="label-short" aria-hidden="true">Temp</span>
+                        </label>
+                    </div>
                 </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-2"></span>
-                    <span>2</span>
+                <div class="map-panel-section map-opacity">
+                    <h2>Opacity</h2>
+                    <label class="range-control">
+                        <span>Weather</span>
+                        <input id="weather-opacity" type="range" min="0.2" max="1" step="0.05" value="0.7">
+                    </label>
+                    <label class="range-control">
+                        <span>Bortle</span>
+                        <input id="bortle-opacity" type="range" min="0.2" max="1" step="0.05" value="0.6">
+                    </label>
                 </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-3"></span>
-                    <span>3</span>
+                <div class="map-panel-section map-status" id="map-status" role="status" aria-live="polite"></div>
+            </aside>
+
+            <div class="map-legend" aria-label="Bortle scale legend">
+                <div class="legend-title">Bortle scale</div>
+                <div class="legend-grid">
+                    {% for level in range(1, 10) %}
+                    <div class="legend-item">
+                        <span class="legend-swatch bortle-{{ level }}"></span>
+                        <span>{{ level }}</span>
+                    </div>
+                    {% endfor %}
                 </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-4"></span>
-                    <span>4</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-5"></span>
-                    <span>5</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-6"></span>
-                    <span>6</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-7"></span>
-                    <span>7</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-8"></span>
-                    <span>8</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-swatch bortle-9"></span>
-                    <span>9</span>
+                <div class="legend-note">
+                    <span class="hint-mouse">Right-click the map for the exact value.</span>
+                    <span class="hint-touch">Tap the map for the exact value.</span>
                 </div>
             </div>
-            <div class="legend-note">Right-click the map for the exact value.</div>
-        </div>
-        <!-- Time rail overlaid on the bottom of the map -->
-        <div class="time-rail" aria-label="Weather time scrubber">
-            <div class="time-rail-head">
-                <div>
-                    <div class="time-rail-label">Forecast time</div>
-                    <div class="time-rail-note">Drag to scrub through past 24h and upcoming forecast.</div>
+
+            <!-- Forecast time scrubber -->
+            <div class="time-rail" aria-label="Weather time scrubber">
+                <div class="time-rail-head">
+                    <div>
+                        <div class="time-rail-label">Forecast time</div>
+                        <div class="time-rail-note">Drag to scrub through past 24h and upcoming forecast.</div>
+                    </div>
+                    <div class="time-rail-readout">
+                        <div id="weather-time-value" class="time-rail-value">Loading forecast times…</div>
+                        <button type="button" id="weather-time-now" class="time-rail-now" hidden>Now</button>
+                    </div>
                 </div>
-                <div id="weather-time-value" class="time-rail-value">Loading forecast times…</div>
+                <input id="weather-time-slider" type="range" min="0" max="0" step="1" value="0" disabled aria-label="Forecast time">
             </div>
-            <input id="weather-time-slider" type="range" min="0" max="0" step="1" value="0" disabled>
         </div>
     </div>
 </section>

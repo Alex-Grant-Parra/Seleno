@@ -17,3 +17,5 @@ spiceypy
 markdown
 pybind11
 pygeomag
+omfiles
+fsspec

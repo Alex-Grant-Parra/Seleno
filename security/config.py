@@ -69,6 +69,13 @@ RATE_LIMITS = {
     'blocked': 0            # 0 requests for blocked IPs
 }
 
+# Paths left out of the normal per-minute limit. The world map's weather layers
+# read many small pieces of data (dozens per layer, more while scrubbing the
+# forecast slider), which would trip the limit. Suspicious requests are still limited.
+RATE_LIMIT_EXEMPT_PATHS = [
+    '/map/weather/',
+]
+
 # Security logging
 LOGGING_CONFIG = {
     'log_blocked_requests': True,
@@ -86,6 +93,7 @@ REQUEST_LOGGING_CONFIG = {
     'log_format': 'json',  
     'exclude_paths': [     # Don't log these paths to reduce noise
         '/static/',
+        '/map/weather/',   # the world map reads weather data in many small pieces
         '/favicon.ico',
         '/robots.txt'
     ],

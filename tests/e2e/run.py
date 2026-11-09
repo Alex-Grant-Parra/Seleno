@@ -1,6 +1,6 @@
 """Run the end-to-end scenarios in headless Chrome and save screenshots.
 
-    E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py [--dark] [--width=390] [scenario ...]
+    E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py [--dark] [--width=390] [--height=844] [scenario ...]
 
 Each scenario is a script in this folder (scenario_<name>.js) that drives a page and
 returns {checks: {...}, failures: [...]}. A scenario calls `await shot('name')` to
@@ -35,9 +35,11 @@ SCENARIOS = {
     "star_map": "/e2e-login?next=/StarMap",
     "telescope_zones": "/e2e-login?next=/telescopes/named/e2e-scope",
     "zone_map": "/e2e-login?next=/e2e-zone-map",
+    "world_map": "/e2e-login?next=/map",
 }
 TIMEOUTS = {"engine": 480}
 WIDTH = 1500
+HEIGHT = None
 
 PRELUDE = r"""
 window.__e2eErrors = window.__e2eErrors || [];
@@ -175,7 +177,7 @@ async def main(names, dark=False):
             reader = asyncio.ensure_future(page.reader())
             for domain in ("Page", "Runtime", "Log"):
                 await page.send(f"{domain}.enable")
-            await page.send("Emulation.setDeviceMetricsOverride", {"width": WIDTH, "height": 1000 if WIDTH > 800 else 844,
+            await page.send("Emulation.setDeviceMetricsOverride", {"width": WIDTH, "height": HEIGHT or (1000 if WIDTH > 800 else 844),
                                                                    "deviceScaleFactor": 1, "mobile": WIDTH <= 800})
             if dark:
                 await page.send("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}]})
@@ -212,5 +214,8 @@ if __name__ == "__main__":
         if arg.startswith("--width="):
             WIDTH = int(arg.split("=", 1)[1])
             SUFFIX += f"-{WIDTH}"
+        if arg.startswith("--height="):
+            HEIGHT = int(arg.split("=", 1)[1])
+            SUFFIX += f"x{HEIGHT}"
     names = [a for a in args if not a.startswith("--")] or ["interface", "album"]
     sys.exit(asyncio.run(main(names, dark)))

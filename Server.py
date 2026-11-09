@@ -665,6 +665,10 @@ if __name__ == '__main__':
         start_upload_cleanup(app)
         start_plan_watchdog(app)
 
+        # Keep the world map's weather data cached locally (app/weather_cache.py)
+        from app.weather_cache import start_background as start_weather_cache
+        start_weather_cache()
+
     # Cloudflare Tunnel (infrastructure/config.yml) targets localhost:FlaskServerPort
     flask_host = "0.0.0.0"
     flask_port = FlaskServerPort

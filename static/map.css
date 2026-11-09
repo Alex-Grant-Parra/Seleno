@@ -38,6 +38,7 @@
 }
 
 .map-headline h1 {
+    color: var(--map-ink);
     font-family: "Space Grotesk", sans-serif;
     font-size: clamp(2rem, 4vw, 3.2rem);
     letter-spacing: -0.02em;
@@ -122,6 +123,209 @@
     letter-spacing: 0.18em;
     color: var(--map-accent);
     margin-bottom: 10px;
+}
+
+/* Desktop: the sheet wrapper has no box, so its children float over the
+   map on their own. On phones it becomes a bottom sheet (see below). */
+.map-sheet {
+    display: contents;
+}
+
+.map-sheet-handle {
+    display: none;
+}
+
+.map-search {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    width: min(380px, calc(100% - 340px));
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 6px 14px;
+    background: var(--map-panel);
+    border: 1px solid var(--map-border);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    z-index: 2200;
+}
+
+.map-search-icon {
+    color: var(--map-muted);
+    font-size: 0.9rem;
+}
+
+.map-search input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--map-ink);
+    font: inherit;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.map-search input::placeholder {
+    color: var(--map-muted);
+}
+
+.map-search:focus-within {
+    border-color: color-mix(in oklab, var(--map-accent) 60%, transparent);
+}
+
+.map-search-go,
+.map-locate {
+    flex: none;
+    height: 36px;
+    min-width: 36px;
+    padding: 0 12px;
+    border-radius: 10px;
+    border: 1px solid var(--map-border);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--map-ink);
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.map-search-go:hover,
+.map-locate:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.map-search-go-icon {
+    display: none;
+}
+
+.map-locate {
+    padding: 0;
+    color: var(--map-accent);
+}
+
+.map-locate.is-busy i {
+    animation: map-pulse 1s ease-in-out infinite;
+}
+
+@keyframes map-pulse {
+    50% { opacity: 0.3; }
+}
+
+.layer-icon {
+    width: 16px;
+    text-align: center;
+    color: var(--map-muted);
+}
+
+.layer-toggle.is-on .layer-icon {
+    color: var(--map-accent);
+}
+
+.hint-touch,
+.label-short {
+    display: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .hint-touch { display: inline; }
+    .hint-mouse { display: none; }
+}
+
+.time-rail-readout {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.time-rail-now {
+    border: 1px solid var(--map-border);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--map-accent-2);
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.time-rail-now[hidden] {
+    display: none;
+}
+
+/* Popups match the dark panels */
+.map-wrap .leaflet-popup-content-wrapper,
+.map-wrap .leaflet-popup-tip {
+    background: rgba(12, 18, 22, 0.95);
+    color: var(--map-ink);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.map-wrap .leaflet-popup-content-wrapper {
+    border: 1px solid var(--map-border);
+    border-radius: 14px;
+}
+
+.map-wrap .leaflet-popup-content {
+    margin: 14px 16px;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.map-wrap .leaflet-container a.leaflet-popup-close-button {
+    color: var(--map-muted);
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+    line-height: 28px;
+}
+
+.point-info {
+    min-width: 200px;
+}
+
+.point-info-coords {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 600;
+    margin: 0 18px 8px 0;
+}
+
+.point-info-rows {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 14px;
+    margin: 0;
+}
+
+.point-info-rows dt {
+    color: var(--map-muted);
+    font-weight: 400;
+}
+
+.point-info-rows dd {
+    margin: 0;
+    text-align: right;
+}
+
+.point-info-bortle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.point-info-bortle .legend-swatch {
+    width: 18px;
+    height: 10px;
+}
+
+.point-info-loading {
+    color: var(--map-muted);
 }
 
 .layer-toggle {
@@ -287,45 +491,455 @@
 .bortle-8 { background: linear-gradient(90deg, #e1beff, #edd7ff); }
 .bortle-9 { background: linear-gradient(90deg, #edd7ff, #ffffff); }
 
+/* ---------------------------------------------------------------------
+   Phones and small tablets: the map fills the screen under the site
+   header, the search bar floats on top, and everything else lives in a
+   bottom sheet. The sheet shows layers and forecast time; tapping or
+   swiping up the handle reveals the legend, opacity and status.
+   --------------------------------------------------------------------- */
 @media (max-width: 900px) {
+    body.map-body .site-main,
+    body.map-body .app-container {
+        padding: 0;
+    }
+
+    body.map-body .site-footer {
+        display: none;
+    }
+
+    .map-page {
+        padding: 0;
+        border-radius: 0;
+        background: none;
+    }
+
+    .map-page::before {
+        display: none;
+    }
+
+    /* Keep the heading for screen readers only */
     .map-header {
-        align-items: flex-start;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
     }
 
     .map-wrap {
-        height: clamp(420px, calc(100vh - 160px), 720px);
+        position: fixed;
+        top: var(--map-top, 64px);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: auto;
+        height: auto;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        z-index: 1;
     }
 
+    /* Search bar */
+    .map-search {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        padding: 5px 5px 5px 14px;
+        border-radius: 16px;
+        background: rgba(10, 15, 19, 0.92);
+    }
+
+    .map-search input {
+        font-size: 16px; /* 16px stops iOS zooming in on focus */
+    }
+
+    .map-search-go,
+    .map-locate {
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        border-radius: 12px;
+    }
+
+    .map-search-go {
+        background: var(--map-accent);
+        border-color: transparent;
+        color: #04121a;
+    }
+
+    .map-search-go-text {
+        display: none;
+    }
+
+    .map-search-go-icon {
+        display: inline;
+    }
+
+    /* Bottom sheet */
+    .map-sheet {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        max-height: calc(100% - 78px); /* never cover the search bar */
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+        background: rgba(10, 15, 19, 0.94);
+        border-top: 1px solid var(--map-border);
+        border-radius: 22px 22px 0 0;
+        backdrop-filter: blur(14px);
+        box-shadow: 0 -16px 40px rgba(0, 0, 0, 0.45);
+        z-index: 2300;
+    }
+
+    .map-sheet-handle {
+        order: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        height: 30px;
+        margin: 0 -16px -8px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        touch-action: none;
+        cursor: grab;
+    }
+
+    .map-sheet-grip {
+        width: 42px;
+        height: 5px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.3);
+        transition: background 0.2s ease, width 0.2s ease;
+    }
+
+    .map-sheet.is-expanded .map-sheet-grip {
+        width: 54px;
+        background: rgba(255, 255, 255, 0.5);
+    }
+
+    /* The panel's sections become direct items of the sheet so they can be ordered */
     .map-panel {
-        top: auto;
-        bottom: calc(var(--rail-h, 140px) + 30px);
-        right: 50%;
-        transform: translateX(50%);
-        width: min(320px, 88vw);
+        display: contents;
     }
 
-    .map-legend {
-        left: 18px;
-        top: 18px;
-        bottom: auto;
+    .map-layers { order: 1; }
+    .time-rail { order: 2; }
+    .map-legend { order: 3; }
+    .map-opacity { order: 4; }
+    .map-status { order: 5; }
+
+    .map-sheet:not(.is-expanded) .map-opacity,
+    .map-wrap:not(.has-bortle) .map-sheet:not(.is-expanded) .map-legend {
+        display: none;
+    }
+
+    .map-sheet.is-expanded .map-legend,
+    .map-sheet.is-expanded .map-opacity {
+        animation: map-sheet-in 0.22s ease-out;
+    }
+
+    @keyframes map-sheet-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+    }
+
+    .map-panel-section h2,
+    .legend-title,
+    .time-rail-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.18em;
+        margin: 0 0 8px;
+    }
+
+    /* Layers: four tiles in a row */
+    .map-layers h2 {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .layer-list {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .layer-toggle {
+        position: relative;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        min-height: 62px;
+        margin: 0;
+        padding: 8px 4px;
+        border: 1px solid var(--map-border);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--map-muted);
+        font-size: 0.74rem;
+        text-align: center;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    /* The whole tile is the checkbox */
+    .layer-toggle input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .layer-toggle span {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .layer-icon {
+        width: auto;
+        font-size: 1.15rem;
+    }
+
+    .layer-toggle .label-long {
+        display: none;
+    }
+
+    .layer-toggle .label-short {
+        display: inline;
+    }
+
+    .layer-toggle.is-on {
+        border-color: color-mix(in oklab, var(--map-accent) 70%, transparent);
+        background: color-mix(in oklab, var(--map-accent) 18%, transparent);
+        color: var(--map-ink);
+    }
+
+    .layer-toggle:has(input:focus-visible) {
+        outline: 2px solid var(--map-accent);
+        outline-offset: 2px;
+    }
+
+    /* Forecast time */
+    .time-rail {
+        position: static;
+        padding: 0;
+        background: none;
+        border: 0;
+        box-shadow: none;
+        backdrop-filter: none;
     }
 
     .time-rail-head {
-        flex-direction: column;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+
+    .time-rail-label {
+        margin: 0;
+    }
+
+    .time-rail-note {
+        display: none;
     }
 
     .time-rail-value {
-        text-align: left;
+        font-size: 0.9rem;
     }
-}
 
-@media (max-width: 640px) {
-    .map-headline h1 {
-        font-size: clamp(1.8rem, 7vw, 2.6rem);
+    /* Bortle legend: one strip of nine swatches */
+    .map-legend {
+        position: static;
+        min-width: 0;
+        padding: 0;
+        background: none;
+        border: 0;
+        backdrop-filter: none;
     }
 
     .legend-grid {
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+        gap: 3px;
+        font-size: 0.7rem;
+    }
+
+    .legend-item {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .legend-swatch {
+        width: 100%;
+        height: 12px;
+        border-radius: 3px;
+    }
+
+    .legend-note {
+        margin-top: 8px;
+        font-size: 0.75rem;
+    }
+
+    /* Opacity */
+    .range-control {
+        margin-bottom: 4px;
+        font-size: 0.9rem;
+    }
+
+    .range-control span {
+        width: 64px;
+    }
+
+    .map-status {
+        font-size: 0.78rem;
+    }
+
+    /* Bigger, thumb-friendly sliders */
+    .map-sheet input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 30px;
+        margin: 0;
+        background: transparent;
+        --thumb: var(--map-accent);
+    }
+
+    .map-sheet .range-control input[type="range"] {
+        --thumb: var(--map-accent-2);
+    }
+
+    .map-sheet input[type="range"]::-webkit-slider-runnable-track {
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .map-sheet input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 24px;
+        height: 24px;
+        margin-top: -9px;
+        border-radius: 50%;
+        background: var(--thumb);
+        border: 4px solid #0a1116;
+        box-shadow: 0 0 0 1px var(--thumb);
+    }
+
+    .map-sheet input[type="range"]::-moz-range-track {
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .map-sheet input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--thumb);
+        border: 4px solid #0a1116;
+        box-shadow: 0 0 0 1px var(--thumb);
+    }
+
+    /* Leaflet: pinch to zoom instead of buttons; keep credits above the sheet */
+    .map-wrap .leaflet-control-zoom {
+        display: none;
+    }
+
+    .map-wrap .leaflet-bottom {
+        bottom: var(--sheet-h, 190px);
+    }
+
+    .map-wrap .leaflet-control-attribution {
+        max-width: calc(100vw - 16px);
+        font-size: 9px;
+        line-height: 1.35;
+        background: rgba(10, 14, 18, 0.65);
+        color: var(--map-muted);
+        border-radius: 6px 0 0 0;
+    }
+
+    .map-wrap .leaflet-control-attribution a {
+        color: var(--map-ink);
+    }
+}
+
+/* Phones on their side: there's no room for a bottom sheet, so the
+   controls sit in a full-height column on the right instead. */
+@media (max-width: 900px) and (max-height: 500px) and (orientation: landscape) {
+    .map-sheet {
+        top: 0;
+        left: auto;
+        width: min(340px, 50%);
+        max-height: none;
+        padding-top: 14px;
+        padding-right: calc(16px + env(safe-area-inset-right, 0px));
+        border-top: 0;
+        border-left: 1px solid var(--map-border);
+        border-radius: 0;
+    }
+
+    .map-sheet-handle {
+        display: none;
+    }
+
+    .layer-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .layer-toggle {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: 10px;
+        min-height: 44px;
+        padding: 0 12px;
+        font-size: 0.82rem;
+    }
+
+    .layer-toggle .label-long {
+        display: inline;
+    }
+
+    .layer-toggle .label-short {
+        display: none;
+    }
+
+    .time-rail-label {
+        white-space: nowrap;
+    }
+
+    .map-sheet:not(.is-expanded) .map-opacity,
+    .map-wrap:not(.has-bortle) .map-sheet:not(.is-expanded) .map-legend {
+        display: block;
+    }
+
+    .map-search {
+        right: calc(min(340px, 50%) + 12px);
+    }
+
+    .map-wrap .leaflet-bottom {
+        bottom: 0;
+    }
+
+    .map-wrap .leaflet-right {
+        right: min(340px, 50%);
     }
 }
 

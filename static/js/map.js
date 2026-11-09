@@ -11,12 +11,24 @@
     const weatherTimeSlider = document.getElementById("weather-time-slider");
     const weatherTimeValue = document.getElementById("weather-time-value");
     const layerInputs = Array.from(document.querySelectorAll("[data-layer]"));
+    const weatherTimeNow = document.getElementById("weather-time-now");
+    const mapWrap = document.querySelector(".map-wrap");
+    const sheet = document.getElementById("map-sheet");
+    const sheetHandle = document.getElementById("map-sheet-handle");
+    const searchBar = document.querySelector(".map-search");
+
+    // Must match the phone breakpoint in map.css
+    const phoneQuery = window.matchMedia("(max-width: 900px)");
+    const touchQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
+    const isPhoneLayout = () => phoneQuery.matches;
 
     const openMeteoTileUrl = (config.openMeteoTileUrl || "").trim();
     const openMeteoAttribution = (config.openMeteoAttribution || "").trim() ||
         "Weather data &copy; Open-Meteo.com";
     const openMeteoBaseUrl = openMeteoTileUrl ||
-        "https://map-tiles.open-meteo.com/data_spatial/dwd_icon/latest.json?time_step=current_time_1H";
+        // Our server's cache of Open-Meteo's data (app/weather_cache.py). Absolute, because
+        // the library fetches from web workers that can't resolve relative URLs.
+        `${window.location.origin}/map/weather/data_spatial/dwd_icon/latest.json?time_step=current_time_1H`;
     const openMeteoMetaUrl = (() => {
         try {
             const url = new URL(openMeteoBaseUrl);
@@ -100,10 +112,38 @@
                 fillColor: "#2e8bff",
                 fillOpacity: 1,
                 pane: "markerPane",
-                interactive: true
+                interactive: true,
+                // Tapping the dot shouldn't also count as a tap on the map
+                bubblingMouseEvents: false
             }).addTo(map);
         }
-        locationMarker.bindPopup(popupHtml).openPopup();
+        locationMarker.bindPopup(popupHtml, popupOptions()).openPopup();
+    }
+
+    // Keep popups clear of the search bar and the controls on top of the map.
+    function popupOptions() {
+        const pad = 12;
+        let top = pad;
+        let right = pad;
+        let bottom = pad;
+        if (searchBar) {
+            top += searchBar.offsetTop + searchBar.offsetHeight;
+        }
+        if (isPhoneLayout() && sheet && mapWrap) {
+            const sheetBox = sheet.getBoundingClientRect();
+            const wrapBox = mapWrap.getBoundingClientRect();
+            if (sheetBox.left > wrapBox.left + 1) {
+                // Landscape: the controls are a column on the right
+                right += wrapBox.right - sheetBox.left;
+            } else {
+                bottom += wrapBox.bottom - sheetBox.top;
+            }
+        }
+        return {
+            maxWidth: 280,
+            autoPanPaddingTopLeft: L.point(pad, top),
+            autoPanPaddingBottomRight: L.point(right, bottom)
+        };
     }
 
     function placePin(lat, lon, popupHtml) {
@@ -113,13 +153,13 @@
         }
         infoMarker = L.marker([lat, lon]).addTo(map);
         if (popupHtml) {
-            infoMarker.bindPopup(popupHtml).openPopup();
+            infoMarker.bindPopup(popupHtml, popupOptions()).openPopup();
         }
     }
 
     async function fetchPointWeather(lat, lon) {
         try {
-            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current_weather=true&hourly=precipitation,temperature_2m,wind_speed_10m&timezone=UTC`;
+            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current_weather=true&hourly=precipitation,temperature_2m,wind_speed_10m&wind_speed_unit=ms&timezone=UTC`;
             const resp = await fetch(apiUrl);
             if (!resp.ok) {
                 throw new Error(`Open-Meteo API error ${resp.status}`);
@@ -240,6 +280,10 @@
             return;
         }
 
+        if (weatherTimeNow) {
+            weatherTimeNow.hidden = safeIndex === nowTimelineIndex;
+        }
+
         if (safeIndex === nowTimelineIndex) {
             weatherTimeStep = "current_time_1H";
             weatherTimeValue.textContent = "Now";
@@ -331,13 +375,60 @@
         }
     }
 
+    // The library reads weather files in 64 KB pieces, a few at a time, so one
+    // layer took 40-odd requests in 8 rounds - slow once each round trip goes
+    // through Cloudflare. Each variable sits in one stretch of the file, so
+    // bigger pieces fetch almost nothing extra: 512 KB brings a layer down to a
+    // handful of requests in one round. Keep in sync with CLIENT_BLOCK in
+    // app/weather_cache.py, which caches whole pieces of this size.
+    const WEATHER_BLOCK_BYTES = 512 * 1024;
+    const WEATHER_CACHE_BLOCKS = 64; // ~32 MB kept in memory
+
+    function weatherProtocolSettings(lib) {
+        try {
+            // The block cache class isn't exported; borrow it from a default reader
+            const BlockCache = new lib.WeatherMapLayerFileReader().cache.constructor;
+            return {
+                ...lib.defaultOmProtocolSettings,
+                fileReaderConfig: {
+                    ...lib.defaultFileReaderConfig,
+                    cache: new BlockCache(WEATHER_BLOCK_BYTES, WEATHER_CACHE_BLOCKS)
+                }
+            };
+        } catch (err) {
+            console.warn("Using the weather library's default block size", err);
+            return lib.defaultOmProtocolSettings;
+        }
+    }
+
     const omLib = window.OMWeatherMapLayer;
     const openMeteoReady = Boolean(omLib && omLib.addLeafletProtocolSupport && omLib.omProtocol);
+
+    // Only read and decode weather for the area on screen, plus a screen's
+    // worth of margin on each side, instead of the whole world. Zoomed in,
+    // that's a small fraction of the data to download, decode and hand to the
+    // drawing workers. The library reads the new area by itself when the view
+    // moves outside it. This must run before Leaflet asks for tiles, so it's
+    // registered here, ahead of any weather layer's own move handlers.
+    function syncWeatherBounds() {
+        if (!omLib || typeof omLib.updateCurrentBounds !== "function") {
+            return;
+        }
+        const area = map.getBounds().pad(1);
+        const clampLat = (lat) => Math.max(-85, Math.min(85, lat));
+        try {
+            omLib.updateCurrentBounds([area.getWest(), clampLat(area.getSouth()), area.getEast(), clampLat(area.getNorth())]);
+        } catch (err) {
+            console.warn("Could not limit weather to the visible area", err);
+        }
+    }
+    syncWeatherBounds();
+    map.on("move zoom viewreset moveend", syncWeatherBounds);
 
     // Configure tile overlays once, then wire inputs to toggles.
     if (openMeteoReady && openMeteoBaseUrl) {
         const leafletAdapter = omLib.addLeafletProtocolSupport(L);
-        leafletAdapter.addProtocol("om", omLib.omProtocol);
+        leafletAdapter.addProtocol("om", omLib.omProtocol, weatherProtocolSettings(omLib));
 
         const weatherLayerOptions = {
             opacity: weatherOpacity,
@@ -387,6 +478,11 @@
             const target = event.target;
             const nextIndex = Number(target.value || 0);
             setWeatherTimeReadout(nextIndex);
+            refreshWeatherLayers();
+        });
+
+        weatherTimeNow?.addEventListener("click", () => {
+            setWeatherTimeReadout(nowTimelineIndex);
             refreshWeatherLayers();
         });
 
@@ -452,56 +548,101 @@
             return;
         }
 
+        const syncToggle = () => {
+            input.closest(".layer-toggle")?.classList.toggle("is-on", input.checked);
+            if (name === "bortle") {
+                // Phones only show the legend while the Bortle layer is on
+                mapWrap?.classList.toggle("has-bortle", input.checked);
+            }
+        };
+
         if (input.checked) {
             setLayerActive(name, true);
         }
+        syncToggle();
 
         input.addEventListener("change", (event) => {
             setLayerActive(name, event.target.checked);
+            syncToggle();
         });
     });
 
-    // --- Right-click / context menu: show info at a point ---
-    map.on('contextmenu', async (e) => {
-        const lat = e.latlng.lat;
-        const lon = e.latlng.lng;
-        const loadingHtml = `<div style="min-width:160px">Loading data for<br><strong>${lat.toFixed(5)}, ${lon.toFixed(5)}</strong>…</div>`;
-        placePin(lat, lon, loadingHtml);
+    // --- Point info: weather and sky brightness at one spot ---
+    const fmtCoords = (lat, lon) => `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+    const fmtValue = (value, unit) => (value !== null && value !== undefined ? `${value} ${unit}` : "N/A");
+    let pointRequestId = 0;
+
+    async function showPointInfo(lat, lon) {
+        const requestId = ++pointRequestId;
+        const coords = fmtCoords(lat, lon);
+        placePin(lat, lon, `<div class="point-info"><div class="point-info-coords">${coords}</div><div class="point-info-loading">Loading conditions…</div></div>`);
 
         const [weather, bortleInfo] = await Promise.all([
             fetchPointWeather(lat, lon),
             fetchBortleInfo(lat, lon)
         ]);
-        let popupHtml = `<div style="min-width:200px"><strong>Coords:</strong> ${lat.toFixed(5)}, ${lon.toFixed(5)}<br>`;
-        if (!weather) {
-            popupHtml += `<em>Weather data unavailable</em>`;
-        } else {
-            popupHtml += `<strong>Temperature:</strong> ${weather.temperature !== null ? weather.temperature + ' °C' : 'N/A'}<br>`;
-            popupHtml += `<strong>Wind:</strong> ${weather.wind !== null ? weather.wind + ' m/s' : 'N/A'}<br>`;
-            popupHtml += `<strong>Precipitation (hour):</strong> ${weather.precipitation !== null ? weather.precipitation + ' mm' : 'N/A'}<br>`;
+        if (requestId !== pointRequestId) {
+            return; // A newer point was picked while this one loaded
         }
 
+        const rows = [];
         if (bortleInfo) {
-            popupHtml += `<strong>Bortle level:</strong> ${bortleInfo.bortle}<br>`;
+            const level = Math.min(9, Math.max(1, Math.round(bortleInfo.bortle)));
+            rows.push(["Bortle", `<span class="point-info-bortle"><span class="legend-swatch bortle-${level}"></span>${bortleInfo.bortle}</span>`]);
             if (Number.isFinite(bortleInfo.sqm)) {
-                popupHtml += `<strong>Sky brightness:</strong> ${bortleInfo.sqm.toFixed(2)} mag/arcsec²<br>`;
+                rows.push(["Sky brightness", `${bortleInfo.sqm.toFixed(2)} mag/arcsec²`]);
             }
         } else {
-            popupHtml += `<strong>Bortle level:</strong> Unavailable at this point<br>`;
+            rows.push(["Bortle", "Unavailable here"]);
+        }
+        if (weather) {
+            rows.push(["Temperature", fmtValue(weather.temperature, "°C")]);
+            rows.push(["Wind", fmtValue(weather.wind, "m/s")]);
+            rows.push(["Rain (hour)", fmtValue(weather.precipitation, "mm")]);
+        } else {
+            rows.push(["Weather", "Unavailable"]);
         }
 
-        popupHtml += `</div>`;
+        const popupHtml = `<div class="point-info"><div class="point-info-coords">${coords}</div><dl class="point-info-rows">${
+            rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join("")
+        }</dl></div>`;
         if (infoMarker) {
             infoMarker.setLatLng([lat, lon]);
-            infoMarker.bindPopup(popupHtml).openPopup();
+            infoMarker.bindPopup(popupHtml, popupOptions()).openPopup();
         } else {
             placePin(lat, lon, popupHtml);
         }
+    }
+
+    // Right-click (or long-press) anywhere for the conditions at that point.
+    map.on("contextmenu", (e) => {
+        showPointInfo(e.latlng.lat, e.latlng.lng);
+    });
+
+    // On touch screens a plain tap does the same. A tap that closes an open
+    // popup or the expanded sheet only does that, so it doesn't drop a new pin.
+    let popupOpen = false;
+    let swallowNextClick = false;
+    map.on("popupopen", () => { popupOpen = true; });
+    map.on("popupclose", () => { popupOpen = false; });
+    map.on("preclick", () => {
+        swallowNextClick = popupOpen || isSheetExpanded();
+    });
+    map.on("click", (e) => {
+        if (!touchQuery.matches) {
+            return;
+        }
+        if (swallowNextClick) {
+            swallowNextClick = false;
+            setSheetExpanded(false);
+            return;
+        }
+        showPointInfo(e.latlng.lat, e.latlng.lng);
     });
 
     // --- Coordinate search / pin placement ---
-    const coordInput = document.getElementById('coord-search');
-    const coordGo = document.getElementById('coord-go');
+    const coordForm = document.getElementById("coord-form");
+    const coordInput = document.getElementById("coord-search");
     function parseCoords(input) {
         if (!input) return null;
         const s = input.trim();
@@ -516,22 +657,24 @@
         return null;
     }
 
-    if (coordGo && coordInput) {
-        coordGo.addEventListener('click', (ev) => {
-            const v = coordInput.value;
-            const parsed = parseCoords(v);
+    if (coordForm && coordInput) {
+        coordForm.addEventListener("submit", (ev) => {
+            ev.preventDefault();
+            const parsed = parseCoords(coordInput.value);
+            coordForm.classList.toggle("is-invalid", !parsed);
             if (!parsed) {
                 setStatus(['Invalid coordinates. Use "lat, lon".']);
+                coordInput.focus();
                 return;
             }
             setStatus([]);
+            coordInput.blur(); // closes the on-screen keyboard
+            setSheetExpanded(false);
             map.setView([parsed.lat, parsed.lon], Math.max(map.getZoom(), 6));
-            placePin(parsed.lat, parsed.lon, `<div><strong>Coords:</strong> ${parsed.lat.toFixed(5)}, ${parsed.lon.toFixed(5)}</div>`);
+            showPointInfo(parsed.lat, parsed.lon);
         });
-        coordInput.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') {
-                coordGo.click();
-            }
+        coordInput.addEventListener("input", () => {
+            coordForm.classList.remove("is-invalid");
         });
     }
 
@@ -577,6 +720,10 @@
                     return;
                 }
 
+                if (msg.type === 'location' || msg.type === 'error') {
+                    document.getElementById('locate-me')?.classList.remove('is-busy');
+                }
+
                 if (msg.type === 'location') {
                     const lat = msg.latitude;
                     const lon = msg.longitude;
@@ -618,6 +765,14 @@
     // Kick off unified locate flow
     requestLocate();
 
+    const locateBtn = document.getElementById("locate-me");
+    if (locateBtn) {
+        locateBtn.addEventListener("click", () => {
+            locateBtn.classList.add("is-busy");
+            requestLocate();
+        });
+    }
+
     if (weatherOpacityInput) {
         weatherOpacityInput.addEventListener("input", (event) => {
             weatherOpacity = parseFloat(event.target.value);
@@ -638,23 +793,113 @@
         });
     }
 
-    // Keep the legend and zoom/attribution controls clear of the time rail.
-    const mapWrap = document.querySelector(".map-wrap");
+    // Keep the legend and zoom/attribution controls clear of the time rail
+    // (desktop) or the bottom sheet (phones).
     const timeRail = document.querySelector(".time-rail");
     if (mapWrap && timeRail) {
-        const syncRailHeight = () => {
+        const syncControlOffsets = () => {
             mapWrap.style.setProperty("--rail-h", `${timeRail.offsetHeight}px`);
+            if (sheet) {
+                mapWrap.style.setProperty("--sheet-h", `${sheet.offsetHeight}px`);
+            }
         };
-        syncRailHeight();
+        syncControlOffsets();
         if (typeof ResizeObserver !== "undefined") {
-            new ResizeObserver(syncRailHeight).observe(timeRail);
+            const observer = new ResizeObserver(syncControlOffsets);
+            observer.observe(timeRail);
+            if (sheet) {
+                observer.observe(sheet);
+            }
         }
     }
 
+    // --- Phone bottom sheet ---
+    function isSheetExpanded() {
+        return Boolean(sheet && sheet.classList.contains("is-expanded"));
+    }
+
+    function setSheetExpanded(expanded) {
+        if (!sheet || isSheetExpanded() === expanded) {
+            return;
+        }
+        sheet.classList.toggle("is-expanded", expanded);
+        if (sheetHandle) {
+            sheetHandle.setAttribute("aria-expanded", String(expanded));
+            sheetHandle.setAttribute("aria-label", expanded ? "Show fewer map options" : "Show more map options");
+        }
+        if (!expanded) {
+            sheet.scrollTop = 0;
+        }
+    }
+
+    if (sheet && sheetHandle) {
+        // Tap the handle to toggle, or swipe it up/down.
+        let dragStartY = null;
+        let dragged = false;
+
+        sheetHandle.addEventListener("pointerdown", (event) => {
+            dragStartY = event.clientY;
+            dragged = false;
+            sheetHandle.setPointerCapture?.(event.pointerId);
+        });
+        sheetHandle.addEventListener("pointermove", (event) => {
+            if (dragStartY === null) {
+                return;
+            }
+            const dy = event.clientY - dragStartY;
+            if (Math.abs(dy) > 24) {
+                setSheetExpanded(dy < 0);
+                dragged = true;
+                dragStartY = null;
+            }
+        });
+        const endDrag = () => {
+            dragStartY = null;
+        };
+        sheetHandle.addEventListener("pointerup", endDrag);
+        sheetHandle.addEventListener("pointercancel", endDrag);
+        sheetHandle.addEventListener("click", () => {
+            if (dragged) {
+                dragged = false;
+                return;
+            }
+            setSheetExpanded(!isSheetExpanded());
+        });
+    }
+
+    // --- Phone layout: the map is pinned under the sticky site header ---
+    const siteHeader = document.querySelector(".site-header");
+    function syncMapTop() {
+        if (!mapWrap || !siteHeader) {
+            return;
+        }
+        // Skip while the nav menu is open; the menu just drops over the map.
+        if (siteHeader.querySelector(".navbar-collapse.show, .navbar-collapse.collapsing")) {
+            return;
+        }
+        const top = Math.round(siteHeader.getBoundingClientRect().bottom);
+        if (mapWrap.style.getPropertyValue("--map-top") !== `${top}px`) {
+            mapWrap.style.setProperty("--map-top", `${top}px`);
+            map.invalidateSize();
+        }
+    }
+    syncMapTop();
+    window.addEventListener("resize", syncMapTop);
+    window.addEventListener("orientationchange", syncMapTop);
+    const onLayoutChange = () => {
+        if (!isPhoneLayout()) {
+            setSheetExpanded(false);
+        }
+        syncMapTop();
+        map.invalidateSize();
+    };
+    if (phoneQuery.addEventListener) {
+        phoneQuery.addEventListener("change", onLayoutChange);
+    }
+
     map.whenReady(() => {
-        const wrap = document.querySelector(".map-wrap");
-        if (wrap) {
-            wrap.classList.add("is-ready");
+        if (mapWrap) {
+            mapWrap.classList.add("is-ready");
         }
     });
 })();

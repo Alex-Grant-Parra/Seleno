@@ -8,7 +8,7 @@ database in a temporary folder, and fake telescopes in place of real sockets.
 
 ```bash
 cd tests
-../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search
+../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search test_weather_cache
 ```
 
 | File | Covers |
@@ -20,6 +20,7 @@ cd tests
 | `test_interface_api.py` | `app/sky.py`, the sky, targets and latest-captures endpoints, capability checks |
 | `test_projects_api.py` | multi-night projects: chunked uploads of the totals, commits, rebuild checkpoints |
 | `test_star_search.py` | the star map's name search: typos, other languages, exact-only catalogue numbers, suggestions |
+| `test_weather_cache.py` | the world map's local weather cache and `/map/weather/`, against a fake Open-Meteo |
 
 ## The processing engine (Node, about 10 s)
 
@@ -45,6 +46,7 @@ E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py --dark          # in
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py --width=390 narrow narrow_album
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py engine          # real stacking in the browser (about 30 s)
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py star_map telescope_zones zone_map  # exclusion zones
+E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py --width=390 world_map  # world map on a phone (needs internet for weather)
 ```
 
 The `engine` scenario stacks the fixture night in Web Workers (with OPFS), measures

@@ -2,6 +2,7 @@
 # Fetches malicious IPs from multiple threat intelligence sources
 # and provides blocking functionality for Flask applications.
 
+import bisect
 import requests
 import ipaddress
 import logging
@@ -18,6 +19,8 @@ class IPBlacklist:
         self.blacklist_file = Path(blacklist_file)
         self.update_interval = update_interval
         self.blacklisted_ips = set()
+        # Pre-parsed copy of blacklisted_ips for fast lookups (see _rebuild_index)
+        self._index = (set(), {4: ([], []), 6: ([], [])})
         self.last_update = None
         self.logger = logging.getLogger(__name__)
         self._lock = threading.Lock()
@@ -127,42 +130,62 @@ class IPBlacklist:
         with self._lock:
             self.blacklisted_ips = new_ips
             self.last_update = datetime.now()
+            self._rebuild_index()
         
         self._save_blacklist()
         self.logger.info(f"Updated blacklist with {len(new_ips)} IPs/ranges")
         return True
     
+    def _rebuild_index(self):
+        # Parse the list once so each request is a set lookup plus a binary
+        # search, instead of re-parsing all ~40k entries on every request.
+        # Single IPs go in a set; CIDR ranges become merged, sorted
+        # (start, end) integer spans per IP version.
+        exact = set()
+        spans = {4: [], 6: []}
+        for item in list(self.blacklisted_ips):
+            try:
+                if '/' in item:
+                    network = ipaddress.ip_network(item, strict=False)
+                    spans[network.version].append((int(network.network_address), int(network.broadcast_address)))
+                else:
+                    exact.add(ipaddress.ip_address(item))
+            except ValueError:
+                continue
+        ranges = {}
+        for version, items in spans.items():
+            items.sort()
+            merged = []
+            for start, end in items:
+                if merged and start <= merged[-1][1] + 1:
+                    if end > merged[-1][1]:
+                        merged[-1] = (merged[-1][0], end)
+                else:
+                    merged.append((start, end))
+            ranges[version] = ([start for start, _ in merged], [end for _, end in merged])
+        self._index = (exact, ranges)  # swapped in one go, so readers never see half of it
+
     def is_ip_blacklisted(self, ip: str) -> bool:
         # Check whether an IP address is blacklisted
         try:
             client_ip = ipaddress.ip_address(ip)
-            
-            with self._lock:
-                for blocked_item in self.blacklisted_ips:
-                    try:
-                        if '/' in blocked_item:
-                            # CIDR range
-                            network = ipaddress.ip_network(blocked_item, strict=False)
-                            if client_ip in network:
-                                return True
-                        else:
-                            # Single IP
-                            if client_ip == ipaddress.ip_address(blocked_item):
-                                return True
-                    except ValueError:
-                        continue
-            
-            return False
-            
         except ValueError:
             # Invalid IP address
             return False
+        exact, ranges = self._index
+        if client_ip in exact:
+            return True
+        starts, ends = ranges[client_ip.version]
+        value = int(client_ip)
+        i = bisect.bisect_right(starts, value) - 1
+        return i >= 0 and value <= ends[i]
     
     def add_manual_ip(self, ip: str) -> bool:
         # Manually add an IP to the blacklist
         if self._is_valid_ip_or_cidr(ip):
             with self._lock:
                 self.blacklisted_ips.add(ip)
+                self._rebuild_index()
             self._save_blacklist()
             self.logger.info(f"Manually added {ip} to blacklist")
             return True
@@ -173,6 +196,7 @@ class IPBlacklist:
         with self._lock:
             if ip in self.blacklisted_ips:
                 self.blacklisted_ips.remove(ip)
+                self._rebuild_index()
                 self._save_blacklist()
                 self.logger.info(f"Removed {ip} from blacklist")
                 return True
@@ -231,6 +255,7 @@ class IPBlacklist:
                                 self.logger.warning(f"Invalid IP/CIDR in blacklist file: {line}")
                 
                 self.blacklisted_ips = loaded_ips
+                self._rebuild_index()
                 self.logger.info(f"Loaded {len(self.blacklisted_ips)} IPs from {self.blacklist_file}")
                 
                 with open(self.blacklist_file, 'r') as f:
@@ -251,6 +276,7 @@ class IPBlacklist:
             self.logger.error(f"Failed to load blacklist: {str(e)}")
             # Fallback to manual bad IPs
             self.blacklisted_ips = {'38.211.193.130', '38.211.193.0/24'}
+            self._rebuild_index()
             self._save_blacklist()
     
     def _start_background_updater(self):

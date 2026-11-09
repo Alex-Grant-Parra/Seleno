@@ -20,6 +20,7 @@ __pycache__/
 
 instance/uploads/contact/
 instance/data.db
+instance/weather_cache.db*
 
 wiki
 
