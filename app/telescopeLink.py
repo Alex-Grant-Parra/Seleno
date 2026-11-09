@@ -315,6 +315,12 @@ class DeviceController:
     def set_horizon(self, min_alt_deg=None, profile=None, stop_when_set=None):
         return self.telescope.call("setHorizon", min_alt_deg, profile, stop_when_set)
 
+    def get_dead_zones(self):
+        return self.telescope.call("getDeadZones")
+
+    def set_dead_zones(self, zones):
+        return self.telescope.call("setDeadZones", zones)
+
     def esp_info(self):
         return self.telescope.call("espInfo")
 

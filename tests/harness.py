@@ -71,6 +71,7 @@ import controllers.capture as capture_mod
 import controllers.album_api as album_api_mod
 import controllers.interface_api as interface_api_mod
 import controllers.projects_api as projects_api_mod
+import controllers.telescopes as telescopes_mod
 
 PHOTOS = os.path.join(TMP, "camera_photos")
 upload_mod.BASE_UPLOAD_FOLDER = PHOTOS
@@ -80,7 +81,8 @@ album_mod.CAMERA_PHOTOS_BASE_DIR = PHOTOS
 
 for bp in (interface_mod.interface_bp, star_map_mod.star_map_bp, album_mod.album_bp,
            capture_mod.capture_bp, tus_mod.telescope_uploads_bp,
-           album_api_mod.album_api_bp, interface_api_mod.interface_api_bp, projects_api_mod.projects_api_bp):
+           album_api_mod.album_api_bp, interface_api_mod.interface_api_bp, projects_api_mod.projects_api_bp,
+           telescopes_mod.telescopes_bp):
     app.register_blueprint(bp)
 
 from app import WebsocketServer as wss

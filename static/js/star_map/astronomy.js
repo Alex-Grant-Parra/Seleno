@@ -230,7 +230,7 @@ function altazToRaDec(altDeg, azDeg, lstDeg, latDeg) {
     const dec = Math.asin(sinDec) * 180 / Math.PI;
     
     // Hour angle calculation
-    const cosH = (sinAlt - sinDec * Math.sin(dec * Math.PI / 180)) / (Math.cos(dec * Math.PI / 180) * cosLat);
+    const cosH = (sinAlt - sinDec * sinLat) / (Math.cos(dec * Math.PI / 180) * cosLat);
     const sinH = -cosAlt * sinAz / Math.cos(dec * Math.PI / 180);
     let H = Math.atan2(sinH, cosH) * 180 / Math.PI;
     

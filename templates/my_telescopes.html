@@ -61,7 +61,7 @@
                     <tbody>
                         {% for t in telescopes %}
                         <tr>
-                            <td>{{ t.telescope_id }}</td>
+                            <td><a class="fw-semibold" href="{{ url_for('telescopes.telescope_page', telescope_id=t.id) }}">{{ t.telescope_id }}</a></td>
                             <td>
                                 {% if t.is_disabled %}
                                     <span class="badge bg-danger">Disabled by Admin</span>
@@ -75,6 +75,7 @@
                             <td><small>{{ t.token_created_at.strftime('%Y-%m-%d %H:%M') if t.token_created_at else '—' }}</small></td>
                             <td>
                                 <div class="d-flex gap-2">
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('telescopes.telescope_page', telescope_id=t.id) }}">Exclusion zones</a>
                                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('book.telescope_booking_settings', telescope_id=t.id) }}">Settings</a>
                                     <form method="post" action="{{ url_for('telescopes.revoke_my_telescope', telescope_id=t.id) }}" onsubmit="return confirm('Remove telescope &quot;{{ t.telescope_id }}&quot;? This cannot be undone.');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

@@ -35,6 +35,7 @@ showHorizonGrid.addEventListener('change', draw);
 showEquatorialGrid.addEventListener('change', draw);
 if (showEcliptic) showEcliptic.addEventListener('change', draw);
 if (showBelowHorizon) showBelowHorizon.addEventListener('change', draw);
+if (showDeadZones) showDeadZones.addEventListener('change', draw);
 if (horizonTintOpacityInput) horizonTintOpacityInput.addEventListener('input', draw);
 const horizonTintApplyBtn = document.getElementById('horizon-tint-apply');
 if (horizonTintApplyBtn) horizonTintApplyBtn.addEventListener('click', () => {
@@ -345,8 +346,9 @@ window.addEventListener('DOMContentLoaded', () => {
             setTimeout(hideLoading, 200);
             // Begin background staged prefetch so data is ready before user requests it
             stagedPrefetchAfterFirstDraw();
-            // Start telescope position tracking
+            // Start telescope position tracking, and its dead zones
             startTelescopePositionTracking();
+            startDeadZoneUpdates();
             
             // Restore tracking state from sessionStorage if it exists
             try {

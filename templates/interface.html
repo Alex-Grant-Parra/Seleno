@@ -12,7 +12,7 @@
         document.documentElement.setAttribute('data-ui-mode', mode);
     })();
 </script>
-<link rel="stylesheet" href="{{ url_for('static', filename='workspace.css') }}?v=20261018-ws">
+<link rel="stylesheet" href="{{ url_for('static', filename='workspace.css') }}?v=20261109-dz">
 <style>
     .interface-page .ws-live-canvas { background: #000; }
     .interface-page .ws-live-toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -235,6 +235,13 @@
                     <button class="ws-btn sm" type="button" data-command="update_firmware" data-confirm="{{ _('Update the controller firmware now? The mount stops while it flashes.') }}">{{ _('Update controller') }}</button>
                 </div>
                 <p class="ws-small ws-muted" style="margin:8px 0 0">{{ _("Updates only run if the Pi's own config allows them.") }}</p>
+                <div class="ws-zones">
+                    <div class="ws-zones-head">
+                        <strong>{{ _('Exclusion zones') }}</strong>
+                        <a class="ws-small" id="deadZoneManage" href="{{ url_for('telescopes.my_telescopes') }}">{{ _('Manage') }}</a>
+                    </div>
+                    <p class="ws-small ws-muted" id="deadZoneSummary" style="margin:0"></p>
+                </div>
             </div>
         </div>
 
@@ -674,7 +681,7 @@
 <script src="{{ url_for('static', filename='js/histogram.js') }}?v=20261018-ws"></script>
 <script src="{{ url_for('static', filename='js/liveview-player.js') }}?v=20261018-ws"></script>
 <script src="{{ url_for('static', filename='js/focus-meter.js') }}?v=20261018-ws"></script>
-<script src="{{ url_for('static', filename='js/interface.js') }}?v=20261018-ws"></script>
+<script src="{{ url_for('static', filename='js/interface.js') }}?v=20261109-dz"></script>
 <script src="{{ url_for('static', filename='js/interface-guide.js') }}?v=20261018-ws"></script>
 <script src="{{ url_for('static', filename='js/capture-plan.js') }}?v=20261018-ws"></script>
 {% endblock %}

@@ -116,6 +116,10 @@ window.addEventListener('mousemove', e => {
 });
 window.addEventListener('mouseup', () => dragging = false);
 
+// Any mouse button drags the sky, so the right button mustn't open the browser's menu
+// over it (on the zone drawing map this means right-drag looks around while drawing)
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
 // Mouse leave canvas - hide cursor coords
 canvas.addEventListener('mouseleave', () => {
     lastCursorX = null;

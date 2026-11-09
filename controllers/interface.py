@@ -616,6 +616,27 @@ def _utc_now_iso():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _dead_zones_param(params):
+    from app.dead_zones import clean_zones
+
+    try:
+        return clean_zones(params.get("zones"))
+    except ValueError as e:
+        raise _BadParam(str(e))
+
+
+def _set_dead_zones(t, params):
+    # setDeadZones, then the new zones into the cached status so the star map
+    # shows them before the next status push
+    zones = _dead_zones_param(params)
+    result = t.device.set_dead_zones(zones)
+    if isinstance(result, dict) and isinstance(result.get("zones"), list) and not result.get("error"):
+        from app.WebsocketServer import update_status_part
+
+        update_status_part(t.client_id, "dead_zones", {"zones": result["zones"]})
+    return result
+
+
 TRACKING_RATES = ("sidereal", "lunar", "solar", "king", "custom")
 LIVEVIEW_CODECS = ("auto", "h264", "jpeg")
 RECORDING_KINDS = ("video", "timelapse")
@@ -679,6 +700,8 @@ TELESCOPE_ACTIONS = {
     "set_clock": (OWNER, False, lambda t, p, uid: t.device.set_clock(_param(p, "utc") or _utc_now_iso())),
     "set_horizon": (OWNER, False, lambda t, p, uid: t.device.set_horizon(
         _param(p, "min_alt_deg", float, minimum=-10, maximum=90), _param(p, "profile"), _param(p, "stop_when_set", bool))),
+    "get_dead_zones": (CONTROL, True, lambda t, p, uid: t.device.get_dead_zones()),
+    "set_dead_zones": (OWNER, False, lambda t, p, uid: _set_dead_zones(t, p)),
     "esp_info": (OWNER, True, lambda t, p, uid: t.device.esp_info()),
     "esp_driver_status": (OWNER, True, lambda t, p, uid: t.device.esp_driver_status()),
     "update_client": (OWNER, False, lambda t, p, uid: t.device.update_client()),

@@ -445,6 +445,7 @@ function renderTelescopeStatus(data) {
     renderChips(data);
     renderAccessChip();
     renderPlan(data.plan);
+    renderDeadZoneSummary(data.telescope_status);
     emit('seleno:status', data);
 }
 
@@ -1396,6 +1397,25 @@ function setHorizon() {
         profile: $('horizonProfile').value,
         stop_when_set: $('horizonStopWhenSet').checked
     }).catch(() => {});
+}
+
+// --- exclusion zones ----------------------------------------------------------------
+// Parts of the sky the telescope never points at. They're managed on the telescope's own
+// page (My Telescopes); here just a summary from the status push, and a link there.
+
+function renderDeadZoneSummary(status) {
+    const summary = $('deadZoneSummary');
+    if (!summary) return;
+    $('deadZoneManage').href = selectedTelescopeId
+        ? `/telescopes/named/${encodeURIComponent(selectedTelescopeId)}` : '/telescopes';
+    const part = status ? status.dead_zones : undefined;
+    if (!part || !Array.isArray(part.zones)) {
+        summary.textContent = status ? _('This telescope does not report exclusion zones. Update its Pi software to use them.') : '';
+    } else if (!part.zones.length) {
+        summary.textContent = _('None: the telescope may point anywhere above its horizon limit.');
+    } else {
+        summary.textContent = part.zones.map(z => z.name || _('Unnamed zone')).join(', ');
+    }
 }
 
 // --- uploads -----------------------------------------------------------------------

@@ -44,6 +44,7 @@ E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py                 # in
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py --dark          # in the dark theme
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py --width=390 narrow narrow_album
 E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py engine          # real stacking in the browser (about 30 s)
+E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/run.py star_map telescope_zones zone_map  # exclusion zones
 ```
 
 The `engine` scenario stacks the fixture night in Web Workers (with OPFS), measures

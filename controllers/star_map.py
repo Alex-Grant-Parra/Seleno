@@ -754,6 +754,37 @@ def get_telescope_position():
             "message": _("Failed to get telescope position")
         }), 500
 
+@star_map_bp.route("/api/telescope_dead_zones", methods=["GET"])
+def get_telescope_dead_zones():
+    # The selected telescope's dead zones (alt/az boxes at its own site) and the
+    # site, for the star map to tint. From the telescope's latest status push;
+    # an older telescope that doesn't report them has none to show.
+    from app.WebsocketServer import get_latest_status
+    from app.dead_zones import site_from_status, zones_from_status
+
+    selected_telescope = session.get('selected_telescope')
+    telescope_id = selected_telescope.get('telescope_id') if selected_telescope else None
+    if not telescope_id:
+        return jsonify({"status": "error", "error": "No telescope selected",
+                        "message": _("No telescope selected")}), 422
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
+    age_s, status = get_latest_status(telescope_id)
+    zones = zones_from_status(status)
+    resp = jsonify({
+        "status": "success",
+        "telescope_id": telescope_id,
+        "reported": zones is not None,
+        "zones": zones or [],
+        "site": site_from_status(status),
+        "age_s": round(age_s, 1) if age_s is not None else None,
+    })
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @star_map_bp.route("/api/debug/session", methods=["GET"])
 def debug_session():
     # Debug endpoint to check session state

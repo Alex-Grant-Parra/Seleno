@@ -226,6 +226,9 @@ function draw() {
         drawBelowHorizonTint();
     }
 
+    // The telescope's dead zones, also under the grids and stars
+    drawDeadZones();
+
     // Draw coordinate grids (before stars so they appear behind stars but above tint)
     if (showHorizonGrid.checked) {
         // Horizon grid is defined directly in Alt/Az, only user rotation applies

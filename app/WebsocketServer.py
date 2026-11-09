@@ -39,7 +39,7 @@ ws_event_loop = None  # Store reference to WebSocket thread's event loop
 latest_status = {}
 MAX_STATUS_BYTES = 64 * 1024
 STATUS_PARTS = ('tracking', 'camera', 'liveview', 'recording', 'photos', 'uploads', 'clock', 'disk', 'esp32', 'plan',
-                'site', 'solve')
+                'site', 'solve', 'dead_zones')
 _status_last_seen_write = {}
 
 # Command timeouts in seconds. Each layer waits a little longer than the one inside it:
@@ -691,6 +691,16 @@ def get_latest_status(client_id):
         return None, None
     received_at, status = entry
     return max(0.0, time.time() - received_at), status
+
+
+def update_status_part(client_id, key, value):
+    # Change one part of a telescope's latest status (after a command changed it,
+    # so pages see it before the next push). Keeps the status's age.
+    entry = latest_status.get(client_id)
+    if not entry or key not in STATUS_PARTS:
+        return
+    received_at, status = entry
+    latest_status[client_id] = (received_at, {**status, key: value})
 
 
 def _catch_up_capture_plan(client_id, client_name):

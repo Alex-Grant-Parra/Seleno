@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ _('3D Planetarium') }}</title>
+    <title>{% if zone_editor %}{{ _('Exclusion zones') }} · {{ zone_editor.name }}{% else %}{{ _('3D Planetarium') }}{% endif %}</title>
     <style>
         html, body {
             margin: 0; padding: 0; overflow: hidden; background: #000;
@@ -496,6 +496,55 @@
             border-radius: 3px; cursor: pointer; font-size: 0.9em;
         }
         .search-choices button:hover { background: #2f4f2f; }
+        /* Exclusion zone editor (/telescopes/<id>/zones/map only) */
+        #zone-editor {
+            position: absolute; left: 10px; bottom: 10px; z-index: 15; width: 330px;
+            max-height: calc(100vh - 120px); max-height: calc(100dvh - 120px); overflow-y: auto;
+            background: rgba(10, 12, 20, 0.9); color: #eee; border: 1px solid #444; border-radius: 8px;
+            padding: 12px; font: 13px/1.4 sans-serif; display: flex; flex-direction: column; gap: 10px;
+            overscroll-behavior: contain;
+        }
+        #zone-editor a { color: #8cb8ff; }
+        #zone-editor .ze-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        #zone-editor .ze-title { font-weight: 700; font-size: 14px; }
+        #zone-editor .ze-badge { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: #555; white-space: nowrap; }
+        #zone-editor .ze-badge.on { background: #1f7a4a; }
+        #zone-editor .ze-muted { color: #aab; font-size: 12px; }
+        #zone-editor .ze-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        #zone-editor .ze-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        #zone-editor label.ze-field { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: #aab; }
+        #zone-editor input, #zone-editor select {
+            background: #1b1e2a; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 6px; font: inherit; min-width: 0;
+        }
+        #zone-editor input[type="checkbox"] { padding: 0; }
+        #zone-editor button {
+            background: #2a2f40; color: #fff; border: 1px solid #556; border-radius: 5px; padding: 6px 10px;
+            font: inherit; cursor: pointer; touch-action: manipulation;
+        }
+        #zone-editor button:disabled { opacity: 0.45; cursor: default; }
+        #zone-editor button.primary { background: #2b6fd6; border-color: #2b6fd6; }
+        #zone-editor button.save { background: #1f8a50; border-color: #1f8a50; }
+        #zone-editor button.danger { background: transparent; border-color: #a44; color: #f99; }
+        #zone-editor button[aria-pressed="true"] { background: #d6862b; border-color: #d6862b; }
+        #zone-editor .ze-list { display: flex; flex-direction: column; gap: 4px; }
+        #zone-editor .ze-item {
+            display: grid; grid-template-columns: 10px 1fr auto; gap: 8px; align-items: center; padding: 6px 8px;
+            border: 1px solid #333; border-radius: 6px; cursor: pointer; background: #151824;
+        }
+        #zone-editor .ze-item.selected { border-color: #fff; }
+        #zone-editor .ze-dot { width: 10px; height: 10px; border-radius: 50%; }
+        #zone-editor .ze-form { border: 1px solid #555; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+        #zone-editor .ze-status { font-size: 12px; min-height: 1em; }
+        #zone-editor .ze-check { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; cursor: pointer; }
+        #zone-editor .ze-check input { margin-top: 3px; }
+        #zone-editor .ze-lock { font-size: 10px; padding: 1px 5px; border: 1px solid #777; border-radius: 8px; color: #ccd; margin-left: 4px; }
+        #zone-editor .ze-status.bad { color: #ff9b9b; }
+        #zone-editor .ze-status.ok { color: #8fe0a8; }
+        #zone-editor details summary { cursor: pointer; }
+        html.zone-drawing #planetarium { cursor: crosshair; }
+        html.sm-compact #zone-editor { left: 8px; right: 8px; width: auto; max-height: 46vh; max-height: 46dvh; }
+        #zone-editor #ze-fold { padding: 2px 8px; }
+        #zone-editor.folded > :not(.ze-head):not(.ze-keep):not(.ze-status) { display: none; }
     </style>
 </head>
 <body>
@@ -510,7 +559,61 @@
         <button id="orient-unalign-btn" type="button" hidden>{{ _('Use compass') }}</button>
     </div>
 </div>
+{% if zone_editor %}
+<div id="info">{{ _('Drag to look around. Press Draw a zone, then drag across the sky to mark it.') }}</div>
+<div id="zone-editor" aria-label="{{ _('Exclusion zones') }}">
+    <div class="ze-head">
+        <a href="{{ zone_editor.back_url }}" id="ze-back">← {{ zone_editor.name }}</a>
+        <span class="ze-row">
+            <span class="ze-badge" id="ze-connection">…</span>
+            <button type="button" id="ze-fold" aria-expanded="true" title="{{ _('Show or hide the zone list') }}">▾</button>
+        </span>
+    </div>
+    <div class="ze-title">{{ _('Exclusion zones') }}</div>
+    <div class="ze-muted" id="ze-site"></div>
+    <div class="ze-row ze-keep">
+        <button type="button" class="primary" id="ze-draw" aria-pressed="false">✏️ {{ _('Draw a zone') }}</button>
+        <select id="ze-new-reason" aria-label="{{ _('Type of the zones you draw') }}">
+            <option value="privacy">{{ _('Privacy') }}</option>
+            <option value="physical">{{ _('Physical limit') }}</option>
+            <option value="other">{{ pgettext('dead zone reason', 'Other') }}</option>
+        </select>
+    </div>
+    <label class="ze-check"><input type="checkbox" id="ze-to-ground" checked>
+        <span>{{ _('Reach down to the ground') }}<br><span class="ze-muted">{{ _('Covers everything below what you draw, such as a whole house') }}</span></span>
+    </label>
+    <div class="ze-list" id="ze-list"></div>
+    <div class="ze-form" id="ze-form" hidden>
+        <label class="ze-field">{{ _('Name') }}<input type="text" id="ze-name" maxlength="40" placeholder="{{ _('e.g. Next door') }}"></label>
+        <label class="ze-field">{{ _('Type') }}
+            <select id="ze-reason">
+                <option value="privacy">{{ _('Privacy') }}</option>
+                <option value="physical">{{ _('Physical limit') }}</option>
+                <option value="other">{{ pgettext('dead zone reason', 'Other') }}</option>
+            </select>
+        </label>
+        <div class="ze-grid">
+            <label class="ze-field">{{ _('Azimuth from (°)') }}<input type="number" id="ze-az0" min="0" max="360" step="0.5"></label>
+            <label class="ze-field">{{ _('Azimuth to (°)') }}<input type="number" id="ze-az1" min="0" max="360" step="0.5"></label>
+            <label class="ze-field">{{ _('Altitude from (°)') }}<input type="number" id="ze-alt0" min="-90" max="90" step="0.5"></label>
+            <label class="ze-field">{{ _('Altitude to (°)') }}<input type="number" id="ze-alt1" min="-90" max="90" step="0.5"></label>
+        </div>
+        <div class="ze-row">
+            <button type="button" id="ze-done">{{ _('Done') }}</button>
+            <button type="button" class="danger" id="ze-delete">{{ _('Delete zone') }}</button>
+        </div>
+    </div>
+    <div class="ze-row">
+        <button type="button" class="save" id="ze-save">{{ _('Save to the telescope') }}</button>
+        <button type="button" id="ze-undo" hidden>{{ _('Undo changes') }}</button>
+    </div>
+    <div class="ze-status" id="ze-status" role="status" aria-live="polite"></div>
+</div>
+<script type="application/json" id="zone-editor-data">{{ zone_editor | tojson }}</script>
+{% else %}
 <div id="info">{{ _('Drag to rotate. Click a star/planet for info.') }}</div>
+{% endif %}
+{% if zone_editor %}<style>#tracking-info { display: none !important; }</style>{% endif %}
 <div id="tracking-info">
     <div class="tracking-header">🎯 {{ _('Tracking Status') }}</div>
     <div class="tracking-content" id="tracking-content">
@@ -527,10 +630,10 @@
         <input type="checkbox" id="auto-magnitude-zoom" checked> <span>{{ _('Auto-adjust magnitude on zoom') }}</span>
     </label>
     <label for="latitude"><span>{{ _('Latitude:') }}</span>
-        <input type="number" id="latitude" min="-90" max="90" step="0.01" value="0">
+        <input type="number" id="latitude" min="-90" max="90" step="0.01" value="0"{% if zone_editor and zone_editor.site %} readonly title="{{ _("The telescope's site") }}"{% endif %}>
     </label>
     <label for="longitude"><span>{{ _('Longitude:') }}</span>
-        <input type="number" id="longitude" min="-180" max="180" step="0.01" value="0">
+        <input type="number" id="longitude" min="-180" max="180" step="0.01" value="0"{% if zone_editor and zone_editor.site %} readonly title="{{ _("The telescope's site") }}"{% endif %}>
     </label>
     <div>
         <label for="time-control" style="display:block; margin-top: 4px;">{{ _('Time (local):') }}</label>
@@ -567,6 +670,9 @@
         <label for="show-horizon-grid"><input type="checkbox" id="show-horizon-grid"> <span>{{ _('Horizon Grid') }}</span></label>
         <label for="show-equatorial-grid"><input type="checkbox" id="show-equatorial-grid"> <span>{{ _('Equatorial Grid') }}</span></label>
         <label for="show-ecliptic"><input type="checkbox" id="show-ecliptic"> <span>{{ _('Ecliptic') }}</span></label>
+        {% if selected_telescope or zone_editor %}
+        <label for="show-dead-zones" title="{{ _('Parts of the sky the telescope never points at: it would hit its own mount, or look into a window') }}"><input type="checkbox" id="show-dead-zones" checked> <span>{{ _('Exclusion zones') }}</span></label>
+        {% endif %}
     </div>
     <div class="control-group">
         <label for="show-radec-cursor"><input type="checkbox" id="show-radec-cursor"> <span>{{ _('RA/DEC at cursor') }}</span></label>
@@ -685,10 +791,11 @@
 <!-- Star map scripts share one global scope and must load in this order
      (controls.js last: it wires up functions defined in the others).
      Cache-busting query param to ensure latest JS is fetched. -->
-{% set star_map_js_version = '2026-10-24-3' %}
+{% set star_map_js_version = '2026-11-09-3' %}
 {% for module in ['core', 'astronomy', 'time_control', 'catalogue', 'planets', 'overlays',
-                  'render', 'input', 'object_info', 'telescope', 'search', 'device_orientation',
-                  'controls'] %}
+                  'render', 'input', 'object_info', 'telescope', 'dead_zones']
+                 + (['zone_editor'] if zone_editor else [])
+                 + ['search', 'device_orientation', 'controls'] %}
 <script src="{{ url_for('static', filename='js/star_map/' ~ module ~ '.js') }}?v={{ star_map_js_version }}" defer></script>
 {% endfor %}
 <script>
@@ -847,8 +954,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    {% if zone_editor and zone_editor.site %}
+    // Drawing exclusion zones: always from the telescope's own site
+    setLocation({{ zone_editor.site.lat | float }}, {{ zone_editor.site.lon | float }});
+    {% else %}
     // Request location automatically when page loads
     setTimeout(requestLocation, 1000); // Small delay to let the page load first
+    {% endif %}
 });
 </script>
 </body>

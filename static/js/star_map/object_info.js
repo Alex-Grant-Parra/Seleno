@@ -3,6 +3,11 @@
 
 // Default hint shown in the info panel when nothing is selected
 function defaultInfoText() {
+    if (window.ZONE_EDITOR) {
+        return isTouchDevice
+            ? _("Swipe to look around. Tap Draw a zone, then drag one finger across the sky to mark it.")
+            : _("Drag to look around. Press Draw a zone, then drag across the sky to mark it.");
+    }
     return isTouchDevice
         ? _("Swipe to rotate. Pinch to zoom. Tap a star/planet for info.")
         : _("Drag to rotate. Click a star/planet for info.");
@@ -52,6 +57,20 @@ function showObjectInfoPanel(obj, data, ha) {
         _('V-Mag: {mag}', { mag: displayMagFormatted }), document.createElement('br')
     );
 
+    // In one of the telescope's dead zones at the map's time: it won't go there
+    if (typeof deadZoneAtMapAltAz === 'function' && deadZones.length) {
+        let when = new Date();
+        try { if (timeControl && timeControl.value) when = new Date(timeControl.value); } catch {}
+        const here = radecToAltAz(obj.ra, obj.dec, when, parseFloat(latInput.value) || 0, parseFloat(lonInput.value) || 0);
+        const zone = deadZoneAtMapAltAz(here.altDeg, here.azDeg);
+        if (zone) {
+            const warning = document.createElement('div');
+            warning.style.cssText = 'margin-top: 4px; color: #ff9b9b;';
+            warning.textContent = '⛔ ' + _("In the telescope's exclusion zone ({zone}): it won't point here", { zone: deadZoneLabel(zone) });
+            info.appendChild(warning);
+        }
+    }
+
     const buttons = document.createElement('div');
     buttons.style.cssText = 'margin-top: 5px; display: flex; gap: 4px;';
     const makeButton = (label, background, onClick) => {
@@ -61,10 +80,11 @@ function showObjectInfoPanel(obj, data, ha) {
         btn.addEventListener('click', onClick);
         return btn;
     };
-    buttons.append(
-        makeButton(_('Track'), '#4CAF50', () => trackObject(obj.name, obj.ra, obj.dec, obj.mag)),
-        makeButton(_('Advanced Info'), '#007bff', () => showStarInfoModal(window.currentStarData))
-    );
+    // The exclusion zone editor's map isn't tied to the telescope being controlled
+    if (!window.ZONE_EDITOR) {
+        buttons.append(makeButton(_('Track'), '#4CAF50', () => trackObject(obj.name, obj.ra, obj.dec, obj.mag)));
+    }
+    buttons.append(makeButton(_('Advanced Info'), '#007bff', () => showStarInfoModal(window.currentStarData)));
     info.appendChild(buttons);
 }
 
@@ -370,7 +390,7 @@ function showStarInfoModal(star) {
             </div>
         </div>
         <div class="modal-footer" style="padding: 1rem; background-color: #f8f9fa; border-top: 1px solid #dee2e6; display: flex; justify-content: space-between; gap: 8px;">
-            <button id="trackObjectBtnModal" class="btn btn-success" style="padding: 12px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">🎯 ${_('Track Object')}</button>
+            ${window.ZONE_EDITOR ? '' : `<button id="trackObjectBtnModal" class="btn btn-success" style="padding: 12px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">🎯 ${_('Track Object')}</button>`}
             <button id="closeStarInfoFooter" class="btn btn-secondary" style="padding: 12px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; flex: 1; touch-action: manipulation;">${_('Close')}</button>
         </div>
     `;
@@ -385,7 +405,8 @@ function showStarInfoModal(star) {
     const decVal = star.dec !== undefined ? star.dec : star.DEC;
     const magVal = star.mag !== undefined ? star.mag : star["V-Mag"];
     
-    document.getElementById("trackObjectBtnModal").addEventListener("click", () => {
+    const trackBtn = document.getElementById("trackObjectBtnModal");
+    if (trackBtn) trackBtn.addEventListener("click", () => {
         trackObject(name, raVal, decVal, magVal);
         modal.remove();
     });

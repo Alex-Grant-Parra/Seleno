@@ -265,5 +265,106 @@ class StatusMessages(Base):
         self.assertNotIn("big-one", wss.latest_status)
 
 
+class DeadZones(Base):
+    def setUp(self):
+        self.saved = []
+
+        def set_zones(zones):
+            # Like the Pi: a locked zone set there stays whatever is sent
+            self.saved = [{"name": "Pier", "az": [170, 190], "alt": [-90, -20], "reason": "physical", "locked": True}] + zones
+            return {"zones": self.saved}
+
+        self.fake = connect_fake(self.tname, {"setDeadZones": set_zones, "getDeadZones": lambda: {"zones": self.saved}})
+
+    def tearDown(self):
+        disconnect_fake(self.tname)
+
+    def command(self, user, action, **params):
+        return self.as_user(user).post("/interface/command", json={"action": action, "params": params})
+
+    def test_owner_sets_them_and_the_map_sees_them(self):
+        status = {"type": "status", "site": {"lat": 51.46, "lon": -2.55}, "dead_zones": {"zones": []}}
+        wss._store_status(self.tname, self.tname, "{}", status)
+        zones = [{"name": "  Next door ", "az": [370, 80], "alt": [35, -90], "reason": "Privacy", "extra": 1}]
+        self.assertEqual(self.command(self.booker, "set_dead_zones", zones=zones).status_code, 403)
+        r = self.command(self.owner, "set_dead_zones", zones=zones)
+        self.assertEqual(r.get_json()["status"], "success", r.get_json())
+        sent = self.fake.last("setDeadZones")[1][0]
+        self.assertEqual(sent, [{"name": "Next door", "az": [10.0, 80.0], "alt": [-90.0, 35.0], "reason": "privacy",
+                                 "locked": False}])
+        # The star map has them at once, before the next status push
+        body = self.as_user(self.booker).get("/api/telescope_dead_zones").get_json()
+        self.assertEqual([z["name"] for z in body["zones"]], ["Pier", "Next door"])
+        self.assertEqual(body["site"], {"lat": 51.46, "lon": -2.55})
+        self.assertTrue(body["reported"])
+        self.assertEqual(self.as_user(self.stranger).get("/api/telescope_dead_zones").status_code, 403)
+
+    def test_bad_zones_are_refused_before_the_telescope(self):
+        for zones in ("all of it", [{"az": [10, 10], "alt": [0, 10]}], [{"az": [0, 10], "alt": [0, 100]}],
+                      [{"az": [0, 10]}], [{"az": [0, 10], "alt": [0, 5]}] * 40):
+            r = self.command(self.owner, "set_dead_zones", zones=zones)
+            self.assertEqual(r.status_code, 400, zones)
+        self.assertIsNone(self.fake.last("setDeadZones"))
+
+    def test_an_older_telescope_reports_none(self):
+        wss._store_status(self.tname, self.tname, "{}", {"type": "status"})
+        body = self.as_user(self.booker).get("/api/telescope_dead_zones").get_json()
+        self.assertEqual((body["zones"], body["reported"]), ([], False))
+        # Malformed zones from a telescope are dropped, good ones kept
+        wss._store_status(self.tname, self.tname, "{}", {"type": "status", "dead_zones": {"zones": [
+            {"az": [0, 10], "alt": [0, 10]}, {"az": "x"}, "nope"]}})
+        body = self.as_user(self.booker).get("/api/telescope_dead_zones").get_json()
+        self.assertEqual(len(body["zones"]), 1)
+
+
+class TelescopeZonePages(Base):
+    # The telescope's own page (My Telescopes) and its exclusion zone API and map
+    def setUp(self):
+        self.saved = [{"name": "Pier", "az": [170, 190], "alt": [-90, -20], "reason": "physical", "locked": True}]
+
+        def set_zones(zones):
+            self.saved = self.saved[:1] + zones
+            return {"zones": self.saved}
+
+        self.fake = connect_fake(self.tname, {"setDeadZones": set_zones})
+        wss._store_status(self.tname, self.tname, "{}", {"type": "status", "site": {"lat": 51.46, "lon": -2.55},
+                                                        "dead_zones": {"zones": self.saved}})
+        self.url = f"/telescopes/{self.scope.id}/zones"
+
+    def tearDown(self):
+        disconnect_fake(self.tname)
+
+    def test_owner_reads_and_saves(self):
+        c = self.as_user(self.owner)
+        body = c.get(self.url).get_json()
+        self.assertEqual((body["connected"], body["reported"], body["site"]), (True, True, {"lat": 51.46, "lon": -2.55}))
+        self.assertEqual([z["name"] for z in body["zones"]], ["Pier"])
+        r = c.post(self.url, json={"zones": [{"name": "Window", "az": [200, 230], "alt": [-90, 25], "reason": "privacy"}]})
+        self.assertEqual(r.status_code, 200, r.get_json())
+        self.assertEqual([z["name"] for z in r.get_json()["zones"]], ["Pier", "Window"])
+        self.assertEqual(self.fake.last("setDeadZones")[1][0][0]["az"], [200.0, 230.0])
+        # The status cache has them, so the star map and interface show them at once
+        _, status = wss.get_latest_status(self.tname)
+        self.assertEqual(len(status["dead_zones"]["zones"]), 2)
+        self.assertEqual(c.post(self.url, json={"zones": [{"az": [5, 5], "alt": [0, 9]}]}).status_code, 400)
+
+    def test_only_the_owner(self):
+        for user in (self.booker, self.stranger):
+            c = self.as_user(user)
+            self.assertEqual(c.get(self.url).status_code, 404)
+            self.assertEqual(c.post(self.url, json={"zones": []}).status_code, 404)
+            self.assertEqual(c.get(f"/telescopes/{self.scope.id}/zones/map").status_code, 302)
+        self.assertIsNone(self.fake.last("setDeadZones"))
+        self.assertEqual(self.as_user(self.admin).get(self.url).status_code, 200)
+
+    def test_offline_cannot_save(self):
+        disconnect_fake(self.tname)
+        c = self.as_user(self.owner)
+        self.assertFalse(c.get(self.url).get_json()["connected"])
+        r = c.post(self.url, json={"zones": []})
+        self.assertEqual(r.status_code, 409)
+        self.assertIn("offline", r.get_json()["message"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

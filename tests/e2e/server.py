@@ -204,6 +204,13 @@ def e2e_login():
     return redirect(request.args.get("next") or "/interface/")
 
 
+@app.route("/e2e-zone-map")
+def e2e_zone_map():
+    # The exclusion zone drawing map for the test telescope (its id isn't known up front)
+    from flask import url_for
+    return redirect(url_for("telescopes.telescope_zone_map", telescope_id=SCOPE_PK))
+
+
 @app.route("/e2e-result", methods=["POST"])
 def e2e_result():
     results.update(request.get_json(silent=True) or {})
@@ -229,6 +236,15 @@ def capture_photo(current_id, exposure_s=None):
 
 
 plans_started = {}
+# Like the Pi: a zone locked there (the pier) stays whatever the server sends
+PIER = {"name": "Pier", "az": [330, 30], "alt": [-90, 15], "reason": "physical", "locked": True}
+
+
+def set_dead_zones(zones):
+    STATUS["dead_zones"] = {"zones": [PIER] + list(zones)}
+    return STATUS["dead_zones"]
+
+
 fake = connect_fake("e2e-scope", {
     "getCameraChoices": {
         "shutterSpeed": ["1/4000", "1/1000", "1/250", "1/60", "1/4", "1", "30", "Bulb"],
@@ -258,6 +274,9 @@ fake = connect_fake("e2e-scope", {
     "getCapturePlanStatus": lambda plan_id=None: {"id": plan_id, "state": "running", "step": 1, "frame": 3, "time_left_s": 2400},
     "pauseCapturePlan": "paused",
     "uploadPending": {"ok": True, "queued": 6},
+    "getCurrentCoordinates": {"ra": 83.82, "dec": -5.39},
+    "setDeadZones": set_dead_zones,
+    "getDeadZones": lambda: STATUS["dead_zones"],
 })
 
 STATUS = {"type": "status",
@@ -267,7 +286,10 @@ STATUS = {"type": "status",
           "uploads": {"waiting": 6, "waiting_raw": 18, "failed": 0},
           "clock": {"trusted": True, "source": "gps", "offset_s": 0.02},
           "disk": 41_000_000_000,
-          "esp32": {"connected": True, "estop": False}}
+          "esp32": {"connected": True, "estop": False},
+          "site": {"lat": 51.4623, "lon": -2.5502},
+          "dead_zones": {"zones": [PIER, {"name": "Next door", "az": [80, 130], "alt": [-90, 35],
+                                          "reason": "privacy", "locked": False}]}}
 wss._store_status("e2e-scope", "e2e-scope", json.dumps(STATUS), STATUS)
 
 

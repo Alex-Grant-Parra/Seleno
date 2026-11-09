@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ telescope.telescope_id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="{{ url_for('telescopes.my_telescopes') }}">{{ _('My Telescopes') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ telescope.telescope_id }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="mb-0">{{ telescope.telescope_id }}
+            {% if telescope.is_disabled %}<span class="badge bg-danger fs-6 align-middle">{{ _('Disabled by Admin') }}</span>
+            {% elif not telescope.is_approved %}<span class="badge bg-warning text-dark fs-6 align-middle">{{ _('Pending Approval') }}</span>
+            {% endif %}
+            <span id="tz-connection" class="badge bg-secondary fs-6 align-middle">…</span>
+        </h2>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('book.telescope_booking_settings', telescope_id=telescope.id) }}">{{ _('Booking settings') }}</a>
+    </div>
+
+    <div class="card mb-4" id="tz-card"
+         data-zones-url="{{ url_for('telescopes.telescope_zones', telescope_id=telescope.id) }}">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <strong>{{ _('Exclusion zones') }}</strong>
+            <a class="btn btn-sm btn-primary" id="tz-draw" href="{{ url_for('telescopes.telescope_zone_map', telescope_id=telescope.id) }}">
+                <i class="fas fa-pen"></i> {{ _('Draw on the star map') }}
+            </a>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">{{ _("Parts of the sky this telescope never points at, because it would hit its own mount or look into somebody's window. Each zone is a box of sky: azimuth runs clockwise from north (a range like 350 to 10 goes through north), altitude from -90 (straight down) to 90 (straight up). Go-tos into a zone are refused, slews go round them, and tracking stops if a target drifts in.") }}</p>
+            <div id="tz-note" class="alert alert-secondary small py-2 d-none" role="status"></div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-2" id="tz-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width:150px">{{ _('Name') }}</th>
+                            <th>{{ _('Azimuth from (°)') }}</th>
+                            <th>{{ _('Azimuth to (°)') }}</th>
+                            <th>{{ _('Altitude from (°)') }}</th>
+                            <th>{{ _('Altitude to (°)') }}</th>
+                            <th style="min-width:140px">{{ _('Type') }}</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tz-rows"></tbody>
+                </table>
+            </div>
+            <p id="tz-empty" class="text-muted small d-none">{{ _('No exclusion zones: the telescope may point anywhere above its horizon limit.') }}</p>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-outline-primary" type="button" id="tz-add"><i class="fas fa-plus"></i> {{ _('Add zone') }}</button>
+                <button class="btn btn-sm btn-success" type="button" id="tz-save">{{ _('Save to the telescope') }}</button>
+                <button class="btn btn-sm btn-outline-secondary d-none" type="button" id="tz-revert">{{ _('Undo changes') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    /* Phones: each zone as a small card instead of a wide table */
+    @media (max-width: 767.98px) {
+        #tz-table thead { display: none; }
+        #tz-table tr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--bs-border-color); }
+        #tz-table td { display: block; border: 0; padding: 0; }
+        #tz-table td:first-child { grid-column: 1 / -1; }
+        #tz-table td:last-child { align-self: end; justify-self: end; }
+        #tz-table td[data-label]::before { content: attr(data-label); display: block; font-size: 0.75rem; color: var(--bs-secondary-color); }
+    }
+</style>
+<script src="{{ url_for('static', filename='js/telescope_zones.js') }}?v=20261109-2"></script>
+{% endblock %}
