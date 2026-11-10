@@ -5,10 +5,11 @@ They move one motor by steps, with no idea where the telescope points, so
 they bypassed the route planner and the Sun guard. config
 server.raw_motor_commands says what happens:
 
-* "guarded" (the default): a move that would end past an axis limit, or
-  take the telescope inside the Sun's danger zone (utils/sun_guard.py), is
-  refused; moving away from the Sun is fine. A continuous move is watched
-  and stopped at a limit or the Sun. Refused while tracking (stop it
+* "guarded" (the default): a move that would end past an axis limit, take
+  the telescope inside the Sun's danger zone (utils/sun_guard.py) or into
+  a dead zone (utils/dead_zones.py), is refused; moving away from the Sun,
+  or out of a dead zone, is fine. A continuous move is watched and stopped
+  at a limit, the Sun or a dead zone. Refused while tracking (stop it
   first) so the two don't fight.
 * "off": refused.
 * "unrestricted": as before (bench testing, nothing on the mount).
@@ -38,7 +39,8 @@ def _policy() -> str:
 
 
 def _context():
-	"""(config, axes, sun (ha, dec)) or None if there's nothing to check."""
+	"""(config, axes, sun (ha, dec), dead zone keepouts) or None if there's
+	nothing to check."""
 	from core.hardware import tracking
 	from utils import sun_guard  # noqa: F401 (the danger radius)
 	from utils.telescope_state import get_mount_axes
@@ -48,7 +50,7 @@ def _context():
 	lon = tracking._longitude()
 	if axes is None or lon is None:
 		return None
-	return tracking.mount_config(), axes, tracking._sun_hour_angle(lon)
+	return tracking.mount_config(), axes, tracking._sun_hour_angle(lon), tracking._keepouts()
 
 
 def _end_axes(config, axes: Tuple[float, float], motor_id: str, steps: float) -> Tuple[float, float]:
@@ -56,12 +58,15 @@ def _end_axes(config, axes: Tuple[float, float], motor_id: str, steps: float) ->
 	return axes[0] + d_ra, axes[1] + d_dec
 
 
-def _problem(config, start, end, sun) -> Optional[str]:
+def _problem(config, start, end, sun, keepouts=()) -> Optional[str]:
 	from core.hardware import mount
 	from utils.sun_guard import DANGER_DEG
 
 	if not config.within(end):
 		return "That would take an axis past its limit"
+	zone = mount.zone_hit([start, end], keepouts, config)
+	if zone:
+		return f"That would point into {zone}"
 	start_sun = mount.separation(mount.sky_from_axes(*start, config), sun)
 	closest = mount.closest_to([start, end], sun, config=config)
 	if closest < DANGER_DEG and closest < start_sun - 0.5:
@@ -91,7 +96,7 @@ def check_raw_move(motor_id: str, steps: Optional[float] = None, motor_degrees: 
 	if context is None:
 		log.info("Raw %s move not checked: the position or site isn't known", motor_id)
 		return None
-	config, axes, sun = context
+	config, axes, sun, keepouts = context
 	if motor_degrees is not None:
 		steps = motor_degrees / 360.0 * config.steps_per_rev
 	if continuous:
@@ -100,11 +105,11 @@ def check_raw_move(motor_id: str, steps: Optional[float] = None, motor_degrees: 
 		steps = per_deg * (1 if forward else -1)
 	if not steps:
 		return None
-	return _problem(config, axes, _end_axes(config, axes, motor_id, float(steps)), sun)
+	return _problem(config, axes, _end_axes(config, axes, motor_id, float(steps)), sun, keepouts)
 
 
 def watch_continuous(motor_id: str, forward: bool, period_s: float = 0.25) -> None:
-	"""Stop a continuous raw move at an axis limit or the Sun."""
+	"""Stop a continuous raw move at an axis limit, the Sun or a dead zone."""
 	if _policy() != "guarded" or motor_id not in ("motor1", "motor2"):
 		return
 	old = _watchers.get(motor_id)
@@ -127,10 +132,10 @@ def watch_continuous(motor_id: str, forward: bool, period_s: float = 0.25) -> No
 				context = _context()
 				if context is None:
 					continue
-				config, axes, sun = context
+				config, axes, sun, keepouts = context
 				ahead = _end_axes(config, axes, motor_id, (1 if forward else -1)
 					* (config.motor_steps(0.5, 0.0)[0] if motor_id == "motor1" else config.motor_steps(0.0, 0.5)[1]))
-				problem = _problem(config, axes, ahead, sun)
+				problem = _problem(config, axes, ahead, sun, keepouts)
 				if problem:
 					conn.send({"cmd": "stop", "motor": motor_id})
 					log.warning("Stopped %s: %s", motor_id, problem)

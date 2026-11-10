@@ -24,8 +24,9 @@ A pointing model (core/hardware/pointing.py) can say where the telescope
 really points for given axes. Pass it as `model` and the axis solutions
 are refined so the telescope lands on the target, not where the ideal
 geometry says it should be. plan_route() picks the quickest that
-stays inside the axis limits and keeps clear of the Sun. When the straight
-move (both axes together) would pass too close, it curves round the Sun.
+stays inside the axis limits and keeps clear of the Sun and of any dead
+zones (Keepout: utils/dead_zones.py). When the straight move (both axes
+together) would pass too close, it curves round them.
 The firmware runs the route as one smooth path ({"cmd":"path"}), so the
 route can be over the pole (towards the zenith, or under towards the
 nadir) whenever that's quicker.
@@ -203,6 +204,42 @@ def closest_to(route: Sequence[Point], sky: Tuple[float, float], step_deg: float
 	return best
 
 
+@dataclass
+class Keepout:
+	"""Sky a route mustn't enter (a dead zone). Both take and give real
+	(ha, dec), not the mount frame."""
+	name: str
+	inside: Callable[[Tuple[float, float]], bool]
+	# padded outlines (ha, dec) of convex-ish pieces to go round; pieces
+	# that can't be gone round (round a pole) are left out, only checked
+	outlines: Callable[[float], List[List[Tuple[float, float]]]]
+
+
+def zone_hit(route: Sequence[Point], keepouts: Sequence[Keepout], config: Optional[MountConfig] = None,
+		step_deg: float = 0.5) -> Optional[str]:
+	"""The name of the first keep-out the route goes into, or None. Leaving
+	one the route starts in is fine; going back in isn't."""
+	if not keepouts:
+		return None
+	samples: List[Tuple[float, float]] = []
+	for a, b in zip(route, route[1:]):
+		n = max(1, int(math.ceil(max(abs(b[0] - a[0]), abs(b[1] - a[1])) / step_deg)))
+		start = 0 if not samples else 1
+		for i in range(start, n + 1):
+			t = i / n
+			samples.append(sky_from_axes(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, config))
+	if len(route) == 1:
+		samples.append(sky_from_axes(*route[0], config))
+	for k in keepouts:
+		leaving = k.inside(samples[0])  # still in the stretch it started in
+		for sky in samples[1:]:
+			if not k.inside(sky):
+				leaving = False
+			elif not leaving:
+				return k.name
+	return None
+
+
 # --- routes ---------------------------------------------------------------------
 
 @dataclass
@@ -210,8 +247,9 @@ class Route:
 	points: List[Point]           # axis positions, the start first
 	seconds: float                # at slew speed
 	sun_deg: float                # closest it comes to the Sun (180 without one)
-	detour: bool = False          # curves round the Sun
+	detour: bool = False          # curves round the Sun or a dead zone
 	notes: List[str] = field(default_factory=list)
+	zone: Optional[str] = None    # a dead zone it goes into (never run one)
 
 	@property
 	def end(self) -> Point:
@@ -300,14 +338,16 @@ def _crosses(poly: Sequence[Tuple[float, float]], p: Tuple[float, float], q: Tup
 
 
 class _Planner:
-	"""Shortest routes round the Sun's keep-out, in the axis plane scaled to
-	motor turns (so a straight line there is a move of both axes together,
-	and its length is the motors' work)."""
+	"""Shortest routes round the Sun's keep-out and the dead zones, in the
+	axis plane scaled to motor turns (so a straight line there is a move of
+	both axes together, and its length is the motors' work)."""
 
-	def __init__(self, config: MountConfig, sun: Tuple[float, float], keep_out: float) -> None:
+	def __init__(self, config: MountConfig, sun: Optional[Tuple[float, float]], keep_out: float,
+			keepouts: Sequence[Keepout] = ()) -> None:
 		self.config = config
-		self.sun = sun
+		self.sun = sun if keep_out > 0.0 else None  # mount frame
 		self.keep_out = keep_out
+		self.keepouts = list(keepouts)
 		self.sx = config.ra_gear
 		self.sy = config.dec_gear
 
@@ -317,18 +357,25 @@ class _Planner:
 	def unscaled(self, q: Tuple[float, float]) -> Point:
 		return q[0] / self.sx, q[1] / self.sy
 
-	def obstacles(self, a: Point, b: Point, radius: float) -> List[List[Tuple[float, float]]]:
-		"""The Sun's keep-out as convex polygons in the scaled axis plane:
-		one per way of pointing at it (normal or flipped, each turn) near
-		the move from a to b."""
-		ring = _circle(self.sun, radius, 15.0)
-		reach_ra = radius / max(0.2, math.cos((abs(self.sun[1]) + radius) * DEG)) + 2.0
+	def clear(self, points: Sequence[Point]) -> bool:
+		if self.sun is not None and closest_to(points, self.sun) < self.keep_out:
+			return False
+		return zone_hit(points, self.keepouts, self.config) is None
+
+	def _placed(self, center: Tuple[float, float], outline: Sequence[Tuple[float, float]],
+			a: Point, b: Point) -> List[List[Tuple[float, float]]]:
+		"""An outline round center (both mount-frame (ha, dec)) as convex
+		polygons in the scaled axis plane: one per way of pointing at it
+		(normal or flipped, each turn) near the move from a to b."""
+		offsets = [(wrap180(ha - center[0]), dec - center[1]) for ha, dec in outline]
+		reach_ra = max(abs(da) for da, _dd in offsets) + 2.0
+		reach_dec = max(abs(dd) for _da, dd in offsets)
 		lo_ra, hi_ra = min(a[0], b[0]) - reach_ra - 30.0, max(a[0], b[0]) + reach_ra + 30.0
-		lo_dec, hi_dec = min(a[1], b[1]) - radius - 30.0, max(a[1], b[1]) + radius + 30.0
+		lo_dec, hi_dec = min(a[1], b[1]) - reach_dec - 30.0, max(a[1], b[1]) + reach_dec + 30.0
 		polys = []
 		for flipped in (False, True):
-			base_ra = self.sun[0] + (180.0 if flipped else 0.0)
-			base_dec = (180.0 - self.sun[1]) if flipped else self.sun[1]
+			base_ra = center[0] + (180.0 if flipped else 0.0)
+			base_dec = (180.0 - center[1]) if flipped else center[1]
 			for k in range(-2, 3):
 				ca = wrap180(base_ra) + 360.0 * k
 				if not lo_ra <= ca <= hi_ra:
@@ -337,47 +384,65 @@ class _Planner:
 					cd = wrap180(base_dec) + 360.0 * m
 					if not lo_dec <= cd <= hi_dec:
 						continue
-					outline = []
-					for ha, dec in ring:
-						da = wrap180(ha - self.sun[0])
-						dd = dec - self.sun[1]
-						outline.append(self.scaled((ca + da, cd + (-dd if flipped else dd))))
-					polys.append(_hull(outline))
+					polys.append(_hull([self.scaled((ca + da, cd + (-dd if flipped else dd))) for da, dd in offsets]))
+		return polys
+
+	def obstacles(self, a: Point, b: Point, radius: float, zone_pad: float = 1.0) -> List[List[Tuple[float, float]]]:
+		"""The Sun's keep-out (radius degrees) and the dead zones (padded
+		by zone_pad) as convex polygons in the scaled axis plane."""
+		polys = []
+		if self.sun is not None:
+			polys.extend(self._placed(self.sun, _circle(self.sun, radius, 15.0), a, b))
+		for keepout in self.keepouts:
+			for outline in keepout.outlines(zone_pad):
+				framed = [mount_frame(p, self.config) for p in outline]
+				x = sum(_xyz(*p)[0] for p in framed)
+				y = sum(_xyz(*p)[1] for p in framed)
+				z = sum(_xyz(*p)[2] for p in framed)
+				center = (math.atan2(y, x) / DEG, math.atan2(z, math.hypot(x, y)) / DEG)
+				polys.extend(self._placed(center, framed, a, b))
 		return polys
 
 	def route(self, start: Point, goal: Point) -> Optional[List[Point]]:
 		"""Straight if that keeps clear, else the shortest way round; None if
 		there's no clear way inside the limits."""
 		straight = [start, goal]
-		if closest_to(straight, self.sun) >= self.keep_out:
+		if self.clear(straight):
 			return straight
-		for pad in (1.5, 3.0, 5.0):
-			found = self._around(start, goal, self.keep_out + pad)
-			if found is not None and closest_to(found, self.sun) >= self.keep_out:
+		for sun_pad, zone_pad in ((1.5, 3.0), (3.0, 1.0), (5.0, 0.3)):
+			found = self._around(start, goal, self.keep_out + sun_pad, zone_pad)
+			if found is not None and self.clear(found):
 				return found
 		return None
 
-	def _around(self, start: Point, goal: Point, radius: float) -> Optional[List[Point]]:
-		polys = self.obstacles(start, goal, radius)
+	def _around(self, start: Point, goal: Point, radius: float, zone_pad: float = 1.0) -> Optional[List[Point]]:
+		polys = self.obstacles(start, goal, radius, zone_pad)
 		s, g = self.scaled(start), self.scaled(goal)
 		# A start or goal inside an outline can't go round it; leave that
 		# one out (its closeness is then down to the start or goal).
-		polys = [p for p in polys if not _inside(p, s) and not _inside(p, g)]
+		polys = [p for p in polys if len(p) >= 3 and not _inside(p, s) and not _inside(p, g)]
 		nodes: List[Tuple[float, float]] = [s, g]
 		owner: List[Tuple[int, int]] = [(-1, -1), (-1, -1)]
 		for pi, poly in enumerate(polys):
 			for vi, v in enumerate(poly):
-				if self.config.within(self.unscaled(v)):
+				if self.config.within(self.unscaled(v)) and not any(_inside(q, v) for q in polys if q is not poly):
 					nodes.append(v)
 					owner.append((pi, vi))
+		seen: Dict[Tuple[int, int], bool] = {}
 
 		def visible(i: int, j: int) -> bool:
-			oi, oj = owner[i], owner[j]
-			if oi[0] >= 0 and oi[0] == oj[0]:
-				n = len(polys[oi[0]])
-				# Along the outline only (any other chord cuts through it).
-				return (oi[1] - oj[1]) % n in (1, n - 1)
-			return not any(_crosses(poly, nodes[i], nodes[j]) for poly in polys)
+			key = (min(i, j), max(i, j))
+			if key not in seen:
+				oi, oj = owner[i], owner[j]
+				if oi[0] >= 0 and oi[0] == oj[0]:
+					n = len(polys[oi[0]])
+					# Along the outline only (any other chord cuts through it),
+					# and not through another outline.
+					seen[key] = ((oi[1] - oj[1]) % n in (1, n - 1)
+						and not any(_crosses(poly, nodes[i], nodes[j]) for k, poly in enumerate(polys) if k != oi[0]))
+				else:
+					seen[key] = not any(_crosses(poly, nodes[i], nodes[j]) for poly in polys)
+			return seen[key]
 
 		def cost(i: int, j: int) -> float:
 			return max(abs(nodes[i][0] - nodes[j][0]), abs(nodes[i][1] - nodes[j][1]))
@@ -407,23 +472,35 @@ class _Planner:
 		return [start] + [self.unscaled(nodes[i]) for i in reversed(path[1:-1])] + [goal]
 
 
+def _blocked_note(sun: bool, keepouts: Sequence[Keepout]) -> str:
+	what = " or ".join(w for w, on in (("the Sun", sun), ("the exclusion zones", bool(keepouts))) if on)
+	return f"no way round {what} inside the axis limits"
+
+
 def plan_route(start: Point, target: Tuple[float, float], config: MountConfig,
 		sun: Optional[Tuple[float, float]] = None, keep_out: float = 0.0,
-		model: Optional[Model] = None) -> Route:
+		model: Optional[Model] = None, keepouts: Sequence[Keepout] = ()) -> Route:
 	"""The quickest route from the axis position `start` to point at
-	target (ha, dec), over the pole if that's quicker and allowed, and
-	never closer than keep_out degrees to the Sun (ha, dec) when there's a
-	way round. If nothing keeps clear, the quickest route anyway; its
-	sun_deg says how close it gets."""
+	target (ha, dec), over the pole if that's quicker and allowed, never
+	closer than keep_out degrees to the Sun (ha, dec) and never into a
+	keep-out (a dead zone) when there's a way round. If nothing keeps
+	clear, the quickest route anyway: its sun_deg says how close it gets,
+	and its zone names a dead zone it goes into (such a route must not be
+	run)."""
 	goals = axis_solutions(target[0], target[1], config, model=model)
 	if not goals:
 		goals = [nearest_solution(target[0], target[1], start, config, model=model)]
 	goals.sort(key=lambda g: config.seconds(start, g))
-	if sun is None or keep_out <= 0.0:
+	use_sun = sun is not None and keep_out > 0.0
+	if not use_sun and not keepouts:
 		goal = goals[0]
 		return Route([start, goal], config.seconds(start, goal), 180.0)
-	sun = mount_frame(sun, config)  # the planner works in the mount frame
-	planner = _Planner(config, sun, keep_out)
+	sun_m = mount_frame(sun, config) if sun is not None else None  # the planner works in the mount frame
+	planner = _Planner(config, sun_m if use_sun else None, keep_out if use_sun else 0.0, keepouts)
+
+	def sun_deg(points: Sequence[Point]) -> float:
+		return closest_to(points, sun_m) if sun_m is not None else 180.0
+
 	best: Optional[Route] = None
 	for goal in goals:
 		if best is not None and config.seconds(start, goal) >= best.seconds:
@@ -433,12 +510,13 @@ def plan_route(start: Point, target: Tuple[float, float], config: MountConfig,
 			continue
 		seconds = _route_seconds(points, config)
 		if best is None or seconds < best.seconds - 1e-6:
-			best = Route(points, seconds, closest_to(points, sun), detour=len(points) > 2)
+			best = Route(points, seconds, sun_deg(points), detour=len(points) > 2)
 	if best is not None:
 		return best
 	goal = goals[0]
-	route = Route([start, goal], config.seconds(start, goal), closest_to([start, goal], sun))
-	route.notes.append("no way round the Sun inside the axis limits")
+	route = Route([start, goal], config.seconds(start, goal), sun_deg([start, goal]),
+		zone=zone_hit([start, goal], keepouts, config))
+	route.notes.append(_blocked_note(use_sun, keepouts))
 	return route
 
 
@@ -454,17 +532,21 @@ def route_steps(route: Route, config: MountConfig) -> List[Tuple[int, int]]:
 
 
 def plan_axes_route(start: Point, goal: Point, config: MountConfig,
-		sun: Optional[Tuple[float, float]] = None, keep_out: float = 0.0) -> Route:
+		sun: Optional[Tuple[float, float]] = None, keep_out: float = 0.0,
+		keepouts: Sequence[Keepout] = ()) -> Route:
 	"""A route between two axis positions (parking): round the Sun's
-	keep-out when the straight way passes it. sun is real (ha, dec)."""
-	if sun is None or keep_out <= 0.0:
+	keep-out and the dead zones when the straight way passes them. sun is
+	real (ha, dec). Its zone names a dead zone it goes into anyway."""
+	use_sun = sun is not None and keep_out > 0.0
+	if not use_sun and not keepouts:
 		return Route([start, goal], config.seconds(start, goal), 180.0)
-	sun_m = mount_frame(sun, config)
-	points = _Planner(config, sun_m, keep_out).route(start, goal)
+	sun_m = mount_frame(sun, config) if sun is not None else None
+	points = _Planner(config, sun_m if use_sun else None, keep_out if use_sun else 0.0, keepouts).route(start, goal)
 	note = []
 	if points is None:
 		points = [start, goal]
-		note.append("no way round the Sun inside the axis limits")
-	route = Route(points, _route_seconds(points, config), closest_to(points, sun_m), detour=len(points) > 2)
+		note.append(_blocked_note(use_sun, keepouts))
+	route = Route(points, _route_seconds(points, config), closest_to(points, sun_m) if sun_m is not None else 180.0,
+		detour=len(points) > 2, zone=zone_hit(points, keepouts, config))
 	route.notes.extend(note)
 	return route

@@ -1017,6 +1017,61 @@ class TrackingRouteTests(PanelUIBase):
 		self.assertLess(result["seconds"], 20.0)
 		self.assertTrue(wait_for(lambda: get_mount_axes()[1] > 90.0, timeout=5.0))  # on the far side now
 
+	def dead_zone(self) -> None:
+		# Low in the east: [-90, 35] alt, 60-120 az
+		from utils.config_state import save_section
+
+		save_section("dead_zones", {"zones": [{"name": "Next door", "az": [60, 120], "alt": [-90, 35],
+			"reason": "privacy"}]})
+
+	def test_a_goto_into_a_dead_zone_is_refused(self) -> None:
+		from utils.astrometry import altaz_to_hadec
+		from utils.telescope_state import set_mount_axes
+
+		self.dead_zone()
+		set_mount_axes(0.0, 90.0, source="test")
+		ha, dec = altaz_to_hadec(20.0, 90.0, LAT)  # due east, 20 deg up
+		target = self.at(ha, dec)
+		with sun_at(*self.at(180.0, -80.0))[0], sun_at(*self.at(180.0, -80.0))[1]:
+			result = self.tracking.trackCoordinates("Window", target[0], target[1], 1.0, allow_below_horizon=True)
+		self.assertIn("Next door", result.get("error", ""))
+		self.assertEqual(self.mount.paths, [])
+
+	def test_a_goto_curves_round_a_dead_zone(self) -> None:
+		from unittest import mock
+
+		from core.hardware import mount
+		from utils import dead_zones
+		from utils.astrometry import altaz_to_hadec, hadec_to_altaz
+		from utils.telescope_state import get_mount_axes, set_mount_axes
+
+		self.dead_zone()
+		start = altaz_to_hadec(20.0, 150.0, LAT)  # south-east
+		set_mount_axes(*mount.nearest_solution(start[0], start[1], (0.0, 0.0), self.tracking.mount_config()),
+			source="test")
+		self.start = get_mount_axes()
+		ha, dec = altaz_to_hadec(20.0, 45.0, LAT)  # north-east: straight across would pass the zone
+		target = self.at(ha, dec)
+		with mock.patch("utils.config_state.get_mount_config", return_value={
+				"ra_axis_limits": [-270.0, 270.0], "dec_axis_limits": [-90.0, 90.0], "pole_crossing": False}), \
+				sun_at(*self.at(180.0, -80.0))[0], sun_at(*self.at(180.0, -80.0))[1]:
+			result = self.tracking.trackCoordinates("Round", target[0], target[1], 1.0)
+		self.assertEqual(result.get("status"), "slewing", result)
+		zone = dead_zones.zones()[0]
+		for sky in self.route_sky(self.mount.paths[0]):
+			self.assertFalse(zone.contains(*hadec_to_altaz(sky[0], sky[1], LAT)), sky)
+
+	def test_tracking_stops_when_the_target_drifts_into_a_dead_zone(self) -> None:
+		from utils.astrometry import altaz_to_hadec
+
+		self.dead_zone()
+		ha, dec = altaz_to_hadec(20.0, 90.0, LAT)
+		self.tracking._target_object = {"name": "Riser", "ra": self.at(ha, dec)[0], "dec": dec}
+		self.assertIn("Next door", self.tracking._dead_zone_problem())
+		self.tracking._target_object = {"name": "Clear", "ra": self.at(0.0, 0.0)[0], "dec": 0.0}
+		self.assertIsNone(self.tracking._dead_zone_problem())
+		self.tracking._target_object = None
+
 	def test_the_watchdog_stops_tracking_near_the_sun(self) -> None:
 		from utils.telescope_state import set_mount_axes
 

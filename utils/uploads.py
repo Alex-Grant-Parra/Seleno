@@ -6,9 +6,11 @@ files stayed on the Pi, unsent). Now:
 
 * each file is queued (photos/upload_queue.json) and sent on its own by a
   background thread, while the client is online;
-* JPEGs go first. RAW files (the big ones) follow the policy in
+* JPEGs go first, then videos (core/camera/recorder.py). RAW files (the big ones) follow the policy in
   config upload.raw: "after_jpeg" (sent once no JPEG is waiting),
   "on_request" (held until uploadPending("raw")) or "never";
+* priority files jump the queue: a test shot's JPEG, and the RAWs the
+  server asks for by name (release_matching);
 * a failed send is tried again later, waiting longer each time (up to
   upload.retry_max_s); a refusal (bad name or type) gives up after three
   tries;
@@ -32,6 +34,7 @@ log = get_logger("uploads")
 QUEUE_NAME = "upload_queue.json"
 RAW_EXTENSIONS = {"cr2", "cr3", "nef", "arw", "orf", "rw2", "dng", "raf", "pef", "srw", "nrw"}
 JPEG_EXTENSIONS = {"jpg", "jpeg"}
+VIDEO_EXTENSIONS = {"ser", "avi"}
 GIVE_UP_AFTER_REFUSALS = 3
 
 
@@ -41,13 +44,16 @@ def kind_of(path: str) -> str:
 		return "jpeg"
 	if ext in RAW_EXTENSIONS:
 		return "raw"
+	if ext in VIDEO_EXTENSIONS:
+		return "video"
 	return "other"
 
 
 def _mime(path: str) -> str:
 	ext = os.path.splitext(path)[1].lower().lstrip(".")
 	return {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "tif": "image/tiff",
-		"tiff": "image/tiff", "fits": "application/fits"}.get(ext, "application/octet-stream")
+		"tiff": "image/tiff", "fits": "application/fits",
+		"avi": "video/x-msvideo"}.get(ext, "application/octet-stream")
 
 
 def upload_name(path: str, owner: str) -> str:
@@ -144,9 +150,12 @@ class UploadQueue:
 		"""Queue a file; returns why not, or None."""
 		return self.add_many([path], owner, meta)[0]
 
-	def add_many(self, paths: List[str], owner: str, meta: Optional[Dict[str, Any]] = None) -> List[Optional[str]]:
+	def add_many(self, paths: List[str], owner: str, meta: Optional[Dict[str, Any]] = None,
+			priority: bool = False, metas: Optional[List[Dict[str, Any]]] = None) -> List[Optional[str]]:
 		"""Queue one capture's files together (so its RAW can't start before
-		its JPEG is queued); for each, why not, or None."""
+		its JPEG is queued); for each, why not, or None. priority: its
+		JPEG goes ahead of everything queued (a test shot); the RAW still
+		follows upload.raw. metas: a meta for each path, instead of one."""
 		owner = str(owner or "").strip()
 		if not owner.isdigit():
 			return ["No account id to upload under"] * len(paths)
@@ -154,7 +163,7 @@ class UploadQueue:
 		results: List[Optional[str]] = []
 		with self._lock:
 			entries = self._load()
-			for path in paths:
+			for n, path in enumerate(paths):
 				kind = kind_of(path)
 				if kind == "raw" and policy == "never":
 					results.append("RAW uploads are off")
@@ -162,9 +171,12 @@ class UploadQueue:
 				results.append(None)
 				if any(e["path"] == path and e.get("state") != "failed" for e in entries):
 					continue
-				entries.append({"path": path, "owner": owner, "kind": kind, "meta": meta or {},
+				entry = {"path": path, "owner": owner, "kind": kind, "meta": (metas[n] if metas else meta) or {},
 					"state": "held" if kind == "raw" and policy == "on_request" else "waiting",
-					"tries": 0, "refusals": 0, "next_try": 0.0, "added": time.time()})
+					"tries": 0, "refusals": 0, "next_try": 0.0, "added": time.time()}
+				if priority and kind != "raw":
+					entry["priority"] = True
+				entries.append(entry)
 			self._save()
 		self._wake.set()
 		if self._autostart:
@@ -184,6 +196,48 @@ class UploadQueue:
 		self._wake.set()
 		return count
 
+	def release_matching(self, kind: str = "raw", files: Optional[List[str]] = None,
+			pairs: Optional[List[str]] = None) -> Dict[str, Any]:
+		"""Send just the held (or waiting) files of some captures, first.
+		files: the uploaded JPEG names ("42_IMG_0412.JPG"; the owner prefix
+		and the extension don't matter); pairs: their meta "pair" ids. A
+		file matches on either. Returns {"queued": n, "missing": [...]}:
+		the names and pairs it has no such file for."""
+		def stem(name: str) -> str:
+			return os.path.splitext(os.path.basename(str(name)))[0].lower()
+
+		wanted_files = {stem(f): f for f in files or []}
+		wanted_pairs = {str(p) for p in pairs or []}
+		found_files: set = set()
+		found_pairs: set = set()
+		queued = 0
+		with self._lock:
+			for e in self._load():
+				if e.get("state") not in ("held", "waiting") or (kind != "all" and e.get("kind") != kind):
+					continue
+				names = {stem(e["path"]), stem(upload_name(e["path"], e.get("owner", "")))}
+				pair = str((e.get("meta") or {}).get("pair") or "")
+				by_file = names & set(wanted_files)
+				by_pair = bool(pair) and pair in wanted_pairs
+				if not by_file and not by_pair:
+					continue
+				found_files |= by_file
+				if by_pair:
+					found_pairs.add(pair)
+				e.update(state="waiting", priority=True, next_try=0.0)
+				queued += 1
+			if queued:
+				self._save()
+		self._wake.set()
+		if files and pairs and len(files) == len(pairs):
+			# One capture per position, named both ways: either finds it.
+			missing = [name for name, p in zip(files, pairs)
+				if stem(name) not in found_files and str(p) not in found_pairs]
+		else:
+			missing = [name for key, name in wanted_files.items() if key not in found_files]
+			missing += [str(p) for p in pairs or [] if str(p) not in found_pairs]
+		return {"queued": queued, "missing": missing}
+
 	def retry_failed(self) -> int:
 		count = 0
 		with self._lock:
@@ -201,11 +255,13 @@ class UploadQueue:
 		policy = _settings().get("raw", "after_jpeg")
 		with self._lock:
 			waiting = [e for e in self._load() if e.get("state") == "waiting"]
-			jpegs_waiting = any(e["kind"] != "raw" for e in waiting)
+			jpegs_waiting = any(e["kind"] not in ("raw", "video") for e in waiting)
 			ready = [e for e in waiting if e.get("next_try", 0) <= now]
-			ready.sort(key=lambda e: (e["kind"] == "raw", e.get("added", 0)))
+			# Priority first, then pictures, videos and RAWs (the big ones last).
+			rank = {"video": 1, "raw": 2}
+			ready.sort(key=lambda e: (not e.get("priority"), rank.get(e["kind"], 0), e.get("added", 0)))
 			for e in ready:
-				if e["kind"] == "raw" and policy == "after_jpeg" and jpegs_waiting:
+				if e["kind"] == "raw" and policy == "after_jpeg" and jpegs_waiting and not e.get("priority"):
 					continue
 				return e
 		return None
@@ -288,8 +344,8 @@ class UploadQueue:
 
 	def queue_folder(self, folder: str, owner: str) -> int:
 		"""Queue every photo under folder not queued or sent before (offline
-		photos when back online). A .uploaded list in each folder remembers
-		what was queued."""
+		photos when back online), each with what photos.jsonl says about it.
+		A .uploaded list in each folder remembers what was queued."""
 		added = 0
 		for root, _dirs, files in os.walk(folder):
 			marker = os.path.join(root, ".uploaded")
@@ -301,7 +357,9 @@ class UploadQueue:
 			new = [f for f in sorted(files) if not f.startswith(".") and f.lower().endswith(tuple(
 				f".{e}" for e in (JPEG_EXTENSIONS | RAW_EXTENSIONS | {"png", "tif", "tiff", "fits"})))
 				and f not in done]
-			results = self.add_many([os.path.join(root, name) for name in new], owner, {"offline": True})
+			records = _records(root)
+			results = self.add_many([os.path.join(root, name) for name in new], owner,
+				metas=[dict(records.get(name, {}), offline=True) for name in new])
 			for name, problem in zip(new, results):
 				if problem is None:
 					done.add(name)
@@ -313,6 +371,27 @@ class UploadQueue:
 				except OSError:
 					pass
 		return added
+
+
+def _records(folder: str) -> Dict[str, Dict[str, Any]]:
+	"""File name -> its line in the folder's photos.jsonl (utils/photos.py),
+	without the bookkeeping."""
+	from utils.photos import LOG_NAME
+
+	out: Dict[str, Dict[str, Any]] = {}
+	try:
+		with open(os.path.join(folder, LOG_NAME)) as f:
+			for line in f:
+				try:
+					entry = json.loads(line)
+				except ValueError:
+					continue
+				meta = {k: v for k, v in entry.items() if k not in ("files", "time")}
+				for name in entry.get("files") or []:
+					out[name] = meta
+	except OSError:
+		pass
+	return out
 
 
 def _server_online() -> bool:

@@ -13,9 +13,10 @@
   on (and for a minute after). Frames come from core/camera/stream.py,
   which owns the policy (size, rate, link adaptation); the camera itself is
   never touched from here, so a network problem never restarts it.
-* Status: with server.status_push_s > 0, a {"type": "status", ...} message
-  (utils/client_status.py) that often. The ASTRA server only logs messages
-  without an id, so this is off by default.
+* Status: a {"type": "status", ...} message (utils/client_status.py) once
+  on connecting and then every server.status_push_s seconds (0: only on
+  connecting). It carries the client's capabilities, so the Seleno server
+  knows which newer arguments it may send.
 
 Reconnects wait 2 s, then longer each time up to a minute, with jitter,
 and start from 2 s again after a connection that lasted. Nothing here
@@ -57,7 +58,8 @@ _command_ws = None  # the command connection, while it's open
 LIVEVIEW_IDLE_CLOSE_S = 60.0
 FRAME_SEND_TIMEOUT_S = 20.0
 QUERY_PREFIXES = ("get", "espStatus", "espInfo", "espEstopStatus", "espDriverStatus", "espPanelStatus",
-    "espImuRead", "echo", "liveViewViewers", "unpark", "setClock", "setHorizon", "setTrackingRate")
+    "espImuRead", "echo", "liveViewViewers", "unpark", "setClock", "setHorizon", "setTrackingRate",
+    "setDeadZones")
 CAMERA_FUNCTIONS = {"getCameraChoices", "setCameraSetting", "capturePhoto", "setCameraZoom", "liveViewSnapshot",
     "startPhotoSequence", "startRecording", "startLiveView", "setLiveViewOptions", "setLiveViewQuality",
     "setLiveViewFocus", "uploadPending", "retryFailedUploads", "uploadOfflinePhotos"}
@@ -217,6 +219,7 @@ async def handle_server(ws):
     """Read commands and run them in their lanes until the socket closes."""
     await _authenticate(ws)
     log.info("Authenticated as %s", CLIENT_ID)
+    status_task = asyncio.create_task(_send_status(ws))
     lanes = {"camera": asyncio.Queue(), "motion": asyncio.Queue()}
     workers = [asyncio.create_task(_lane_worker(ws, q)) for q in lanes.values()]
     running: set = set()
@@ -237,7 +240,7 @@ async def handle_server(ws):
                 running.add(task)
                 task.add_done_callback(running.discard)
     finally:
-        for task in workers + list(running):
+        for task in workers + list(running) + [status_task]:
             task.cancel()
 
 
@@ -339,12 +342,22 @@ async def send_frames():
 
 # --- status --------------------------------------------------------------------------------
 
+async def _send_status(ws) -> None:
+    from utils.client_status import collect
+
+    if ws is None or ws.close_code is not None:
+        return
+    try:
+        status = await asyncio.to_thread(collect)
+        await ws.send(json.dumps(status))
+    except Exception as exc:
+        log.debug("Status push failed: %s", exc)
+
+
 async def status_push_task():
     """{"type": "status", ...} on the command link every
     server.status_push_s seconds (0: off). At least 15 s apart: the server
     allows 120 messages a minute per connection."""
-    from utils.client_status import collect
-
     while True:
         try:
             period = float(get_section("server").get("status_push_s", 0) or 0)
@@ -354,14 +367,7 @@ async def status_push_task():
             await asyncio.sleep(10.0)
             continue
         await asyncio.sleep(max(15.0, period))
-        ws = _command_ws
-        if ws is None or ws.close_code is not None:
-            continue
-        try:
-            status = await asyncio.to_thread(collect)
-            await ws.send(json.dumps(status))
-        except Exception as exc:
-            log.debug("Status push failed: %s", exc)
+        await _send_status(_command_ws)
 
 
 # --- start and stop ----------------------------------------------------------------------

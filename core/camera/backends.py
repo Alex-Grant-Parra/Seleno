@@ -53,6 +53,8 @@ SETTING_ALIASES: Dict[str, Tuple[str, ...]] = {
 	"zoom": ("eoszoom", "liveviewzoomratio", "zoom"),
 	"zoomposition": ("eoszoomposition",),
 	"capturetarget": ("capturetarget",),
+	# Few cameras report one over gphoto2 (most Canons don't).
+	"temperature": ("sensortemperature", "cameratemperature", "temperature"),
 }
 
 
@@ -62,6 +64,19 @@ def _never_choice(choices: List[str]) -> Optional[str]:
 			if c.strip().lower() == want:
 				return c
 	return None
+
+
+def parse_shutter(value: Any) -> Optional[float]:
+	"""Seconds from a shutter setting ("1/250", "0.3", "30", '2.5"');
+	None for bulb or anything else."""
+	text = str(value or "").strip().rstrip('"s').strip()
+	try:
+		if "/" in text:
+			top, bottom = text.split("/", 1)
+			return float(top) / float(bottom)
+		return float(text) if text else None
+	except (ValueError, ZeroDivisionError):
+		return None
 
 
 # --- libgphoto2 ----------------------------------------------------------------------

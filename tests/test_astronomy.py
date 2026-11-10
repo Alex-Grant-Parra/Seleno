@@ -170,5 +170,63 @@ class HorizonTests(ScratchConfig):
 		self.assertAlmostEqual(horizon.limit_at(90.0), 30.0)
 
 
+class DeadZoneTests(ScratchConfig):
+	def test_parsing_and_inside(self) -> None:
+		from utils import dead_zones
+
+		z = dead_zones.parse_zone({"name": "  Next   door ", "az": [80, 130], "alt": [35, -90], "reason": "Privacy"})
+		self.assertEqual((z.name, z.alt_lo, z.alt_hi, z.reason, z.az_width), ("Next door", -90.0, 35.0, "privacy", 50.0))
+		self.assertTrue(z.contains(10.0, 100.0))
+		self.assertFalse(z.contains(40.0, 100.0))
+		self.assertFalse(z.contains(10.0, 131.0))
+		self.assertTrue(z.contains(36.0, 100.0, pad=2.0))
+		north = dead_zones.parse_zone({"az": [350, 10], "alt": [0, 20]})  # through north
+		self.assertEqual(north.az_width, 20.0)
+		self.assertTrue(north.contains(5.0, 355.0) and north.contains(5.0, 5.0))
+		self.assertFalse(north.contains(5.0, 20.0))
+		self.assertTrue(dead_zones.parse_zone({"az": [0, 360], "alt": [-90, 5]}).contains(0.0, 200.0))
+		for bad in ({"az": [10, 10], "alt": [0, 10]}, {"az": [0, 10], "alt": [0, 95]}, {"az": [0], "alt": [0, 1]},
+				{"az": ["x", 1], "alt": [0, 1]}, "zone"):
+			with self.assertRaises(ValueError):
+				dead_zones.parse_zone(bad)
+
+	def test_locked_zones_stay(self) -> None:
+		from utils import dead_zones, handlers
+		from utils.config_state import save_section
+
+		save_section("dead_zones", {"zones": [{"name": "Pier", "az": [170, 190], "alt": [-90, -20],
+			"reason": "physical", "locked": True}]})
+		result = handlers.setDeadZones([{"name": "Window", "az": [80, 120], "alt": [0, 30], "locked": True}])
+		self.assertEqual([(z["name"], z["locked"]) for z in result["zones"]], [("Pier", True), ("Window", False)])
+		self.assertEqual([z["name"] for z in handlers.setDeadZones([])["zones"]], ["Pier"])
+		self.assertIn("error", handlers.setDeadZones([{"az": [1, 2]}]))
+		self.assertEqual(dead_zones.zone_at(-30.0, 180.0).name, "Pier")
+
+	def test_routes_go_round(self) -> None:
+		from utils import dead_zones
+
+		zone = dead_zones.parse_zone({"name": "House", "az": [80, 130], "alt": [-90, 35]})
+		keepouts = dead_zones.keepouts(SITE[0], [zone])
+		config = mount.MountConfig()
+		for start_altaz, goal_altaz in (((20, 160), (20, 60)), ((5, 140), (5, 70)), ((10, 150), (30, 70))):
+			start_hd = astrometry.altaz_to_hadec(*start_altaz, SITE[0])
+			goal_hd = astrometry.altaz_to_hadec(*goal_altaz, SITE[0])
+			start = mount.nearest_solution(*start_hd, (0.0, 90.0), config)
+			straight = mount.axis_solutions(*goal_hd, config)
+			self.assertTrue(any(mount.zone_hit([start, g], keepouts, config) for g in straight))
+			route = mount.plan_route(start, goal_hd, config, keepouts=keepouts)
+			self.assertIsNone(route.zone)
+			self.assertIsNone(mount.zone_hit(route.points, keepouts, config, step_deg=0.1), (start_altaz, goal_altaz))
+		# Leaving a zone it's in is fine; a route that can't avoid one says so.
+		inside = mount.nearest_solution(*astrometry.altaz_to_hadec(10, 100, SITE[0]), (0.0, 90.0), config)
+		out = mount.plan_route(inside, astrometry.altaz_to_hadec(20, 180, SITE[0]), config, keepouts=keepouts)
+		self.assertIsNone(out.zone)
+		boxed = mount.MountConfig(pole_crossing=False, ra_limits=(-120.0, -20.0), dec_limits=(-30.0, 30.0))
+		wall = dead_zones.keepouts(SITE[0], [dead_zones.parse_zone({"name": "Wall", "az": [0, 360], "alt": [-90, 10]})])
+		start = (-30.0, 20.0)
+		blocked = mount.plan_route(start, astrometry.altaz_to_hadec(5, 100, SITE[0]), boxed, keepouts=wall)
+		self.assertEqual(blocked.zone, "the exclusion zone 'Wall'")
+
+
 if __name__ == "__main__":
 	unittest.main()

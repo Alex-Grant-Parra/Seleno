@@ -70,6 +70,38 @@ def _picture(source: str = "auto") -> Tuple[str, bool]:
 	return jpegs[0], False
 
 
+_last_solve: Optional[Dict[str, Any]] = None
+
+
+def last_solve() -> Optional[Dict[str, Any]]:
+	"""The last successful solve, for the status message: time (UTC), ra,
+	dec, pixel_scale (arcsec), rotation_deg, field_w_deg, field_h_deg and
+	offset_arcmin (from the target, when there was one)."""
+	return dict(_last_solve) if _last_solve else None
+
+
+def _note_solve(result) -> None:
+	global _last_solve
+	from core.hardware import tracking
+	from utils import clock
+
+	solve: Dict[str, Any] = {
+		"time": clock.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+		"ra": round(result.ra, 5), "dec": round(result.dec, 5),
+		"pixel_scale": round(result.scale_arcsec, 3), "rotation_deg": round(result.rotation_deg, 2),
+		"field_w_deg": round(result.width * result.scale_arcsec / 3600.0, 3),
+		"field_h_deg": round(result.height * result.scale_arcsec / 3600.0, 3),
+	}
+	target = tracking._target_object
+	if target is not None:
+		try:
+			aim = _target_j2000(target)
+			solve["offset_arcmin"] = round(60.0 * _separation(result.ra, result.dec, aim[0], aim[1]), 2)
+		except Exception:
+			pass
+	_last_solve = solve
+
+
 def solve_now(source: str = "auto"):
 	"""Solve where the telescope points now; hinted with where it thinks
 	it is."""
@@ -79,7 +111,9 @@ def solve_now(source: str = "auto"):
 	coords = get_telescope_coords() or {}
 	path, temporary = _picture(source)
 	try:
-		return solver.solve(path, coords.get("right_ascension"), coords.get("declination"))
+		result = solver.solve(path, coords.get("right_ascension"), coords.get("declination"))
+		_note_solve(result)
+		return result
 	except solver.SolveError as exc:
 		raise SolveJobError(str(exc)) from exc
 	finally:
@@ -133,9 +167,25 @@ def _tolerance_deg() -> float:
 		return 2.0 / 60.0
 
 
+SLEW_WAIT_S = 600.0
+
+
+def wait_for_slew(timeout_s: float = SLEW_WAIT_S) -> None:
+	"""Wait while a go-to is still under way (a "go to + centre" sends both
+	close together); the picture would be trailed otherwise."""
+	from core.hardware import tracking
+
+	deadline = time.monotonic() + timeout_s
+	while tracking._panel_state in ("slewing", "centering"):
+		if time.monotonic() > deadline:
+			raise SolveJobError("The slew didn't finish")
+		time.sleep(0.25)
+
+
 def centre_target(rounds: int = 3, source: str = "auto") -> Dict[str, Any]:
 	from core.hardware import tracking
 
+	wait_for_slew()
 	target = tracking._target_object
 	if target is None or not tracking._tracking_active:
 		raise SolveJobError("Not tracking anything")

@@ -10,6 +10,10 @@ before they go anywhere: smaller, and only as often as they're worth.
 	low       quarter size, quality 60
   Halving or quartering uses JPEG's own scaled decoding, so it's cheap
   (about 5 ms a frame on a Pi 5).
+* jpeg_quality (50-98, or None): full-size frames at that JPEG quality
+  instead of the preset, for focusing at 5x or 10x zoom, where halving
+  the picture or H.264 would smear the small stars being measured. A slow
+  link still steps it down.
 * Frame rate: max_fps while something is changing (a slew, focusing, the
   view itself), still_fps otherwise. A frame that looks the same as the
   last one sent isn't sent, except once every keyframe_s, so a viewer
@@ -63,6 +67,7 @@ class StreamSettings:
 	adaptive: bool = True
 	idle_stop_min: float = 0.0
 	viewer_grace_s: float = 60.0
+	jpeg_quality: Optional[int] = None
 
 	@classmethod
 	def load(cls) -> "StreamSettings":
@@ -73,7 +78,12 @@ class StreamSettings:
 		except Exception:
 			return cls()
 		quality = str(s.get("quality", "medium")).lower()
+		try:
+			jpeg_quality = int(s.get("jpeg_quality") or 0) or None
+		except (TypeError, ValueError):
+			jpeg_quality = None
 		return cls(
+			jpeg_quality=max(50, min(98, jpeg_quality)) if jpeg_quality else None,
 			quality=quality if quality in PRESETS else "medium",
 			max_fps=max(0.2, float(s.get("max_fps", 10.0))),
 			still_fps=max(0.1, float(s.get("still_fps", 2.0))),
@@ -102,11 +112,13 @@ def difference(a: Optional[bytes], b: Optional[bytes]) -> float:
 	return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
 
 
-def encode(jpeg: bytes, level: str, crop: Optional[Tuple[int, int, int, int]] = None) -> bytes:
-	"""The frame at a quality level; crop (full-resolution pixels) for focus."""
+def encode(jpeg: bytes, level: str, crop: Optional[Tuple[int, int, int, int]] = None,
+		jpeg_quality: Optional[int] = None) -> bytes:
+	"""The frame at a quality level; crop (full-resolution pixels) for focus.
+	jpeg_quality: full size at that quality instead of the level's."""
 	from PIL import Image
 
-	params = dict(LEVELS).get(level)
+	params = (1, jpeg_quality) if jpeg_quality else dict(LEVELS).get(level)
 	if params is None and crop is None:
 		return jpeg
 	scale, quality = params or (1, 85)
@@ -271,7 +283,7 @@ class LiveStream:
 			now = time.monotonic()
 			s = self.settings
 			active = self._active(now)
-			interval = 1.0 / (s.max_fps if active else s.still_fps)
+			interval = 1.0 / (s.max_fps if active else min(s.still_fps, s.max_fps))
 			if now - self._last_sent_at < interval:
 				self.counters["skipped_rate"] += 1
 				continue
@@ -286,7 +298,8 @@ class LiveStream:
 			if self.focus:
 				crop = self._focus(frame)
 			try:
-				out = encode(frame, self.level(), crop)
+				# A slow link (penalty) overrides jpeg_quality, like the preset.
+				out = encode(frame, self.level(), crop, s.jpeg_quality if not self._penalty else None)
 			except Exception as exc:
 				log.debug("Couldn't re-encode a frame (%s); sending it as it is", exc)
 				out = frame
@@ -352,6 +365,8 @@ class LiveStream:
 			"viewers": self.viewers,
 			"quality": self.settings.quality,
 			"level": self.level(),
+			"jpeg_quality": self.settings.jpeg_quality if not self._penalty else None,
+			"codec": "jpeg",
 			"fps": round(len(window) / span, 1) if window else 0.0,
 			"kbps": round(sum(n for _, n in window) * 8 / 1000.0 / span, 1) if window else 0.0,
 			"avg_kb": round(sum(n for _, n in window) / len(window) / 1024.0, 1) if window else 0.0,

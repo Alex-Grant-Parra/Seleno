@@ -87,6 +87,16 @@ def _default_static_state() -> Dict[str, Any]:
             "profile": [],
             "stop_when_set": True,
         },
+        "dead_zones": {
+            # Parts of the sky the telescope must never point at (it would
+            # hit something, or look into a window): boxes in altitude and
+            # azimuth, e.g. {"name": "Next door", "az": [80, 120],
+            # "alt": [-90, 35], "reason": "privacy", "locked": true}.
+            # az is clockwise from north (from > to wraps through north);
+            # locked zones can't be changed from the server
+            # (utils/dead_zones.py).
+            "zones": [],
+        },
         "tracking": {
             # "sidereal", "lunar", "solar" or "custom" (custom_arcsec_per_s
             # of RA). The Moon and planets are followed with their own
@@ -106,6 +116,10 @@ def _default_static_state() -> Dict[str, Any]:
             "adaptive": True,     # lower the quality when the link is slow
             "idle_stop_min": 0,   # stop after this long with no viewers (0: never)
             "viewer_grace_s": 60, # pause this long after the last viewer leaves
+            # 50-98: full-size frames at this JPEG quality (focusing at 5x
+            # or 10x zoom); None: the quality preset
+            "jpeg_quality": None,
+            "codec": "auto",      # "auto" or "jpeg" (JPEG is all it sends yet)
         },
         "camera": {
             # "auto" (libgphoto2 if installed, else the gphoto2 command),
@@ -113,6 +127,9 @@ def _default_static_state() -> Dict[str, Any]:
             "backend": "auto",
             # Turn the camera's auto power-off off while live view runs.
             "keep_awake": True,
+            # The telescope's (or lens's) focal length in mm, sent with each
+            # photo for the stacker (0: unknown, not sent).
+            "focal_mm": 0,
         },
         "upload": {
             # RAW files: "after_jpeg" (queued behind the JPEGs),
@@ -132,8 +149,9 @@ def _default_static_state() -> Dict[str, Any]:
             # "off" or "unrestricted" (bench testing only).
             "raw_motor_commands": "guarded",
             # Send the client's status that often (seconds, 15 at least; 0:
-            # off). The ASTRA server only logs such messages for now.
-            "status_push_s": 0,
+            # only once on connecting). The Seleno server shows its site,
+            # solve and camera parts.
+            "status_push_s": 30,
             # Let the server update the client (git pull and restart).
             "allow_remote_update": False,
             "allow_firmware_update": False,
