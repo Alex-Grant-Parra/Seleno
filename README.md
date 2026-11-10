@@ -120,10 +120,11 @@ Go-tos come from the panel (Scope tab) or the server. The order is:
 
 1. **The Sun guard** (`utils/sun_guard.py`): a warning within 30° of the Sun,
    and a code to enter on the panel within 20°.
-2. **The clock, the park and the horizon limit.**
-3. **The slew:** the quickest way, over a pole if that's quicker, curving
-   round the Sun (`core/hardware/mount.py`).
-4. **Tracking**, with the motors run at the right rates.
+2. **Dead zones** (`utils/dead_zones.py`): a target inside one is refused.
+3. **The clock, the park and the horizon limit.**
+4. **The slew:** the quickest way, over a pole if that's quicker, curving
+   round the Sun and the dead zones (`core/hardware/mount.py`).
+5. **Tracking**, with the motors run at the right rates.
 
 - **Coordinates:**
   - people and catalogues use J2000;
@@ -157,10 +158,23 @@ Go-tos come from the panel (Scope tab) or the server. The order is:
   - set a minimum altitude, and optionally a profile of trees and roofs;
   - server go-tos below it are refused, and the panel asks;
   - tracking stops when the target sets.
+- **Dead zones:** parts of the sky the telescope must never point at: it
+  would hit the pier or crush a motor, or look into somebody's window.
+  - each is a box in altitude and azimuth (`dead_zones.zones` in the
+    config, or `setDeadZones` from the server's Device tab);
+  - go-tos into one are refused, from the panel and the server alike;
+  - slews curve round them, and are refused when there's no way round;
+  - tracking stops when the target drifts into one as the sky turns;
+  - raw motor moves are refused into one, and continuous moves stop at
+    its edge;
+  - moving out of one the telescope is already in is always allowed;
+  - zones marked `locked` can't be changed or removed from the server;
+  - the server tints them on its star map.
 - **Backlash:** extra steps when an axis reverses (`mount.backlash_steps`).
 - **Raw motor commands** from the server (the web page's motor panel) are
-  guarded (`utils/motor_guard.py`). They're refused past the axis limits or
-  towards the Sun, and continuous moves are stopped there.
+  guarded (`utils/motor_guard.py`). They're refused past the axis limits,
+  towards the Sun or into a dead zone, and continuous moves are stopped
+  there.
 
 ### Field use
 
@@ -198,6 +212,7 @@ take their defaults, and most can be set from the panel.
 | `slew_config` | Speeds, gear ratios, centring thresholds |
 | `mount` | `ra_axis_limits`, `dec_axis_limits`, `pole_crossing`, `hemisphere` (`auto`/`north`/`south`), `park_axes`, `backlash_steps` |
 | `horizon` | `min_alt_deg`, `profile` (`[[az, alt], ...]`), `stop_when_set` |
+| `dead_zones` | `zones`: `[{"name", "az": [from, to], "alt": [lowest, highest], "reason": "privacy"/"physical"/"other", "locked"}]`. Azimuth runs clockwise from north; from > to wraps through north, `[0, 360]` is all round |
 | `tracking` | `rate` (`sidereal`/`lunar`/`solar`/`king`/`custom`), `custom_arcsec_per_s`, `auto_rate`, `refraction` |
 | `liveview` | `quality`, `max_fps`, `still_fps`, `keyframe_s`, `adaptive`, `idle_stop_min`, `viewer_grace_s`, `jpeg_quality` (50-98, full-size frames for focusing; null: the preset), `codec` (`auto`/`jpeg`) |
 | `camera` | `backend` (`auto`/`libgphoto2`/`cli`/`fake`), `keep_awake`, `focal_mm` (sent with photos; 0 = unknown) |
@@ -227,7 +242,7 @@ went.
 | Already used by ASTRA | `trackCoordinates(name, ra, dec, mag)`, `stopTracking()`, `getCurrentCoordinates()`, `getCameraChoices()` (now also `current` values and more settings), `setCameraSetting(label, value)`, `capturePhoto(currentid, exposure_s=None, frame_type="light")` (`test`: its JPEG uploads first), `startLiveView(quality=None)`, `stopLiveView()`, `espEnable`, `espSetDirection`, `espSetSpeed`, `espStart`, `espMoveSteps`, `espStop`, `espSetMicrosteps`, `espSetCurrent`, `espSetMode`, `espSetAccel`, `espStatus`, `espStatusAll` |
 | Live view | `liveViewViewers(count)`, `getLiveViewStats()`, `setLiveViewOptions(**options)`, `setLiveViewQuality(quality)`, `setLiveViewFocus(on)`, `setCameraZoom(level, x, y)`, `liveViewSnapshot(currentid=None)`, `startRecording(kind, interval_s, quality, currentid, crop_width, crop_height)`, `stopRecording()`, `getRecordingStatus()` |
 | Camera and photos | `getCameraStatus()`, `startPhotoSequence(kind, count, exposure_s, interval_s, dither_every, dither_arcmin, dither_settle_s)`, `stopPhotoSequence()`, `getPhotoSequenceStatus()`, `getUploadQueue()`, `uploadPending(kind, files=None, pairs=None)`, `retryFailedUploads()`, `uploadOfflinePhotos(currentid)` |
-| Pointing and tracking | `trackObject(name)` (Moon, planets, named stars), `park()`, `unpark()`, `setParkHere()`, `setTrackingRate(rate, custom_arcsec_per_s)`, `dither(arcmin)`, `getAlignment()`, `clearAlignment()`, `solveAndSync(source)`, `centreTarget(source)` (waits for a slew to finish), `polarAlign(step_deg, source)`, `getMountStatus()`, `getJobStatus(name)`, `setClock(utc)`, `setHorizon(min_alt_deg, profile, stop_when_set)`, `getPlanets()` |
+| Pointing and tracking | `trackObject(name)` (Moon, planets, named stars), `park()`, `unpark()`, `setParkHere()`, `setTrackingRate(rate, custom_arcsec_per_s)`, `dither(arcmin)`, `getAlignment()`, `clearAlignment()`, `solveAndSync(source)`, `centreTarget(source)` (waits for a slew to finish), `polarAlign(step_deg, source)`, `getMountStatus()`, `getJobStatus(name)`, `setClock(utc)`, `setHorizon(min_alt_deg, profile, stop_when_set)`, `getDeadZones()`, `setDeadZones(zones)` (keeps locked zones), `getPlanets()` |
 | ESP32 extras | `espSetAuto`, `espDriverStatus`, `espEstop`, `espClearEstop`, `espEstopStatus`, `espInfo`, `espPanelStatus`, `espImuRead`, `espTurnDegrees` |
 | The client | `echo`, `getClientStatus()`, `updateClient()`, `updateFirmware()` (the last two only when allowed in config) |
 
@@ -238,7 +253,8 @@ went.
 - **Status messages.** The client sends a `{"type": "status", ...}` message
   without an id on connecting and every `server.status_push_s` seconds. It
   carries `capabilities` (`capture_frame_type`, `upload_pending_filter`,
-  `liveview_jpeg_options`), `site`, the last plate `solve`, and the camera's
+  `liveview_jpeg_options`, `dead_zones`), `site`, `dead_zones`
+  (`{"zones": [...]}`), the last plate `solve`, and the camera's
   `battery` (percent), `card_free_bytes` and `temperature_c`.
 
 ## Tests

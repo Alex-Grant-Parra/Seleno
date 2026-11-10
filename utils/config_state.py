@@ -87,6 +87,16 @@ def _default_static_state() -> Dict[str, Any]:
             "profile": [],
             "stop_when_set": True,
         },
+        "dead_zones": {
+            # Parts of the sky the telescope must never point at (it would
+            # hit something, or look into a window): boxes in altitude and
+            # azimuth, e.g. {"name": "Next door", "az": [80, 120],
+            # "alt": [-90, 35], "reason": "privacy", "locked": true}.
+            # az is clockwise from north (from > to wraps through north);
+            # locked zones can't be changed from the server
+            # (utils/dead_zones.py).
+            "zones": [],
+        },
         "tracking": {
             # "sidereal", "lunar", "solar" or "custom" (custom_arcsec_per_s
             # of RA). The Moon and planets are followed with their own

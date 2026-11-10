@@ -11,3 +11,4 @@ temp
 logs
 *.tmp
 .ruff_cache
+dist

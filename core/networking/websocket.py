@@ -58,7 +58,8 @@ _command_ws = None  # the command connection, while it's open
 LIVEVIEW_IDLE_CLOSE_S = 60.0
 FRAME_SEND_TIMEOUT_S = 20.0
 QUERY_PREFIXES = ("get", "espStatus", "espInfo", "espEstopStatus", "espDriverStatus", "espPanelStatus",
-    "espImuRead", "echo", "liveViewViewers", "unpark", "setClock", "setHorizon", "setTrackingRate")
+    "espImuRead", "echo", "liveViewViewers", "unpark", "setClock", "setHorizon", "setTrackingRate",
+    "setDeadZones")
 CAMERA_FUNCTIONS = {"getCameraChoices", "setCameraSetting", "capturePhoto", "setCameraZoom", "liveViewSnapshot",
     "startPhotoSequence", "startRecording", "startLiveView", "setLiveViewOptions", "setLiveViewQuality",
     "setLiveViewFocus", "uploadPending", "retryFailedUploads", "uploadOfflinePhotos"}

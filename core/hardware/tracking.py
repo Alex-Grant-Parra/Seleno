@@ -3,12 +3,14 @@
 trackCoordinates (from the server or the front panel) and track_object
 (the Moon, planets, named stars):
 
-1. Check the Sun (utils/sun_guard.py): near it, someone at the front panel
-   has to confirm first; nothing moves or stops if they don't. Then the
-   horizon (utils/horizon.py) and the park.
+1. Refuse targets in a dead zone (utils/dead_zones.py). Check the Sun
+   (utils/sun_guard.py): near it, someone at the front panel has to
+   confirm first; nothing moves or stops if they don't. Then the horizon
+   (utils/horizon.py) and the park.
 2. Plan the slew (core/hardware/mount.py): the quickest way, over a pole
-   if that's quicker, curving round the Sun's keep-out, aimed where the
-   target will be when it gets there; run it as one smooth path.
+   if that's quicker, curving round the Sun's keep-out and the dead zones,
+   aimed where the target will be when it gets there; run it as one
+   smooth path. A route into a dead zone is never run (_run_route).
 3. When the motors stop (the firmware's motion_done event, with a status
    poll as a fallback), check the position and correct any error.
 4. Track: both axes run at the target's rates (sidereal for the stars,
@@ -28,7 +30,8 @@ Where things point:
   turns the RA motor backwards.
 
 The tracking loop also watches: the Sun (never closer than this session
-was allowed), the axis limits, the horizon (stop when the target sets).
+was allowed), the axis limits, the horizon (stop when the target sets),
+the dead zones (stop when the target drifts into one).
 It stops and says why on the panel.
 """
 import math
@@ -41,7 +44,7 @@ from typing import Any, Dict, Optional, Tuple
 from core.hardware import mount as mount_model
 from esp32.interfaceESP32 import ESP32Motor
 from esp32.pins import get_motor_boards
-from utils import astrometry, clock, ephemeris, horizon
+from utils import astrometry, clock, dead_zones, ephemeris, horizon
 from utils.esp32_state import esp32_state
 from utils.LEDmanager import get_led_manager
 from utils.location import get_current_location
@@ -234,6 +237,20 @@ def _longitude() -> Optional[float]:
     return float(lon) if lon is not None else None
 
 
+def _keepouts(exclude_at: Optional[Tuple[float, float]] = None):
+    # The dead zones for the route planner ([] without a site). exclude_at:
+    # an axis position whose own zone is left out (a park inside one).
+    site = _site()
+    if site is None:
+        return []
+    zones = dead_zones.zones()
+    if exclude_at is not None:
+        ha, dec = mount_model.sky_from_axes(*exclude_at, mount_config())
+        inside = dead_zones.zone_at_hadec(ha, dec, site[0], zones)
+        zones = [z for z in zones if z is not inside]
+    return dead_zones.keepouts(site[0], zones)
+
+
 def _sun_hour_angle(longitude: float, when: Optional[datetime] = None):
     when = when or clock.now()
     sun_ra, sun_dec = sun_radec(when)
@@ -266,7 +283,8 @@ def plan_goto(ra: float, dec: float, start_axes=None, speed_sps: Optional[float]
     # (ra, dec) J2000 (or target, for a moving one), aimed where the target
     # will be when it gets there: the quickest way, over a pole if that's
     # quicker, and curving round the Sun's keep-out
-    # (utils/sun_guard.keep_out_deg). None without a site or a position.
+    # (utils/sun_guard.keep_out_deg) and the dead zones. None without a
+    # site or a position. A route.zone means there's no way round a zone.
     from utils import sun_guard
 
     lon = _longitude()
@@ -281,12 +299,14 @@ def plan_goto(ra: float, dec: float, start_axes=None, speed_sps: Optional[float]
     start_sun = mount_model.separation(mount_model.sky_from_axes(*start, config), sun)
     route = None
     lead_s = 0.0
+    keepouts = _keepouts()
     for _ in range(2):
         aim = target_sky(target, now + timedelta(seconds=lead_s))
         if aim is None:
             return None
         keep_out = sun_guard.keep_out_deg(start_sun, mount_model.separation(aim, sun))
-        route = mount_model.plan_route(start, aim, config, sun=sun, keep_out=keep_out, model=model)
+        route = mount_model.plan_route(start, aim, config, sun=sun, keep_out=keep_out, model=model,
+            keepouts=keepouts)
         lead_s = route.seconds
     return route
 
@@ -376,6 +396,8 @@ def _run_route(route, config: mount_model.MountConfig) -> None:
     # Doesn't wait; the tracking loop watches for the end. Raises if the
     # ESP32 refuses it.
     global _motors_initialized, _path_started_at, _last_dir
+    if getattr(route, "zone", None):
+        raise ValueError(f"it would go into {route.zone}")
     conn = _get_esp32_connection()
     if not conn:
         raise RuntimeError("ESP32 connection not available")
@@ -462,6 +484,21 @@ def _horizon_problem() -> Optional[str]:
     if alt < limit - 0.5:
         return f"{target.get('name', 'The target')} has set: tracking stopped"
     return None
+
+
+def _dead_zone_problem() -> Optional[str]:
+    # The target drifted into a dead zone as the sky turned.
+    target = _target_object or {}
+    site = _site()
+    if site is None:
+        return None
+    aim = target_sky(target)
+    if aim is None:
+        return None
+    zone = dead_zones.zone_at_hadec(aim[0], aim[1], site[0])
+    if zone is None:
+        return None
+    return f"{target.get('name') or 'The target'} went into {zone.describe()}: tracking stopped"
 
 
 def _halt_from_loop(reason: str) -> None:
@@ -680,7 +717,7 @@ def _continuous_tracking_loop() -> None:
                 if coords:
                     _publish_state(_panel_state, ra_now=coords.get("right_ascension"),
                         dec_now=coords.get("declination"))
-            problem = _sun_and_limits_problem() or _horizon_problem()
+            problem = _sun_and_limits_problem() or _dead_zone_problem() or _horizon_problem()
             if problem:
                 _halt_from_loop(problem)
                 break
@@ -866,6 +903,11 @@ def _start_goto(target: Dict[str, Any], sun_approval=None) -> Dict[str, Any]:
         _publish_state("idle")
         leds.set_command_busy(False)
         return {"error": "Couldn't plan the slew"}
+    if route.zone:
+        log.info("Not going to %s: the slew would go into %s", name, route.zone)
+        _publish_state("idle")
+        leds.set_command_busy(False)
+        return {"error": f"The slew to {name} would go into {route.zone}, with no way round"}
     if route.notes:
         log.info("Note: %s", "; ".join(route.notes))
 
@@ -909,14 +951,20 @@ def _start_goto(target: Dict[str, Any], sun_approval=None) -> Dict[str, Any]:
 
 
 def _checks(name: str, ra: float, dec: float, sun_approval, allow_below_horizon: bool):
-    """The Sun, the site, the park and the horizon, in that order (the Sun
-    before anything else changes). Returns (error or None, approval)."""
+    """The site, the dead zones, the Sun, the park and the horizon, in that
+    order (the Sun before anything else changes). Returns (error or None,
+    approval)."""
     from utils import sun_guard
 
     site = _site()
     if site is None:
         get_led_manager().set_error(True, critical=False)
         return {"error": "No site set: tracking needs latitude and longitude"}, None
+    alt, az, limit = horizon.check(ra, dec, site[0], lst_degrees(clock.now(), site[1]))
+    zone = dead_zones.zone_at(alt, az)
+    if zone is not None:
+        log.info("Not going to %s: it's in %s", name, zone.describe())
+        return {"error": f"{name} is in {zone.describe()}: the telescope can't point there"}, None
     allowed, reason, approval = sun_guard.confirm_goto(str(name), ra, dec, approval=sun_approval)
     if not allowed:
         log.info("Not going to %s: %s", name, reason)
@@ -924,7 +972,6 @@ def _checks(name: str, ra: float, dec: float, sun_approval, allow_below_horizon:
     if get_parked():
         return {"error": "The telescope is parked: unpark it first"}, None
     if not allow_below_horizon:
-        alt, _az, limit = horizon.check(ra, dec, site[0], lst_degrees(clock.now(), site[1]))
         if alt < limit:
             return {"error": f"{name} is below the horizon limit ({alt:.0f} deg up, limit {limit:.0f})"}, None
     return None, approval
@@ -1033,7 +1080,9 @@ def dither(arcmin: float = 2.0) -> bool:
 
 def move_to_axes(goal: Tuple[float, float], wait: bool = True, movement: str = "slewing") -> Dict[str, Any]:
     """Slew to axis angles (not a sky target): round the Sun's keep-out
-    when the straight way passes it. Tracking must be stopped first."""
+    and the dead zones when the straight way passes them (a goal inside a
+    zone, such as a park position, may still be reached). Tracking must be
+    stopped first."""
     from utils import sun_guard
 
     _catch_up_position()
@@ -1048,7 +1097,10 @@ def move_to_axes(goal: Tuple[float, float], wait: bool = True, movement: str = "
         start_sun = mount_model.separation(mount_model.sky_from_axes(*start, config), sun)
         goal_sun = mount_model.separation(mount_model.sky_from_axes(*goal, config), sun)
         keep_out = sun_guard.keep_out_deg(start_sun, goal_sun)
-    route = mount_model.plan_axes_route(start, goal, config, sun=sun, keep_out=keep_out)
+    route = mount_model.plan_axes_route(start, goal, config, sun=sun, keep_out=keep_out,
+        keepouts=_keepouts(exclude_at=goal))
+    if route.zone:
+        return {"error": f"Move refused: it would go into {route.zone}, with no way round"}
     leds = get_led_manager()
     try:
         leds.set_movement(movement)

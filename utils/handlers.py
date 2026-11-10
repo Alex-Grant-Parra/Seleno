@@ -789,6 +789,30 @@ def setHorizon(min_alt_deg=None, profile=None, stop_when_set=None):
     return get_section("horizon")
 
 
+def getDeadZones():
+    """The dead zones: parts of the sky the telescope never points at
+    (utils/dead_zones.py)."""
+    from utils import dead_zones
+
+    return dead_zones.status_part()
+
+
+def setDeadZones(zones=None):
+    """Replace the dead zones the server may change: a list of {"name",
+    "az": [from, to], "alt": [lowest, highest], "reason"}. Zones locked on
+    the Pi stay as they are. Takes effect at once; tracking a target that's
+    now in one stops."""
+    from utils import dead_zones
+
+    try:
+        parsed = dead_zones.parse_zones(zones)
+        dead_zones.save(parsed)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    get_logger("handlers").info("Dead zones set from the server: %d", len(parsed))
+    return dead_zones.status_part()
+
+
 def getPlanets():
     """The Sun, Moon and planets now, J2000 (worked out on the Pi)."""
     from core.hardware.tracking import _site
@@ -905,6 +929,8 @@ function_map = {
     "getJobStatus": getJobStatus,
     "setClock": setClock,
     "setHorizon": setHorizon,
+    "getDeadZones": getDeadZones,
+    "setDeadZones": setDeadZones,
     "getPlanets": getPlanets,
     # Maintenance (off unless allowed in config server)
     "updateClient": updateClient,

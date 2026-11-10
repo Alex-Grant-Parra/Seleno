@@ -169,7 +169,7 @@ class MotorGuardTests(ScratchConfig):
 		from utils import motor_guard
 
 		config = mount.MountConfig(ra_limits=(-90.0, 90.0), dec_limits=(-90.0, 90.0))
-		context = (config, self.axes, self.sun)
+		context = (config, self.axes, self.sun, getattr(self, "keepouts", []))
 		with mock.patch.object(motor_guard, "_context", return_value=context):
 			return motor_guard.check_raw_move(**kwargs)
 
@@ -186,6 +186,23 @@ class MotorGuardTests(ScratchConfig):
 		self.axes = (-25.0, 0.0)  # already close: moving away is fine
 		self.assertIsNone(self.check(motor_id="motor1", steps=ten_deg))
 		self.assertIn("Sun", self.check(motor_id="motor1", continuous=True, forward=False))
+
+	def test_dead_zones(self) -> None:
+		from core.hardware import mount
+		from utils import dead_zones
+		from utils.astrometry import hadec_to_altaz
+
+		config = mount.MountConfig()
+		self.sun = (180.0, -60.0)  # well out of the way
+		zone = dead_zones.parse_zone({"name": "Next door", "az": [60, 120], "alt": [-90, 40]})
+		self.keepouts = dead_zones.keepouts(51.46, [zone])
+		self.axes = (-30.0, 0.0)  # 30 deg east of the meridian, low in the south-east
+		ten_deg = config.motor_steps(10.0, 0.0)[0]
+		self.assertIn("Next door", self.check(motor_id="motor1", steps=-ten_deg * 6))  # round into the east
+		self.assertIsNone(self.check(motor_id="motor1", steps=ten_deg))  # towards the south
+		self.axes = (-90.0, 0.0)  # in the zone already: due east on the equator
+		self.assertTrue(zone.contains(*hadec_to_altaz(-90.0, 0.0, 51.46)))
+		self.assertIsNone(self.check(motor_id="motor1", steps=ten_deg * 6))  # out of it is fine
 
 	def test_the_policy(self) -> None:
 		from utils.config_state import save_section
