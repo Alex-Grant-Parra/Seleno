@@ -124,8 +124,9 @@ def _parse_captured(text):
 
 
 def _owner_may_receive(owner_id, telescope, captured):
-    # The telescope's owner, an admin, or someone whose approved booking covers the capture
-    from app.telescope_access import approved_booking
+    # The telescope's owner, someone it's shared with, an admin, or someone whose approved
+    # booking covers the capture
+    from app.telescope_access import approved_booking, has_shared_access
     from models.user import User
 
     user = db.session.get(User, owner_id)
@@ -133,7 +134,7 @@ def _owner_may_receive(owner_id, telescope, captured):
         return False
     if telescope.user_id is not None and telescope.user_id == owner_id:
         return True
-    if user.is_admin:
+    if user.is_admin or has_shared_access(user, telescope):
         return True
     return approved_booking(telescope, at=captured, user_id=owner_id) is not None
 

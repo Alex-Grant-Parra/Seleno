@@ -47,6 +47,7 @@ from models.booking import TelescopeBooking
 from models.photo import Photo, TelescopeUpload
 from models.capture_plan import CapturePlan, SavedCapturePlan
 from models.album import FrameMeta, StackResult, FeaturedTarget, Project
+from models.telescope_share import TelescopeShare
 import models.logging  # noqa: F401  (websocket security log table)
 
 

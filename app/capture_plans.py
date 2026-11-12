@@ -462,9 +462,9 @@ def prepare_plan(user, telescope_row, plan_input):
 
     Returns (plan, context, errors). During an approved booking the booker owns
     the photos and the plan ends with the booking; otherwise the telescope's
-    owner or an admin starts it for themselves, and it ends before the next
-    booking or after 12 hours."""
-    from app.telescope_access import approved_booking, is_telescope_owner, next_booking_start, utc_now
+    owner, someone it's shared with, or an admin starts it for themselves, and
+    it ends before the next booking or after 12 hours."""
+    from app.telescope_access import approved_booking, may_use_as_owner, next_booking_start, utc_now
 
     errors = validate_plan(plan_input)
     if errors:
@@ -472,7 +472,7 @@ def prepare_plan(user, telescope_row, plan_input):
 
     now = utc_now()
     booking = approved_booking(telescope_row, at=now)
-    may_manage = getattr(user, 'is_admin', False) or is_telescope_owner(user, telescope_row)
+    may_manage = getattr(user, 'is_admin', False) or may_use_as_owner(user, telescope_row)
 
     if booking is not None:
         if booking.requester_user_id != user.id and not may_manage:

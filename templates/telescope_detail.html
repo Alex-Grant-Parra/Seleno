@@ -17,7 +17,11 @@
             {% endif %}
             <span id="tz-connection" class="badge bg-secondary fs-6 align-middle">…</span>
         </h2>
+        {% if is_owner %}
         <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('book.telescope_booking_settings', telescope_id=telescope.id) }}">{{ _('Booking settings') }}</a>
+        {% else %}
+        <span class="badge text-bg-info">{{ _('Shared with you') }}</span>
+        {% endif %}
     </div>
 
     <div class="card mb-4" id="tz-card"

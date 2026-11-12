@@ -254,7 +254,7 @@ class StatusMessages(Base):
         self.assertEqual(body["telescope_status"]["disk"], 12345)
         self.assertNotIn("bad", body["telescope_status"])
         self.assertLess(body["age_s"], 5)
-        self.assertEqual(body["access"], {"control": True, "owner": False})
+        self.assertEqual(body["access"], {"control": True, "owner": False, "shared": False})
         db.session.expire_all()
         self.assertIsNotNone(db.session.get(type(self.scope), self.scope.id).last_seen)
 

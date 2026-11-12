@@ -1,9 +1,14 @@
 """Who may drive which telescope.
 
-A user may control a telescope when they own it, hold an approved booking
-that covers now, or are an admin. Owner-level actions (updating the Pi or its
-controller, setting its clock or horizon, clearing an emergency stop) need the
-telescope's owner or an admin, whatever the Pi itself allows.
+A user may control a telescope when they own it, the owner has shared it with
+them, they hold an approved booking that covers now, or they are an admin.
+Owner-level actions (updating the Pi or its controller, setting its clock or
+horizon, clearing an emergency stop) need the owner, someone it's shared with,
+or an admin, whatever the Pi itself allows.
+
+Sharing gives standing use of the telescope, not its management: only the owner
+(Telescope.user_id) or an admin may manage its bookings and booking settings,
+remove it, or share it (is_telescope_owner).
 """
 from datetime import datetime, timezone
 
@@ -84,6 +89,25 @@ def is_telescope_owner(user, telescope_row):
     )
 
 
+def has_shared_access(user, telescope_row):
+    # The owner has shared this telescope with `user`. A share counts only while
+    # whoever granted it still owns the telescope.
+    from models.telescope_share import TelescopeShare
+    user_id = getattr(user, 'id', None)
+    if telescope_row is None or telescope_row.user_id is None or user_id is None:
+        return False
+    return db.session.query(TelescopeShare.id).filter_by(
+        telescope_id=telescope_row.id,
+        user_id=user_id,
+        granted_by_user_id=telescope_row.user_id,
+    ).first() is not None
+
+
+def may_use_as_owner(user, telescope_row):
+    # The owner or someone it's shared with: uses the telescope at any time, as the owner would
+    return is_telescope_owner(user, telescope_row) or has_shared_access(user, telescope_row)
+
+
 def user_can_control(user, telescope_row, level=CONTROL, at=None):
     if not user or not getattr(user, 'is_authenticated', False):
         return False
@@ -93,7 +117,7 @@ def user_can_control(user, telescope_row, level=CONTROL, at=None):
         return True
     if telescope_row is None:
         return False
-    if is_telescope_owner(user, telescope_row):
+    if may_use_as_owner(user, telescope_row):
         return True
     if level == OWNER:
         return False
@@ -115,8 +139,8 @@ def telescope_access_error(telescope_id, level=CONTROL):
 
     if not user_can_control(current_user, row, level):
         if level == OWNER:
-            message = _("Only the telescope's owner or an admin can do that.")
+            message = _("Only the telescope's owner, someone it's shared with, or an admin can do that.")
         else:
-            message = _("You need to own this telescope or hold a booking that covers now.")
+            message = _("You need to own this telescope, have it shared with you, or hold a booking that covers now.")
         return jsonify({"status": "error", "message": message}), 403
     return None

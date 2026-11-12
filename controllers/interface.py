@@ -14,6 +14,8 @@ from app.telescope_access import (
     CONTROL,
     OWNER,
     get_telescope_row,
+    has_shared_access,
+    is_telescope_owner,
     requested_telescope_id,
     telescope_access_error,
     user_can_control,
@@ -28,7 +30,7 @@ interface_bp = Blueprint("interface", __name__, url_prefix="/interface")
 
 
 def _require_telescope_control_access(telescope_id=None, level=CONTROL):
-    # Owner, approved booking covering now, or admin; None when allowed
+    # Owner, shared with them, approved booking covering now, or admin; None when allowed
     return telescope_access_error(telescope_id or requested_telescope_id(), level)
 
 
@@ -347,6 +349,7 @@ def _access_flags(telescope_id):
     return {
         "control": user_can_control(current_user, row, CONTROL),
         "owner": user_can_control(current_user, row, OWNER),
+        "shared": has_shared_access(current_user, row),
     }
 
 @interface_bp.route("/select_telescope", methods=["POST"])
@@ -446,6 +449,10 @@ def remove_telescope():
         guard = _require_telescope_control_access(telescope_id, OWNER)
         if guard:
             return guard
+        # Removing it is the owner's alone, not for people it's shared with
+        from flask_login import current_user
+        if not (current_user.is_admin or is_telescope_owner(current_user, get_telescope_row(telescope_id))):
+            return jsonify({"status": "error", "message": _("Only the telescope's owner or an admin can do that.")}), 403
 
         from models.tables import Telescope
         result = Telescope.remove_telescope(telescope_id)

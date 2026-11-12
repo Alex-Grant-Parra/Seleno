@@ -278,9 +278,9 @@ function onTelescopeSelected(access) {
     emit('seleno:telescope', { id: selectedTelescopeId, access: telescopeAccess });
 }
 
-// Owner-only controls (the Device tab, clearing an e-stop) for the owner and admins
+// Owner-only controls (the Device tab, clearing an e-stop) for the owner, people it's shared with, and admins
 function applyTelescopeAccess(access) {
-    telescopeAccess = access || { control: false, owner: false };
+    telescopeAccess = access || { control: false, owner: false, shared: false };
     document.querySelectorAll('.owner-only').forEach(node => node.classList.toggle('ws-hidden', !telescopeAccess.owner));
     renderAccessChip();
 }
@@ -301,6 +301,8 @@ function renderAccessChip() {
     const booking = latestStatus && latestStatus.booking;
     if (booking && booking.end) {
         setChip('chipAccess', 'ok', _('Your booking until {end}', { end: Seleno.fmt.time(booking.end) }));
+    } else if (telescopeAccess.shared) {
+        setChip('chipAccess', 'ok', _('Shared with you'), _('Its owner has shared it with you, so you can use it at any time without a booking'));
     } else if (telescopeAccess.owner) {
         setChip('chipAccess', 'ok', _('Owner'));
     } else if (telescopeAccess.control) {

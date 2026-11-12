@@ -8,7 +8,7 @@
         <h2 class="mb-0">My Telescopes</h2>
         <a class="btn btn-sm btn-outline-primary" href="{{ url_for('book.owner_bookings_page') }}">Owner Booking Queue</a>
     </div>
-    <p class="text-muted">Register a telescope to connect it to the server. Each new telescope requires admin approval before it can connect.</p>
+    <p class="text-muted">Register a telescope to connect it to the server. Each new telescope requires admin approval before it can connect. Use <strong>Share</strong> to let someone else use one of yours at any time without a booking.</p>
 
     {% if generated_token %}
     <div class="card border-success mb-4">
@@ -77,9 +77,45 @@
                                 <div class="d-flex gap-2">
                                     <a class="btn btn-sm btn-outline-primary" href="{{ url_for('telescopes.telescope_page', telescope_id=t.id) }}">Exclusion zones</a>
                                     <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('book.telescope_booking_settings', telescope_id=t.id) }}">Settings</a>
+                                    {% set shares = shares_by_telescope.get(t.id, []) %}
+                                    <button class="btn btn-sm btn-outline-info text-nowrap" type="button" data-bs-toggle="collapse" data-bs-target="#share-{{ t.id }}" aria-expanded="false" aria-controls="share-{{ t.id }}">
+                                        Share{% if shares %} <span class="badge bg-info text-dark">{{ shares|length }}</span>{% endif %}
+                                    </button>
                                     <form method="post" action="{{ url_for('telescopes.revoke_my_telescope', telescope_id=t.id) }}" onsubmit="return confirm('Remove telescope &quot;{{ t.telescope_id }}&quot;? This cannot be undone.');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="collapse share-row" id="share-{{ t.id }}">
+                            <td colspan="5">
+                                <div class="p-2">
+                                    <p class="small text-muted mb-2">People you share <strong>{{ t.telescope_id }}</strong> with can use it at any time, as you can, without making a booking. They can't approve or change bookings, change its booking settings, remove it, or share it with anyone else.</p>
+                                    {% if shares %}
+                                    <ul class="list-group list-group-flush mb-2">
+                                        {% for sh in shares %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1 bg-transparent">
+                                            <span><i class="fas fa-user me-1 text-muted"></i>{{ sh.user.username if sh.user else 'Deleted user' }}
+                                                <small class="text-muted ms-2">since {{ sh.created_at.strftime('%Y-%m-%d') }}</small></span>
+                                            <form method="post" action="{{ url_for('telescopes.unshare_telescope', telescope_id=t.id, share_id=sh.id) }}" onsubmit="return confirm('Stop sharing &quot;{{ t.telescope_id }}&quot; with {{ sh.user.username if sh.user else 'this user' }}?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">Remove access</button>
+                                            </form>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    <p class="small mb-2">Not shared with anyone.</p>
+                                    {% endif %}
+                                    <form method="post" action="{{ url_for('telescopes.share_telescope', telescope_id=t.id) }}" class="row g-2">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <div class="col-sm-6">
+                                            <input name="username" class="form-control form-control-sm" placeholder="Username or email" required maxlength="254" autocomplete="off" aria-label="Username or email to share {{ t.telescope_id }} with" />
+                                        </div>
+                                        <div class="col-sm-auto">
+                                            <button class="btn btn-sm btn-primary" type="submit">Give access</button>
+                                        </div>
                                     </form>
                                 </div>
                             </td>
@@ -93,7 +129,61 @@
             {% endif %}
         </div>
     </div>
+
+    {% if shared_with_me %}
+    <!-- Telescopes other owners have shared with this user -->
+    <div class="card mt-4">
+        <div class="card-header bg-dark text-white">Shared With Me</div>
+        <div class="card-body">
+            <p class="small text-muted">You can use these at any time without a booking. Their owners manage the bookings.</p>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Owner</th>
+                            <th>Status</th>
+                            <th>Shared Since</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sh, t in shared_with_me %}
+                        <tr>
+                            <td><a class="fw-semibold" href="{{ url_for('telescopes.telescope_page', telescope_id=t.id) }}">{{ t.telescope_id }}</a></td>
+                            <td>{{ owners.get(t.user_id, '—') }}</td>
+                            <td>
+                                {% if t.is_disabled %}
+                                    <span class="badge bg-danger">Disabled by Admin</span>
+                                {% elif not t.is_approved %}
+                                    <span class="badge bg-warning text-dark">Pending Approval</span>
+                                {% else %}
+                                    <span class="badge bg-success">Active</span>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ sh.created_at.strftime('%Y-%m-%d') }}</small></td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('telescopes.telescope_page', telescope_id=t.id) }}">Exclusion zones</a>
+                                    <form method="post" action="{{ url_for('telescopes.unshare_telescope', telescope_id=t.id, share_id=sh.id) }}" onsubmit="return confirm('Give up your access to &quot;{{ t.telescope_id }}&quot;? Only its owner can share it with you again.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Leave</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+<style>
+    /* The share panel sits under its telescope's row, so drop the stripe and keep it joined */
+    .share-row > td { background: var(--bs-tertiary-bg) !important; box-shadow: none !important; }
+</style>
 
 <script>
 function copyToken() {

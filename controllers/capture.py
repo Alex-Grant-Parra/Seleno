@@ -22,7 +22,7 @@ from app.db import db
 from app.telescopeLink import Telescope, result_error
 from app.telescope_access import (
     get_telescope_row,
-    is_telescope_owner,
+    may_use_as_owner,
     requested_telescope_id,
     telescope_access_error,
 )
@@ -56,10 +56,11 @@ def _active_plan(telescope_row):
 
 
 def _may_manage_plan(row, telescope_row):
-    # The plan's owner (the booking's holder), the telescope's owner, or an admin
+    # The plan's owner (the booking's holder), the telescope's owner or someone it's
+    # shared with, or an admin
     return (
         current_user.is_admin
-        or is_telescope_owner(current_user, telescope_row)
+        or may_use_as_owner(current_user, telescope_row)
         or row.owner_id == current_user.id
     )
 
@@ -223,7 +224,7 @@ def history():
         return guard
     row = get_telescope_row(telescope_id)
     query = CapturePlan.query.filter(CapturePlan.telescope_id == row.id)
-    if not (current_user.is_admin or is_telescope_owner(current_user, row)):
+    if not (current_user.is_admin or may_use_as_owner(current_user, row)):
         query = query.filter(CapturePlan.owner_id == current_user.id)
     rows = query.order_by(CapturePlan.created_at.desc()).limit(20).all()
     return jsonify({"status": "success", "plans": [r.to_dict() for r in rows]})

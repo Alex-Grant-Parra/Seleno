@@ -370,6 +370,7 @@ from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import
 from models.photo import Photo, TelescopeUpload  # Import to register photo and resumable upload tables
 from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
 from models.album import FrameMeta, StackResult, FeaturedTarget, Project  # Import to register album index, stacks, featured targets and projects
+from models.telescope_share import TelescopeShare  # Import to register telescope sharing (and its cleanup on delete)
 
 @login_manager.user_loader
 def load_user(user_id):
