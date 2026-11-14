@@ -7,7 +7,10 @@
     <div class="col-12 col-lg-10">
         <div class="card shadow-sm">
             <div class="card-body">
-                <h1 class="h3 mb-3">{{ _('Downloads') }}</h1>
+                <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-sm-between mb-3">
+                    <h1 class="h3 mb-2 mb-sm-0">{{ _('Downloads') }}</h1>
+                    <a class="btn btn-outline-secondary" href="/downloads/schematics">{{ _('Schematics & Extras') }}</a>
+                </div>
                 <p class="text-muted">{{ _('Select a version to download. Each file is a zipped release.') }}</p>
 
                 {% if latest %}

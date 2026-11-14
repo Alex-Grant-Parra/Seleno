@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Schematics & Extras') }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-10">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-sm-between mb-3">
+                    <h1 class="h3 mb-2 mb-sm-0">{{ _('Schematics & Extras') }}</h1>
+                    <a class="btn btn-outline-secondary" href="/downloads">{{ _('Back to Downloads') }}</a>
+                </div>
+                <p class="text-muted">{{ _('Optional files such as schematics and hardware design files. These are not needed to run the client.') }}</p>
+
+                {% if files %}
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle">
+                            <thead>
+                                <tr>
+                                    <th scope="col">{{ _('File') }}</th>
+                                    <th scope="col">{{ _('Updated') }}</th>
+                                    <th scope="col">{{ _('Size') }}</th>
+                                    <th scope="col"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for f in files %}
+                                    <tr>
+                                        <td class="text-break">{{ f.filename }}</td>
+                                        <td>{{ f.updated }}</td>
+                                        <td>{{ f.size_display }}</td>
+                                        <td class="text-end">
+                                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('downloads.downloads_schematic_file', filename=f.filename) }}">{{ _('Download') }}</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        {{ _('No extra files are available yet.') }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

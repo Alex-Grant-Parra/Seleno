@@ -207,9 +207,38 @@
             </article>
             <article class="about-card">
                 <h3><i class="fas fa-microchip" aria-hidden="true"></i> Hardware</h3>
-                <!-- Draft: Custom 4 layer PCB designed in KiCad (85 x 50 mm), with TMC2209 stepper drivers, an IMU, an LCD and an on board power stage. Ordered from JLCPCB and hand assembled with SMD parts. -->
-                {{ text_slot('The custom PCB and how it was made.') }}
-                {{ media_slot('PCB photo or render', '3 / 2') }}
+                <p>{{ _("Seleno runs on a custom four layer PCB that I designed myself in KiCad. It measures 85 × 50 mm and connects the motor drivers, motors, Raspberry Pi Zero 2 W, buttons, screen, IMU and power supply in a clean, space efficient way. The ESP32 handles low level hardware control, such as the motors, screen and LEDs, while the Pi Zero 2 W handles higher level control, network interfacing and camera control.") }}</p>
+
+                <h4>{{ _('Why I built it') }}</h4>
+                <p>{{ _("Designing my own board let me add features that most telescope control systems don't have, such as a screen, and gave advanced users more control over the system than other controllers offer. It also let me make the whole product much smaller, and it was the best way to teach myself PCB manufacturing, soldering and KiCad.") }}</p>
+                <p>{{ _("The board's two standout features are that it works both online, connected to Seleno's servers, and offline, and that it offers much higher customisation than commercial boards. The whole node also runs from a single socket, with reverse polarity protection, a fuse against overcurrent, and traces sized for the current they carry.") }}</p>
+
+                <h4>{{ _('How it was made') }}</h4>
+                <p>{{ _("I taught myself KiCad to do the schematic and layout. For v0.1 to v0.7, JLCPCB printed only the bare board and I assembled everything else myself. For v0.8, JLCPCB made the PCB and did most of the assembly, leaving about 20 percent for me to finish by hand. Only three revisions were actually made: v0.2, v0.5 and v0.8, which is the current board.") }}</p>
+
+                <h4>{{ _('Revisions') }}</h4>
+                <ul>
+                    <li>{{ _("v0.1 was my first PCB ever, and mostly a way of learning KiCad.") }}</li>
+                    <li>{{ _("v0.2 shrank the board to 50 × 85 mm.") }}</li>
+                    <li>{{ _("v0.3 to v0.5 replaced the ESP32 dev board plug in with a smaller module.") }}</li>
+                    <li>{{ _("v0.6 to v0.8 replaced every remaining module except the ESP32 with bare ICs, changed the screw connectors to JST connectors, and added proper power handling circuitry. They also changed the link to the Pi from USB to UART over GPIO. USB support remains in the firmware in case I want to use it again.") }}</li>
+                </ul>
+
+                <h4>{{ _('Challenges and lessons') }}</h4>
+                <p>{{ _("Soldering 0402 passives (1.0 × 0.5 mm) was really difficult. I tried a hot air gun, but found I was faster with a soldering iron and a microscope. The 1 mm pitch JST SH connectors also took a lot of patience. On an older board, probably v0.5, I accidentally pulled a buck converter pad off the PCB and had to learn how to replace it.") }}</p>
+                <p>{{ _("I didn't realise on the early versions how much trace width matters. Traces carrying higher currents need to be wider, while less critical signals like GPIO can stay thin. I also learned the importance of test pads and debugging. That was the main focus of v0.8, so I can debug the board easily instead of buying a new one every time.") }}</p>
+
+                <h4>{{ _('Licence') }}</h4>
+                <p>{{ _("I haven't decided to make the PCB design public. The current plan is for it to be source available rather than open source. People could make it at home for personal use but not sell it, as laid out in the licence.") }}</p>
+
+                <h4>{{ _("What's next: v1.0") }}</h4>
+                <p>{{ _("For v1.0 I want to remove the Raspberry Pi Zero 2 W completely and do everything on the board. The hardest challenge will be camera control, including livestreaming, from the ESP32. I plan to use the new ESP32-S31, which supports USB high speed and has enough processing power to host the entire client. Cutting the 5V adapters, the Pi and other circuitry should save between £20 and £30 per board.") }}</p>
+                <p>{{ _("I'd also like to add a mirror heating port, so everything plugs into the main enclosure and only one socket is needed. I'm considering power monitoring and feedback as well, so that on battery you can estimate whether an observation session will finish.") }}</p>
+
+                <figure style="margin: 0 0 var(--space-3);">
+                    <img src="{{ url_for('static', filename='about/pcb.jpg') }}" alt="{{ _('The assembled SELENO v0.8 controller board, with an ESP32 module, stepper drivers under a blue heatsink, and connectors for the IMU, LCD and buttons') }}" width="1207" height="744" loading="lazy" style="display: block; width: 100%; height: auto; border-radius: 0.5rem;">
+                    <figcaption class="about-muted" style="margin-top: var(--space-2, 0.5rem);">{{ _('Seleno v0.8, four layers, 85 × 50 mm.') }}</figcaption>
+                </figure>
             </article>
             <article class="about-card">
                 <h3><i class="fas fa-meteor" aria-hidden="true"></i> Astronomy engine</h3>
