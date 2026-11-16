@@ -202,8 +202,27 @@
         <div class="about-grid about-grid-2 about-hood-grid">
             <article class="about-card">
                 <h3><i class="fas fa-server" aria-hidden="true"></i> Software</h3>
-                <!-- Draft: Flask server talks over WebSockets to Raspberry Pi Zero 2 W nodes on each telescope. The Pi talks over UART to an ESP32 that drives the motors. -->
-                {{ text_slot('Server, telescope nodes and firmware.') }}
+                <p>{{ _("Seleno's software has three parts: a Flask server, a Python client on each telescope's Raspberry Pi, and C++ firmware on the ESP32. The server uses SQLAlchemy over SQLite, Jinja2 templates, Bootstrap 5 and plain JavaScript, with a custom canvas star map and some compute heavy code in C++. The interface is available in English and Spanish, with about 1,750 translated strings.") }}</p>
+
+                <h4>{{ _('Server and interface') }}</h4>
+                <p>{{ _("Basic mode lets you pick a curated target, check focus, take a test shot and capture, with a live view while imaging. Advanced mode adds custom coordinates, direct console output, full camera settings, a live histogram and stream controls. Both modes can run imaging plans, which are lists of steps such as go to, wait, lights, darks, flats, bias and video. Each plan is validated against a schema and the camera's capabilities, and its running time is estimated from overheads learned on earlier plans.") }}</p>
+                <p>{{ _("Bookings are converted to UTC and checked against the owner's rules inside a write locked SQLite transaction, so a multi date request either fully succeeds or rolls back. Owners approve each booking, every change is audit logged, and a watchdog stops any plan when the slot ends. SumUp payments are built but still in sandbox. A new telescope gets a random token that is stored only as a hash and shown once, and it stays inactive until an admin approves it.") }}</p>
+
+                <h4>{{ _('Telescope node') }}</h4>
+                <p>{{ _("Each node is an asyncio Python client, with slow work pushed to threads. It connects out over two WebSockets, one for commands and one for live view, so it works behind a home router with no port forwarding. Commands run in separate lanes and carry request IDs, so a long exposure never blocks a slew and a stop always gets through. A single thread owns the camera through gphoto2. Live view frames are reencoded on the Pi, skipped when unchanged and stepped down on slow links. Photos upload from a queue saved on disk, JPEGs first and RAW later, so nothing is lost across restarts or dropped connections.") }}</p>
+                <p>{{ _("The Pi also plate solves locally with ASTAP, records video including uncompressed SER, and checks every go to against the Sun, the horizon and dead zones. Offline mode runs all of this without the server, with a phone page protected by a code on the front panel. Nodes can update themselves from a webhook, and every update is reviewed by an admin first.") }}</p>
+
+                <h4>{{ _('Firmware') }}</h4>
+                <p>{{ _("The ESP32 runs C++ on the Arduino framework, built with PlatformIO and FreeRTOS. The Pi sends newline delimited JSON over UART at 921600 baud, and each reply echoes the command's ID. A 20 kHz timer interrupt uses phase accumulators to produce exact step rates, which keeps tracking drift minimal, while a 1 ms timer runs trapezoidal ramps and multi segment slew paths that can curve around the Sun. Microstepping and TMC2209 chopper mode are chosen per move, fine and quiet for tracking, coarse and strong for slews. Pointing uses a least squares model of up to six terms, fitted from plate solves or stars centred by hand, along with three point polar alignment, refraction and precession corrections.") }}</p>
+
+                <h4>{{ _('Stacking in the browser') }}</h4>
+                <p>{{ _("The album's stacking engine runs entirely in the browser with JavaScript and web workers, switching between memory, OPFS and streaming modes so huge stacks still fit. Pass one calibrates each frame with master darks, flats and bias, measures the stars and picks the sharpest frame as the reference. Frames that are blurred, stretched or star poor are rejected using robust statistics, and the rest are aligned to the reference. Pass two debayers and resamples each frame, matches its background and noise to the reference, weights it by noise and combines everything with iterative winsorized sigma clipping. The output is a master FITS file with a preview, a coverage map and a per frame report of what was rejected and why.") }}</p>
+
+                <h4>{{ _('Challenges and lessons') }}</h4>
+                <p>{{ _("The star map was my hardest problem, and the current one is its third version. My first attempt in Three.js drew every star as a white dot or a streak falling from the zenith. I later found the cause: I had treated right ascension as hours when the database stored degrees, so every position was 15 times too large. Inexperience with Three.js made it much harder to debug, so I replaced it with a custom canvas renderer.") }}</p>
+
+                <h4>{{ _("What's next") }}</h4>
+                <p>{{ _("I still need to finish payments and add the Pi runner for fully automated plans. After that I would like to track satellites, asteroids and dwarf planets, and add focuser control. A custom plate solver is a maybe. Ideas are welcome on the GitHub issue tracker.") }}</p>
             </article>
             <article class="about-card">
                 <h3><i class="fas fa-microchip" aria-hidden="true"></i> Hardware</h3>
