@@ -169,11 +169,15 @@ let starNameById = new Map();     // designation -> entry, for instant lookups o
 let starNameLoadPromise = null;
 let starNamesResolvedAt = -1;     // starLoadedCount when indices were last resolved
 
+function starNamesUrl() {
+    return `/api/star_names?lang=${encodeURIComponent(window.I18N_LANG || 'en')}`;
+}
+
 function loadStarNames() {
     if (starNameEntries) return Promise.resolve(starNameEntries);
     if (starNameLoadPromise) return starNameLoadPromise;
 
-    starNameLoadPromise = fetch(`/api/star_names?lang=${encodeURIComponent(window.I18N_LANG || 'en')}`)
+    starNameLoadPromise = fetch(starNamesUrl())
         .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
@@ -219,14 +223,22 @@ function resolveStarNameIndices() {
 // responses are cacheable so a repeat visit costs one 304 per band.
 // ---------------------------------------------------------------------------
 let catalogueBands = [];
+let catalogueVersion = '';
 let catalogueLoadStarted = false;
 let cataloguePendingBand = 0;
 
-async function fetchStarBand(band) {
+// The catalogue version is part of the URL, so a stored band is never stale:
+// the offline worker can answer it from storage without asking the server
+function starBandUrl(band) {
     const url = new URL('/api/stars_bin', window.location.origin);
     url.searchParams.set('start', String(band.start));
     url.searchParams.set('end', String(band.end));
-    const res = await fetch(url.toString());
+    if (catalogueVersion) url.searchParams.set('v', catalogueVersion);
+    return url.pathname + url.search;
+}
+
+async function fetchStarBand(band) {
+    const res = await fetch(starBandUrl(band));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buffer = await res.arrayBuffer();
     const decoded = decodeStarBand(buffer);
@@ -244,6 +256,7 @@ async function loadStarCatalogue() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const meta = await res.json();
         catalogueBands = Array.isArray(meta.bands) ? meta.bands : [];
+        catalogueVersion = meta.version != null ? String(meta.version) : '';
         starKnownCount = meta.known || 0;
         allocateStarCatalogue(meta.total || 0);
 
@@ -321,6 +334,8 @@ async function stagedPrefetchAfterFirstDraw() {
         // round trip. Not awaited - the catalogue is the bigger prize.
         loadStarNames();
         await loadRemainingStarBands();
+        // Everything is here now: keep a copy for using the map offline
+        prepareOfflineUse().catch(e => console.warn('Saving for offline use failed:', e));
     } catch (e) {
         console.warn('Staged prefetch encountered an issue:', e);
     }

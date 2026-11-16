@@ -11,8 +11,12 @@
         (function () {
             try {
                 if ('serviceWorker' in navigator) {
+                    // Only that old worker: /sw.js is the star map's offline worker
                     navigator.serviceWorker.getRegistrations().then(function (regs) {
-                        regs.forEach(function (reg) { reg.unregister(); });
+                        regs.forEach(function (reg) {
+                            var worker = reg.active || reg.waiting || reg.installing;
+                            if (worker && worker.scriptURL.indexOf('/static/js/service-worker.js') !== -1) reg.unregister();
+                        });
                     }).catch(function () {});
                 }
                 if ('caches' in window) {
