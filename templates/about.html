@@ -8,21 +8,10 @@
 {% endblock %}
 
 {#
-    Placeholders: every slot below renders as a dashed box with a "TODO" label so
-    nothing unfinished can pass for real content. Replace the macro call with your
-    own markup when the text or media is ready. Suggested drafts sit in an HTML
+    Placeholders: see _about_macros.html. Suggested drafts sit in an HTML
     comment next to each text slot.
 #}
-{% macro text_slot(hint) -%}
-<p class="about-slot about-slot-text"><span class="about-slot-tag">TODO</span> {{ hint }}</p>
-{%- endmacro %}
-
-{% macro media_slot(hint, ratio='16 / 9') -%}
-<div class="about-slot about-slot-media"{{ {'style': 'aspect-ratio: ' ~ ratio ~ ';'}|xmlattr }} role="img" aria-label="{{ hint }} (placeholder)">
-    <span class="about-slot-tag">TODO</span>
-    <span>{{ hint }}</span>
-</div>
-{%- endmacro %}
+{% from "_about_macros.html" import text_slot, media_slot %}
 
 {% block content %}
 <div class="about-page">
@@ -260,9 +249,9 @@
                 </figure>
             </article>
             <article class="about-card">
-                <h3><i class="fas fa-meteor" aria-hidden="true"></i> Astronomy engine</h3>
-                <!-- Draft: Custom N body engine written by me for planetary and lunar positions. The star map renders 110,000+ objects. -->
-                {{ text_slot('The N body engine and the star map renderer.') }}
+                <h3><i class="fas fa-meteor" aria-hidden="true"></i> {{ _('Astrophysics') }}</h3>
+                <p>{{ _("Planet and Moon positions come from Helios, a custom N body engine.") }}</p>
+                <a class="about-card-link" href="{{ url_for('about.astrophysics') }}">{{ _('Read the full write up') }} <span aria-hidden="true">→</span></a>
             </article>
             <article class="about-card">
                 <h3><i class="fas fa-shield-halved" aria-hidden="true"></i> Security and deployment</h3>

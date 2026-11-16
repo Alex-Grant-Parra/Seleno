@@ -453,3 +453,87 @@
         display: block !important;
     }
 }
+
+/* Astrophysics page: long display equations scroll instead of widening the page */
+.about-astro .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--space-2) 0;
+}
+
+.about-astro h4 {
+    font-size: 1rem;
+    margin: var(--space-4) 0 var(--space-2);
+}
+
+.about-astro .about-section h3 {
+    margin-top: var(--space-5);
+}
+
+/* Astrophysics page: accuracy tables */
+.astro-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-bottom: var(--space-3);
+}
+
+.astro-tab[aria-selected="true"] {
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.astro-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    margin-bottom: var(--space-3);
+}
+
+.astro-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.astro-table caption {
+    caption-side: top;
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.astro-table th,
+.astro-table td {
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.astro-table thead th {
+    background: var(--bg-soft);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.astro-coord {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.astro-err {
+    display: block;
+    margin-top: 0.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}

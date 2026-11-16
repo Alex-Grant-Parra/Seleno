@@ -1,0 +1,15 @@
+{#
+    Placeholders shared by the about pages: every slot renders as a dashed box with
+    a "TODO" label so nothing unfinished can pass for real content. Replace the
+    macro call with your own markup when the text or media is ready.
+#}
+{% macro text_slot(hint) -%}
+<p class="about-slot about-slot-text"><span class="about-slot-tag">TODO</span> {{ hint }}</p>
+{%- endmacro %}
+
+{% macro media_slot(hint, ratio='16 / 9') -%}
+<div class="about-slot about-slot-media"{{ {'style': 'aspect-ratio: ' ~ ratio ~ ';'}|xmlattr }} role="img" aria-label="{{ hint }} (placeholder)">
+    <span class="about-slot-tag">TODO</span>
+    <span>{{ hint }}</span>
+</div>
+{%- endmacro %}
