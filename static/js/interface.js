@@ -333,14 +333,15 @@ function describeStatus(status, viewers) {
             let text = tracking.parked ? _('Parked') : (stateLabel(tracking.state) || '—');
             const target = targetName(tracking.target);
             if (target) text += ` · ${target}`;
-            if (tracking.rate) text += ` · ${stateLabel(tracking.rate)}`;
+            const rate = rateName(tracking.rate);
+            if (rate) text += ` · ${stateLabel(rate)}`;
             add(_('Mount'), text);
         }
     }
     const camera = statusPart(status, 'camera');
     if (camera) {
         add(_('Camera'), camera.error ? `⚠ ${camera.error}` : `${camera.connected ? (camera.model || _('Connected')) : _('Not connected')}`);
-        if (!camera.error && camera.temperature_c !== undefined) add(_('Sensor'), `${Number(camera.temperature_c).toFixed(1)} °C`);
+        if (!camera.error && camera.temperature_c !== undefined && camera.temperature_c !== null) add(_('Sensor'), `${Number(camera.temperature_c).toFixed(1)} °C`);
     }
     const lv = statusPart(status, 'liveview');
     if (lv) {
@@ -363,7 +364,8 @@ function describeStatus(status, viewers) {
     const clock = statusPart(status, 'clock');
     if (clock) add(_('Clock'), clock.error ? `⚠ ${clock.error}` : `${clock.trusted ? _('Trusted') : _('Not trusted')}${clock.source ? ' · ' + clock.source : ''}${clock.offset_s !== undefined ? ' · ' + Number(clock.offset_s).toFixed(2) + ' s' : ''}`);
     const disk = status ? status.disk : undefined;
-    if (disk !== undefined) add(_('Disk'), typeof disk === 'number' ? _('{size} free', { size: formatBytes(disk) }) : (disk.error ? `⚠ ${disk.error}` : _('{size} free', { size: formatBytes(disk.free_bytes ?? disk.free) })));
+    // The Pi sends the disk as text ("41.3 GB free"); older ones sent bytes
+    if (disk !== undefined && disk !== null) add(_('Disk'), typeof disk === 'string' ? disk : typeof disk === 'number' ? _('{size} free', { size: formatBytes(disk) }) : (disk.error ? `⚠ ${disk.error}` : _('{size} free', { size: formatBytes(disk.free_bytes ?? disk.free) })));
     const esp = statusPart(status, 'esp32');
     if (esp) add(_('Controller'), esp.error ? `⚠ ${esp.error}` : `${esp.connected ? _('Connected') : _('Not connected')}${esp.estop ? _(' · E-STOP') : ''}`);
     return rows;
@@ -387,7 +389,7 @@ function renderChips(data) {
     } else {
         const state = tracking.state || 'idle';
         const level = /track/i.test(state) ? 'ok' : /slew/i.test(state) ? 'warn' : 'off';
-        const extra = Seleno.mode() === 'advanced' ? [stateLabel(tracking.rate), targetName(tracking.target)].filter(Boolean).join(' · ') : '';
+        const extra = Seleno.mode() === 'advanced' ? [stateLabel(rateName(tracking.rate)), targetName(tracking.target)].filter(Boolean).join(' · ') : '';
         setChip('chipMount', level, _('Mount {state}{extra}', { state: stateLabel(state), extra: extra ? ' · ' + extra : '' }));
     }
     const camera = statusPart(status, 'camera');
@@ -406,7 +408,10 @@ function renderChips(data) {
         setChip('chipClock', clock.trusted ? 'ok' : 'warn', _('Clock {source}{offsetS}', { source: clock.source || '', offsetS: clock.offset_s !== undefined ? ' ' + (clock.offset_s >= 0 ? '+' : '') + Number(clock.offset_s).toFixed(2) + ' s' : '' }).trim());
     }
     const disk = status.disk;
-    if (disk !== undefined && disk !== null) {
+    if (typeof disk === 'string' && disk !== '?') {
+        const gb = parseFloat(disk) / (/MB/.test(disk) ? 1024 : 1);
+        setChip('chipDisk', gb < 2 ? 'warn' : 'ok', _('Disk {free}', { free: disk }));
+    } else if (disk !== undefined && disk !== null) {
         const free = typeof disk === 'number' ? disk : (disk.free_bytes ?? disk.free);
         if (free !== undefined) setChip('chipDisk', free < 2 * 1024 ** 3 ? 'warn' : 'ok', _('Disk {free} free', { free: formatBytes(free) }));
     }
@@ -695,7 +700,9 @@ function refreshCameraStatus() {
         .then(status => {
             if (!status) return;
             const battery = status.battery ?? status.batteryLevel ?? '—';
-            const card = status.card_free ?? status.cardFree ?? status.card ?? '—';
+            let card = status.card_free ?? status.cardFree ?? status.card ?? '—';
+            // The Pi sends the card as {free_mb, total_mb, free_images}
+            if (card && typeof card === 'object') card = card.free_mb !== undefined && card.free_mb !== null ? card.free_mb * 1024 * 1024 : '—';
             const cardText = typeof card === 'number' ? _('{size} free', { size: formatBytes(card) }) : card;
             $('cameraStatusLine').textContent = _('Battery {battery} · Card {cardText}', { battery, cardText });
         })
@@ -1325,6 +1332,12 @@ function stateLabel(word) {
         snapshot: _('snapshot'), video: _('video'),
     };
     return labels[word.toLowerCase()] || word;
+}
+
+// The Pi sends the rate as {rate, ha_arcsec_per_s, dec_arcsec_per_s} ({rate: null} when not tracking)
+function rateName(rate) {
+    if (rate && typeof rate === 'object') return rate.rate || '';
+    return rate || '';
 }
 
 // The Pi may send the target as {name, ra, dec, ...} rather than a name

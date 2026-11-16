@@ -32,7 +32,7 @@
             </div>
         </div>
         <div class="about-hero-media">
-            {{ media_slot('Hero image or GIF: the star map, or the telescope on the bench', '4 / 3') }}
+            <img src="{{ url_for('static', filename='about/m31.jpg') }}" alt="{{ _('A colour image of the Andromeda Galaxy and its companion galaxies M32 and M110, against a dense star field') }}" width="1469" height="956" fetchpriority="high" style="display: block; width: 100%; height: auto; border-radius: 0.5rem;">
         </div>
     </section>
 
@@ -54,14 +54,12 @@
             <article class="about-card">
                 <i class="fas fa-seedling about-card-icon" aria-hidden="true"></i>
                 <h3>{{ _('Beginners') }}</h3>
-                <!-- Draft: Start with the star map and be guided to your first target. -->
-                {{ text_slot('One or two sentences for beginners.') }}
+                <p>{{ _("Never used a telescope before? Start on the star map, find something that catches your eye, and Seleno guides you from there to your first photo.") }}</p>
             </article>
             <article class="about-card">
                 <i class="fas fa-camera-retro about-card-icon" aria-hidden="true"></i>
                 <h3>{{ _('Advanced astrophotographers') }}</h3>
-                <!-- Draft: Remote mount control, plus stacking and processing of your images. -->
-                {{ text_slot('One or two sentences for experienced imagers.') }}
+                <p>{{ _("Write an imaging plan once and Seleno slews, plate solves, tracks and captures every calibration frame without you there. Stack the results in the browser with sigma clipping and per frame rejection reports.") }}</p>
             </article>
         </div>
     </section>
@@ -78,12 +76,12 @@
                 <a class="about-card-link" href="{{ url_for('star_map.star_map') }}">{{ _('Open the star map') }} <span aria-hidden="true">→</span></a>
             </article>
             <article class="about-card about-feature">
-                {{ media_slot('Screenshot or GIF of the telescope interface') }}
+                <img src="{{ url_for('static', filename='about/interface-online.png') }}" alt="{{ _('The Seleno telescope interface tracking the Andromeda Galaxy, with the live view, camera settings, focus readout and command log') }}" width="3600" height="1898" loading="lazy" style="display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border-radius: 0.5rem;">
                 <h3>{{ _('Control') }}</h3>
                 <p>{{ _("Run a whole observation programme on autopilot while you get on with your evening.") }}</p>
             </article>
             <article class="about-card about-feature">
-                {{ media_slot('Screenshot or GIF of the album and stacking') }}
+                <img src="{{ url_for('static', filename='about/m31.jpg') }}" alt="{{ _('A colour image of the Andromeda Galaxy and its companion galaxies M32 and M110, against a dense star field') }}" width="1469" height="956" loading="lazy" style="display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border-radius: 0.5rem;">
                 <h3>{{ _('Create') }}</h3>
                 <p>{{ _("Turn hours of raw exposures into one stunning image of a galaxy, nebula or planet.") }}</p>
             </article>
@@ -112,6 +110,8 @@
         </ol>
     </section>
 
+    {# Hidden for now: Follow the build. Change false to true to show it again. #}
+    {% if false %}
     {# 6. Follow the build #}
     <section class="about-section" aria-labelledby="follow-title">
         <h2 id="follow-title">{{ _('Follow the build') }}</h2>
@@ -126,13 +126,13 @@
             {{ text_slot('Build log link or email sign up goes here.') }}
         </div>
     </section>
+    {% endif %}
 
     {# 7. A deeper look #}
     <section class="about-section about-hood" id="A-deeper-look" tabindex="-1" aria-labelledby="hood-title">
         <p class="about-eyebrow">{{ _('A deeper look') }}</p>
         <h2 id="hood-title">{{ _('For engineers and recruiters') }}</h2>
-        <!-- Draft: Seleno is a full stack project I designed and built end to end, from the circuit board to the website. -->
-        {{ text_slot('Intro sentence: full stack project, designed and built end to end.') }}
+        <p>{{ _("Seleno is a solo project that covers hardware, embedded firmware, networking, a web server and a browser based image processing engine, designed and built by me.") }}</p>
 
         <figure class="about-diagram">
             {% set arch = [
@@ -254,27 +254,22 @@
                 <a class="about-card-link" href="{{ url_for('about.astrophysics') }}">{{ _('Read the full write up') }} <span aria-hidden="true">→</span></a>
             </article>
             <article class="about-card">
-                <h3><i class="fas fa-shield-halved" aria-hidden="true"></i> Security and deployment</h3>
-                <!-- Draft: TOTP two factor login, Fernet encryption, bcrypt, CSRF protection, SQLite. Hosted on a VPS behind a Cloudflare Tunnel so the server IP is not exposed. -->
-                {{ text_slot('Authentication, encryption and hosting.') }}
-            </article>
-            <article class="about-card about-card-wide">
-                <h3><i class="fas fa-graduation-cap" aria-hidden="true"></i> Origin</h3>
-                <!-- Draft: Began as my A Level Computer Science project and has kept growing since. -->
-                {{ text_slot('Where the project started.') }}
+                <h3><i class="fas fa-graduation-cap" aria-hidden="true"></i> Background</h3>
+                <p>{{ _("Seleno began as an idea in the summer between my GCSEs and A Levels. I wanted to control my telescope's tracking so I could find and image objects faster, and at a higher quality, than I could by hand. I later developed it into my A Level Computer Science Non Exam Assessment, and it has been a personal project ever since. I plan to keep building it.") }}</p>
+                <p>{{ _("While developing it, I realised how many people are interested in astronomy, physics and space but have no cheap or easy way to get started. That became the real goal of Seleno: to lower the barriers to entry for astronomy and help more people into the hobby.") }}</p>
             </article>
         </div>
 
-        <ul class="about-links">
-            <li><a class="btn btn-ghost" href="https://github.com/Alex-Grant-Parra/SELENO" target="_blank" rel="noopener"><i class="fab fa-github" aria-hidden="true"></i> GitHub (server)</a></li>
-            <li><a class="btn btn-ghost" href="https://github.com/Alex-Grant-Parra/Telescope-Project-Client" target="_blank" rel="noopener"><i class="fab fa-github" aria-hidden="true"></i> GitHub (client)</a></li>
-            {# TODO: replace each href="#" with the real link, then drop the about-link-todo class #}
-            <li><a class="btn btn-ghost about-link-todo" href="#" aria-disabled="true"><i class="fas fa-play" aria-hidden="true"></i> Demo video <span class="about-slot-tag">TODO</span></a></li>
+        <ul class="about-links about-links-fill">
+            <li><a class="btn btn-ghost" href="https://github.com/Alex-Grant-Parra/SELENO" target="_blank" rel="noopener"><i class="fab fa-github" aria-hidden="true"></i> GitHub</a></li>
             <li><a class="btn btn-ghost" href="https://seleno.org/downloads/schematics/SelenoPCB_v0.8.zip"><i class="fas fa-file-zipper" aria-hidden="true"></i> KiCad schematic</a></li>
-            <li><a class="btn btn-ghost about-link-todo" href="#" aria-disabled="true"><i class="fas fa-cube" aria-hidden="true"></i> CAD renders <span class="about-slot-tag">TODO</span></a></li>
+            {# TODO: replace href="#" with the real link, then drop the about-link-todo class and the tag #}
+            <li><a class="btn btn-ghost about-link-todo" href="#" aria-disabled="true"><i class="fas fa-cube" aria-hidden="true"></i> CAD files <span class="about-slot-tag">{{ _('COMING SOON') }}</span></a></li>
         </ul>
     </section>
 
+    {# Hidden for now: About me and Get in touch. Change false to true to show them again. #}
+    {% if false %}
     {# 8. About me #}
     <section class="about-section" aria-labelledby="me-title">
         <h2 id="me-title">{{ _('About me') }}</h2>
@@ -293,6 +288,7 @@
         <p><a class="btn btn-primary" href="mailto:support@seleno.org"><i class="fas fa-envelope" aria-hidden="true"></i> support@seleno.org</a></p>
         <p class="about-muted">{{ _('Or use the') }} <a href="{{ url_for('contact.support_home') }}">{{ _('support page') }}</a>.</p>
     </section>
+    {% endif %}
 
 </div>
 {% endblock %}
