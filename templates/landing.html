@@ -34,12 +34,12 @@
         })();
     </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='icons/favicon.ico') }}" type="image/x-icon">
+    {% include 'partials/favicons.html' %}
 </head>
 <body class="landing-body">
     <main class="landing-shell" id="landingShell">
         <header class="landing-topbar">
-            <a class="landing-brand" href="{{ url_for('home.home') }}">SELENO</a>
+            <a class="landing-brand" href="{{ url_for('home.home') }}">{% include 'partials/logo_mark.html' %}SELENO</a>
             <div class="landing-topbar-actions">
                 <button id="landingThemeToggle" class="theme-toggle" aria-label="{{ _('Toggle light and dark mode') }}" type="button">
                     <span class="theme-toggle-track">
@@ -55,7 +55,7 @@
         </header>
 
         <section class="landing-panel" data-depth="0.15">
-            <video class="landing-video lazy-landing-video" muted loop playsinline preload="metadata" poster="{{ url_for('static', filename='icons/favicon.ico') }}">
+            <video class="landing-video lazy-landing-video" muted loop playsinline preload="metadata" poster="{{ url_for('static', filename='icons/app-icon-512.png') }}">
                 <source data-src="{{ url_for('static', filename='videos/milkyWay.mp4') }}" type="video/mp4">
             </video>
             <div class="landing-gradient"></div>
@@ -67,7 +67,7 @@
         </section>
 
         <section class="landing-panel" data-depth="0.22">
-            <video class="landing-video lazy-landing-video" muted loop playsinline preload="none" poster="{{ url_for('static', filename='icons/favicon.ico') }}">
+            <video class="landing-video lazy-landing-video" muted loop playsinline preload="none" poster="{{ url_for('static', filename='icons/app-icon-512.png') }}">
                 <source data-src="{{ url_for('static', filename='videos/jupiter.mp4') }}" type="video/mp4">
             </video>
             <div class="landing-gradient"></div>
@@ -79,7 +79,7 @@
         </section>
 
         <section class="landing-panel" data-depth="0.18">
-            <video class="landing-video lazy-landing-video" muted loop playsinline preload="none" poster="{{ url_for('static', filename='icons/favicon.ico') }}">
+            <video class="landing-video lazy-landing-video" muted loop playsinline preload="none" poster="{{ url_for('static', filename='icons/app-icon-512.png') }}">
                 <source data-src="{{ url_for('static', filename='videos/crabNebula.mp4') }}" type="video/mp4">
             </video>
             <div class="landing-gradient"></div>
@@ -91,7 +91,7 @@
         </section>
 
         <section class="landing-panel landing-finale" id="landingFinale" data-depth="0.28">
-            <video class="landing-video lazy-landing-video" muted loop playsinline preload="none" poster="{{ url_for('static', filename='icons/favicon.ico') }}">
+            <video class="landing-video lazy-landing-video" muted loop playsinline preload="none" poster="{{ url_for('static', filename='icons/app-icon-512.png') }}">
                 <source data-src="{{ url_for('static', filename='videos/n11.mp4') }}" type="video/mp4">
             </video>
             <div class="landing-gradient"></div>

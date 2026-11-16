@@ -42,7 +42,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- style.css must load AFTER Bootstrap so our design tokens win the cascade -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='icons/favicon.ico') }}" type="image/x-icon">
+    {% include 'partials/favicons.html' %}
     <script>
         window.APP_DOMAIN = "{{ config['APP_DOMAIN'] or 'seleno.org' }}";
     </script>
@@ -58,7 +58,7 @@
         <header class="site-header">
             <nav class="navbar navbar-expand-lg seleno-nav">
                 <div class="container-fluid seleno-nav-inner">
-                    <a class="navbar-brand seleno-brand" href="{{ url_for('home.home') }}">SELENO</a>
+                    <a class="navbar-brand seleno-brand" href="{{ url_for('home.home') }}">{% include 'partials/logo_mark.html' %}SELENO</a>
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="{{ _('Toggle navigation') }}">
                         <span class="navbar-toggler-icon"></span>
                     </button>

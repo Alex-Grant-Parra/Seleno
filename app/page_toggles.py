@@ -10,7 +10,7 @@ PAGES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "pages.txt"
 
 # Paths that must always work, whatever the file says
 ALWAYS_ON = ("/static", "/login", "/logout", "/register", "/forgot_password",
-             "/reset_password", "/admin", "/security", "/errors", "/sitemap.xml")
+             "/reset_password", "/admin", "/security", "/errors", "/sitemap.xml", "/favicon.ico")
 
 _lock = threading.Lock()
 _cache = {"mtime": None, "states": {}}

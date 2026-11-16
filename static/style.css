@@ -122,6 +122,20 @@ a:hover {
     color: var(--text);
 }
 
+/* Stripes logo mark beside the SELENO wordmark (templates/partials/logo_mark.html) */
+.seleno-brand,
+.landing-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+}
+
+.seleno-mark {
+    width: 1.5em;
+    height: 1.5em;
+    flex-shrink: 0;
+}
+
 .navbar-nav .nav-link {
     color: var(--text-muted);
     font-weight: 600;

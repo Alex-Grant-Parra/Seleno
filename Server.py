@@ -11,7 +11,7 @@ ifOnline = True
 from utility.setupLibs import ensure_requirements
 ensure_requirements()
 
-from flask import Flask, request, jsonify, redirect, url_for, Response, session, flash
+from flask import Flask, request, jsonify, redirect, url_for, Response, session, flash, send_from_directory
 import json
 from flask_login import LoginManager, logout_user, current_user
 import logging
@@ -285,6 +285,11 @@ try:
         return resp
 except Exception as e:
     print(f"CSRF token endpoint not available: {e}")
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(BASE_DIR, 'static', 'icons'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/sitemap.xml')
 def sitemap():
