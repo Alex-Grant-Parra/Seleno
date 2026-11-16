@@ -13,6 +13,7 @@ import urllib.parse
 import urllib.request
 
 from app.db import db
+from security.client_ip import client_ip
 from models.contact import ContactMessage
 from models.contact_thread import ContactMessageEntry
 
@@ -221,7 +222,7 @@ def submit_contact():
         turnstile_token = (request.form.get('cf-turnstile-response') or '').strip()
         is_valid_captcha, captcha_errors = _verify_turnstile_token(
             turnstile_token,
-            request.headers.get('X-Forwarded-For', request.remote_addr)
+            client_ip()
         )
         if not is_valid_captcha:
             current_app.logger.warning('Contact CAPTCHA failed: %s', ','.join(captcha_errors or []))
@@ -236,7 +237,7 @@ def submit_contact():
     # Gather server-side metadata
     meta = {
         'server_received_at': datetime.utcnow().isoformat() + 'Z',
-        'ip': request.headers.get('X-Forwarded-For', request.remote_addr),
+        'ip': client_ip(),
         'user_agent': request.headers.get('User-Agent', ''),
         'accept_language': request.headers.get('Accept-Language', ''),
         'referer': request.headers.get('Referer', ''),

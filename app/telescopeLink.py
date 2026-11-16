@@ -3,7 +3,6 @@ import ujson
 import os
 from flask import session, has_request_context
 from app.WebsocketServer import (
-    clients,
     DEFAULT_COMMAND_TIMEOUT,
     INTERNAL_COMMAND_HEADER,
     INTERNAL_COMMAND_KEY,

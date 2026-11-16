@@ -8,7 +8,7 @@ database in a temporary folder, and fake telescopes in place of real sockets.
 
 ```bash
 cd tests
-../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search test_weather_cache test_sharing
+../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search test_weather_cache test_sharing test_auth_security
 ```
 
 | File | Covers |
@@ -22,6 +22,7 @@ cd tests
 | `test_star_search.py` | the star map's name search: typos, other languages, exact-only catalogue numbers, suggestions |
 | `test_weather_cache.py` | the world map's local weather cache and `/map/weather/`, against a fake Open-Meteo |
 | `test_sharing.py` | sharing a telescope by username: standing access without a booking, and what stays with the owner |
+| `test_auth_security.py` | who a request is from (forged forwarding headers), 2FA codes, reset links, reconnecting telescopes |
 
 ## The processing engine (Node, about 10 s)
 

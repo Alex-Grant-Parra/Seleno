@@ -87,6 +87,9 @@ def _db():
     # auto_vacuum only takes effect before the first table exists
     conn.execute("PRAGMA auto_vacuum = INCREMENTAL")
     conn.execute("PRAGMA journal_mode = WAL")
+    # Without a limit the WAL file keeps its high-water size (it reached 800 MB),
+    # and it counts against MAX_CACHE_BYTES
+    conn.execute("PRAGMA journal_size_limit = 67108864")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS runs (
             run TEXT PRIMARY KEY,        -- e.g. 2026/11/09/1200Z
@@ -430,6 +433,12 @@ def cleanup(now=None):
     if drop or stray:
         conn.execute("PRAGMA incremental_vacuum")
         logger.info("weather cache: dropped runs %s", ", ".join(drop + stray))
+    # Fold the WAL back into the database and shrink the file. Busy readers can
+    # make this a partial checkpoint; the next pass finishes it.
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    except sqlite3.Error as exc:
+        logger.info("weather cache: checkpoint skipped (%s)", exc)
 
 
 def start_background(interval_s=CHECK_EVERY_S):

@@ -1,6 +1,9 @@
+import hashlib
+import hmac
 import os
+import secrets
+import time
 import jwt
-import random
 from datetime import datetime, timedelta
 from flask_login import UserMixin, login_required, current_user
 from app.db import db
@@ -59,23 +62,37 @@ class User(UserMixin, db.Model):
         # Column accessor returns plaintext
         return self.email
 
-    # Generate a reset token using JWT
+    # Password reset links: a signed JWT that is good for 30 minutes and only
+    # until the password changes (it carries a digest of the current hash), so
+    # a used or leaked link stops working once the password has been reset.
+    def _password_stamp(self):
+        return hashlib.sha256((self.password or '').encode('utf-8')).hexdigest()[:16]
+
+    @staticmethod
+    def _reset_secret():
+        secret = current_app.config.get('SECRET_KEY')
+        if not secret:
+            raise RuntimeError('SECRET_KEY is not configured')
+        return secret
+
     def get_reset_token(self, expires_sec=1800):
-        reset_token = jwt.encode(
-            {'reset_password': self.id, 'exp': datetime.utcnow() + timedelta(seconds=expires_sec)},
-            os.getenv('FLASK_SECRET_KEY', 'default_secret_key'),  # Secret key for JWT (ensure it is in environment)
+        return jwt.encode(
+            {'reset_password': self.id, 'pw': self._password_stamp(),
+             'exp': datetime.utcnow() + timedelta(seconds=expires_sec)},
+            self._reset_secret(),
             algorithm='HS256'
         )
-        return reset_token
 
-    # Verify the reset token
     @staticmethod
     def verify_reset_token(token):
         try:
-            user_id = jwt.decode(token, os.getenv('FLASK_SECRET_KEY', 'default_secret_key'), algorithms=['HS256'])['reset_password']
-        except Exception as e:
+            payload = jwt.decode(token, User._reset_secret(), algorithms=['HS256'])
+            user = db.session.get(User, int(payload['reset_password']))
+        except Exception:
             return None
-        return User.query.get(user_id)
+        if user is None or not hmac.compare_digest(str(payload.get('pw', '')), user._password_stamp()):
+            return None
+        return user
 
     # Flask-Login properties
     @property
@@ -99,21 +116,41 @@ class User(UserMixin, db.Model):
 
     # TOTP setup
     def set_totp_secret(self):
-        self.totp_secret = ''.join(random.choices('0123456789abcdef', k=16))
+        self.totp_secret = secrets.token_hex(8)
+
+    # Emailed login codes: six hex characters from the secrets module, good for
+    # TWO_FA_CODE_TTL_S and TWO_FA_MAX_ATTEMPTS wrong guesses. The issue time and
+    # the guesses so far are kept with the (encrypted) code as "code|issued|tries".
+    TWO_FA_CODE_TTL_S = 600
+    TWO_FA_MAX_ATTEMPTS = 5
 
     def generate_totp_code(self):
-        # Store encrypted transparently via EncryptedString
-        self.current_2fa_code = ''.join(random.choices('0123456789abcdef', k=6))
-        db.session.commit()  # Save the generated code to the database
-        return self.current_2fa_code
+        code = secrets.token_hex(3)
+        self.current_2fa_code = f"{code}|{int(time.time())}|0"
+        db.session.commit()
+        return code
 
     def verify_2fa_code(self, code):
-        # current_2fa_code accessor yields plaintext
-        result = (self.current_2fa_code == code)
-        if result:
-            self.current_2fa_code = None  # Clear the 2FA code after successful verification
+        stored = self.current_2fa_code or ''
+        parts = stored.split('|')
+        if len(parts) != 3:
+            # No code issued (or one from before codes expired): ask for a new login
+            self.current_2fa_code = None
             db.session.commit()
-        return result
+            return False
+        expected, issued, tries = parts[0], int(parts[1] or 0), int(parts[2] or 0)
+        if time.time() - issued > self.TWO_FA_CODE_TTL_S or tries >= self.TWO_FA_MAX_ATTEMPTS:
+            self.current_2fa_code = None
+            db.session.commit()
+            return False
+        if hmac.compare_digest(expected.lower(), (code or '').strip().lower()):
+            self.current_2fa_code = None
+            db.session.commit()
+            return True
+        tries += 1
+        self.current_2fa_code = None if tries >= self.TWO_FA_MAX_ATTEMPTS else f"{expected}|{issued}|{tries}"
+        db.session.commit()
+        return False
 
     def get_account_type(self):
         return self.AccountType

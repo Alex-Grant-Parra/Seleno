@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from flask_login import current_user, login_required
 
 from app.db import db
+from security.client_ip import client_ip
 from app.sumup_service import (
     SumUpAPIError,
     current_sumup_mode,
@@ -64,10 +65,7 @@ def _parse_amount(value):
 
 
 def _get_client_ip():
-    xff = request.headers.get('X-Forwarded-For')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.remote_addr
+    return client_ip()
 
 
 def _webhook_secret_is_valid():

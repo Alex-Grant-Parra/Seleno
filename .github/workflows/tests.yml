@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install -r utility/requirements.txt
+      - name: Unit and API tests
+        working-directory: tests
+        run: >
+          python -m unittest test_commands test_uploads_plans test_liveview test_album_api
+          test_interface_api test_projects_api test_star_search test_weather_cache test_sharing test_auth_security
+
+  processing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: In-browser processing engine (synthetic frames)
+        run: node --test tests/processing/*.test.mjs

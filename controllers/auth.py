@@ -4,7 +4,6 @@ from flask_login import login_user, logout_user, current_user, login_required
 import logging
 sec_logger = logging.getLogger('security')
 import json
-import ipaddress
 import urllib.parse
 import urllib.request
 from utility.hash import hash_password, check_password
@@ -14,44 +13,24 @@ from app.db import db
 from utility.emailer import send_email
 from datetime import datetime
 from flask_babel import gettext as _
+from security.client_ip import client_ip, is_local_request
 
 
 auth_bp = Blueprint('auth', __name__)
 
 
 def is_local_connection():
-    # Check if the request is coming from localhost, 127.0.0.1, or a local IP address
-    # Get the client IP address
-    client_ip = request.remote_addr
-    
-    # Handle X-Forwarded-For header for reverse proxies
-    xff_header = request.headers.get('X-Forwarded-For')
-    if xff_header:
-        # Take the first IP from the comma-separated list
-        client_ip = xff_header.split(',')[0].strip()
-    
-    # Configurable local IPs/hosts
-    local_ips = os.getenv('LOCAL_IP_ADDRESSES', '127.0.0.1,localhost,192.168.0').split(',')
-    local_ips = [ip.strip() for ip in local_ips if ip.strip()]
+    """True for a visitor on this machine or its private network, when the
+    owner has opted in.
 
-    # Check for localhost variations and configured local IPs
-    if client_ip in local_ips or client_ip in ['::1']:
-        return True
-    
-    # Check if the host starts with any configured local host/IP (handles ports like localhost:8080)
-    if any(request.host.startswith(h) for h in local_ips):
-        return True
-    
-    # Check for private IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
-    try:
-        ip_obj = ipaddress.ip_address(client_ip)
-        if ip_obj.is_private or ip_obj.is_loopback:
-            return True
-    except ValueError:
-        # Invalid IP format, not a local connection
-        pass
-    
-    return False
+    Local visitors skip the emailed 2FA code and are shown password reset
+    links on the page, so this is off unless LOCAL_AUTH_BYPASS is set (for a
+    server on a home network with no mail set up). The address comes from
+    security.client_ip, which ignores forwarding headers a visitor can forge.
+    """
+    if not current_app.config.get('LOCAL_AUTH_BYPASS'):
+        return False
+    return is_local_request()
 
 
 def _captcha_context(config_key: str):
@@ -167,8 +146,7 @@ def register():
 
     if request.method == 'POST':
         if captcha_required:
-            xff = request.headers.get('X-Forwarded-For')
-            remote_ip = xff.split(',')[0].strip() if xff else request.remote_addr
+            remote_ip = client_ip()
             turnstile_token = (request.form.get('cf-turnstile-response') or '').strip()
             is_valid_captcha, captcha_errors = _verify_turnstile_token(turnstile_token, remote_ip)
             if not is_valid_captcha:
@@ -229,8 +207,7 @@ def forgot_password():
 
     if request.method == 'POST':
         if captcha_required:
-            xff = request.headers.get('X-Forwarded-For')
-            remote_ip = xff.split(',')[0].strip() if xff else request.remote_addr
+            remote_ip = client_ip()
             turnstile_token = (request.form.get('cf-turnstile-response') or '').strip()
             is_valid_captcha, captcha_errors = _verify_turnstile_token(turnstile_token, remote_ip)
             if not is_valid_captcha:
@@ -312,7 +289,11 @@ def login_2fa():
             flash(_('Session expired. Please log in again.'), 'danger')
             return redirect(url_for('auth.login'))
 
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
+        if user is None:
+            session.pop('user_id', None)
+            flash(_('Session expired. Please log in again.'), 'danger')
+            return redirect(url_for('auth.login'))
         # Ensure account is still enabled before completing 2FA
         if user:
             try:
@@ -344,7 +325,15 @@ def login_2fa():
             session.pop('user_id', None)  # Remove user_id from session
             session.pop('trust_device', None)  # Remove trust_device from session
             return redirect(url_for('home.home'))
+        elif not user.current_2fa_code:
+            # Expired, or too many wrong guesses: the code is gone
+            session.pop('user_id', None)
+            session.pop('trust_device', None)
+            sec_logger.info(json.dumps({'event': 'login_2fa_code_spent', 'user_id': user.id}))
+            flash(_('That code has expired or had too many wrong tries. Please log in again.'), 'danger')
+            return redirect(url_for('auth.login'))
         else:
+            sec_logger.info(json.dumps({'event': 'login_2fa_failed', 'user_id': user.id}))
             flash(_('Invalid 2FA code. Please try again.'), 'danger')
 
     return render_template('login_2fa.html')
@@ -375,14 +364,6 @@ def device_info():
     # Get device info from TrustedDevice
     fingerprint = TrustedDevice.generate_device_fingerprint()
     device_name = TrustedDevice.get_device_name()
-
-    # Sanitize and normalize IP address header: prefer X-Forwarded-For but validate it
-    xff = request.headers.get('X-Forwarded-For') or request.environ.get('HTTP_X_FORWARDED_FOR')
-    if xff:
-        # X-Forwarded-For can contain a comma-separated list; take the first valid-looking entry
-        ip = xff.split(',')[0].strip()
-    else:
-        ip = request.remote_addr or request.environ.get('REMOTE_ADDR', 'Unknown')
 
     # Mask fingerprint to avoid leaking full device identifiers in debug view
     masked_fingerprint = None

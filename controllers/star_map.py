@@ -884,14 +884,3 @@ def get_telescope_dead_zones():
     })
     resp.headers["Cache-Control"] = "no-store"
     return resp
-
-
-@star_map_bp.route("/api/debug/session", methods=["GET"])
-def debug_session():
-    # Debug endpoint to check session state
-    selected_telescope = session.get('selected_telescope')
-    return jsonify({
-        "status": "success",
-        "selected_telescope": selected_telescope,
-        "session_keys": list(session.keys())
-    })
