@@ -25,235 +25,239 @@
         </nav>
     </section>
 
-{# The maths below is raw TeX rendered by KaTeX, so Jinja must not parse it.
-   Write "<" inside equations as \lt so it is not read as an HTML tag. #}
-{% raw %}
+{# The maths below is raw TeX rendered by KaTeX. Prose that contains TeX uses
+   {% trans trimmed %} blocks, not _("..."), because Jinja string literals turn
+   backslashes into escapes (\frac would become a form feed). Display equations
+   sit outside the blocks so translators never see them. TeX must not contain
+   "{{", "{%" or "{#", and write "<" inside equations as \lt so it is not read
+   as an HTML tag. #}
     <!-- ==================================================================
          V3 HELIOS
          ================================================================== -->
     <section class="about-section" id="helios" aria-labelledby="helios-title">
 
-        <h2 id="helios-title">V3 Helios Planetary Engine</h2>
+        <h2 id="helios-title">{{ _('V3 Helios Planetary Engine') }}</h2>
 
-        <p>Helios is an N body solar system integrator. It takes one snapshot of the real solar system from JPL's DE440 ephemeris [1] and then evolves it itself with its own force model. It does not interpolate the DE440 data. The pipeline is:</p>
+        <p>{% trans trimmed %}Helios is an N body solar system integrator. It takes one snapshot of the real solar system from JPL's DE440 ephemeris [1] and then evolves it itself with its own force model. It does not interpolate the DE440 data. The pipeline is:{% endtrans %}</p>
 
         <ol>
-            <li>Load the DE440 state at one epoch (<code>loader.py</code>).</li>
-            <li>Integrate the equations of motion with a 4th order symplectic scheme (<code>integrator.py</code>, <code>helios_core.cpp</code>).</li>
-            <li>Store checkpoints every 16 days across ±2000 years (<code>ephemeris.py</code>).</li>
-            <li>For any requested date, integrate from the nearest checkpoint to the target. The maximum is 8 days, or about 96 steps.</li>
-            <li>Convert the resulting positions into RA/Dec, phases and magnitudes (<code>convert.py</code>, <code>frames.py</code>, <code>timescales.py</code>).</li>
+            <li>{% trans trimmed %}Load the DE440 state at one epoch (<code>loader.py</code>).{% endtrans %}</li>
+            <li>{% trans trimmed %}Integrate the equations of motion with a 4th order symplectic scheme (<code>integrator.py</code>, <code>helios_core.cpp</code>).{% endtrans %}</li>
+            <li>{% trans trimmed %}Store checkpoints every 16 days across ±2000 years (<code>ephemeris.py</code>).{% endtrans %}</li>
+            <li>{% trans trimmed %}For any requested date, integrate from the nearest checkpoint to the target. The maximum is 8 days, or about 96 steps.{% endtrans %}</li>
+            <li>{% trans trimmed %}Convert the resulting positions into RA/Dec, phases and magnitudes (<code>convert.py</code>, <code>frames.py</code>, <code>timescales.py</code>).{% endtrans %}</li>
         </ol>
 
-        <h3>1. Bodies and initial conditions</h3>
+        <h3>{{ _('1. Bodies and initial conditions') }}</h3>
 
-        <p>There are 11 bodies: Sun, Mercury, Venus, Earth, Moon, and the system barycentres of Mars, Jupiter, Saturn, Uranus, Neptune and Pluto. SPICE is used only once, to read position, velocity and $GM$ from DE440 in the ECLIPJ2000 frame, relative to the solar system barycentre [2].</p>
+        <p>{% trans trimmed %}There are 11 bodies: Sun, Mercury, Venus, Earth, Moon, and the system barycentres of Mars, Jupiter, Saturn, Uranus, Neptune and Pluto. SPICE is used only once, to read position, velocity and $GM$ from DE440 in the ECLIPJ2000 frame, relative to the solar system barycentre [2].{% endtrans %}</p>
 
-        <p>Mars to Pluto use the planet system barycentre rather than the planet centre. A planet's centre wobbles around that barycentre because of its moons (Pluto by about 24 m/s from Charon). Integrating that wobble as if it were orbital motion would be wrong, and resolving the fast moon periods would force tiny timesteps.</p>
+        <p>{% trans trimmed %}Mars to Pluto use the planet system barycentre rather than the planet centre. A planet's centre wobbles around that barycentre because of its moons (Pluto by about 24 m/s from Charon). Integrating that wobble as if it were orbital motion would be wrong, and resolving the fast moon periods would force tiny timesteps.{% endtrans %}</p>
 
-        <p>Masses are derived as $m_i = GM_i / G$. The force model then multiplies by $G$ again, so $G$ cancels exactly and the DE440 $GM$ values (known to about 11 digits) drive everything, not CODATA's $G$ (about 5 digits). The net centre of mass velocity is subtracted at the epoch so the barycentre stays put:</p>
+        <p>{% trans trimmed %}Masses are derived as $m_i = GM_i / G$. The force model then multiplies by $G$ again, so $G$ cancels exactly and the DE440 $GM$ values (known to about 11 digits) drive everything, not CODATA's $G$ (about 5 digits). The net centre of mass velocity is subtracted at the epoch so the barycentre stays put:{% endtrans %}</p>
 
         $$\mathbf{v}_i \leftarrow \mathbf{v}_i - \frac{\sum_k m_k \mathbf{v}_k}{\sum_k m_k}$$
 
-        <h3>2. The force model</h3>
+        <h3>{{ _('2. The force model') }}</h3>
 
-        <p>The total acceleration is split by what it depends on:</p>
+        <p>{{ _('The total acceleration is split by what it depends on:') }}</p>
 
-        $$\ddot{\mathbf{r}}_i = \underbrace{\mathbf{a}^{\mathrm{N}}_i + \mathbf{a}^{J_2}_i + \mathbf{a}^{\mathrm{fig}}_i}_{\text{positional: } f(\mathbf{r})} + \underbrace{\mathbf{a}^{\mathrm{GR}}_i + \mathbf{a}^{\mathrm{tide}}_i}_{\text{correction: } f(\mathbf{r},\mathbf{v})}$$
+        $$\ddot{\mathbf{r}}_i = \underbrace{\mathbf{a}^{\mathrm{N}}_i + \mathbf{a}^{J_2}_i + \mathbf{a}^{\mathrm{fig}}_i}_{\text{ {{- _('positional') }}: } f(\mathbf{r})} + \underbrace{\mathbf{a}^{\mathrm{GR}}_i + \mathbf{a}^{\mathrm{tide}}_i}_{\text{ {{- _('correction') }}: } f(\mathbf{r},\mathbf{v})}$$
 
-        <h4>Newtonian gravity</h4>
+        <h4>{{ _('Newtonian gravity') }}</h4>
 
-        <p>With $\mu_j = GM_j$ and $\mathbf{r}_{ij} = \mathbf{r}_i - \mathbf{r}_j$:</p>
+        <p>{% trans trimmed %}With $\mu_j = GM_j$ and $\mathbf{r}_{ij} = \mathbf{r}_i - \mathbf{r}_j$:{% endtrans %}</p>
 
         $$\mathbf{a}^{\mathrm{N}}_i = -\sum_{j\neq i} \frac{\mu_j\,\mathbf{r}_{ij}}{\left(|\mathbf{r}_{ij}|^2 + \varepsilon^2\right)^{3/2}}$$
 
-        <p>Here $\varepsilon = 10^{-6}$ m. It only guards against division by zero on the diagonal and has no physical effect.</p>
+        <p>{% trans trimmed %}Here $\varepsilon = 10^{-6}$ m. It only guards against division by zero on the diagonal and has no physical effect.{% endtrans %}</p>
 
-        <h4>General relativity: the EIH equations</h4>
+        <h4>{{ _('General relativity: the EIH equations') }}</h4>
 
-        <p>By default Helios uses the full Einstein, Infeld and Hoffmann (EIH) 1PN N body terms (with $\beta=\gamma=1$, as in Moyer's formulation used by JPL [3]):</p>
+        <p>{% trans trimmed %}By default Helios uses the full Einstein, Infeld and Hoffmann (EIH) 1PN N body terms (with $\beta=\gamma=1$, as in Moyer's formulation used by JPL [3]):{% endtrans %}</p>
 
         $$\mathbf{a}^{\mathrm{EIH}}_i = \frac{1}{c^2}\Bigg\{\sum_{j\ne i}\frac{\mu_j(\mathbf{r}_j-\mathbf{r}_i)}{r_{ij}^3}B_{ij} + \sum_{j\ne i}\frac{\mu_j}{r_{ij}^3}\big[\mathbf{r}_{ij}\cdot(4\mathbf{v}_i-3\mathbf{v}_j)\big](\mathbf{v}_i-\mathbf{v}_j) + \frac{7}{2}\sum_{j\ne i}\frac{\mu_j\,\mathbf{a}^{\mathrm{N}}_j}{r_{ij}}\Bigg\}$$
 
         $$B_{ij} = -4U_i - U_j + v_i^2 + 2v_j^2 - 4\,\mathbf{v}_i\!\cdot\!\mathbf{v}_j - \frac{3}{2}\left(\frac{\mathbf{r}_{ij}\cdot\mathbf{v}_j}{r_{ij}}\right)^2 + \frac{1}{2}(\mathbf{r}_j-\mathbf{r}_i)\cdot\mathbf{a}^{\mathrm{N}}_j, \qquad U_i=\sum_{k\ne i}\frac{\mu_k}{r_{ik}}$$
 
-        <p>There is also a cheaper option, the Sun only Schwarzschild term relative to the Sun:</p>
+        <p>{{ _('There is also a cheaper option, the Sun only Schwarzschild term relative to the Sun:') }}</p>
 
         $$\Delta\mathbf{a} = \frac{GM_\odot}{c^2 r^3}\left[\left(\frac{4GM_\odot}{r}-v^2\right)\mathbf{r} + 4(\mathbf{r}\cdot\mathbf{v})\,\mathbf{v}\right]$$
 
-        <p>An equal and opposite reaction is applied to the Sun so total momentum is conserved. This term produces Mercury's perihelion advance of about 43″ per century.</p>
+        <p>{% trans trimmed %}An equal and opposite reaction is applied to the Sun so total momentum is conserved. This term produces Mercury's perihelion advance of about 43″ per century.{% endtrans %}</p>
 
-        <h4>Earth's oblateness ($J_2$) acting on the Moon</h4>
+        <h4>{% trans trimmed %}Earth's oblateness ($J_2$) acting on the Moon{% endtrans %}</h4>
 
-        <p>Take $\mathbf{d}$ as the Earth to Moon vector, $\hat{\mathbf{p}}$ as Earth's pole and $z=\mathbf{d}\cdot\hat{\mathbf{p}}$:</p>
+        <p>{% trans trimmed %}Take $\mathbf{d}$ as the Earth to Moon vector, $\hat{\mathbf{p}}$ as Earth's pole and $z=\mathbf{d}\cdot\hat{\mathbf{p}}$:{% endtrans %}</p>
 
         $$\mathbf{a}^{J_2}_{\mathrm{Moon}} = -\frac{3}{2}\frac{J_2\,GM_\oplus R_\oplus^2}{d^5}\left[\left(1-\frac{5z^2}{d^2}\right)\mathbf{d} + 2z\,\hat{\mathbf{p}}\right]$$
 
-        <p>The Earth gets the reaction scaled by $m_{\mathrm{Moon}}/m_\oplus$. This is why the pole direction matters.</p>
+        <p>{% trans trimmed %}The Earth gets the reaction scaled by $m_{\mathrm{Moon}}/m_\oplus$. This is why the pole direction matters.{% endtrans %}</p>
 
-        <h4>The Moon's own shape</h4>
+        <h4>{{ _("The Moon's own shape") }}</h4>
 
-        <p>The Moon keeps one face towards Earth. Its $J_2$ and $C_{22}$ terms reduce, for an Earth on the long axis near the lunar equator, to an extra radial pull:</p>
+        <p>{% trans trimmed %}The Moon keeps one face towards Earth. Its $J_2$ and $C_{22}$ terms reduce, for an Earth on the long axis near the lunar equator, to an extra radial pull:{% endtrans %}</p>
 
         $$\mathbf{a}^{\mathrm{fig}}_{\oplus} = -\left(\tfrac{3}{2}J_2^{\mathrm{M}} + 9\,C_{22}^{\mathrm{M}}\right)\frac{GM_{\mathrm{Moon}}R_{\mathrm{M}}^2}{d^5}\,\mathbf{d}_{\oplus\leftarrow \mathrm{M}}$$
 
-        <p>It is about $10^{-8}$ of the total force, but it sets the Moon's mean motion to roughly 0.4″ per year, so it matters over centuries. Libration and Earth's ±7° latitude change this by about 1%, periodically, and are neglected.</p>
+        <p>{% trans trimmed %}It is about $10^{-8}$ of the total force, but it sets the Moon's mean motion to roughly 0.4″ per year, so it matters over centuries. Libration and Earth's ±7° latitude change this by about 1%, periodically, and are neglected.{% endtrans %}</p>
 
-        <h4>Earth tides (Mignard constant time lag model)</h4>
+        <h4>{{ _('Earth tides (Mignard constant time lag model)') }}</h4>
 
-        <p>This follows the constant time lag model of Mignard [4]. The Moon raises a tidal bulge on Earth. Because Earth spins faster than the Moon orbits, the bulge leads the Moon by a time lag $\Delta t$. With $\mathbf{d}$ and $\mathbf{w}$ the Moon's position and velocity relative to Earth, and $\boldsymbol{\Omega}=\Omega_\oplus\hat{\mathbf{p}}$ the Earth's spin vector:</p>
+        <p>{% trans trimmed %}This follows the constant time lag model of Mignard [4]. The Moon raises a tidal bulge on Earth. Because Earth spins faster than the Moon orbits, the bulge leads the Moon by a time lag $\Delta t$. With $\mathbf{d}$ and $\mathbf{w}$ the Moon's position and velocity relative to Earth, and $\boldsymbol{\Omega}=\Omega_\oplus\hat{\mathbf{p}}$ the Earth's spin vector:{% endtrans %}</p>
 
         $$\mathbf{a}^{\mathrm{tide}}_{\mathrm{Moon}} = -\frac{3k_2\,GM_{\mathrm{Moon}}R_\oplus^5}{d^8}\left[\mathbf{d} + \Delta t\left(\frac{2(\mathbf{d}\cdot\mathbf{w})}{d^2}\mathbf{d} + \mathbf{d}\times\boldsymbol{\Omega} + \mathbf{w}\right)\right]$$
 
-        <p>The first term is the instantaneous tidal pull. The $\Delta t$ terms are the lag. They push the Moon outwards and slow it in longitude.</p>
+        <p>{% trans trimmed %}The first term is the instantaneous tidal pull. The $\Delta t$ terms are the lag. They push the Moon outwards and slow it in longitude.{% endtrans %}</p>
 
-        <p><strong>Calibration</strong> (<code>calibrate_tides.py</code>): run with and without tides, and fit the difference in the Moon's geocentric ecliptic longitude as</p>
+        <p>{% trans trimmed %}<strong>Calibration</strong> (<code>calibrate_tides.py</code>): run with and without tides, and fit the difference in the Moon's geocentric ecliptic longitude as{% endtrans %}</p>
 
         $$\Delta\lambda(T) = a + bT + \tfrac{1}{2}\dot n\,T^2$$
 
-        <p>($T$ in centuries). Since $\dot n \propto \Delta t$, the lag that reproduces the lunar laser ranging value $\dot n = -25.82''\,/\,\mathrm{cy}^2$ [5] follows linearly:</p>
+        <p>{% trans trimmed %}($T$ in centuries). Since $\dot n \propto \Delta t$, the lag that reproduces the lunar laser ranging value $\dot n = -25.82''\,/\,\mathrm{cy}^2$ [5] follows linearly:{% endtrans %}</p>
 
         $$\Delta t_{\mathrm{new}} = \Delta t_{\mathrm{trial}}\,\frac{\dot n_{\mathrm{target}}}{\dot n_{\mathrm{measured}}}$$
 
-        <p>That gives 562.5 s.</p>
+        <p>{{ _('That gives 562.5 s.') }}</p>
 
-        <h3>3. Earth's pole and precession</h3>
+        <h3>{{ _("3. Earth's pole and precession") }}</h3>
 
-        <p>The $J_2$ and tidal forces need Earth's pole in the ECLIPJ2000 frame. It moves about 11° over 2000 years, so it is computed from the IAU 2006 precession polynomials (Capitaine et al. 2003 [6]), with $T$ in Julian centuries of TT:</p>
+        <p>{% trans trimmed %}The $J_2$ and tidal forces need Earth's pole in the ECLIPJ2000 frame. It moves about 11° over 2000 years, so it is computed from the IAU 2006 precession polynomials (Capitaine et al. 2003 [6]), with $T$ in Julian centuries of TT:{% endtrans %}</p>
 
         $$\psi_A(T)=\sum_{k=0}^{5} c^{\psi}_k T^k,\qquad \omega_A(T)=\varepsilon_0+\sum_{k=0}^{5} c^{\omega}_k T^k$$
 
         $$\hat{\mathbf{p}} = \big(\sin\omega_A\sin\psi_A,\ \sin\omega_A\cos\psi_A,\ \cos\omega_A\big)$$
 
-        <p>Here $\varepsilon_0 = 84381.448''$. The pole sits at angle $\omega_A$ from the ecliptic pole, and its longitude lags by $\psi_A$ as the equinox precesses.</p>
+        <p>{% trans trimmed %}Here $\varepsilon_0 = 84381.448''$. The pole sits at angle $\omega_A$ from the ecliptic pole, and its longitude lags by $\psi_A$ as the equinox precesses.{% endtrans %}</p>
 
-        <p>The pole is not updated every step. Time is cut into intervals of $\Delta_{\mathrm{pole}}$ (16 days), and the pole is held fixed within interval $j$ at its value for the interval's midpoint:</p>
+        <p>{% trans trimmed %}The pole is not updated every step. Time is cut into intervals of $\Delta_{\mathrm{pole}}$ (16 days), and the pole is held fixed within interval $j$ at its value for the interval's midpoint:{% endtrans %}</p>
 
         $$j = \left\lfloor \frac{t + h/2}{\Delta_{\mathrm{pole}}} \right\rfloor,\qquad \hat{\mathbf{p}}_j = \hat{\mathbf{p}}\big((j+\tfrac12)\Delta_{\mathrm{pole}}\big)$$
 
-        <p>This makes results independent of how a run is chunked. Because $\Delta_{\mathrm{pole}}$ equals the checkpoint spacing, integrating from a checkpoint towards a request stays inside a single pole interval.</p>
+        <p>{% trans trimmed %}This makes results independent of how a run is chunked. Because $\Delta_{\mathrm{pole}}$ equals the checkpoint spacing, integrating from a checkpoint towards a request stays inside a single pole interval.{% endtrans %}</p>
 
-        <h3>4. The integrator</h3>
+        <h3>{{ _('4. The integrator') }}</h3>
 
-        <p>This is the core numerical idea. Two properties make it suitable for long runs:</p>
+        <p>{{ _('This is the core numerical idea. Two properties make it suitable for long runs:') }}</p>
 
         <ul>
-            <li><strong>Symplectic.</strong> It preserves the Hamiltonian structure, so energy error stays bounded and oscillates instead of drifting. Symplectic maps were applied to long planetary integrations by Wisdom and Holman [7].</li>
-            <li><strong>Time reversible.</strong> The same code with $h \lt 0$ integrates backwards, which gives the −2000 year half of the span.</li>
+            <li>{% trans trimmed %}<strong>Symplectic.</strong> It preserves the Hamiltonian structure, so energy error stays bounded and oscillates instead of drifting. Symplectic maps were applied to long planetary integrations by Wisdom and Holman [7].{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Time reversible.</strong> The same code with $h \lt 0$ integrates backwards, which gives the −2000 year half of the span.{% endtrans %}</li>
         </ul>
 
-        <h4>Velocity Verlet (kick, drift, kick)</h4>
+        <h4>{{ _('Velocity Verlet (kick, drift, kick)') }}</h4>
 
-        <p>For a force depending only on position:</p>
+        <p>{{ _('For a force depending only on position:') }}</p>
 
         $$\mathbf{v}\leftarrow\mathbf{v}+\tfrac{s}{2}\mathbf{a}(\mathbf{r}),\quad \mathbf{r}\leftarrow\mathbf{r}+s\,\mathbf{v},\quad \mathbf{v}\leftarrow\mathbf{v}+\tfrac{s}{2}\mathbf{a}(\mathbf{r})$$
 
-        <p>This is second order.</p>
+        <p>{{ _('This is second order.') }}</p>
 
-        <h4>Suzuki fractal composition to 4th order</h4>
+        <h4>{{ _('Suzuki fractal composition to 4th order') }}</h4>
 
-        <p>Composing five Verlet sub steps with weights</p>
+        <p>{{ _('Composing five Verlet sub steps with weights') }}</p>
 
         $$p = \frac{1}{4-4^{1/3}}\approx 0.4145,\qquad (w_1,\dots,w_5) = (p,\,p,\,1-4p,\,p,\,p)$$
 
-        <p>where $1-4p\approx-0.658$ is a backwards sub step, cancels the lower order error terms. This is Suzuki's fractal decomposition [8], and the idea of building higher order symplectic integrators by composing lower order ones is developed in Yoshida [9]. Each sub step uses $s_k = w_k h$. The result has a global error of $O(h^4)$ and keeps the symplectic and symmetric properties. The step size is $h = 7200$ s. The Moon's orbit then takes about 330 steps, and the step size was checked against DE440.</p>
+        <p>{% trans trimmed %}where $1-4p\approx-0.658$ is a backwards sub step, cancels the lower order error terms. This is Suzuki's fractal decomposition [8], and the idea of building higher order symplectic integrators by composing lower order ones is developed in Yoshida [9]. Each sub step uses $s_k = w_k h$. The result has a global error of $O(h^4)$ and keeps the symplectic and symmetric properties. The step size is $h = 7200$ s. The Moon's orbit then takes about 330 steps, and the step size was checked against DE440.{% endtrans %}</p>
 
-        <h4>Splitting off the small velocity dependent forces</h4>
+        <h4>{{ _('Splitting off the small velocity dependent forces') }}</h4>
 
-        <p>Relativity and tides depend on velocity, which breaks the plain Verlet structure. They are about $10^{-8}$ of the total force, so they are applied as a symmetric Strang splitting:</p>
+        <p>{% trans trimmed %}Relativity and tides depend on velocity, which breaks the plain Verlet structure. They are about $10^{-8}$ of the total force, so they are applied as a symmetric Strang splitting:{% endtrans %}</p>
 
         $$\Phi_h = e^{\frac h2 \mathcal{C}}\ \circ\ \mathcal{S}_4(h)\ \circ\ e^{\frac h2 \mathcal{C}}$$
 
-        <p>Here $\mathcal{C}$ is the correction kick, $\mathbf{v}\leftarrow\mathbf{v}+\tfrac h2\,\mathbf{a}^{\mathrm{corr}}$, and $\mathcal{S}_4$ is the Suzuki composition. The correction is evaluated once per step and reused for the closing kick of one step and the opening kick of the next.</p>
+        <p>{% trans trimmed %}Here $\mathcal{C}$ is the correction kick, $\mathbf{v}\leftarrow\mathbf{v}+\tfrac h2\,\mathbf{a}^{\mathrm{corr}}$, and $\mathcal{S}_4$ is the Suzuki composition. The correction is evaluated once per step and reused for the closing kick of one step and the opening kick of the next.{% endtrans %}</p>
 
-        <h3>5. The checkpointed ephemeris</h3>
+        <h3>{{ _('5. The checkpointed ephemeris') }}</h3>
 
-        <p>Integrating from the epoch to every requested date would be slow, so the full state (position and velocity of all 11 bodies) is stored every 16 days. That is 192 steps of 7200 s. Checkpoints are grouped into blocks of 2283 (about 100 years) and saved as <code>.npz</code> files. The span is ±2000 years, about $1.75\times10^7$ steps in total.</p>
+        <p>{% trans trimmed %}Integrating from the epoch to every requested date would be slow, so the full state (position and velocity of all 11 bodies) is stored every 16 days. That is 192 steps of 7200 s. Checkpoints are grouped into blocks of 2283 (about 100 years) and saved as <code>.npz</code> files. The span is ±2000 years, about $1.75\times10^7$ steps in total.{% endtrans %}</p>
 
-        <p>For a request at time $t$:</p>
+        <p>{% trans trimmed %}For a request at time $t$:{% endtrans %}</p>
 
         $$k = \left\lfloor \frac{t}{16\,\mathrm{d}} + \tfrac12 \right\rfloor$$
 
-        <p>The code takes the nearest checkpoint $k$, then integrates forwards or backwards. It uses whole 7200 s steps on the same grid as the build, then one partial step $h_{\mathrm{rem}}$ to land exactly on the target. That is at most 8 days, about 96 steps. Nothing is interpolated: every answer is a real integration.</p>
+        <p>{% trans trimmed %}The code takes the nearest checkpoint $k$, then integrates forwards or backwards. It uses whole 7200 s steps on the same grid as the build, then one partial step $h_{\mathrm{rem}}$ to land exactly on the target. That is at most 8 days, about 96 steps. Nothing is interpolated: every answer is a real integration.{% endtrans %}</p>
 
-        <h3>6. Time scales</h3>
+        <h3>{{ _('6. Time scales') }}</h3>
 
-        <p>The physics runs in TDB, while people give civil time. The link is $\Delta T = \mathrm{TT}-\mathrm{UT}$:</p>
+        <p>{% trans trimmed %}The physics runs in TDB, while people give civil time. The link is $\Delta T = \mathrm{TT}-\mathrm{UT}$:{% endtrans %}</p>
 
         $$\mathrm{ET} = (t_{\mathrm{civil}}-t_{\mathrm{J2000}}) + \Delta T$$
 
         <ul>
-            <li><strong>1972 to 2026:</strong> $\Delta T = 32.184\,\mathrm{s} + (\mathrm{TAI}-\mathrm{UTC})$, exact, from the leap second table.</li>
-            <li><strong>Before 1972:</strong> the Espenak and Meeus (2006) polynomials [10], which follow Morrison and Stephenson [11]. For example, $\Delta T$ is about 2.9 hours in 26 AD, and uncertain by minutes.</li>
-            <li><strong>After 2026:</strong> $\Delta T$ is held at its last known value and then curves upwards with Earth's tidal braking:
+            <li>{% trans trimmed %}<strong>1972 to 2026:</strong> $\Delta T = 32.184\,\mathrm{s} + (\mathrm{TAI}-\mathrm{UTC})$, exact, from the leap second table.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Before 1972:</strong> the Espenak and Meeus (2006) polynomials [10], which follow Morrison and Stephenson [11]. For example, $\Delta T$ is about 2.9 hours in 26 AD, and uncertain by minutes.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>After 2026:</strong> $\Delta T$ is held at its last known value and then curves upwards with Earth's tidal braking:{% endtrans %}
                 $$\Delta T(t) = \Delta T_0 + 32\,\mathrm{s}\cdot c^2$$
-                where $c$ is centuries since 2026. This gives about 3.6 hours by 4026 AD, and is a guess uncertain by hours.</li>
+                {% trans trimmed %}where $c$ is centuries since 2026. This gives about 3.6 hours by 4026 AD, and is a guess uncertain by hours.{% endtrans %}</li>
         </ul>
 
-        <p>TDB minus TT (under 2 ms) is ignored.</p>
+        <p>{{ _('TDB minus TT (under 2 ms) is ignored.') }}</p>
 
-        <h3>7. From state vectors to what you see</h3>
+        <h3>{{ _('7. From state vectors to what you see') }}</h3>
 
-        <p><strong>Frames.</strong> The integration is in ECLIPJ2000. A rotation by $-\varepsilon_0$ about the $x$ axis gives J2000 equatorial coordinates. Mean of date coordinates use the four rotation IAU 2006 matrix:</p>
+        <p>{% trans trimmed %}<strong>Frames.</strong> The integration is in ECLIPJ2000. A rotation by $-\varepsilon_0$ about the $x$ axis gives J2000 equatorial coordinates. Mean of date coordinates use the four rotation IAU 2006 matrix:{% endtrans %}</p>
 
         $$\mathbf{P} = R_3(\chi_A)\,R_1(-\omega_A)\,R_3(-\psi_A)\,R_1(\varepsilon_0)$$
 
-        <p><strong>Topocentric correction.</strong> The observer's WGS84 geodetic position is built with</p>
+        <p>{% trans trimmed %}<strong>Topocentric correction.</strong> The observer's WGS84 geodetic position is built with{% endtrans %}</p>
 
         $$N=\frac{a}{\sqrt{1-e^2\sin^2\phi}},\qquad \begin{pmatrix}x\\y\\z\end{pmatrix}=\begin{pmatrix}(N+h)\cos\phi\cos\lambda\\(N+h)\cos\phi\sin\lambda\\((1-e^2)N+h)\sin\phi\end{pmatrix}$$
 
-        <p>This is rotated by Greenwich mean sidereal time $\theta$ (the standard polynomial in $JD-2451545$ with $T^2$ and $T^3$ terms), giving the position in the equator of date. It is then rotated back with $\mathbf{P}^{\mathsf T}$ into J2000 before being subtracted from the target vector. Skipping that last step would put the Moon about 20″ off today and about 30′ off at ±2000 years. Nutation (under 0.3″) is ignored.</p>
+        <p>{% trans trimmed %}This is rotated by Greenwich mean sidereal time $\theta$ (the standard polynomial in $JD-2451545$ with $T^2$ and $T^3$ terms), giving the position in the equator of date. It is then rotated back with $\mathbf{P}^{\mathsf T}$ into J2000 before being subtracted from the target vector. Skipping that last step would put the Moon about 20″ off today and about 30′ off at ±2000 years. Nutation (under 0.3″) is ignored.{% endtrans %}</p>
 
-        <p><strong>Coordinates.</strong></p>
+        <p><strong>{{ _('Coordinates.') }}</strong></p>
 
         $$\alpha=\operatorname{atan2}(y,x)\bmod 2\pi,\qquad \delta=\arcsin(z/\rho)$$
 
-        <p>These are geometric, with no light time or aberration.</p>
+        <p>{{ _('These are geometric, with no light time or aberration.') }}</p>
 
-        <p><strong>Phase and magnitude.</strong></p>
-
-        <ul>
-            <li>The phase angle $\alpha_{\mathrm{ph}}$ is the Sun, body, Earth angle at the body.</li>
-            <li>Planets use $V = H(\alpha_{\mathrm{ph}}) + 5\log_{10}(r\,\Delta)$, with per planet polynomial phase terms. Saturn's rings are not modelled.</li>
-            <li>The Moon uses $V=-12.73+0.026\,\alpha+4\times10^{-9}\alpha^4+5\log_{10}(d/384400\,\mathrm{km})$.</li>
-            <li>Moon illumination is approximated as $k=(1-\cos\epsilon)/2$ from the elongation $\epsilon$, with waxing or waning decided by the sign of $(\hat{\mathbf{s}}\times\hat{\mathbf{m}})_z$.</li>
-        </ul>
-
-        <h3>8. Optimisation features</h3>
+        <p><strong>{{ _('Phase and magnitude.') }}</strong></p>
 
         <ul>
-            <li><strong>C++ port</strong> (<code>helios_core.cpp</code>, via pybind11). It is a line for line port of the Python reference, which stays as the fallback. It is built with <code>-O3 -ffp-contract=off</code> and no <code>-ffast-math</code>, so the arithmetic follows the same IEEE rules as NumPy. The two backends agree to centimetres after a year, and <code>Propagator</code> auto selects the backend.</li>
-            <li><strong>Pair symmetry</strong> in C++. It loops over $i \lt j$ and computes $1/d^3$ once per pair, applying the pull to both bodies (Newton's third law).</li>
-            <li><strong>Reusing force evaluations.</strong> The last force evaluation of each Suzuki sub step is the first of the next, so there are 5 positional evaluations per step instead of 10. The small relativity and tide terms are evaluated once per step.</li>
-            <li><strong>Vectorised NumPy reference.</strong> It uses broadcasting, <code>einsum</code> and <code>matmul</code> for the pairwise matrices, and scalar code for the single pair Earth Moon terms, which avoids array overhead.</li>
-            <li><strong>Piecewise constant pole.</strong> Precession trigonometry is evaluated once per 16 days, not every step.</li>
-            <li><strong>Horner's rule</strong> for the polynomial series, in the same order in both backends so they agree.</li>
-            <li><strong>Checkpoint cache.</strong> A query costs about 0.6 ms in C++ (about 30 ms in Python) instead of an integration from the epoch. Blocks are built lazily, outwards from the epoch. They are held in an LRU cache of 12 blocks, written atomically (temp file then <code>os.replace</code>) and guarded by an <code>RLock</code>. Metadata containing the hash of the initial conditions and every trajectory changing setting triggers an automatic rebuild when something changes. Batch queries are grouped by checkpoint and sorted, so one walk serves many targets.</li>
-            <li><strong>Concurrency.</strong> The GIL is released during integration, and each call gets its own <code>Workspace</code>, so one model can serve concurrent calls.</li>
-            <li><strong>System barycentres for Mars to Pluto</strong>, so no short period moon motion has to be resolved.</li>
+            <li>{% trans trimmed %}The phase angle $\alpha_{\mathrm{ph}}$ is the Sun, body, Earth angle at the body.{% endtrans %}</li>
+            <li>{% trans trimmed %}Planets use $V = H(\alpha_{\mathrm{ph}}) + 5\log_{10}(r\,\Delta)$, with per planet polynomial phase terms. Saturn's rings are not modelled.{% endtrans %}</li>
+            <li>{% trans trimmed %}The Moon uses $V=-12.73+0.026\,\alpha+4\times10^{-9}\alpha^4+5\log_{10}(d/384400\,\mathrm{km})$.{% endtrans %}</li>
+            <li>{% trans trimmed %}Moon illumination is approximated as $k=(1-\cos\epsilon)/2$ from the elongation $\epsilon$, with waxing or waning decided by the sign of $(\hat{\mathbf{s}}\times\hat{\mathbf{m}})_z$.{% endtrans %}</li>
         </ul>
 
-        <h3>9. What the model leaves out</h3>
+        <h3>{{ _('8. Optimisation features') }}</h3>
 
         <ul>
-            <li>No asteroids (Ceres, Vesta and so on) and no Sun $J_2$.</li>
-            <li>Earth's $J_2$ and the tides act only on the Earth Moon pair, with no solar tides and no lunar tides raised by Earth.</li>
-            <li>No libration beyond the fixed lunar figure term.</li>
-            <li>No nutation, light time or aberration in the output.</li>
-            <li>The diagnostics energy (<code>totalEnergy</code>) is purely Newtonian, so it is not exactly conserved once relativity, $J_2$ and tides are on.</li>
+            <li>{% trans trimmed %}<strong>C++ port</strong> (<code>helios_core.cpp</code>, via pybind11). It is a line for line port of the Python reference, which stays as the fallback. It is built with <code>-O3 -ffp-contract=off</code> and no <code>-ffast-math</code>, so the arithmetic follows the same IEEE rules as NumPy. The two backends agree to centimetres after a year, and <code>Propagator</code> auto selects the backend.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Pair symmetry</strong> in C++. It loops over $i \lt j$ and computes $1/d^3$ once per pair, applying the pull to both bodies (Newton's third law).{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Reusing force evaluations.</strong> The last force evaluation of each Suzuki sub step is the first of the next, so there are 5 positional evaluations per step instead of 10. The small relativity and tide terms are evaluated once per step.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Vectorised NumPy reference.</strong> It uses broadcasting, <code>einsum</code> and <code>matmul</code> for the pairwise matrices, and scalar code for the single pair Earth Moon terms, which avoids array overhead.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Piecewise constant pole.</strong> Precession trigonometry is evaluated once per 16 days, not every step.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Horner's rule</strong> for the polynomial series, in the same order in both backends so they agree.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Checkpoint cache.</strong> A query costs about 0.6 ms in C++ (about 30 ms in Python) instead of an integration from the epoch. Blocks are built lazily, outwards from the epoch. They are held in an LRU cache of 12 blocks, written atomically (temp file then <code>os.replace</code>) and guarded by an <code>RLock</code>. Metadata containing the hash of the initial conditions and every trajectory changing setting triggers an automatic rebuild when something changes. Batch queries are grouped by checkpoint and sorted, so one walk serves many targets.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>Concurrency.</strong> The GIL is released during integration, and each call gets its own <code>Workspace</code>, so one model can serve concurrent calls.{% endtrans %}</li>
+            <li>{% trans trimmed %}<strong>System barycentres for Mars to Pluto</strong>, so no short period moon motion has to be resolved.{% endtrans %}</li>
         </ul>
 
-        <h3>Earlier approach: Chebyshev polynomial ephemeris</h3>
+        <h3>{{ _('9. What the model leaves out') }}</h3>
 
-        <p>Earlier versions of Helios used a Chebyshev polynomial ephemeris. The N body integrator ran once, offline, over a fixed span, and the trajectory was cut into 4 day segments with a degree 16 Chebyshev polynomial fitted to each body and axis. A query was then just a polynomial evaluation (Clenshaw recurrence), which took microseconds and needed no physics at query time. I stopped using it because the table only covered a few years after the epoch (10 years by default), and extending it meant fitting and storing coefficients for the entire path, so the file grew in proportion to the span. The current design stores the full N body state (position and velocity) every 16 days instead, and answers a query by integrating the real force model from the nearest checkpoint for at most 8 days. Because a checkpoint is a starting point for the physics and not a description of the curve, it is far more compact, and it lets Helios cover ±2000 years from the epoch, in either direction.</p>
+        <ul>
+            <li>{% trans trimmed %}No asteroids (Ceres, Vesta and so on) and no Sun $J_2$.{% endtrans %}</li>
+            <li>{% trans trimmed %}Earth's $J_2$ and the tides act only on the Earth Moon pair, with no solar tides and no lunar tides raised by Earth.{% endtrans %}</li>
+            <li>{{ _('No libration beyond the fixed lunar figure term.') }}</li>
+            <li>{{ _('No nutation, light time or aberration in the output.') }}</li>
+            <li>{% trans trimmed %}The diagnostics energy (<code>totalEnergy</code>) is purely Newtonian, so it is not exactly conserved once relativity, $J_2$ and tides are on.{% endtrans %}</li>
+        </ul>
 
-        <p>Source code: <a href="https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V3_Helios" target="_blank" rel="noopener">V3_Helios on GitHub</a>.</p>
+        <h3>{{ _('Earlier approach: Chebyshev polynomial ephemeris') }}</h3>
 
-        <h3>References</h3>
+        <p>{% trans trimmed %}Earlier versions of Helios used a Chebyshev polynomial ephemeris. The N body integrator ran once, offline, over a fixed span, and the trajectory was cut into 4 day segments with a degree 16 Chebyshev polynomial fitted to each body and axis. A query was then just a polynomial evaluation (Clenshaw recurrence), which took microseconds and needed no physics at query time. I stopped using it because the table only covered a few years after the epoch (10 years by default), and extending it meant fitting and storing coefficients for the entire path, so the file grew in proportion to the span. The current design stores the full N body state (position and velocity) every 16 days instead, and answers a query by integrating the real force model from the nearest checkpoint for at most 8 days. Because a checkpoint is a starting point for the physics and not a description of the curve, it is far more compact, and it lets Helios cover ±2000 years from the epoch, in either direction.{% endtrans %}</p>
 
+        <p>{% trans trimmed %}Source code: <a href="https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V3_Helios" target="_blank" rel="noopener">V3_Helios on GitHub</a>.{% endtrans %}</p>
+
+        <h3>{{ _('References') }}</h3>
+
+        {# Citations stay in their original language; only the access note is translated. #}
         <ol>
             <li>Park, R. S., Folkner, W. M., Williams, J. G. and Boggs, D. H. (2021). The JPL Planetary and Lunar Ephemerides DE440 and DE441. <em>The Astronomical Journal</em>, 161, 105. <a href="https://doi.org/10.3847/1538-3881/abd414" target="_blank" rel="noopener">doi:10.3847/1538-3881/abd414</a></li>
-            <li>Navigation and Ancillary Information Facility (NAIF), Jet Propulsion Laboratory, California Institute of Technology. <em>SPICE Data (SPICE Kernels)</em>: generic kernels <code>de440.bsp</code>, <code>gm_de440.tpc</code> and <code>naif0012.tls</code>. <a href="https://naif.jpl.nasa.gov/naif/data.html" target="_blank" rel="noopener">naif.jpl.nasa.gov/naif/data.html</a> (accessed 16 November 2026).</li>
+            <li>Navigation and Ancillary Information Facility (NAIF), Jet Propulsion Laboratory, California Institute of Technology. <em>SPICE Data (SPICE Kernels)</em>: generic kernels <code>de440.bsp</code>, <code>gm_de440.tpc</code> and <code>naif0012.tls</code>. <a href="https://naif.jpl.nasa.gov/naif/data.html" target="_blank" rel="noopener">naif.jpl.nasa.gov/naif/data.html</a> {{ _('(accessed 16 November 2026).') }}</li>
             <li>Moyer, T. D. (2003). <em>Formulation for Observed and Computed Values of Deep Space Network Data Types for Navigation</em>. Wiley (JPL Deep Space Communications and Navigation Series).</li>
             <li>Mignard, F. (1979). The evolution of the lunar orbit revisited, I. <em>The Moon and the Planets</em>, 20(3), 301 to 315. <a href="https://doi.org/10.1007/BF00907581" target="_blank" rel="noopener">doi:10.1007/BF00907581</a></li>
             <li>Williams, J. G. and Boggs, D. H. (2016). Secular tidal changes in lunar orbit and Earth rotation. <em>Celestial Mechanics and Dynamical Astronomy</em>, 126, 89 to 129. <a href="https://doi.org/10.1007/s10569-016-9702-3" target="_blank" rel="noopener">doi:10.1007/s10569-016-9702-3</a></li>
@@ -273,23 +277,23 @@
 
         <h2 id="vsop-title">V2 VSOP87A</h2>
 
-        <p>V2 replaced simulation with a fitted analytical theory. VSOP87 (Bretagnon and Francou, 1988) [1] describes each planet's motion as long trigonometric series fitted to a numerical integration. The A version gives heliocentric rectangular coordinates in the ecliptic and equinox of J2000, so no orbital elements are needed. Each coordinate is a sum of Poisson series in time:</p>
+        <p>{% trans trimmed %}V2 replaced simulation with a fitted analytical theory. VSOP87 (Bretagnon and Francou, 1988) [1] describes each planet's motion as long trigonometric series fitted to a numerical integration. The A version gives heliocentric rectangular coordinates in the ecliptic and equinox of J2000, so no orbital elements are needed. Each coordinate is a sum of Poisson series in time:{% endtrans %}</p>
 
         $$X = \sum_{\alpha=0}^{5} T^{\alpha} \sum_{k} A_{k}\cos\!\left(B_{k} + C_{k}\,T\right),\qquad T = \frac{JD - 2451545.0}{365250}$$
 
-        <p>Here $T$ is in Julian millennia from J2000, $A$ is an amplitude in au, $B$ a phase in radians and $C$ a frequency in radians per millennium. $Y$ and $Z$ have the same form. Earth's series gives the Sun's position, and a planet's geocentric vector is the difference of two heliocentric ones:</p>
+        <p>{% trans trimmed %}Here $T$ is in Julian millennia from J2000, $A$ is an amplitude in au, $B$ a phase in radians and $C$ a frequency in radians per millennium. $Y$ and $Z$ have the same form. Earth's series gives the Sun's position, and a planet's geocentric vector is the difference of two heliocentric ones:{% endtrans %}</p>
 
         $$\mathbf{r}_{\mathrm{geo}} = \mathbf{r}_{\mathrm{planet}} - \mathbf{r}_{\oplus}$$
 
-        <p>The ecliptic vector is turned into an equatorial one by a rotation about the $x$ axis through the mean obliquity,</p>
+        <p>{% trans trimmed %}The ecliptic vector is turned into an equatorial one by a rotation about the $x$ axis through the mean obliquity,{% endtrans %}</p>
 
         $$\begin{pmatrix}x\\y\\z\end{pmatrix}_{\mathrm{eq}} = \begin{pmatrix}1&0&0\\0&\cos\varepsilon&-\sin\varepsilon\\0&\sin\varepsilon&\cos\varepsilon\end{pmatrix}\begin{pmatrix}X\\Y\\Z\end{pmatrix},\qquad \varepsilon = 23.439292^\circ - \frac{46.815''\,t + 0.0006''\,t^2 - 0.00181''\,t^3}{3600}$$
 
-        <p>with $t$ in Julian centuries, and then $\alpha = \operatorname{atan2}(y,x)$ and $\delta = \arcsin(z/r)$. The Moon was meant to come from the ELP 2000-82B lunar theory [2], which has the same structure, but that part was never finished. A fitted series is only valid over the span it was fitted to, and it cannot be extended or given new physics. That is what led to Helios.</p>
+        <p>{% trans trimmed %}with $t$ in Julian centuries, and then $\alpha = \operatorname{atan2}(y,x)$ and $\delta = \arcsin(z/r)$. The Moon was meant to come from the ELP 2000-82B lunar theory [2], which has the same structure, but that part was never finished. A fitted series is only valid over the span it was fitted to, and it cannot be extended or given new physics. That is what led to Helios.{% endtrans %}</p>
 
-        <p>Source code: <a href="https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V2_VSOP87A" target="_blank" rel="noopener">V2_VSOP87A on GitHub</a>.</p>
+        <p>{% trans trimmed %}Source code: <a href="https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V2_VSOP87A" target="_blank" rel="noopener">V2_VSOP87A on GitHub</a>.{% endtrans %}</p>
 
-        <h3>References</h3>
+        <h3>{{ _('References') }}</h3>
 
         <ol>
             <li>Bretagnon, P. and Francou, G. (1988). Planetary theories in rectangular and spherical variables: VSOP87 solutions. <em>Astronomy and Astrophysics</em>, 202, 309 to 315.</li>
@@ -304,35 +308,35 @@
 
         <h2 id="kepler-title">V1 Keplerian</h2>
 
-        <p>V1 treated every planet as moving on a fixed Keplerian ellipse around the Sun, with orbital elements at epoch 1990.0, following the method in Duffett-Smith's <em>Practical Astronomy with your Calculator</em> [1]. For a planet with period $P$ (tropical years), longitude at epoch $\epsilon$, longitude of perihelion $\varpi$ and eccentricity $e$, $D$ days after the epoch:</p>
+        <p>{% trans trimmed %}V1 treated every planet as moving on a fixed Keplerian ellipse around the Sun, with orbital elements at epoch 1990.0, following the method in Duffett-Smith's <em>Practical Astronomy with your Calculator</em> [1]. For a planet with period $P$ (tropical years), longitude at epoch $\epsilon$, longitude of perihelion $\varpi$ and eccentricity $e$, $D$ days after the epoch:{% endtrans %}</p>
 
         $$N = \frac{360^\circ}{365.242191}\,\frac{D}{P},\qquad M = N + \epsilon - \varpi,\qquad l = N + \frac{360^\circ}{\pi}\,e\sin M + \epsilon$$
 
-        <p>The middle term is the equation of centre to first order in $e$. The true anomaly is $\nu = l - \varpi$, and the distance follows from the ellipse:</p>
+        <p>{% trans trimmed %}The middle term is the equation of centre to first order in $e$. The true anomaly is $\nu = l - \varpi$, and the distance follows from the ellipse:{% endtrans %}</p>
 
         $$r = \frac{a(1-e^2)}{1 + e\cos\nu}$$
 
-        <p>The position is tilted onto the ecliptic using the ascending node $\Omega$ and inclination $i$, then made geocentric using Earth's own longitude $L$ and distance $R$ computed the same way:</p>
+        <p>{% trans trimmed %}The position is tilted onto the ecliptic using the ascending node $\Omega$ and inclination $i$, then made geocentric using Earth's own longitude $L$ and distance $R$ computed the same way:{% endtrans %}</p>
 
         $$\sin\psi = \sin(l-\Omega)\sin i,\qquad l' = \operatorname{atan2}\!\big(\sin(l-\Omega)\cos i,\ \cos(l-\Omega)\big) + \Omega,\qquad r' = r\cos\psi$$
 
         $$\lambda_{\mathrm{outer}} = l' + \arctan\frac{R\sin(l'-L)}{r' - R\cos(l'-L)},\qquad \beta = \arctan\frac{r'\tan\psi\,\sin(\lambda - l')}{R\sin(l'-L)}$$
 
-        <p>Inner planets use $\lambda = 180^\circ + L + A$ with $\tan A = r'\sin(L-l') / \big(R - r'\cos(L-l')\big)$. For the Sun, Kepler's equation $M = E - e\sin E$ is solved by Newton's method,</p>
+        <p>{% trans trimmed %}Inner planets use $\lambda = 180^\circ + L + A$ with $\tan A = r'\sin(L-l') / \big(R - r'\cos(L-l')\big)$. For the Sun, Kepler's equation $M = E - e\sin E$ is solved by Newton's method,{% endtrans %}</p>
 
         $$E_{n+1} = E_n - \frac{E_n - e\sin E_n - M}{1 - e\cos E_n},\qquad \tan\frac{\nu}{2} = \sqrt{\frac{1+e}{1-e}}\,\tan\frac{E}{2}$$
 
-        <p>The Moon's orbit is disturbed too strongly by the Sun for a plain ellipse, so its mean longitude gets the four largest corrections: evection $1.2739^\circ\sin(2C - M_m)$, the annual equation, the equation of centre $6.2886^\circ\sin M'_m$ and the variation $0.6583^\circ\sin 2(l' - \lambda_\odot)$, plus a regressing node. Everything ignores the pull of the planets on each other, so accuracy falls away from the 1990 epoch, which is why V1 was replaced.</p>
+        <p>{% trans trimmed %}The Moon's orbit is disturbed too strongly by the Sun for a plain ellipse, so its mean longitude gets the four largest corrections: evection $1.2739^\circ\sin(2C - M_m)$, the annual equation, the equation of centre $6.2886^\circ\sin M'_m$ and the variation $0.6583^\circ\sin 2(l' - \lambda_\odot)$, plus a regressing node. Everything ignores the pull of the planets on each other, so accuracy falls away from the 1990 epoch, which is why V1 was replaced.{% endtrans %}</p>
 
-        <p>Source code: <a href="https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V1_Keplarian" target="_blank" rel="noopener">V1_Keplarian on GitHub</a>.</p>
+        <p>{% trans trimmed %}Source code: <a href="https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V1_Keplarian" target="_blank" rel="noopener">V1_Keplarian on GitHub</a>.{% endtrans %}</p>
 
-        <h3>References</h3>
+        <h3>{{ _('References') }}</h3>
 
         <ol>
             <li>Duffett-Smith, P. (1988). <em>Practical Astronomy with your Calculator</em> (3rd ed.). Cambridge University Press.</li>
         </ol>
     </section>
-{% endraw %}
+
 
     {# Rows come from model_accuracy_samples in Data.db; rerun scripts/model_accuracy.py after changing a model. #}
     {% if accuracy_samples %}
@@ -347,7 +351,7 @@
             {% for sample in accuracy_samples %}
             <button type="button" class="btn btn-ghost astro-tab" role="tab" id="tab-{{ sample.key }}" aria-controls="acc-{{ sample.key }}"
                     aria-selected="{{ 'true' if sample.key == default_key else 'false' }}" data-default="{{ 'true' if sample.key == default_key else 'false' }}">
-                {{ sample.when.year if sample.when.month == 1 and sample.when.day == 1 else sample.when.strftime('%-d %b %Y') }}
+                {{ sample.when.year if sample.when.month == 1 and sample.when.day == 1 else sample.when|dateformat('d MMM y') }}
             </button>
             {% endfor %}
         </div>
@@ -355,7 +359,8 @@
         {% for sample in accuracy_samples %}
         <div class="astro-table-wrap" id="acc-{{ sample.key }}" role="tabpanel" aria-labelledby="tab-{{ sample.key }}">
             <table class="astro-table">
-                <caption>{{ sample.when.strftime('%-d %B %Y') }}, 00:00 UTC</caption>
+                {# Translators: a CLDR date pattern, e.g. "d 'de' MMMM 'de' y" #}
+                <caption>{{ sample.when|dateformat(_('d MMMM y')) }}, 00:00 UTC</caption>
                 <thead>
                     <tr>
                         <th scope="col">{{ _('Body') }}</th>

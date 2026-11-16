@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SELENO VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-12 20:51+0000\n"
+"POT-Creation-Date: 2026-11-16 12:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -496,7 +496,8 @@ msgstr ""
 msgid "planet"
 msgstr ""
 
-#: models/album.py:223 static/js/interface.js:1339 templates/interface.html:133
+#: models/album.py:223 static/js/interface.js:1339
+#: templates/about_astrophysics.html:343 templates/interface.html:133
 msgid "Jupiter"
 msgstr ""
 
@@ -512,7 +513,8 @@ msgstr ""
 msgid "Small and bright; shows most near opposition."
 msgstr ""
 
-#: models/album.py:225 static/js/interface.js:1338 templates/interface.html:132
+#: models/album.py:225 static/js/interface.js:1338
+#: templates/about_astrophysics.html:343 templates/interface.html:132
 msgid "Mars"
 msgstr ""
 
@@ -1157,7 +1159,7 @@ msgstr ""
 msgid "Accepted"
 msgstr ""
 
-#: static/js/album/main.js:244
+#: static/js/album/main.js:244 templates/downloads_schematics.html:21
 msgid "File"
 msgstr ""
 
@@ -1319,7 +1321,8 @@ msgstr ""
 msgid "RA {ra} · Dec {dec}"
 msgstr ""
 
-#: static/js/album/main.js:622 templates/downloads.html:29
+#: static/js/album/main.js:622 templates/downloads.html:32
+#: templates/downloads_schematics.html:23
 msgid "Size"
 msgstr ""
 
@@ -2432,7 +2435,7 @@ msgid "Pick something that's up tonight"
 msgstr ""
 
 #: static/js/album/jobs.js:45 static/js/interface-guide.js:82
-#: static/js/interface-guide.js:83 templates/about.html:111
+#: static/js/interface-guide.js:83 templates/about.html:100
 #: templates/star_map.html:602
 msgid "Done"
 msgstr ""
@@ -3534,8 +3537,8 @@ msgid "{illumination}% · {moonSeparation}° away"
 msgstr ""
 
 #: static/js/interface.js:1112 static/js/interface.js:1114
-#: static/js/interface.js:1338 templates/interface.html:94
-#: templates/interface.html:132
+#: static/js/interface.js:1338 templates/about_astrophysics.html:343
+#: templates/interface.html:94 templates/interface.html:132
 msgid "Moon"
 msgstr ""
 
@@ -3740,7 +3743,8 @@ msgstr ""
 msgid "Sun"
 msgstr ""
 
-#: static/js/interface.js:1338 templates/interface.html:132
+#: static/js/interface.js:1338 templates/about_astrophysics.html:343
+#: templates/interface.html:132
 msgid "Mercury"
 msgstr ""
 
@@ -3748,12 +3752,13 @@ msgstr ""
 msgid "Pluto"
 msgstr ""
 
-#: static/js/interface.js:1339 templates/interface.html:133
-msgid "Uranus"
+#: static/js/interface.js:1339 templates/about_astrophysics.html:343
+#: templates/interface.html:133
+msgid "Neptune"
 msgstr ""
 
 #: static/js/interface.js:1339 templates/interface.html:133
-msgid "Neptune"
+msgid "Uranus"
 msgstr ""
 
 #: static/js/interface.js:1368
@@ -4920,164 +4925,788 @@ msgstr ""
 msgid "About - SELENO"
 msgstr ""
 
-#: templates/about.html:33
+#: templates/about.html:22 templates/about_astrophysics.html:15
 msgid "About SELENO"
 msgstr ""
 
-#: templates/about.html:34
+#: templates/about.html:23
 msgid "Seleno: explore the night sky, and control a telescope from anywhere."
 msgstr ""
 
-#: templates/about.html:35
+#: templates/about.html:24
 msgid "A free star map, remote telescope control and an astrophotography album in one place. Works online, or offline under the stars."
 msgstr ""
 
-#: templates/about.html:38
+#: templates/about.html:27
 msgid "Software and firmware complete. Hardware in final assembly. First light coming soon."
 msgstr ""
 
-#: templates/about.html:41
+#: templates/about.html:30
 msgid "Try the star map"
 msgstr ""
 
-#: templates/about.html:42 templates/about.html:144
+#: templates/about.html:31 templates/about.html:133
 msgid "For engineers and recruiters"
 msgstr ""
 
-#: templates/about.html:52
+#: templates/about.html:41
 msgid "What it is"
 msgstr ""
 
-#: templates/about.html:53
+#: templates/about.html:42
 msgid "Seleno is a complete telescope system: the control software, plus the motor mounts and electronics that drive the telescope. Together they let you control a network of telescopes, at any time, from anywhere on the globe. Image the planet, star, nebula or galaxy of your choice from the comfort of your own home."
 msgstr ""
 
-#: templates/about.html:54
+#: templates/about.html:43
 msgid "Seleno's automated system runs observation programmes without human intervention, capturing all the different frames and image types needed to produce stunning astrophotography. A live camera view, fine camera settings, histograms and individual motor controls are also available from the interface."
 msgstr ""
 
-#: templates/about.html:55
+#: templates/about.html:44
 msgid "A core focus of Seleno is making astrophotography more accessible to the wider population, who may be interested in space but struggle with the complex systems currently available. An advanced mode is also available for more experienced users."
 msgstr ""
 
-#: templates/about.html:56
+#: templates/about.html:45
 msgid "Seleno's star map makes finding and tracking objects simple. Search for an object by name, and the telescope will slew to face it and track it across the sky, keeping up with the rotation of the earth."
 msgstr ""
 
-#: templates/about.html:57
+#: templates/about.html:46
 msgid "Seleno doesn't need the internet at the telescope, either. Each telescope has a small built in screen and buttons, so it can be set up and operated on the spot, even at a remote dark site with no signal."
 msgstr ""
 
-#: templates/about.html:58
+#: templates/about.html:47
 msgid "Finally, a booking system lets you rent time on telescopes around the globe, so the object you want to image is always up from at least one of them."
 msgstr ""
 
-#: templates/about.html:63
+#: templates/about.html:52
 msgid "Who it is for"
 msgstr ""
 
-#: templates/about.html:67
+#: templates/about.html:56
 msgid "Beginners"
 msgstr ""
 
-#: templates/about.html:73
+#: templates/about.html:62
 msgid "Advanced astrophotographers"
 msgstr ""
 
-#: templates/about.html:82
+#: templates/about.html:71
 msgid "What you can do"
 msgstr ""
 
-#: templates/about.html:85
+#: templates/about.html:74
 msgid "The Seleno star map, showing Orion, Taurus and Canis Major with constellation lines and coordinate grids"
 msgstr ""
 
-#: templates/about.html:87
+#: templates/about.html:76
 msgid "Explore"
 msgstr ""
 
-#: templates/about.html:88
+#: templates/about.html:77
 msgid "Search over 110,000 stars, planets and deep sky objects, and find your next target in seconds."
 msgstr ""
 
-#: templates/about.html:89
+#: templates/about.html:78
 msgid "Open the star map"
 msgstr ""
 
-#: templates/about.html:93
+#: templates/about.html:82
 msgid "Control"
 msgstr ""
 
-#: templates/about.html:94
+#: templates/about.html:83
 msgid "Run a whole observation programme on autopilot while you get on with your evening."
 msgstr ""
 
-#: templates/about.html:98
+#: templates/about.html:87
 msgid "Create"
 msgstr ""
 
-#: templates/about.html:99
+#: templates/about.html:88
 msgid "Turn hours of raw exposures into one stunning image of a galaxy, nebula or planet."
 msgstr ""
 
-#: templates/about.html:106
+#: templates/about.html:95
 msgid "Build status"
 msgstr ""
 
-#: templates/about.html:110
+#: templates/about.html:99
 msgid "Software and firmware"
 msgstr ""
 
-#: templates/about.html:115
+#: templates/about.html:104
 msgid "Hardware assembly"
 msgstr ""
 
-#: templates/about.html:116
+#: templates/about.html:105
 msgid "In progress"
 msgstr ""
 
-#: templates/about.html:120
+#: templates/about.html:109
 msgid "First light"
 msgstr ""
 
-#: templates/about.html:121
+#: templates/about.html:110
 msgid "Next"
 msgstr ""
 
-#: templates/about.html:128
+#: templates/about.html:117
 msgid "Follow the build"
 msgstr ""
 
-#: templates/about.html:131
+#: templates/about.html:120
 msgid "Latest"
 msgstr ""
 
-#: templates/about.html:133
+#: templates/about.html:122
 msgid "Printing the mount parts this week."
 msgstr ""
 
-#: templates/about.html:143
+#: templates/about.html:132
 msgid "A deeper look"
 msgstr ""
 
-#: templates/about.html:199
+#: templates/about.html:188
 msgid "How a command travels from your browser to the telescope motors."
 msgstr ""
 
+#: templates/about.html:194
+msgid "Seleno's software has three parts: a Flask server, a Python client on each telescope's Raspberry Pi, and C++ firmware on the ESP32. The server uses SQLAlchemy over SQLite, Jinja2 templates, Bootstrap 5 and plain JavaScript, with a custom canvas star map and some compute heavy code in C++. The interface is available in English and Spanish, with about 1,750 translated strings."
+msgstr ""
+
+#: templates/about.html:196
+msgid "Server and interface"
+msgstr ""
+
+#: templates/about.html:197
+msgid "Basic mode lets you pick a curated target, check focus, take a test shot and capture, with a live view while imaging. Advanced mode adds custom coordinates, direct console output, full camera settings, a live histogram and stream controls. Both modes can run imaging plans, which are lists of steps such as go to, wait, lights, darks, flats, bias and video. Each plan is validated against a schema and the camera's capabilities, and its running time is estimated from overheads learned on earlier plans."
+msgstr ""
+
+#: templates/about.html:198
+msgid "Bookings are converted to UTC and checked against the owner's rules inside a write locked SQLite transaction, so a multi date request either fully succeeds or rolls back. Owners approve each booking, every change is audit logged, and a watchdog stops any plan when the slot ends. SumUp payments are built but still in sandbox. A new telescope gets a random token that is stored only as a hash and shown once, and it stays inactive until an admin approves it."
+msgstr ""
+
+#: templates/about.html:200
+msgid "Telescope node"
+msgstr ""
+
+#: templates/about.html:201
+msgid "Each node is an asyncio Python client, with slow work pushed to threads. It connects out over two WebSockets, one for commands and one for live view, so it works behind a home router with no port forwarding. Commands run in separate lanes and carry request IDs, so a long exposure never blocks a slew and a stop always gets through. A single thread owns the camera through gphoto2. Live view frames are reencoded on the Pi, skipped when unchanged and stepped down on slow links. Photos upload from a queue saved on disk, JPEGs first and RAW later, so nothing is lost across restarts or dropped connections."
+msgstr ""
+
+#: templates/about.html:202
+msgid "The Pi also plate solves locally with ASTAP, records video including uncompressed SER, and checks every go to against the Sun, the horizon and dead zones. Offline mode runs all of this without the server, with a phone page protected by a code on the front panel. Nodes can update themselves from a webhook, and every update is reviewed by an admin first."
+msgstr ""
+
+#: templates/about.html:204
+msgid "Firmware"
+msgstr ""
+
+#: templates/about.html:205
+msgid "The ESP32 runs C++ on the Arduino framework, built with PlatformIO and FreeRTOS. The Pi sends newline delimited JSON over UART at 921600 baud, and each reply echoes the command's ID. A 20 kHz timer interrupt uses phase accumulators to produce exact step rates, which keeps tracking drift minimal, while a 1 ms timer runs trapezoidal ramps and multi segment slew paths that can curve around the Sun. Microstepping and TMC2209 chopper mode are chosen per move, fine and quiet for tracking, coarse and strong for slews. Pointing uses a least squares model of up to six terms, fitted from plate solves or stars centred by hand, along with three point polar alignment, refraction and precession corrections."
+msgstr ""
+
+#: templates/about.html:207
+msgid "Stacking in the browser"
+msgstr ""
+
+#: templates/about.html:208
+msgid "The album's stacking engine runs entirely in the browser with JavaScript and web workers, switching between memory, OPFS and streaming modes so huge stacks still fit. Pass one calibrates each frame with master darks, flats and bias, measures the stars and picks the sharpest frame as the reference. Frames that are blurred, stretched or star poor are rejected using robust statistics, and the rest are aligned to the reference. Pass two debayers and resamples each frame, matches its background and noise to the reference, weights it by noise and combines everything with iterative winsorized sigma clipping. The output is a master FITS file with a preview, a coverage map and a per frame report of what was rejected and why."
+msgstr ""
+
+#: templates/about.html:210 templates/about.html:235
+msgid "Challenges and lessons"
+msgstr ""
+
+#: templates/about.html:211
+msgid "The star map was my hardest problem, and the current one is its third version. My first attempt in Three.js drew every star as a white dot or a streak falling from the zenith. I later found the cause: I had treated right ascension as hours when the database stored degrees, so every position was 15 times too large. Inexperience with Three.js made it much harder to debug, so I replaced it with a custom canvas renderer."
+msgstr ""
+
+#: templates/about.html:213
+msgid "What's next"
+msgstr ""
+
+#: templates/about.html:214
+msgid "I still need to finish payments and add the Pi runner for fully automated plans. After that I would like to track satellites, asteroids and dwarf planets, and add focuser control. A custom plate solver is a maybe. Ideas are welcome on the GitHub issue tracker."
+msgstr ""
+
+#: templates/about.html:218
+msgid "Seleno runs on a custom four layer PCB that I designed myself in KiCad. It measures 85 × 50 mm and connects the motor drivers, motors, Raspberry Pi Zero 2 W, buttons, screen, IMU and power supply in a clean, space efficient way. The ESP32 handles low level hardware control, such as the motors, screen and LEDs, while the Pi Zero 2 W handles higher level control, network interfacing and camera control."
+msgstr ""
+
+#: templates/about.html:220
+msgid "Why I built it"
+msgstr ""
+
+#: templates/about.html:221
+msgid "Designing my own board let me add features that most telescope control systems don't have, such as a screen, and gave advanced users more control over the system than other controllers offer. It also let me make the whole product much smaller, and it was the best way to teach myself PCB manufacturing, soldering and KiCad."
+msgstr ""
+
+#: templates/about.html:222
+msgid "The board's two standout features are that it works both online, connected to Seleno's servers, and offline, and that it offers much higher customisation than commercial boards. The whole node also runs from a single socket, with reverse polarity protection, a fuse against overcurrent, and traces sized for the current they carry."
+msgstr ""
+
+#: templates/about.html:224
+msgid "How it was made"
+msgstr ""
+
+#: templates/about.html:225
+msgid "I taught myself KiCad to do the schematic and layout. For v0.1 to v0.7, JLCPCB printed only the bare board and I assembled everything else myself. For v0.8, JLCPCB made the PCB and did most of the assembly, leaving about 20 percent for me to finish by hand. Only three revisions were actually made: v0.2, v0.5 and v0.8, which is the current board."
+msgstr ""
+
+#: templates/about.html:227
+msgid "Revisions"
+msgstr ""
+
+#: templates/about.html:229
+msgid "v0.1 was my first PCB ever, and mostly a way of learning KiCad."
+msgstr ""
+
+#: templates/about.html:230
+msgid "v0.2 shrank the board to 50 × 85 mm."
+msgstr ""
+
+#: templates/about.html:231
+msgid "v0.3 to v0.5 replaced the ESP32 dev board plug in with a smaller module."
+msgstr ""
+
+#: templates/about.html:232
+msgid "v0.6 to v0.8 replaced every remaining module except the ESP32 with bare ICs, changed the screw connectors to JST connectors, and added proper power handling circuitry. They also changed the link to the Pi from USB to UART over GPIO. USB support remains in the firmware in case I want to use it again."
+msgstr ""
+
+#: templates/about.html:236
+msgid "Soldering 0402 passives (1.0 × 0.5 mm) was really difficult. I tried a hot air gun, but found I was faster with a soldering iron and a microscope. The 1 mm pitch JST SH connectors also took a lot of patience. On an older board, probably v0.5, I accidentally pulled a buck converter pad off the PCB and had to learn how to replace it."
+msgstr ""
+
+#: templates/about.html:237
+msgid "I didn't realise on the early versions how much trace width matters. Traces carrying higher currents need to be wider, while less critical signals like GPIO can stay thin. I also learned the importance of test pads and debugging. That was the main focus of v0.8, so I can debug the board easily instead of buying a new one every time."
+msgstr ""
+
+#: templates/about.html:239 templates/base.html:161
+msgid "Licence"
+msgstr ""
+
+#: templates/about.html:240
+msgid "I haven't decided to make the PCB design public. The current plan is for it to be source available rather than open source. People could make it at home for personal use but not sell it, as laid out in the licence."
+msgstr ""
+
+#: templates/about.html:242
+msgid "What's next: v1.0"
+msgstr ""
+
 #: templates/about.html:243
+msgid "For v1.0 I want to remove the Raspberry Pi Zero 2 W completely and do everything on the board. The hardest challenge will be camera control, including livestreaming, from the ESP32. I plan to use the new ESP32-S31, which supports USB high speed and has enough processing power to host the entire client. Cutting the 5V adapters, the Pi and other circuitry should save between £20 and £30 per board."
+msgstr ""
+
+#: templates/about.html:244
+msgid "I'd also like to add a mirror heating port, so everything plugs into the main enclosure and only one socket is needed. I'm considering power monitoring and feedback as well, so that on battery you can estimate whether an observation session will finish."
+msgstr ""
+
+#: templates/about.html:247
+msgid "The assembled SELENO v0.8 controller board, with an ESP32 module, stepper drivers under a blue heatsink, and connectors for the IMU, LCD and buttons"
+msgstr ""
+
+#: templates/about.html:248
+msgid "Seleno v0.8, four layers, 85 × 50 mm."
+msgstr ""
+
+#: templates/about.html:252 templates/about_astrophysics.html:16
+msgid "Astrophysics"
+msgstr ""
+
+#: templates/about.html:253
+msgid "Planet and Moon positions come from Helios, a custom N body engine."
+msgstr ""
+
+#: templates/about.html:254
+msgid "Read the full write up"
+msgstr ""
+
+#: templates/about.html:280
 msgid "About me"
 msgstr ""
 
-#: templates/about.html:255
+#: templates/about.html:292
 msgid "Get in touch"
 msgstr ""
 
-#: templates/about.html:257
+#: templates/about.html:294
 msgid "Or use the"
 msgstr ""
 
-#: templates/about.html:257
+#: templates/about.html:294
 msgid "support page"
+msgstr ""
+
+#: templates/about_astrophysics.html:3
+msgid "Astrophysics - SELENO"
+msgstr ""
+
+#: templates/about_astrophysics.html:17
+msgid "Seleno works out where the Sun, Moon and planets are with its own models rather than an external library. There have been three of them. This page covers the maths and physics behind each one, starting with the current engine, Helios."
+msgstr ""
+
+#: templates/about_astrophysics.html:18
+msgid "Models on this page"
+msgstr ""
+
+#: templates/about_astrophysics.html:23 templates/about_astrophysics.html:347
+msgid "Accuracy against DE440"
+msgstr ""
+
+#: templates/about_astrophysics.html:39
+msgid "V3 Helios Planetary Engine"
+msgstr ""
+
+#: templates/about_astrophysics.html:41
+msgid "Helios is an N body solar system integrator. It takes one snapshot of the real solar system from JPL's DE440 ephemeris [1] and then evolves it itself with its own force model. It does not interpolate the DE440 data. The pipeline is:"
+msgstr ""
+
+#: templates/about_astrophysics.html:44
+msgid "Load the DE440 state at one epoch (<code>loader.py</code>)."
+msgstr ""
+
+#: templates/about_astrophysics.html:45
+msgid "Integrate the equations of motion with a 4th order symplectic scheme (<code>integrator.py</code>, <code>helios_core.cpp</code>)."
+msgstr ""
+
+#: templates/about_astrophysics.html:46
+msgid "Store checkpoints every 16 days across ±2000 years (<code>ephemeris.py</code>)."
+msgstr ""
+
+#: templates/about_astrophysics.html:47
+msgid "For any requested date, integrate from the nearest checkpoint to the target. The maximum is 8 days, or about 96 steps."
+msgstr ""
+
+#: templates/about_astrophysics.html:48
+msgid "Convert the resulting positions into RA/Dec, phases and magnitudes (<code>convert.py</code>, <code>frames.py</code>, <code>timescales.py</code>)."
+msgstr ""
+
+#: templates/about_astrophysics.html:51
+msgid "1. Bodies and initial conditions"
+msgstr ""
+
+#: templates/about_astrophysics.html:53
+msgid "There are 11 bodies: Sun, Mercury, Venus, Earth, Moon, and the system barycentres of Mars, Jupiter, Saturn, Uranus, Neptune and Pluto. SPICE is used only once, to read position, velocity and $GM$ from DE440 in the ECLIPJ2000 frame, relative to the solar system barycentre [2]."
+msgstr ""
+
+#: templates/about_astrophysics.html:55
+msgid "Mars to Pluto use the planet system barycentre rather than the planet centre. A planet's centre wobbles around that barycentre because of its moons (Pluto by about 24 m/s from Charon). Integrating that wobble as if it were orbital motion would be wrong, and resolving the fast moon periods would force tiny timesteps."
+msgstr ""
+
+#: templates/about_astrophysics.html:57
+msgid "Masses are derived as $m_i = GM_i / G$. The force model then multiplies by $G$ again, so $G$ cancels exactly and the DE440 $GM$ values (known to about 11 digits) drive everything, not CODATA's $G$ (about 5 digits). The net centre of mass velocity is subtracted at the epoch so the barycentre stays put:"
+msgstr ""
+
+#: templates/about_astrophysics.html:61
+msgid "2. The force model"
+msgstr ""
+
+#: templates/about_astrophysics.html:63
+msgid "The total acceleration is split by what it depends on:"
+msgstr ""
+
+#: templates/about_astrophysics.html:65
+msgid "positional"
+msgstr ""
+
+#: templates/about_astrophysics.html:65
+msgid "correction"
+msgstr ""
+
+#: templates/about_astrophysics.html:67
+msgid "Newtonian gravity"
+msgstr ""
+
+#: templates/about_astrophysics.html:69
+#, python-brace-format
+msgid "With $\\mu_j = GM_j$ and $\\mathbf{r}_{ij} = \\mathbf{r}_i - \\mathbf{r}_j$:"
+msgstr ""
+
+#: templates/about_astrophysics.html:73
+#, python-brace-format
+msgid "Here $\\varepsilon = 10^{-6}$ m. It only guards against division by zero on the diagonal and has no physical effect."
+msgstr ""
+
+#: templates/about_astrophysics.html:75
+msgid "General relativity: the EIH equations"
+msgstr ""
+
+#: templates/about_astrophysics.html:77
+msgid "By default Helios uses the full Einstein, Infeld and Hoffmann (EIH) 1PN N body terms (with $\\beta=\\gamma=1$, as in Moyer's formulation used by JPL [3]):"
+msgstr ""
+
+#: templates/about_astrophysics.html:83
+msgid "There is also a cheaper option, the Sun only Schwarzschild term relative to the Sun:"
+msgstr ""
+
+#: templates/about_astrophysics.html:87
+msgid "An equal and opposite reaction is applied to the Sun so total momentum is conserved. This term produces Mercury's perihelion advance of about 43″ per century."
+msgstr ""
+
+#: templates/about_astrophysics.html:89
+msgid "Earth's oblateness ($J_2$) acting on the Moon"
+msgstr ""
+
+#: templates/about_astrophysics.html:91
+msgid "Take $\\mathbf{d}$ as the Earth to Moon vector, $\\hat{\\mathbf{p}}$ as Earth's pole and $z=\\mathbf{d}\\cdot\\hat{\\mathbf{p}}$:"
+msgstr ""
+
+#: templates/about_astrophysics.html:95
+msgid "The Earth gets the reaction scaled by $m_{\\mathrm{Moon}}/m_\\oplus$. This is why the pole direction matters."
+msgstr ""
+
+#: templates/about_astrophysics.html:97
+msgid "The Moon's own shape"
+msgstr ""
+
+#: templates/about_astrophysics.html:99
+#, python-brace-format
+msgid "The Moon keeps one face towards Earth. Its $J_2$ and $C_{22}$ terms reduce, for an Earth on the long axis near the lunar equator, to an extra radial pull:"
+msgstr ""
+
+#: templates/about_astrophysics.html:103
+#, python-brace-format, python-format
+msgid "It is about $10^{-8}$ of the total force, but it sets the Moon's mean motion to roughly 0.4″ per year, so it matters over centuries. Libration and Earth's ±7° latitude change this by about 1%%, periodically, and are neglected."
+msgstr ""
+
+#: templates/about_astrophysics.html:105
+msgid "Earth tides (Mignard constant time lag model)"
+msgstr ""
+
+#: templates/about_astrophysics.html:107
+msgid "This follows the constant time lag model of Mignard [4]. The Moon raises a tidal bulge on Earth. Because Earth spins faster than the Moon orbits, the bulge leads the Moon by a time lag $\\Delta t$. With $\\mathbf{d}$ and $\\mathbf{w}$ the Moon's position and velocity relative to Earth, and $\\boldsymbol{\\Omega}=\\Omega_\\oplus\\hat{\\mathbf{p}}$ the Earth's spin vector:"
+msgstr ""
+
+#: templates/about_astrophysics.html:111
+msgid "The first term is the instantaneous tidal pull. The $\\Delta t$ terms are the lag. They push the Moon outwards and slow it in longitude."
+msgstr ""
+
+#: templates/about_astrophysics.html:113
+msgid "<strong>Calibration</strong> (<code>calibrate_tides.py</code>): run with and without tides, and fit the difference in the Moon's geocentric ecliptic longitude as"
+msgstr ""
+
+#: templates/about_astrophysics.html:117
+#, python-brace-format
+msgid "($T$ in centuries). Since $\\dot n \\propto \\Delta t$, the lag that reproduces the lunar laser ranging value $\\dot n = -25.82''\\,/\\,\\mathrm{cy}^2$ [5] follows linearly:"
+msgstr ""
+
+#: templates/about_astrophysics.html:121
+msgid "That gives 562.5 s."
+msgstr ""
+
+#: templates/about_astrophysics.html:123
+msgid "3. Earth's pole and precession"
+msgstr ""
+
+#: templates/about_astrophysics.html:125
+msgid "The $J_2$ and tidal forces need Earth's pole in the ECLIPJ2000 frame. It moves about 11° over 2000 years, so it is computed from the IAU 2006 precession polynomials (Capitaine et al. 2003 [6]), with $T$ in Julian centuries of TT:"
+msgstr ""
+
+#: templates/about_astrophysics.html:131
+msgid "Here $\\varepsilon_0 = 84381.448''$. The pole sits at angle $\\omega_A$ from the ecliptic pole, and its longitude lags by $\\psi_A$ as the equinox precesses."
+msgstr ""
+
+#: templates/about_astrophysics.html:133
+msgid "The pole is not updated every step. Time is cut into intervals of $\\Delta_{\\mathrm{pole}}$ (16 days), and the pole is held fixed within interval $j$ at its value for the interval's midpoint:"
+msgstr ""
+
+#: templates/about_astrophysics.html:137
+msgid "This makes results independent of how a run is chunked. Because $\\Delta_{\\mathrm{pole}}$ equals the checkpoint spacing, integrating from a checkpoint towards a request stays inside a single pole interval."
+msgstr ""
+
+#: templates/about_astrophysics.html:139
+msgid "4. The integrator"
+msgstr ""
+
+#: templates/about_astrophysics.html:141
+msgid "This is the core numerical idea. Two properties make it suitable for long runs:"
+msgstr ""
+
+#: templates/about_astrophysics.html:144
+msgid "<strong>Symplectic.</strong> It preserves the Hamiltonian structure, so energy error stays bounded and oscillates instead of drifting. Symplectic maps were applied to long planetary integrations by Wisdom and Holman [7]."
+msgstr ""
+
+#: templates/about_astrophysics.html:145
+msgid "<strong>Time reversible.</strong> The same code with $h \\lt 0$ integrates backwards, which gives the −2000 year half of the span."
+msgstr ""
+
+#: templates/about_astrophysics.html:148
+msgid "Velocity Verlet (kick, drift, kick)"
+msgstr ""
+
+#: templates/about_astrophysics.html:150
+msgid "For a force depending only on position:"
+msgstr ""
+
+#: templates/about_astrophysics.html:154
+msgid "This is second order."
+msgstr ""
+
+#: templates/about_astrophysics.html:156
+msgid "Suzuki fractal composition to 4th order"
+msgstr ""
+
+#: templates/about_astrophysics.html:158
+msgid "Composing five Verlet sub steps with weights"
+msgstr ""
+
+#: templates/about_astrophysics.html:162
+msgid "where $1-4p\\approx-0.658$ is a backwards sub step, cancels the lower order error terms. This is Suzuki's fractal decomposition [8], and the idea of building higher order symplectic integrators by composing lower order ones is developed in Yoshida [9]. Each sub step uses $s_k = w_k h$. The result has a global error of $O(h^4)$ and keeps the symplectic and symmetric properties. The step size is $h = 7200$ s. The Moon's orbit then takes about 330 steps, and the step size was checked against DE440."
+msgstr ""
+
+#: templates/about_astrophysics.html:164
+msgid "Splitting off the small velocity dependent forces"
+msgstr ""
+
+#: templates/about_astrophysics.html:166
+#, python-brace-format
+msgid "Relativity and tides depend on velocity, which breaks the plain Verlet structure. They are about $10^{-8}$ of the total force, so they are applied as a symmetric Strang splitting:"
+msgstr ""
+
+#: templates/about_astrophysics.html:170
+msgid "Here $\\mathcal{C}$ is the correction kick, $\\mathbf{v}\\leftarrow\\mathbf{v}+\\tfrac h2\\,\\mathbf{a}^{\\mathrm{corr}}$, and $\\mathcal{S}_4$ is the Suzuki composition. The correction is evaluated once per step and reused for the closing kick of one step and the opening kick of the next."
+msgstr ""
+
+#: templates/about_astrophysics.html:172
+msgid "5. The checkpointed ephemeris"
+msgstr ""
+
+#: templates/about_astrophysics.html:174
+msgid "Integrating from the epoch to every requested date would be slow, so the full state (position and velocity of all 11 bodies) is stored every 16 days. That is 192 steps of 7200 s. Checkpoints are grouped into blocks of 2283 (about 100 years) and saved as <code>.npz</code> files. The span is ±2000 years, about $1.75\\times10^7$ steps in total."
+msgstr ""
+
+#: templates/about_astrophysics.html:176
+msgid "For a request at time $t$:"
+msgstr ""
+
+#: templates/about_astrophysics.html:180
+msgid "The code takes the nearest checkpoint $k$, then integrates forwards or backwards. It uses whole 7200 s steps on the same grid as the build, then one partial step $h_{\\mathrm{rem}}$ to land exactly on the target. That is at most 8 days, about 96 steps. Nothing is interpolated: every answer is a real integration."
+msgstr ""
+
+#: templates/about_astrophysics.html:182
+msgid "6. Time scales"
+msgstr ""
+
+#: templates/about_astrophysics.html:184
+#, python-brace-format
+msgid "The physics runs in TDB, while people give civil time. The link is $\\Delta T = \\mathrm{TT}-\\mathrm{UT}$:"
+msgstr ""
+
+#: templates/about_astrophysics.html:189
+#, python-brace-format
+msgid "<strong>1972 to 2026:</strong> $\\Delta T = 32.184\\,\\mathrm{s} + (\\mathrm{TAI}-\\mathrm{UTC})$, exact, from the leap second table."
+msgstr ""
+
+#: templates/about_astrophysics.html:190
+msgid "<strong>Before 1972:</strong> the Espenak and Meeus (2006) polynomials [10], which follow Morrison and Stephenson [11]. For example, $\\Delta T$ is about 2.9 hours in 26 AD, and uncertain by minutes."
+msgstr ""
+
+#: templates/about_astrophysics.html:191
+msgid "<strong>After 2026:</strong> $\\Delta T$ is held at its last known value and then curves upwards with Earth's tidal braking:"
+msgstr ""
+
+#: templates/about_astrophysics.html:193
+msgid "where $c$ is centuries since 2026. This gives about 3.6 hours by 4026 AD, and is a guess uncertain by hours."
+msgstr ""
+
+#: templates/about_astrophysics.html:196
+msgid "TDB minus TT (under 2 ms) is ignored."
+msgstr ""
+
+#: templates/about_astrophysics.html:198
+msgid "7. From state vectors to what you see"
+msgstr ""
+
+#: templates/about_astrophysics.html:200
+msgid "<strong>Frames.</strong> The integration is in ECLIPJ2000. A rotation by $-\\varepsilon_0$ about the $x$ axis gives J2000 equatorial coordinates. Mean of date coordinates use the four rotation IAU 2006 matrix:"
+msgstr ""
+
+#: templates/about_astrophysics.html:204
+msgid "<strong>Topocentric correction.</strong> The observer's WGS84 geodetic position is built with"
+msgstr ""
+
+#: templates/about_astrophysics.html:208
+#, python-brace-format
+msgid "This is rotated by Greenwich mean sidereal time $\\theta$ (the standard polynomial in $JD-2451545$ with $T^2$ and $T^3$ terms), giving the position in the equator of date. It is then rotated back with $\\mathbf{P}^{\\mathsf T}$ into J2000 before being subtracted from the target vector. Skipping that last step would put the Moon about 20″ off today and about 30′ off at ±2000 years. Nutation (under 0.3″) is ignored."
+msgstr ""
+
+#: templates/about_astrophysics.html:210
+msgid "Coordinates."
+msgstr ""
+
+#: templates/about_astrophysics.html:214
+msgid "These are geometric, with no light time or aberration."
+msgstr ""
+
+#: templates/about_astrophysics.html:216
+msgid "Phase and magnitude."
+msgstr ""
+
+#: templates/about_astrophysics.html:219
+msgid "The phase angle $\\alpha_{\\mathrm{ph}}$ is the Sun, body, Earth angle at the body."
+msgstr ""
+
+#: templates/about_astrophysics.html:220
+msgid "Planets use $V = H(\\alpha_{\\mathrm{ph}}) + 5\\log_{10}(r\\,\\Delta)$, with per planet polynomial phase terms. Saturn's rings are not modelled."
+msgstr ""
+
+#: templates/about_astrophysics.html:221
+#, python-brace-format
+msgid "The Moon uses $V=-12.73+0.026\\,\\alpha+4\\times10^{-9}\\alpha^4+5\\log_{10}(d/384400\\,\\mathrm{km})$."
+msgstr ""
+
+#: templates/about_astrophysics.html:222
+msgid "Moon illumination is approximated as $k=(1-\\cos\\epsilon)/2$ from the elongation $\\epsilon$, with waxing or waning decided by the sign of $(\\hat{\\mathbf{s}}\\times\\hat{\\mathbf{m}})_z$."
+msgstr ""
+
+#: templates/about_astrophysics.html:225
+msgid "8. Optimisation features"
+msgstr ""
+
+#: templates/about_astrophysics.html:228
+msgid "<strong>C++ port</strong> (<code>helios_core.cpp</code>, via pybind11). It is a line for line port of the Python reference, which stays as the fallback. It is built with <code>-O3 -ffp-contract=off</code> and no <code>-ffast-math</code>, so the arithmetic follows the same IEEE rules as NumPy. The two backends agree to centimetres after a year, and <code>Propagator</code> auto selects the backend."
+msgstr ""
+
+#: templates/about_astrophysics.html:229
+msgid "<strong>Pair symmetry</strong> in C++. It loops over $i \\lt j$ and computes $1/d^3$ once per pair, applying the pull to both bodies (Newton's third law)."
+msgstr ""
+
+#: templates/about_astrophysics.html:230
+msgid "<strong>Reusing force evaluations.</strong> The last force evaluation of each Suzuki sub step is the first of the next, so there are 5 positional evaluations per step instead of 10. The small relativity and tide terms are evaluated once per step."
+msgstr ""
+
+#: templates/about_astrophysics.html:231
+msgid "<strong>Vectorised NumPy reference.</strong> It uses broadcasting, <code>einsum</code> and <code>matmul</code> for the pairwise matrices, and scalar code for the single pair Earth Moon terms, which avoids array overhead."
+msgstr ""
+
+#: templates/about_astrophysics.html:232
+msgid "<strong>Piecewise constant pole.</strong> Precession trigonometry is evaluated once per 16 days, not every step."
+msgstr ""
+
+#: templates/about_astrophysics.html:233
+msgid "<strong>Horner's rule</strong> for the polynomial series, in the same order in both backends so they agree."
+msgstr ""
+
+#: templates/about_astrophysics.html:234
+msgid "<strong>Checkpoint cache.</strong> A query costs about 0.6 ms in C++ (about 30 ms in Python) instead of an integration from the epoch. Blocks are built lazily, outwards from the epoch. They are held in an LRU cache of 12 blocks, written atomically (temp file then <code>os.replace</code>) and guarded by an <code>RLock</code>. Metadata containing the hash of the initial conditions and every trajectory changing setting triggers an automatic rebuild when something changes. Batch queries are grouped by checkpoint and sorted, so one walk serves many targets."
+msgstr ""
+
+#: templates/about_astrophysics.html:235
+msgid "<strong>Concurrency.</strong> The GIL is released during integration, and each call gets its own <code>Workspace</code>, so one model can serve concurrent calls."
+msgstr ""
+
+#: templates/about_astrophysics.html:236
+msgid "<strong>System barycentres for Mars to Pluto</strong>, so no short period moon motion has to be resolved."
+msgstr ""
+
+#: templates/about_astrophysics.html:239
+msgid "9. What the model leaves out"
+msgstr ""
+
+#: templates/about_astrophysics.html:242
+msgid "No asteroids (Ceres, Vesta and so on) and no Sun $J_2$."
+msgstr ""
+
+#: templates/about_astrophysics.html:243
+msgid "Earth's $J_2$ and the tides act only on the Earth Moon pair, with no solar tides and no lunar tides raised by Earth."
+msgstr ""
+
+#: templates/about_astrophysics.html:244
+msgid "No libration beyond the fixed lunar figure term."
+msgstr ""
+
+#: templates/about_astrophysics.html:245
+msgid "No nutation, light time or aberration in the output."
+msgstr ""
+
+#: templates/about_astrophysics.html:246
+msgid "The diagnostics energy (<code>totalEnergy</code>) is purely Newtonian, so it is not exactly conserved once relativity, $J_2$ and tides are on."
+msgstr ""
+
+#: templates/about_astrophysics.html:249
+msgid "Earlier approach: Chebyshev polynomial ephemeris"
+msgstr ""
+
+#: templates/about_astrophysics.html:251
+msgid "Earlier versions of Helios used a Chebyshev polynomial ephemeris. The N body integrator ran once, offline, over a fixed span, and the trajectory was cut into 4 day segments with a degree 16 Chebyshev polynomial fitted to each body and axis. A query was then just a polynomial evaluation (Clenshaw recurrence), which took microseconds and needed no physics at query time. I stopped using it because the table only covered a few years after the epoch (10 years by default), and extending it meant fitting and storing coefficients for the entire path, so the file grew in proportion to the span. The current design stores the full N body state (position and velocity) every 16 days instead, and answers a query by integrating the real force model from the nearest checkpoint for at most 8 days. Because a checkpoint is a starting point for the physics and not a description of the curve, it is far more compact, and it lets Helios cover ±2000 years from the epoch, in either direction."
+msgstr ""
+
+#: templates/about_astrophysics.html:253
+msgid "Source code: <a href=\"https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V3_Helios\" target=\"_blank\" rel=\"noopener\">V3_Helios on GitHub</a>."
+msgstr ""
+
+#: templates/about_astrophysics.html:255 templates/about_astrophysics.html:296
+#: templates/about_astrophysics.html:333
+msgid "References"
+msgstr ""
+
+#: templates/about_astrophysics.html:260
+msgid "(accessed 16 November 2026)."
+msgstr ""
+
+#: templates/about_astrophysics.html:280
+msgid "V2 replaced simulation with a fitted analytical theory. VSOP87 (Bretagnon and Francou, 1988) [1] describes each planet's motion as long trigonometric series fitted to a numerical integration. The A version gives heliocentric rectangular coordinates in the ecliptic and equinox of J2000, so no orbital elements are needed. Each coordinate is a sum of Poisson series in time:"
+msgstr ""
+
+#: templates/about_astrophysics.html:284
+msgid "Here $T$ is in Julian millennia from J2000, $A$ is an amplitude in au, $B$ a phase in radians and $C$ a frequency in radians per millennium. $Y$ and $Z$ have the same form. Earth's series gives the Sun's position, and a planet's geocentric vector is the difference of two heliocentric ones:"
+msgstr ""
+
+#: templates/about_astrophysics.html:288
+msgid "The ecliptic vector is turned into an equatorial one by a rotation about the $x$ axis through the mean obliquity,"
+msgstr ""
+
+#: templates/about_astrophysics.html:292
+#, python-brace-format
+msgid "with $t$ in Julian centuries, and then $\\alpha = \\operatorname{atan2}(y,x)$ and $\\delta = \\arcsin(z/r)$. The Moon was meant to come from the ELP 2000-82B lunar theory [2], which has the same structure, but that part was never finished. A fitted series is only valid over the span it was fitted to, and it cannot be extended or given new physics. That is what led to Helios."
+msgstr ""
+
+#: templates/about_astrophysics.html:294
+msgid "Source code: <a href=\"https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V2_VSOP87A\" target=\"_blank\" rel=\"noopener\">V2_VSOP87A on GitHub</a>."
+msgstr ""
+
+#: templates/about_astrophysics.html:311
+msgid "V1 treated every planet as moving on a fixed Keplerian ellipse around the Sun, with orbital elements at epoch 1990.0, following the method in Duffett-Smith's <em>Practical Astronomy with your Calculator</em> [1]. For a planet with period $P$ (tropical years), longitude at epoch $\\epsilon$, longitude of perihelion $\\varpi$ and eccentricity $e$, $D$ days after the epoch:"
+msgstr ""
+
+#: templates/about_astrophysics.html:315
+msgid "The middle term is the equation of centre to first order in $e$. The true anomaly is $\\nu = l - \\varpi$, and the distance follows from the ellipse:"
+msgstr ""
+
+#: templates/about_astrophysics.html:319
+msgid "The position is tilted onto the ecliptic using the ascending node $\\Omega$ and inclination $i$, then made geocentric using Earth's own longitude $L$ and distance $R$ computed the same way:"
+msgstr ""
+
+#: templates/about_astrophysics.html:325
+msgid "Inner planets use $\\lambda = 180^\\circ + L + A$ with $\\tan A = r'\\sin(L-l') / \\big(R - r'\\cos(L-l')\\big)$. For the Sun, Kepler's equation $M = E - e\\sin E$ is solved by Newton's method,"
+msgstr ""
+
+#: templates/about_astrophysics.html:329
+msgid "The Moon's orbit is disturbed too strongly by the Sun for a plain ellipse, so its mean longitude gets the four largest corrections: evection $1.2739^\\circ\\sin(2C - M_m)$, the annual equation, the equation of centre $6.2886^\\circ\\sin M'_m$ and the variation $0.6583^\\circ\\sin 2(l' - \\lambda_\\odot)$, plus a regressing node. Everything ignores the pull of the planets on each other, so accuracy falls away from the 1990 epoch, which is why V1 was replaced."
+msgstr ""
+
+#: templates/about_astrophysics.html:331
+msgid "Source code: <a href=\"https://github.com/Alex-Grant-Parra/Seleno/tree/Server/canary/astrophysics/V1_Keplarian\" target=\"_blank\" rel=\"noopener\">V1_Keplarian on GitHub</a>."
+msgstr ""
+
+#: templates/about_astrophysics.html:348
+msgid "JPL's DE440 ephemeris is the reference used by spacecraft navigation. Each table gives where DE440 puts a body at 00:00 UTC on that date, where each of the three models puts it, and the angle between the two on the sky. For scale, the full Moon is about 30′ across. V2's Moon comes from the unfinished ELP 2000-82B code, which is why it is so far out."
+msgstr ""
+
+#: templates/about_astrophysics.html:350
+msgid "Sample date"
+msgstr ""
+
+#: templates/about_astrophysics.html:363
+msgid "d MMMM y"
+msgstr ""
+
+#: templates/about_astrophysics.html:366
+msgid "Body"
+msgstr ""
+
+#: templates/about_astrophysics.html:391
+msgid "Positions are right ascension and declination in degrees: geocentric, geometric (no light time or aberration), J2000 equator and equinox. DE440 is sampled at the same instant Helios uses, so the Helios column measures only its physics. V1 and V2 apply no ΔT, which is part of their error, and grows to hours away from the present. Mars, Jupiter and Neptune are system barycentres in both DE440 and Helios."
 msgstr ""
 
 #: templates/album.html:3
@@ -5250,7 +5879,7 @@ msgid "Flick through the selected photos, or this night's lights"
 msgstr ""
 
 #: templates/album.html:150 templates/album.html:200 templates/album.html:347
-#: templates/downloads.html:40
+#: templates/downloads.html:43 templates/downloads_schematics.html:34
 msgid "Download"
 msgstr ""
 
@@ -6029,10 +6658,6 @@ msgstr ""
 msgid "About"
 msgstr ""
 
-#: templates/base.html:161
-msgid "Licence"
-msgstr ""
-
 #: templates/base.html:165
 msgid "Terms"
 msgstr ""
@@ -6045,33 +6670,50 @@ msgstr ""
 msgid "SELENO observatory platform"
 msgstr ""
 
-#: templates/downloads.html:3 templates/downloads.html:10
+#: templates/downloads.html:3 templates/downloads.html:11
 #: templates/home.html:62
 msgid "Downloads"
 msgstr ""
 
-#: templates/downloads.html:11
+#: templates/downloads.html:12 templates/downloads_schematics.html:3
+#: templates/downloads_schematics.html:11
+msgid "Schematics & Extras"
+msgstr ""
+
+#: templates/downloads.html:14
 msgid "Select a version to download. Each file is a zipped release."
 msgstr ""
 
-#: templates/downloads.html:16
+#: templates/downloads.html:19
 msgid "Latest:"
 msgstr ""
 
-#: templates/downloads.html:18
+#: templates/downloads.html:21
 msgid "Download Latest"
 msgstr ""
 
-#: templates/downloads.html:27
+#: templates/downloads.html:30
 msgid "Version"
 msgstr ""
 
-#: templates/downloads.html:28
+#: templates/downloads.html:31 templates/downloads_schematics.html:22
 msgid "Updated"
 msgstr ""
 
-#: templates/downloads.html:49
+#: templates/downloads.html:52
 msgid "No downloads are available yet."
+msgstr ""
+
+#: templates/downloads_schematics.html:12
+msgid "Back to Downloads"
+msgstr ""
+
+#: templates/downloads_schematics.html:14
+msgid "Optional files such as schematics and hardware design files. These are not needed to run the client."
+msgstr ""
+
+#: templates/downloads_schematics.html:43
+msgid "No extra files are available yet."
 msgstr ""
 
 #: templates/errors/under_construction.html:3
