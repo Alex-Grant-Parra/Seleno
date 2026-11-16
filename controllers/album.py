@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from flask import Blueprint, render_template, request, send_file, jsonify, abort
@@ -9,6 +10,10 @@ from datetime import datetime
 from flask_login import login_required, current_user
 import logging
 from PIL import Image, ExifTags
+
+from app.db import db
+from app.album_index import forget_thumbnails
+from flask_babel import gettext as _
 
 album_bp = Blueprint("album", __name__, template_folder="../templates")
 
@@ -230,6 +235,13 @@ def _write_metadata_to_jpeg(path, target, notes):
             pass
         raise
 
+def write_target_keeping_notes(path, target):
+    # Set the target (image description) of an uploaded JPEG, keeping any notes it has
+    with Image.open(path) as img:
+        notes = _decode_user_comment((img.getexif() or {}).get(EXIF_USER_COMMENT_TAG))
+    _write_metadata_to_jpeg(path, target, notes)
+
+
 def get_user_photos_dir():
     if not current_user.is_authenticated:
         return None
@@ -237,13 +249,49 @@ def get_user_photos_dir():
     os.makedirs(user_dir, exist_ok=True)
     return user_dir
 
-def get_jpeg_files():
+CALIBRATION_FRAME_TYPES = ("dark", "flat", "bias")
+
+# Already compressed: stored as they are, so zipping a night of RAWs costs no CPU
+STORED_EXTENSIONS = {".jpg", ".jpeg", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".raf", ".orf", ".rw2",
+                     ".mp4", ".avi", ".mov", ".png", ".webp"}
+
+
+def _zip_response(entries, download_name):
+    """A zip of [(path, name in the zip)], built in a temporary file on disk (not in
+    memory: a night of RAWs runs to gigabytes) and streamed back."""
+    spool = tempfile.TemporaryFile(prefix="album-zip-")
+    with zipfile.ZipFile(spool, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+        for path, arcname in entries:
+            compress = zipfile.ZIP_STORED if os.path.splitext(path)[1].lower() in STORED_EXTENSIONS else zipfile.ZIP_DEFLATED
+            zf.write(path, arcname, compress_type=compress)
+    size = spool.tell()
+    spool.seek(0)
+    resp = send_file(spool, mimetype="application/zip", as_attachment=True, download_name=download_name)
+    resp.content_length = size
+    return resp
+
+
+def _photo_rows():
+    # The user's photos table rows by filename (photos that arrived over the resumable uploads)
+    from models.photo import Photo
+    if not current_user.is_authenticated:
+        return {}
+    return {row.filename: row for row in Photo.query.filter_by(owner_id=int(current_user.get_id())).all()}
+
+
+def get_jpeg_files(frame_type=None, plan_id=None):
     user_dir = get_user_photos_dir()
     if not user_dir:
         return []
+    rows = _photo_rows()
     files = []
     for fname in os.listdir(user_dir):
         if fname.lower().endswith(".jpg") or fname.lower().endswith(".jpeg"):
+            row = rows.get(fname)
+            if frame_type and (row is None or row.frame_type != frame_type):
+                continue
+            if plan_id and (row is None or row.plan_id != plan_id):
+                continue
             # Extract date from filename
             # photo_YYYYMMDD_HHMMSS.jpg
             date = None
@@ -262,18 +310,117 @@ def get_jpeg_files():
                             date = datetime.strptime(ymd + hms, "%Y%m%d%H%M%S")
                         else:
                             date = datetime.strptime(ymd, "%Y%m%d")
+                if date is None and row is not None and row.captured_at:
+                    # Camera file names (IMG_0412.JPG) carry no date; the upload recorded it
+                    date = row.captured_at
                 if date:
                     display_str = date.strftime("%Y-%m-%d %H:%M:%S")
             except Exception:
                 date = None
                 display_str = "Unknown"
-            files.append({
+            entry = {
                 "name": fname,
                 "date": display_str,
                 "datetime": date.timestamp() if date else 0,
                 "url": f"/album/photo/{fname}"
-            })
+            }
+            if row is not None:
+                entry.update({
+                    "frame_type": row.frame_type,
+                    "plan_id": row.plan_id,
+                    "step": row.step,
+                    "frame": row.frame,
+                    "label": row.label,
+                    "target": row.target,
+                })
+            files.append(entry)
     return files
+
+
+def _paired_files(user_dir, filename, rows):
+    # Other files that belong with this one: its RAW (by pair_id, or the same name as .cr2)
+    names = set()
+    row = rows.get(filename)
+    if row is not None and row.pair_id:
+        names.update(r.filename for r in rows.values() if r.pair_id == row.pair_id and r.filename != filename)
+    cr2_name = os.path.splitext(filename)[0] + ".cr2"
+    if os.path.isfile(os.path.join(user_dir, cr2_name)):
+        names.add(cr2_name)
+    return sorted(names)
+
+
+@album_bp.route("/album/plans")
+@login_required
+def album_plans():
+    # The user's photos grouped by capture plan, then step; calibration frames kept apart
+    from models.capture_plan import CapturePlan
+
+    groups = {}
+    for row in _photo_rows().values():
+        if not row.plan_id:
+            continue
+        plan = groups.setdefault(row.plan_id, {"plan_id": row.plan_id, "steps": {}, "calibration": {}, "files": 0, "bytes": 0})
+        plan["files"] += 1
+        plan["bytes"] += row.bytes or 0
+        bucket = plan["calibration"] if row.frame_type in CALIBRATION_FRAME_TYPES else plan["steps"]
+        key = str(row.step if row.step is not None else "")
+        step = bucket.setdefault(key, {"step": row.step, "frame_type": row.frame_type, "label": row.label,
+                                       "jpeg": [], "raw": 0, "video": 0})
+        if row.kind == "jpeg":
+            step["jpeg"].append({"name": row.filename, "url": f"/album/photo/{row.filename}", "frame": row.frame})
+        else:
+            step[row.kind] = step.get(row.kind, 0) + 1
+
+    plans = []
+    for plan_id, plan in groups.items():
+        record = CapturePlan.query.filter_by(id=plan_id, owner_id=int(current_user.get_id())).first()
+        steps_def = record.plan.get("steps", []) if record else []
+        for bucket in (plan["steps"], plan["calibration"]):
+            for step in bucket.values():
+                index = step["step"]
+                if isinstance(index, int) and 0 <= index < len(steps_def):
+                    step["type"] = steps_def[index].get("type")
+                step["jpeg"].sort(key=lambda f: (f["frame"] is None, f["frame"] or 0, f["name"]))
+        plans.append({
+            "plan_id": plan_id,
+            "name": record.name if record else plan_id,
+            "state": record.state if record else None,
+            "started_at": record.started_at.isoformat() + "Z" if record and record.started_at else None,
+            "files": plan["files"],
+            "bytes": plan["bytes"],
+            "steps": sorted(plan["steps"].values(), key=lambda s: (s["step"] is None, s["step"] or 0)),
+            "calibration": sorted(plan["calibration"].values(), key=lambda s: (s["step"] is None, s["step"] or 0)),
+        })
+    plans.sort(key=lambda p: p["started_at"] or "", reverse=True)
+    return jsonify({"status": "success", "plans": plans})
+
+
+@album_bp.route("/album/plan/<plan_id>/download")
+@login_required
+def album_plan_download(plan_id):
+    # A whole plan as one zip: <plan>/<step folder>/<file>, calibration frames in their own folder
+    from models.capture_plan import CapturePlan
+
+    user_dir = get_user_photos_dir()
+    rows = [row for row in _photo_rows().values() if row.plan_id == plan_id]
+    if not rows:
+        abort(404)
+    record = CapturePlan.query.filter_by(id=plan_id, owner_id=int(current_user.get_id())).first()
+    top = secure_filename(record.name if record else plan_id) or "plan"
+
+    entries = []
+    for row in rows:
+        path = _safe_photo_path(row.filename)
+        if not path:
+            continue
+        if row.frame_type in CALIBRATION_FRAME_TYPES:
+            folder = f"calibration/{row.frame_type}"
+        elif row.step is not None:
+            folder = f"step_{row.step + 1:02d}_{row.frame_type or 'frames'}"
+        else:
+            folder = "other"
+        entries.append((path, f"{top}/{folder}/{row.filename}"))
+    return _zip_response(entries, f"{top}.zip")
 
 
 @album_bp.route("/album/photo/<filename>/metadata", methods=["GET", "POST"])
@@ -288,7 +435,7 @@ def album_photo_metadata(filename):
             return jsonify({"status": "success", "photo": _build_metadata_sections(path, filename)})
         except Exception as e:
             logging.exception("Failed to read metadata for %s: %s", filename, e)
-            return jsonify({"status": "error", "message": "Failed to read image metadata"}), 500
+            return jsonify({"status": "error", "message": _("Failed to read image metadata")}), 500
 
     data = request.get_json(silent=True) or {}
     target = data.get("target", "")
@@ -299,7 +446,18 @@ def album_photo_metadata(filename):
         return jsonify({"status": "success", "photo": _build_metadata_sections(path, filename)})
     except Exception as e:
         logging.exception("Failed to save metadata for %s: %s", filename, e)
-        return jsonify({"status": "error", "message": "Failed to save image metadata"}), 500
+        return jsonify({"status": "error", "message": _("Failed to save image metadata")}), 500
+
+
+def _forget_photo(rows, filename):
+    row = rows.pop(filename, None)
+    if row is not None:
+        db.session.delete(row)
+    from models.album import FrameMeta
+    FrameMeta.query.filter_by(owner_id=int(current_user.get_id()), filename=filename).delete()
+    user_dir = get_user_photos_dir()
+    if user_dir:
+        forget_thumbnails(user_dir, filename)
 
 
 @album_bp.route("/album/photo/delete", methods=["POST"])
@@ -321,6 +479,7 @@ def album_photo_delete():
     if not user_dir:
         return jsonify({"status": "error", "message": "Not authenticated"}), 403
 
+    rows = _photo_rows()
     results = {"deleted": [], "failed": []}
 
     for filename in files:
@@ -342,25 +501,32 @@ def album_photo_delete():
             results["failed"].append({"file": filename, "reason": "invalid path"})
             continue
 
+        paired = _paired_files(user_dir, safe_name, rows)
         try:
             os.remove(target_jpeg)
             results["deleted"].append(os.path.basename(target_jpeg))
+            _forget_photo(rows, safe_name)
         except Exception as e:
             logging.exception("Failed to delete jpeg %s: %s", target_jpeg, e)
             results["failed"].append({"file": filename, "reason": "delete_failed"})
             continue
 
-        # also try to delete raw .cr2 if exists
-        cr2_path = os.path.splitext(target_jpeg)[0] + ".cr2"
-        if os.path.isfile(cr2_path):
+        # also delete its RAW: the paired upload, or a .cr2 of the same name
+        for raw_name in paired:
+            raw_path = os.path.join(user_dir, raw_name)
+            if not os.path.isfile(raw_path):
+                _forget_photo(rows, raw_name)
+                continue
             try:
-                os.remove(cr2_path)
-                results["deleted"].append(os.path.basename(cr2_path))
+                os.remove(raw_path)
+                results["deleted"].append(raw_name)
+                _forget_photo(rows, raw_name)
             except Exception:
-                logging.exception("Failed to delete raw file %s", cr2_path)
+                logging.exception("Failed to delete raw file %s", raw_path)
                 # non-fatal; record but continue
-                results["failed"].append({"file": os.path.basename(cr2_path), "reason": "raw_delete_failed"})
+                results["failed"].append({"file": raw_name, "reason": "raw_delete_failed"})
 
+    db.session.commit()
     status_code = 200 if len(results.get("failed", [])) == 0 else 207
     return jsonify({"status": "partial_success" if status_code == 207 else "success", **results}), status_code
 
@@ -368,16 +534,14 @@ def album_photo_delete():
 @album_bp.route("/album")
 @login_required
 def album():
-    sort = request.args.get("sort", "date")
-    files = get_jpeg_files()
-    if sort == "date":
-        files.sort(key=lambda x: x["datetime"], reverse=True)
-    return render_template("album.html", photos=files)
+    # The page loads its photos from /album/api/library
+    return render_template("album.html")
 
 @album_bp.route("/album/photos")
 @login_required
 def album_photos():
-    files = get_jpeg_files()
+    # Optional filters: ?frame_type=light|dark|flat|bias|snapshot|bracket|timelapse and ?plan=<plan id>
+    files = get_jpeg_files(frame_type=request.args.get("frame_type") or None, plan_id=request.args.get("plan") or None)
     files.sort(key=lambda x: x["datetime"], reverse=True)
     return jsonify(files)
 
@@ -387,15 +551,26 @@ def album_photo(filename):
     path = _safe_photo_path(filename)
     if not path:
         abort(404)
-    return send_file(path)
+    # Ranges: the browser reads SER videos (and big files) a piece at a time
+    return send_file(path, conditional=True)
 
 @album_bp.route("/album/download", methods=["POST"])
 @login_required
 def album_download():
-    data = request.json
+    # JSON {"files": [...]}, or a form post with files_json (so the browser saves a big
+    # zip straight to disk instead of holding it in memory)
+    data = request.get_json(silent=True)
+    if data is None and request.form.get("files_json"):
+        try:
+            data = {"files": json.loads(request.form["files_json"]), "name": request.form.get("name")}
+        except ValueError:
+            abort(400)
+    data = data if isinstance(data, dict) else {}
     files = data.get("files", [])
-    if not files:
+    if not files or not isinstance(files, list):
         abort(400)
+    user_dir = get_user_photos_dir()
+    rows = _photo_rows()
     abs_files = []
     for fname in files:
         if not isinstance(fname, str):
@@ -404,23 +579,13 @@ def album_download():
         jpeg_path = _safe_photo_path(fname)
         if jpeg_path:
             abs_files.append(jpeg_path)
-        # Add the raw file if it exists
-        cr2_path = _safe_photo_path(os.path.splitext(fname)[0] + ".cr2")
-        if cr2_path:
-            abs_files.append(cr2_path)
-    # Always zip 
-    mem_zip = io.BytesIO()
-    with zipfile.ZipFile(mem_zip, "w", zipfile.ZIP_DEFLATED) as zf:
-        for f in abs_files:
-            zf.write(f, os.path.basename(f))
-    mem_zip.seek(0)
+        # Add its raw file if it exists
+        for raw_name in _paired_files(user_dir, fname, rows) if jpeg_path else []:
+            raw_path = _safe_photo_path(raw_name)
+            if raw_path and raw_path not in abs_files:
+                abs_files.append(raw_path)
     if len(files) == 1:
         zip_name = f"{os.path.splitext(files[0])[0]}.zip"
     else:
-        zip_name = "photos.zip"
-    return send_file(
-        mem_zip,
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=zip_name
-    )
+        zip_name = f"{secure_filename(data.get('name') or '') or 'photos'}.zip"
+    return _zip_response([(f, os.path.basename(f)) for f in abs_files], zip_name)

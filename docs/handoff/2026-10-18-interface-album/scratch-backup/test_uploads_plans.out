@@ -1,0 +1,9 @@
+.....{"event":"send_command_allowed","auth_source":"internal","client_id":"plans-scope","command":"getCameraChoices","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"internal","client_id":"plans-scope","command":"startCapturePlan","ip":"127.0.0.1"}
+{"event":"send_command_allowed","auth_source":"internal","client_id":"plans-scope","command":"pauseCapturePlan","ip":"127.0.0.1"}
+........
+----------------------------------------------------------------------
+Ran 13 tests in 1.073s
+
+OK
+[CapturePlan] Stopped plan_20261017_a827 on plans-scope: its booking ended

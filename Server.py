@@ -1,10 +1,17 @@
+import sys
+# When launched as `python Server.py` this module is `__main__`; alias it so the
+# lazy `from Server import app` imports elsewhere reuse it instead of executing
+# this whole file a second time (duplicate init, second Flask app, etc.).
+if __name__ == "__main__":
+    sys.modules.setdefault("Server", sys.modules["__main__"])
+
 FlaskServerPort = 5000
 ifOnline = True
 
 from utility.setupLibs import ensure_requirements
 ensure_requirements()
 
-from flask import Flask, request, jsonify, redirect, url_for, Response, session, flash
+from flask import Flask, request, jsonify, redirect, url_for, Response, session, flash, send_from_directory
 import json
 from flask_login import LoginManager, logout_user, current_user
 import logging
@@ -18,7 +25,7 @@ from app.db import db
 import subprocess
 import atexit
 from waitress import serve  
-from datetime import datetime
+from datetime import datetime, timedelta
 import ipaddress
 from security import SecurityMiddleware, register_security_error_handlers
 
@@ -33,6 +40,9 @@ if os.path.exists(env_path):
 else:
     # fallback: try system env or log that .env is missing
     print(f".env not found at {env_path}")
+
+# Set STARTUP_VERBOSE=True to list every blueprint and route at startup
+STARTUP_VERBOSE = os.getenv("STARTUP_VERBOSE", "False").lower() in ("1", "true", "yes")
     
 
 # # Startup Cloudflare Tunnel
@@ -65,6 +75,10 @@ app.config["ENCRYPTION_KEY"] = os.getenv("ENCRYPTION_KEY")
 
 db.init_app(app)
 
+# Language support (English/Spanish)
+from app.i18n import init_i18n
+init_i18n(app)
+
 # Email Configuration
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.zoho.eu")
 app.config["MAIL_PORT"] = 587
@@ -95,6 +109,12 @@ app.config["MAIL_AUTH_SMTP_PORT"] = int(os.getenv("MAIL_AUTH_SMTP_PORT", "0") or
 app.config["MAIL_AUTH_SMTP_USE_TLS"] = os.getenv("MAIL_AUTH_SMTP_USE_TLS", "True").lower() in ("1","true","yes")
 app.config["MAIL_AUTH_SMTP_USERNAME"] = os.getenv("MAIL_AUTH_SMTP_USERNAME")
 app.config["MAIL_AUTH_SMTP_PASSWORD"] = os.getenv("MAIL_AUTH_SMTP_PASSWORD")
+
+# Keep users logged in across browser/PC restarts (remember-me cookie)
+app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
+app.config["REMEMBER_COOKIE_HTTPONLY"] = True
+app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
+app.config["REMEMBER_COOKIE_REFRESH_EACH_REQUEST"] = True
 
 # Flask-Login & Email Configurations
 login_manager = LoginManager()
@@ -147,7 +167,7 @@ try:
             print(f"[CSRF ERROR] {e.description} (failed to log details: {log_e})")
 
         # Prefer JSON response for API-like requests
-        wants_json = 'application/json' in (request.headers.get('Accept') or '') or request.path.startswith('/upload')
+        wants_json = 'application/json' in (request.headers.get('Accept') or '')
         if wants_json:
             return jsonify({
                 "status": "error",
@@ -222,14 +242,16 @@ def register_blueprints():
             blueprint = getattr(module, f"{filename[:-3]}_bp", None)
             if blueprint:
                 app.register_blueprint(blueprint)
-                print(f"Registered Blueprint: {blueprint.name}")
+                if STARTUP_VERBOSE:
+                    print(f"Registered Blueprint: {blueprint.name}")
 
 register_blueprints()
 
 # Register user blueprint from models
 from models.user import user_bp
 app.register_blueprint(user_bp)
-print(f"Registered Blueprint: {user_bp.name}")
+if STARTUP_VERBOSE:
+    print(f"Registered Blueprint: {user_bp.name}")
 
 # CSRF configuration for API/headless clients
 app.config['WTF_CSRF_TIME_LIMIT'] = int(os.getenv('WTF_CSRF_TIME_LIMIT', '3600'))  # 1 hour default
@@ -264,6 +286,11 @@ try:
 except Exception as e:
     print(f"CSRF token endpoint not available: {e}")
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(BASE_DIR, 'static', 'icons'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 @app.route('/sitemap.xml')
 def sitemap():
     return Response(
@@ -272,10 +299,12 @@ def sitemap():
     )
 
 # Debugging - Print all registered routes
-print("\nRegistered Routes:")
-for rule in app.url_map.iter_rules():
-    print(f"{rule} -> {rule.endpoint}")
-print("")
+if STARTUP_VERBOSE:
+    print("\nRegistered Routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"{rule} -> {rule.endpoint}")
+    print("")
+print(f"Registered {len(app.blueprints)} blueprints and {len(list(app.url_map.iter_rules()))} routes")
 
 # Generate routes.txt file with accessible pages
 def generate_routes_file():
@@ -343,6 +372,10 @@ from models.trusted_device import TrustedDevice  # Import to register the model
 from models.logging import RequestLog, SecurityLog, WebsocketSecurityLog  # Import to register log tables
 from models.client_release import ClientReleaseSubmission  # Import to register release review model
 from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import to register SumUp payment tables
+from models.photo import Photo, TelescopeUpload  # Import to register photo and resumable upload tables
+from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
+from models.album import FrameMeta, StackResult, FeaturedTarget, Project  # Import to register album index, stacks, featured targets and projects
+from models.telescope_share import TelescopeShare  # Import to register telescope sharing (and its cleanup on delete)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -372,12 +405,14 @@ def enforce_enabled_account():
                         sec_logger.info('force_logout_disabled_account')
 
                     # Log the user out and clear session
+                    # Clear the session before logout_user() so its
+                    # "delete remember-me cookie" flag survives.
                     try:
-                        logout_user()
+                        session.clear()
                     except Exception:
                         pass
                     try:
-                        session.clear()
+                        logout_user()
                     except Exception:
                         pass
                     flash('Your account has been disabled. You have been logged out.', 'warning')
@@ -386,6 +421,23 @@ def enforce_enabled_account():
                 return None
     except Exception:
         return None
+
+
+# Pages switched off in config/pages.txt show "Under Construction" (admins still get through)
+from app.page_toggles import is_page_disabled
+
+@app.before_request
+def under_construction():
+    if not is_page_disabled(request.path):
+        return None
+    if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False):
+        if request.method == 'GET' and 'text/html' in (request.headers.get('Accept') or ''):
+            flash('This page is switched off for visitors (config/pages.txt).', 'warning')
+        return None
+    from flask import render_template
+    if request.method != 'GET' or request.accept_mimetypes.best == 'application/json':
+        return jsonify({'error': 'under_construction'}), 503
+    return render_template('errors/under_construction.html'), 503
 
 # Initialize database tables
 with app.app_context():
@@ -407,7 +459,7 @@ with app.app_context():
         def _warm_star_catalog():
             with app.app_context():
                 try:
-                    from app.star_catalog import warm_cache
+                    from models.star_catalog import warm_cache
                     count = warm_cache()
                     print(f"Star catalogue ready ({count} objects)")
                 except Exception as exc:
@@ -495,6 +547,22 @@ with app.app_context():
     except Exception as e:
         print(f"[WARNING] Could not ensure booking columns on telescopes: {e}")
 
+    # Columns added to photos after it shipped (the client's full frame metadata)
+    try:
+        from models.photo import ensure_photo_columns
+        ensure_photo_columns()
+    except Exception as e:
+        print(f"[WARNING] Could not ensure photo columns: {e}")
+
+    # Basic mode's suggested targets (inserted when missing)
+    try:
+        from models.album import ensure_featured_targets
+        added = ensure_featured_targets()
+        if added:
+            print(f"Added {added} featured target(s)")
+    except Exception as e:
+        print(f"[WARNING] Could not seed featured targets: {e}")
+
     # Ensure SumUp payment table indexes exist for transaction lookup paths
     try:
         from models.payment import ensure_sumup_payment_indexes
@@ -510,10 +578,10 @@ def index():
 from app.WebsocketServer import (
     start_websocket_servers,
     send_command_handler,
-    liveview_handler,
     register_client_handler,
     admin_disconnect_ws_client_handler,
 )
+from app.liveview import liveview_handler
 
 # Flask routes that interface with websocket servers
 @app.route('/sendCommand', methods=['POST'])
@@ -528,6 +596,11 @@ except Exception:
 
 @app.route('/liveview/<client_id>')
 def liveview(client_id):
+    # Same rule as the viewer tickets: owner, approved booking covering now, or admin
+    from app.telescope_access import telescope_access_error
+    denied = telescope_access_error(client_id)
+    if denied:
+        return denied
     return liveview_handler(client_id)
 
 @app.route('/client/register', methods=['POST'])
@@ -560,6 +633,14 @@ try:
 except Exception:
     pass
 
+# Exempt the telescopes' resumable upload API from CSRF checks (token-authenticated, no cookies).
+try:
+    telescope_uploads_blueprint = app.blueprints.get('telescope_uploads')
+    if telescope_uploads_blueprint:
+        csrf.exempt(telescope_uploads_blueprint)
+except Exception:
+    pass
+
 # Exempt SumUp webhook endpoint from CSRF checks (external server-to-server callback).
 try:
     sumup_webhook_view = app.view_functions.get('payments.sumup_webhook')
@@ -575,20 +656,40 @@ if __name__ == '__main__':
 
     # # starDetector.getFaintStars()
 
-    # Start websocket servers using the new module
-    start_websocket_servers()
+    # Debug mode (auto-reloader) is opt-in via FLASK_DEBUG
+    debugMode = os.getenv("FLASK_DEBUG", "False").lower() in ("1", "true", "yes")
 
-    # Determine whether SSL/TLS should be enabled when starting the Flask
-    # server. If the environment requests SSL and provides a cert/key pair,
-    # we'll start Flask with an ssl_context so the server can accept TLS
-    # handshakes. Otherwise, run plain HTTP. This makes explicit the behavior
-    # and prevents ERR_SSL_PROTOCOL_ERROR when clients attempt HTTPS against a
-    # plain HTTP server.
-    flask_host = os.getenv("FLASK_SERVER_HOST", "127.0.0.1")
-    flask_port = os.getenv("FLASK_SERVER_PORT", FlaskServerPort)
-    print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
+    # With the reloader, this script runs in a watcher process and again in the
+    # child that serves requests (WERKZEUG_RUN_MAIN=true). The websocket servers
+    # must live in the same process as Flask so routes can reach their clients.
+    if not debugMode or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        start_websocket_servers()
 
-    # Environment-driven SSL toggle
+        # Daily removal of abandoned partial uploads, and the capture plan backup stop
+        from controllers.telescope_uploads import start_upload_cleanup
+        from app.capture_plans import start_plan_watchdog
+        start_upload_cleanup(app)
+        start_plan_watchdog(app)
+
+        # Keep the world map's weather data cached locally (app/weather_cache.py)
+        from app.weather_cache import start_background as start_weather_cache
+        start_weather_cache()
+
+    # Cloudflare Tunnel (infrastructure/config.yml) targets localhost:FlaskServerPort
+    flask_host = "0.0.0.0"
+    flask_port = FlaskServerPort
+
+    # The interactive Werkzeug debugger allows code execution, so only enable it
+    # when the server is bound to loopback.
+    use_debugger = debugMode and flask_host in ("127.0.0.1", "localhost", "::1")
+    if debugMode and not use_debugger:
+        print(f"Debug mode on: interactive debugger disabled because host {flask_host} is not loopback")
+
+    run_kwargs = dict(host=flask_host, port=flask_port, debug=debugMode, use_debugger=use_debugger, threaded=True)
+
+    # Environment-driven SSL toggle. If SSL is requested and a cert/key pair is
+    # provided, start with an ssl_context so the server accepts TLS handshakes;
+    # otherwise run plain HTTP (avoids ERR_SSL_PROTOCOL_ERROR confusion).
     use_ssl = os.getenv('FLASK_USE_SSL', 'False').lower() in ('1', 'true', 'yes')
     ssl_cert = os.getenv('SSL_CERT_PATH')
     ssl_key = os.getenv('SSL_KEY_PATH')
@@ -596,19 +697,19 @@ if __name__ == '__main__':
     if use_ssl:
         # Require both cert and key to be present on disk
         if ssl_cert and ssl_key and os.path.exists(ssl_cert) and os.path.exists(ssl_key):
-            print(f"Starting Flask with SSL on 0.0.0.0:{FlaskServerPort} using cert: {ssl_cert}")
+            print(f"Starting Flask server on {gethostname()} at https://{flask_host}:{flask_port} using cert: {ssl_cert}")
             try:
-                app.run(host="0.0.0.0", port=FlaskServerPort, debug=False, ssl_context=(ssl_cert, ssl_key), threaded=True)
+                app.run(ssl_context=(ssl_cert, ssl_key), **run_kwargs)
             except Exception as e:
                 print(f"Failed to start Flask with SSL: {e}")
                 print("Falling back to plain HTTP on the same port")
-                app.run(host="0.0.0.0", port=FlaskServerPort, debug=False, threaded=True)
+                app.run(**run_kwargs)
         else:
             print("FLASK_USE_SSL is set but SSL_CERT_PATH/SSL_KEY_PATH are missing or files do not exist.")
             print("Starting without SSL. If you want HTTPS, set FLASK_USE_SSL=True and provide valid SSL_CERT_PATH and SSL_KEY_PATH.")
-            app.run(host="0.0.0.0", port=FlaskServerPort, debug=False, threaded=True)
+            print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
+            app.run(**run_kwargs)
     else:
         # Plain HTTP
-        app.run(host="0.0.0.0", port=FlaskServerPort, debug=False, threaded=True)
-
-    
+        print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
+        app.run(**run_kwargs)

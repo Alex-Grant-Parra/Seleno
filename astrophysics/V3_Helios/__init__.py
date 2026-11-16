@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .convert import getRaDecAtTime
 
@@ -50,14 +50,21 @@ def _degrees_to_dms(dec_deg):
         minutes = 0
         degrees += 1
 
-    degrees *= sign
+    # Put the sign on the first nonzero field: -0 deg 28' would otherwise lose
+    # it (0 * -1 == 0) and read back as +0 deg 28'.
+    if degrees:
+        degrees *= sign
+    elif minutes:
+        minutes *= sign
+    else:
+        seconds *= sign
     return [degrees, minutes, seconds]
 
 
 def getAllCelestialData(year, month, day, hour: int = 0, minute: int = 0, second: float = 0.0):
-    whole_seconds = int(second)
-    microseconds = int(round((second - whole_seconds) * 1_000_000))
-    celestial_time = datetime(year, month, day, hour, minute, whole_seconds, microseconds)
+    # Adding the seconds as a timedelta handles fractions (e.g. 12.9999996 s
+    # would otherwise round to 1,000,000 microseconds and raise).
+    celestial_time = datetime(year, month, day, hour, minute) + timedelta(seconds=float(second))
     celestial_positions = getRaDecAtTime(celestial_time)
     formatted = {}
 

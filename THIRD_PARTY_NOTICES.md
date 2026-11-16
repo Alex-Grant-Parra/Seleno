@@ -44,6 +44,7 @@ change, so this file stays current.
 | click | 8.3.1 | BSD-3-Clause | https://github.com/pallets/click/ |
 | idna | 3.11 | BSD-3-Clause | https://github.com/kjd/idna |
 | lxml | 6.0.2 | BSD-3-Clause | https://lxml.de/ |
+| pybind11 | 3.1.0 | BSD-3-Clause | https://github.com/pybind/pybind11 |
 | pycparser | 3.0 | BSD-3-Clause | https://github.com/eliben/pycparser |
 | python-dotenv | 1.2.1 | BSD-3-Clause | https://github.com/theskumar/python-dotenv |
 | websockets | 16.0 | BSD-3-Clause | https://github.com/python-websockets/websockets |
@@ -60,6 +61,7 @@ change, so this file stays current.
 | blinker | 1.9.0 | MIT License | https://github.com/pallets-eco/blinker/ |
 | python-docx | 1.2.0 | MIT License | https://github.com/python-openxml/python-docx |
 | six | 1.17.0 | MIT License | https://github.com/benjaminp/six |
+| pygeomag | 1.1.0 | MIT License | https://github.com/boxpet/pygeomag |
 | pillow | 12.1.0 | MIT-CMU | https://python-pillow.github.io |
 | certifi | 2026.1.4 | Mozilla Public License 2.0 (MPL 2.0) | https://github.com/certifi/python-certifi |
 | typing_extensions | 4.15.0 | PSF-2.0 | https://github.com/python/typing_extensions |
@@ -77,6 +79,10 @@ change, so this file stays current.
   distributed under a permissive BSD-style licence, but this has not been
   independently re-verified here — check its repository if that matters for
   your use.
+- `pybind11` is a build-time dependency: its headers are compiled into the
+  Helios C++ extension (`astrophysics/V3_Helios/helios_core*.so`, built
+  locally by `build_core.py` and not committed). If that compiled module is
+  ever distributed, include pybind11's BSD-3-Clause licence text with it.
 - Some packages listed above (e.g. `matplotlib`, `python-docx`, `numpy`,
   `contourpy`, `cycler`, `kiwisolver`, `fonttools`, `pyparsing`, `six`) are
   not direct entries in `utility/requirements.txt`; they were present in the
@@ -84,3 +90,28 @@ change, so this file stays current.
   dependencies or leftovers from other tooling. Re-run the scan against a
   clean environment built only from `utility/requirements.txt` if you need
   an exact minimal list.
+
+## Data bundled in the browser processing engine
+
+`static/js/processing/canon-colordata.js` contains two tables extracted from
+[LibRaw](https://www.libraw.org/) (copyright LibRaw LLC; it builds on dcraw by
+Dave Coffin), which is distributed under your choice of the GNU Lesser General
+Public License 2.1 or the Common Development and Distribution License 1.0:
+
+- the Canon EOS rows of `adobe_coeff` in `src/tables/colordata.cpp`: each
+  model's black and white levels and its camera-from-XYZ colour matrix. LibRaw
+  notes that these matrices come from Adobe DNG Converter.
+- the `canon[][11]` sensor-size table in `src/metadata/identify.cpp`: each
+  sensor's margins (where the visible image and the masked black columns are).
+
+Only these numbers are copied, not LibRaw's code; the CR2 reader in
+`static/js/processing/cr2.js` was written for this project, following the
+published structure of the format. The tables are regenerated with
+`tests/processing/tools/extract_canon.mjs` (see `tests/processing/README.md`);
+if they are updated, keep this notice. The LGPL 2.1 and CDDL 1.0 texts are at
+<https://github.com/LibRaw/LibRaw/blob/master/LICENSE.LGPL> and
+<https://github.com/LibRaw/LibRaw/blob/master/LICENSE.CDDL>.
+
+The engine's tests compare against the CC0 sample
+`Canon/EOS 5D Mark II/08.canon.raw.cr2` from <https://raw.pixls.us/> (not
+included in the repository).

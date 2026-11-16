@@ -1,19 +1,294 @@
 {% extends "base.html" %}
 
-{% block title %}About - SELENO{% endblock %}
+{% block title %}{{ _('About - SELENO') }}{% endblock %}
+{% block body_class %}about-page-body{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='about.css') }}">
+{% endblock %}
+
+{#
+    Placeholders: see _about_macros.html. Suggested drafts sit in an HTML
+    comment next to each text slot.
+#}
+{% from "_about_macros.html" import text_slot, media_slot %}
 
 {% block content %}
-<div class="container text-center mt-5">
-    <h1 class="display-4 fw-bold">About SELENO</h1>
-    <p class="lead">This app allows you to control your telescope remotely and capture images of the night sky.</p>
-    <p class="lead">
-        <a href="{{ url_for('about.licence_page') }}">Software Licence</a><br>
-        <a href="{{ url_for('about.tos') }}">Terms of Service</a><br>
-        <a href="{{ url_for('about.privacy') }}">Privacy Policy</a><br>
-        <a href="https://github.com/Alex-Grant-Parra/SELENO" target="_blank">GitHub Repository (Server)</a><br>
-        <a href="https://github.com/Alex-Grant-Parra/Telescope-Project-Client" target="_blank">GitHub Repository (Client)</a><br>
-        <a href="https://esahubble.org/" target="_blank">Video sources - ESA Hubble</a><br>
-        <a href="http://gphoto.org/proj/libgphoto2/support.php" target ="_blank">Camera support - GPhoto2</a>
-    </p>
+<div class="about-page">
+
+    {# 1. Hero #}
+    <section class="about-hero" aria-labelledby="about-title">
+        <div class="about-hero-copy">
+            <p class="about-eyebrow">{{ _('About SELENO') }}</p>
+            <h1 id="about-title">{{ _('Seleno: explore the night sky, and control a telescope from anywhere.') }}</h1>
+            <p class="about-hero-sub">{{ _('A free star map, remote telescope control and an astrophotography album in one place. Works online, or offline under the stars.') }}</p>
+            <p class="about-status-badge">
+                <span class="about-status-dot" aria-hidden="true"></span>
+                {{ _('Software and firmware complete. Hardware in final assembly. First light coming soon.') }}
+            </p>
+            <div class="about-hero-actions">
+                <a class="btn btn-primary" href="{{ url_for('star_map.star_map') }}">{{ _('Try the star map') }}</a>
+                <a class="about-text-link" href="#A-deeper-look">{{ _('For engineers and recruiters') }} <span aria-hidden="true">↓</span></a>
+            </div>
+        </div>
+        <div class="about-hero-media">
+            <img src="{{ url_for('static', filename='about/m31.jpg') }}" alt="{{ _('A colour image of the Andromeda Galaxy and its companion galaxies M32 and M110, against a dense star field') }}" width="1469" height="956" fetchpriority="high" style="display: block; width: 100%; height: auto; border-radius: 0.5rem;">
+        </div>
+    </section>
+
+    {# 2. What it is #}
+    <section class="about-section" aria-labelledby="what-title">
+        <h2 id="what-title">{{ _('What it is') }}</h2>
+        <p>{{ _("Seleno is a complete telescope system: the control software, plus the motor mounts and electronics that drive the telescope. Together they let you control a network of telescopes, at any time, from anywhere on the globe. Image the planet, star, nebula or galaxy of your choice from the comfort of your own home.") }}</p>
+        <p>{{ _("Seleno's automated system runs observation programmes without human intervention, capturing all the different frames and image types needed to produce stunning astrophotography. A live camera view, fine camera settings, histograms and individual motor controls are also available from the interface.") }}</p>
+        <p>{{ _("A core focus of Seleno is making astrophotography more accessible to the wider population, who may be interested in space but struggle with the complex systems currently available. An advanced mode is also available for more experienced users.") }}</p>
+        <p>{{ _("Seleno's star map makes finding and tracking objects simple. Search for an object by name, and the telescope will slew to face it and track it across the sky, keeping up with the rotation of the earth.") }}</p>
+        <p>{{ _("Seleno doesn't need the internet at the telescope, either. Each telescope has a small built in screen and buttons, so it can be set up and operated on the spot, even at a remote dark site with no signal.") }}</p>
+        <p>{{ _("Finally, a booking system lets you rent time on telescopes around the globe, so the object you want to image is always up from at least one of them.") }}</p>
+    </section>
+
+    {# 3. Who it is for #}
+    <section class="about-section" aria-labelledby="who-title">
+        <h2 id="who-title">{{ _('Who it is for') }}</h2>
+        <div class="about-grid about-grid-2">
+            <article class="about-card">
+                <i class="fas fa-seedling about-card-icon" aria-hidden="true"></i>
+                <h3>{{ _('Beginners') }}</h3>
+                <p>{{ _("Never used a telescope before? Start on the star map, find something that catches your eye, and Seleno guides you from there to your first photo.") }}</p>
+            </article>
+            <article class="about-card">
+                <i class="fas fa-camera-retro about-card-icon" aria-hidden="true"></i>
+                <h3>{{ _('Advanced astrophotographers') }}</h3>
+                <p>{{ _("Write an imaging plan once and Seleno slews, plate solves, tracks and captures every calibration frame without you there. Stack the results in the browser with sigma clipping and per frame rejection reports.") }}</p>
+            </article>
+        </div>
+    </section>
+
+    {# 4. What you can do #}
+    <section class="about-section" aria-labelledby="do-title">
+        <h2 id="do-title">{{ _('What you can do') }}</h2>
+        <div class="about-grid about-grid-3">
+            <article class="about-card about-feature">
+                <img src="{{ url_for('static', filename='about/star-map.png') }}" alt="{{ _('The Seleno star map, showing Orion, Taurus and Canis Major with constellation lines and coordinate grids') }}" width="1200" height="597" loading="lazy" style="display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border-radius: 0.5rem;">
+
+                <h3>{{ _('Explore') }}</h3>
+                <p>{{ _("Search over 110,000 stars, planets and deep sky objects, and find your next target in seconds.") }}</p>
+                <a class="about-card-link" href="{{ url_for('star_map.star_map') }}">{{ _('Open the star map') }} <span aria-hidden="true">→</span></a>
+            </article>
+            <article class="about-card about-feature">
+                <img src="{{ url_for('static', filename='about/interface-online.png') }}" alt="{{ _('The Seleno telescope interface tracking the Andromeda Galaxy, with the live view, camera settings, focus readout and command log') }}" width="3600" height="1898" loading="lazy" style="display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border-radius: 0.5rem;">
+                <h3>{{ _('Control') }}</h3>
+                <p>{{ _("Run a whole observation programme on autopilot while you get on with your evening.") }}</p>
+            </article>
+            <article class="about-card about-feature">
+                <img src="{{ url_for('static', filename='about/m31.jpg') }}" alt="{{ _('A colour image of the Andromeda Galaxy and its companion galaxies M32 and M110, against a dense star field') }}" width="1469" height="956" loading="lazy" style="display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border-radius: 0.5rem;">
+                <h3>{{ _('Create') }}</h3>
+                <p>{{ _("Turn hours of raw exposures into one stunning image of a galaxy, nebula or planet.") }}</p>
+            </article>
+        </div>
+    </section>
+
+    {# 5. Build status #}
+    <section class="about-section" aria-labelledby="status-title">
+        <h2 id="status-title">{{ _('Build status') }}</h2>
+        <ol class="about-status-strip">
+            <li class="about-step is-done">
+                <span class="about-step-marker" aria-hidden="true"><i class="fas fa-check"></i></span>
+                <span class="about-step-name">{{ _('Software and firmware') }}</span>
+                <span class="about-step-state">{{ _('Done') }}</span>
+            </li>
+            <li class="about-step is-active">
+                <span class="about-step-marker" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
+                <span class="about-step-name">{{ _('Hardware assembly') }}</span>
+                <span class="about-step-state">{{ _('In progress') }}</span>
+            </li>
+            <li class="about-step is-next">
+                <span class="about-step-marker" aria-hidden="true"><i class="fas fa-star"></i></span>
+                <span class="about-step-name">{{ _('First light') }}</span>
+                <span class="about-step-state">{{ _('Next') }}</span>
+            </li>
+        </ol>
+    </section>
+
+    {# Hidden for now: Follow the build. Change false to true to show it again. #}
+    {% if false %}
+    {# 6. Follow the build #}
+    <section class="about-section" aria-labelledby="follow-title">
+        <h2 id="follow-title">{{ _('Follow the build') }}</h2>
+        <div class="about-card about-follow">
+            <div>
+                <h3 class="about-follow-label">{{ _('Latest') }}</h3>
+                <ul class="about-log">
+                    <li>{{ _('Printing the mount parts this week.') }}</li>
+                </ul>
+            </div>
+            <!-- TODO: link a build log page, or add a sign up form. Not wired to any service yet. -->
+            {{ text_slot('Build log link or email sign up goes here.') }}
+        </div>
+    </section>
+    {% endif %}
+
+    {# 7. A deeper look #}
+    <section class="about-section about-hood" id="A-deeper-look" tabindex="-1" aria-labelledby="hood-title">
+        <p class="about-eyebrow">{{ _('A deeper look') }}</p>
+        <h2 id="hood-title">{{ _('For engineers and recruiters') }}</h2>
+        <p>{{ _("Seleno is a solo project that covers hardware, embedded firmware, networking, a web server and a browser based image processing engine, designed and built by me.") }}</p>
+
+        <figure class="about-diagram">
+            {% set arch = [
+                ('Browser', 'Star map, interface'),
+                ('Flask server', 'VPS, Cloudflare Tunnel'),
+                ('Telescope node', 'Raspberry Pi Zero 2 W'),
+                ('ESP32', 'Firmware'),
+                ('Motors', 'TMC2209 steppers'),
+            ] %}
+            {% set links = ['HTTPS', 'WebSockets', 'UART', 'Step / dir'] %}
+            {# Wide layout #}
+            <svg class="about-diagram-wide" viewBox="0 0 1000 150" role="img" aria-labelledby="arch-wide-title">
+                <title id="arch-wide-title">Architecture: the browser talks to the Flask server over HTTPS, the server talks to the Raspberry Pi Zero 2 W telescope node over WebSockets, the Pi talks to the ESP32 over UART, and the ESP32 drives the motors.</title>
+                <defs>
+                    <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                        <path d="M0,0 L10,5 L0,10 z" class="arch-arrowhead"/>
+                    </marker>
+                </defs>
+                {% for name, sub in arch %}
+                {% set x = loop.index0 * 205 %}
+                <g transform="translate({{ x }}, 35)">
+                    <rect class="arch-box" width="180" height="80" rx="14"/>
+                    <text class="arch-name" x="90" y="36" text-anchor="middle">{{ name }}</text>
+                    <text class="arch-sub" x="90" y="58" text-anchor="middle">{{ sub }}</text>
+                </g>
+                {% if not loop.last %}
+                <line class="arch-line" x1="{{ x + 182 }}" y1="75" x2="{{ x + 203 }}" y2="75" marker-end="url(#arch-arrow)"/>
+                <text class="arch-link" x="{{ x + 192 }}" y="22" text-anchor="middle">{{ links[loop.index0] }}</text>
+                {% endif %}
+                {% endfor %}
+            </svg>
+            {# Narrow layout, shown on phones #}
+            <svg class="about-diagram-tall" viewBox="0 0 320 560" role="img" aria-labelledby="arch-tall-title">
+                <title id="arch-tall-title">Architecture: Browser to Flask server over HTTPS, to Raspberry Pi Zero 2 W over WebSockets, to ESP32 over UART, to the motors.</title>
+                <defs>
+                    <marker id="arch-arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                        <path d="M0,0 L10,5 L0,10 z" class="arch-arrowhead"/>
+                    </marker>
+                </defs>
+                {% for name, sub in arch %}
+                {% set y = loop.index0 * 115 %}
+                <g transform="translate(40, {{ y }})">
+                    <rect class="arch-box" width="240" height="72" rx="14"/>
+                    <text class="arch-name" x="120" y="32" text-anchor="middle">{{ name }}</text>
+                    <text class="arch-sub" x="120" y="54" text-anchor="middle">{{ sub }}</text>
+                </g>
+                {% if not loop.last %}
+                <line class="arch-line" x1="160" y1="{{ y + 74 }}" x2="160" y2="{{ y + 113 }}" marker-end="url(#arch-arrow-v)"/>
+                <text class="arch-link" x="172" y="{{ y + 98 }}">{{ links[loop.index0] }}</text>
+                {% endif %}
+                {% endfor %}
+            </svg>
+            <figcaption>{{ _('How a command travels from your browser to the telescope motors.') }}</figcaption>
+        </figure>
+
+        <div class="about-grid about-grid-2 about-hood-grid">
+            <article class="about-card">
+                <h3><i class="fas fa-server" aria-hidden="true"></i> Software</h3>
+                <p>{{ _("Seleno's software has three parts: a Flask server, a Python client on each telescope's Raspberry Pi, and C++ firmware on the ESP32. The server uses SQLAlchemy over SQLite, Jinja2 templates, Bootstrap 5 and plain JavaScript, with a custom canvas star map and some compute heavy code in C++. The interface is available in English and Spanish, with about 1,750 translated strings.") }}</p>
+
+                <h4>{{ _('Server and interface') }}</h4>
+                <p>{{ _("Basic mode lets you pick a curated target, check focus, take a test shot and capture, with a live view while imaging. Advanced mode adds custom coordinates, direct console output, full camera settings, a live histogram and stream controls. Both modes can run imaging plans, which are lists of steps such as go to, wait, lights, darks, flats, bias and video. Each plan is validated against a schema and the camera's capabilities, and its running time is estimated from overheads learned on earlier plans.") }}</p>
+                <p>{{ _("Bookings are converted to UTC and checked against the owner's rules inside a write locked SQLite transaction, so a multi date request either fully succeeds or rolls back. Owners approve each booking, every change is audit logged, and a watchdog stops any plan when the slot ends. SumUp payments are built but still in sandbox. A new telescope gets a random token that is stored only as a hash and shown once, and it stays inactive until an admin approves it.") }}</p>
+
+                <h4>{{ _('Telescope node') }}</h4>
+                <p>{{ _("Each node is an asyncio Python client, with slow work pushed to threads. It connects out over two WebSockets, one for commands and one for live view, so it works behind a home router with no port forwarding. Commands run in separate lanes and carry request IDs, so a long exposure never blocks a slew and a stop always gets through. A single thread owns the camera through gphoto2. Live view frames are reencoded on the Pi, skipped when unchanged and stepped down on slow links. Photos upload from a queue saved on disk, JPEGs first and RAW later, so nothing is lost across restarts or dropped connections.") }}</p>
+                <p>{{ _("The Pi also plate solves locally with ASTAP, records video including uncompressed SER, and checks every go to against the Sun, the horizon and dead zones. Offline mode runs all of this without the server, with a phone page protected by a code on the front panel. Nodes can update themselves from a webhook, and every update is reviewed by an admin first.") }}</p>
+
+                <h4>{{ _('Firmware') }}</h4>
+                <p>{{ _("The ESP32 runs C++ on the Arduino framework, built with PlatformIO and FreeRTOS. The Pi sends newline delimited JSON over UART at 921600 baud, and each reply echoes the command's ID. A 20 kHz timer interrupt uses phase accumulators to produce exact step rates, which keeps tracking drift minimal, while a 1 ms timer runs trapezoidal ramps and multi segment slew paths that can curve around the Sun. Microstepping and TMC2209 chopper mode are chosen per move, fine and quiet for tracking, coarse and strong for slews. Pointing uses a least squares model of up to six terms, fitted from plate solves or stars centred by hand, along with three point polar alignment, refraction and precession corrections.") }}</p>
+
+                <h4>{{ _('Stacking in the browser') }}</h4>
+                <p>{{ _("The album's stacking engine runs entirely in the browser with JavaScript and web workers, switching between memory, OPFS and streaming modes so huge stacks still fit. Pass one calibrates each frame with master darks, flats and bias, measures the stars and picks the sharpest frame as the reference. Frames that are blurred, stretched or star poor are rejected using robust statistics, and the rest are aligned to the reference. Pass two debayers and resamples each frame, matches its background and noise to the reference, weights it by noise and combines everything with iterative winsorized sigma clipping. The output is a master FITS file with a preview, a coverage map and a per frame report of what was rejected and why.") }}</p>
+
+                <h4>{{ _('Challenges and lessons') }}</h4>
+                <p>{{ _("The star map was my hardest problem, and the current one is its third version. My first attempt in Three.js drew every star as a white dot or a streak falling from the zenith. I later found the cause: I had treated right ascension as hours when the database stored degrees, so every position was 15 times too large. Inexperience with Three.js made it much harder to debug, so I replaced it with a custom canvas renderer.") }}</p>
+
+                <h4>{{ _("What's next") }}</h4>
+                <p>{{ _("I still need to finish payments and add the Pi runner for fully automated plans. After that I would like to track satellites, asteroids and dwarf planets, and add focuser control. A custom plate solver is a maybe. Ideas are welcome on the GitHub issue tracker.") }}</p>
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-microchip" aria-hidden="true"></i> Hardware</h3>
+                <p>{{ _("Seleno runs on a custom four layer PCB that I designed myself in KiCad. It measures 85 × 50 mm and connects the motor drivers, motors, Raspberry Pi Zero 2 W, buttons, screen, IMU and power supply in a clean, space efficient way. The ESP32 handles low level hardware control, such as the motors, screen and LEDs, while the Pi Zero 2 W handles higher level control, network interfacing and camera control.") }}</p>
+
+                <h4>{{ _('Why I built it') }}</h4>
+                <p>{{ _("Designing my own board let me add features that most telescope control systems don't have, such as a screen, and gave advanced users more control over the system than other controllers offer. It also let me make the whole product much smaller, and it was the best way to teach myself PCB manufacturing, soldering and KiCad.") }}</p>
+                <p>{{ _("The board's two standout features are that it works both online, connected to Seleno's servers, and offline, and that it offers much higher customisation than commercial boards. The whole node also runs from a single socket, with reverse polarity protection, a fuse against overcurrent, and traces sized for the current they carry.") }}</p>
+
+                <h4>{{ _('How it was made') }}</h4>
+                <p>{{ _("I taught myself KiCad to do the schematic and layout. For v0.1 to v0.7, JLCPCB printed only the bare board and I assembled everything else myself. For v0.8, JLCPCB made the PCB and did most of the assembly, leaving about 20 percent for me to finish by hand. Only three revisions were actually made: v0.2, v0.5 and v0.8, which is the current board.") }}</p>
+
+                <h4>{{ _('Revisions') }}</h4>
+                <ul>
+                    <li>{{ _("v0.1 was my first PCB ever, and mostly a way of learning KiCad.") }}</li>
+                    <li>{{ _("v0.2 shrank the board to 50 × 85 mm.") }}</li>
+                    <li>{{ _("v0.3 to v0.5 replaced the ESP32 dev board plug in with a smaller module.") }}</li>
+                    <li>{{ _("v0.6 to v0.8 replaced every remaining module except the ESP32 with bare ICs, changed the screw connectors to JST connectors, and added proper power handling circuitry. They also changed the link to the Pi from USB to UART over GPIO. USB support remains in the firmware in case I want to use it again.") }}</li>
+                </ul>
+
+                <h4>{{ _('Challenges and lessons') }}</h4>
+                <p>{{ _("Soldering 0402 passives (1.0 × 0.5 mm) was really difficult. I tried a hot air gun, but found I was faster with a soldering iron and a microscope. The 1 mm pitch JST SH connectors also took a lot of patience. On an older board, probably v0.5, I accidentally pulled a buck converter pad off the PCB and had to learn how to replace it.") }}</p>
+                <p>{{ _("I didn't realise on the early versions how much trace width matters. Traces carrying higher currents need to be wider, while less critical signals like GPIO can stay thin. I also learned the importance of test pads and debugging. That was the main focus of v0.8, so I can debug the board easily instead of buying a new one every time.") }}</p>
+
+                <h4>{{ _('Licence') }}</h4>
+                <p>{{ _("I haven't decided to make the PCB design public. The current plan is for it to be source available rather than open source. People could make it at home for personal use but not sell it, as laid out in the licence.") }}</p>
+
+                <h4>{{ _("What's next: v1.0") }}</h4>
+                <p>{{ _("For v1.0 I want to remove the Raspberry Pi Zero 2 W completely and do everything on the board. The hardest challenge will be camera control, including livestreaming, from the ESP32. I plan to use the new ESP32-S31, which supports USB high speed and has enough processing power to host the entire client. Cutting the 5V adapters, the Pi and other circuitry should save between £20 and £30 per board.") }}</p>
+                <p>{{ _("I'd also like to add a mirror heating port, so everything plugs into the main enclosure and only one socket is needed. I'm considering power monitoring and feedback as well, so that on battery you can estimate whether an observation session will finish.") }}</p>
+
+                <figure style="margin: 0 0 var(--space-3);">
+                    <img src="{{ url_for('static', filename='about/pcb.jpg') }}" alt="{{ _('The assembled SELENO v0.8 controller board, with an ESP32 module, stepper drivers under a blue heatsink, and connectors for the IMU, LCD and buttons') }}" width="1207" height="744" loading="lazy" style="display: block; width: 100%; height: auto; border-radius: 0.5rem;">
+                    <figcaption class="about-muted" style="margin-top: var(--space-2, 0.5rem);">{{ _('Seleno v0.8, four layers, 85 × 50 mm.') }}</figcaption>
+                </figure>
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-meteor" aria-hidden="true"></i> {{ _('Astrophysics') }}</h3>
+                <p>{{ _("Planet and Moon positions come from Helios, a custom N body engine.") }}</p>
+                <a class="about-card-link" href="{{ url_for('about.astrophysics') }}">{{ _('Read the full write up') }} <span aria-hidden="true">→</span></a>
+            </article>
+            <article class="about-card">
+                <h3><i class="fas fa-graduation-cap" aria-hidden="true"></i> Background</h3>
+                <p>{{ _("Seleno began as an idea in the summer between my GCSEs and A Levels. I wanted to control my telescope's tracking so I could find and image objects faster, and at a higher quality, than I could by hand. I later developed it into my A Level Computer Science Non Exam Assessment, and it has been a personal project ever since. I plan to keep building it.") }}</p>
+                <p>{{ _("While developing it, I realised how many people are interested in astronomy, physics and space but have no cheap or easy way to get started. That became the real goal of Seleno: to lower the barriers to entry for astronomy and help more people into the hobby.") }}</p>
+            </article>
+        </div>
+
+        <ul class="about-links about-links-fill">
+            <li><a class="btn btn-ghost" href="https://github.com/Alex-Grant-Parra/SELENO" target="_blank" rel="noopener"><i class="fab fa-github" aria-hidden="true"></i> GitHub</a></li>
+            <li><a class="btn btn-ghost" href="https://seleno.org/downloads/schematics/SelenoPCB_v0.8.zip"><i class="fas fa-file-zipper" aria-hidden="true"></i> KiCad schematic</a></li>
+            {# TODO: replace href="#" with the real link, then drop the about-link-todo class and the tag #}
+            <li><a class="btn btn-ghost about-link-todo" href="#" aria-disabled="true"><i class="fas fa-cube" aria-hidden="true"></i> CAD files <span class="about-slot-tag">{{ _('COMING SOON') }}</span></a></li>
+        </ul>
+    </section>
+
+    {# Hidden for now: About me and Get in touch. Change false to true to show them again. #}
+    {% if false %}
+    {# 8. About me #}
+    <section class="about-section" aria-labelledby="me-title">
+        <h2 id="me-title">{{ _('About me') }}</h2>
+        <div class="about-card about-me">
+            {{ media_slot('Photo of me', '1 / 1') }}
+            <div>
+                <!-- Draft: I'm Alex, a [TODO: who you are / what you study]. I built Seleno because [TODO: why]. I enjoy work that crosses hardware and software, and I'm looking for [TODO: what kind of role]. -->
+                {{ text_slot('Two or three sentence bio, first person.') }}
+            </div>
+        </div>
+    </section>
+
+    {# 9. Contact #}
+    <section class="about-section about-contact" aria-labelledby="contact-title">
+        <h2 id="contact-title">{{ _('Get in touch') }}</h2>
+        <p><a class="btn btn-primary" href="mailto:support@seleno.org"><i class="fas fa-envelope" aria-hidden="true"></i> support@seleno.org</a></p>
+        <p class="about-muted">{{ _('Or use the') }} <a href="{{ url_for('contact.support_home') }}">{{ _('support page') }}</a>.</p>
+    </section>
+    {% endif %}
+
 </div>
 {% endblock %}

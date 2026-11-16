@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Interface, advanced mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Sora:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#38bdf8}a:hover{color:#34d399}
+.app{font-family:'Manrope',sans-serif;color:#edf2ff;background:#05070d;min-height:980px;display:flex;flex-direction:column}
+.nav{display:flex;align-items:center;gap:8px;padding:10px 28px;border-bottom:1px solid #22314a;background:#0b1120;flex-wrap:wrap}
+.brand{font-family:'Sora',sans-serif;font-weight:700;letter-spacing:.04em;margin-right:18px}
+.navlink{color:#9daccc;font-weight:600;font-size:14px;padding:6px 12px;border-radius:999px;text-decoration:none}
+.navlink.on{color:#edf2ff;background:rgba(52,211,153,.18)}
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 20px;border-bottom:1px solid #22314a;background:#080c16}
+.seg{display:inline-flex;border:1px solid #22314a;border-radius:999px;padding:3px;background:#0f1626}
+.seg button{font:inherit;font-size:13px;font-weight:700;border:0;background:transparent;color:#9daccc;padding:6px 14px;border-radius:999px}
+.seg button.on{background:#34d399;color:#05201a}
+.seg.sm button{padding:4px 9px;font-size:12px}
+.card{background:#0f1626;border:1px solid #22314a;border-radius:12px;padding:10px 12px}
+.card h3{font-family:'Sora',sans-serif;font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:8px;justify-content:space-between}
+.muted{color:#9daccc}
+.small{font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:#111b2d;border:1px solid #22314a;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 8px}
+.ok{background:#34d399}.warn{background:#fbbf24}.bad{background:#f87171}.off{background:#5b6b8a}
+.btn{font:inherit;font-weight:700;font-size:12.5px;border-radius:8px;padding:6px 10px;border:1px solid #22314a;background:#111b2d;color:#edf2ff;cursor:pointer;white-space:nowrap}
+.btn.primary{background:#34d399;border-color:#34d399;color:#05201a}
+.btn.danger{background:#b91c1c;border-color:#b91c1c;color:#fff}
+.sel{font:inherit;font-size:12.5px;font-weight:600;color:#edf2ff;background:#05070d;border:1px solid #22314a;border-radius:8px;padding:4px 6px;min-width:0}
+.inp{font:inherit;font-size:12.5px;color:#edf2ff;background:#05070d;border:1px solid #22314a;border-radius:8px;padding:4px 6px;width:100%;box-sizing:border-box}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px;align-items:center}
+.field{display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:#9daccc}
+.tabs{display:flex;gap:2px;border-bottom:1px solid #22314a;margin:-2px -2px 10px}
+.tab{font:inherit;font-size:12.5px;font-weight:700;background:none;border:0;border-bottom:2px solid transparent;color:#9daccc;padding:6px 10px}
+.tab.on{color:#edf2ff;border-bottom-color:#38bdf8}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px}
+.kv dt{color:#9daccc}.kv dd{margin:0;text-align:right}
+.log{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#9daccc;line-height:1.6}
+.sky{background-color:#02040a;background-image:radial-gradient(circle at 12% 18%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 27% 64%,#dfe8ff 0 1.1px,transparent 1.7px),radial-gradient(circle at 41% 33%,#fff 0 2.2px,rgba(255,255,255,.25) 3px,transparent 5px),radial-gradient(circle at 55% 78%,#ffe9c7 0 1.2px,transparent 1.8px),radial-gradient(circle at 63% 22%,#fff 0 1px,transparent 1.6px),radial-gradient(circle at 71% 52%,#cfe0ff 0 1.6px,transparent 2.4px),radial-gradient(circle at 84% 14%,#fff 0 1.2px,transparent 1.8px),radial-gradient(circle at 90% 70%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 18% 86%,#fff 0 1.3px,transparent 1.9px),radial-gradient(circle at 34% 9%,#fff 0 .9px,transparent 1.4px),radial-gradient(circle at 48% 58%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 77% 88%,#ffd9b0 0 1.4px,transparent 2px),radial-gradient(circle at 6% 47%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 95% 38%,#fff 0 1.1px,transparent 1.6px),radial-gradient(ellipse at 50% 50%,rgba(150,70,100,.32),transparent 40%),radial-gradient(ellipse at 46% 54%,rgba(70,120,200,.18),transparent 50%)}
+</style>
+</helmet>
+<div class="app">
+  <nav class="nav" aria-label="Site">
+    <span class="brand">SELENO</span>
+    <a class="navlink" href="#">Home</a>
+    <a class="navlink on" href="#">Interface</a>
+    <a class="navlink" href="#">Star Map</a>
+    <a class="navlink" href="#">Book</a>
+    <a class="navlink" href="#">Album</a>
+    <span style="flex:1"></span>
+    <span class="muted small">alex</span>
+  </nav>
+
+  <div class="toolbar">
+    <select class="sel" aria-label="Telescope" style="padding:6px 8px"><option>seleno-01 · online</option></select>
+    <span class="chip"><span class="dot ok"></span>Owner</span>
+    <span class="chip"><span class="dot ok"></span>Mount tracking · sidereal · M42</span>
+    <span class="chip"><span class="dot ok"></span>Canon EOS 5D Mark II · 74%</span>
+    <span class="chip"><span class="dot ok"></span>Clock GPS +0.02 s</span>
+    <span class="chip"><span class="dot ok"></span>Disk 41 GB free</span>
+    <span class="chip"><span class="dot warn"></span>Uploads 6 waiting · 18 RAWs held</span>
+    <span class="chip">Sun −31° · astronomical night</span>
+    <span style="flex:1"></span>
+    <button class="btn danger" type="button" style="padding:8px 12px">E-STOP</button>
+    <div class="seg" role="group" aria-label="Interface mode"><button type="button">Basic</button><button class="on" type="button">Advanced</button></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:12px;padding:12px 20px;flex:1">
+    <div style="flex:0 0 280px;display:flex;flex-direction:column;gap:10px">
+      <div class="card">
+        <div class="tabs"><button class="tab on" type="button">Target</button><button class="tab" type="button">Mount</button><button class="tab" type="button">Device</button></div>
+        <label class="field">Search the catalogue<input class="inp" value="M42"></label>
+        <div class="grid2" style="margin-top:6px">
+          <label class="field">RA (h m s)<input class="inp" value="05 35 17.3"></label>
+          <label class="field">Dec (° ′ ″)<input class="inp" value="−05 23 28"></label>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px"><button class="btn primary" type="button" style="flex:1">Go to</button><button class="btn" type="button">Go to + centre</button></div>
+        <label class="field" style="margin-top:8px">Moon or planet<select class="sel"><option>Jupiter · 52°</option></select></label>
+        <dl class="kv" style="margin:10px 0 0"><dt>Alt / Az</dt><dd>38.2° / 141.7°</dd><dt>Transit</dt><dd>01:12 · 47.1°</dd><dt>Above 30°</dt><dd>21:02 – 03:21</dd><dt>Moon</dt><dd>12% · 64° away</dd><dt>Astro dark</dt><dd>19:41 – 05:48</dd></dl>
+      </div>
+      <div class="card">
+        <h3>Mount</h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><button class="btn" type="button">Park</button><button class="btn" type="button">Unpark</button><button class="btn" type="button">Set park</button><button class="btn" type="button">Stop tracking</button></div>
+        <div class="grid2">
+          <label class="field">Tracking rate<select class="sel"><option>Sidereal</option></select></label>
+          <label class="field">Solve from<select class="sel"><option>Photo</option></select></label>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn" type="button">Solve &amp; sync</button><button class="btn" type="button">Centre</button><button class="btn" type="button">Polar align</button><button class="btn" type="button">Dither 2′</button></div>
+        <div class="muted small" style="margin-top:8px">Last solve 21:13 · 1.98″/px · 3.08° × 2.05° · rot 91.4° · off by 0.4′</div>
+      </div>
+    </div>
+
+    <div style="flex:1 1 520px;min-width:0;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn primary" type="button">Live view on</button>
+        <select class="sel" aria-label="Codec"><option>H.264</option></select>
+        <select class="sel" aria-label="Quality"><option>High</option></select>
+        <div class="seg sm" role="group" aria-label="Zoom"><button type="button">1×</button><button class="on" type="button">5×</button><button type="button">10×</button></div>
+        <select class="sel" aria-label="Overlay"><option>Crosshair + circle</option></select>
+        <label class="small muted" style="display:flex;align-items:center;gap:6px">Display stretch <input type="range" value="60" aria-label="Display stretch"></label>
+        <label class="small" style="display:flex;align-items:center;gap:4px"><input type="checkbox" checked> Focus peaking</label>
+        <span style="flex:1"></span>
+        <button class="btn" type="button">Snapshot</button>
+        <button class="btn" type="button">Record</button>
+      </div>
+      <div class="sky" style="position:relative;height:520px;border-radius:12px;border:1px solid #22314a;overflow:hidden">
+        <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(56,189,248,.35)"></div>
+        <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(56,189,248,.35)"></div>
+        <div style="position:absolute;left:calc(50% - 90px);top:calc(50% - 90px);width:180px;height:180px;border:1px dashed rgba(56,189,248,.5);border-radius:50%"></div>
+        <div class="chip" style="position:absolute;left:12px;bottom:10px;background:rgba(15,22,38,.85)">H.264 · 1280×720 · 12.0 fps · 1.8 Mbps · 3 watching</div>
+        <div class="chip" style="position:absolute;right:12px;bottom:10px;background:rgba(15,22,38,.85)">x 0.41 y 0.33 · RGB 212 208 199</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="card" style="flex:1 1 300px">
+          <h3>Capture plan <span class="chip"><span class="dot ok"></span>Running</span></h3>
+          <div class="small" style="font-weight:700">M42 with calibration · step 2 of 4: lights</div>
+          <div style="height:8px;border-radius:999px;background:#111b2d;margin:8px 0;overflow:hidden"><div style="width:35%;height:100%;background:#34d399"></div></div>
+          <div class="muted small">Frame 14 of 40 · dither every 5 · 27 min left · ends 21:58, booking ends 23:30</div>
+          <div style="display:flex;gap:6px;margin-top:8px"><button class="btn" type="button">Pause</button><button class="btn" type="button">Skip step</button><button class="btn" type="button">Stop</button><button class="btn" type="button">Open builder</button></div>
+        </div>
+        <div class="card" style="flex:1 1 300px">
+          <h3>Log</h3>
+          <div class="log">21:14:02 ✓ capturePhoto 30 s → IMG_0414.CR2<br>21:13:31 ✓ dither 2′ done<br>21:13:18 ✓ solve_and_sync 1.98″/px<br>21:12:55 ✓ set iso 800</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:0 0 330px;display:flex;flex-direction:column;gap:10px">
+      <div class="card">
+        <h3>Camera <span class="muted small" style="font-weight:500">card 22 GB free</span></h3>
+        <div class="grid2">
+          <label class="field">Shutter<select class="sel"><option>Bulb</option></select></label>
+          <label class="field">Bulb seconds<input class="inp" value="30"></label>
+          <label class="field">ISO<select class="sel"><option>800</option></select></label>
+          <label class="field">Aperture<select class="sel"><option>—</option></select></label>
+          <label class="field">White balance<select class="sel"><option>Daylight</option></select></label>
+          <label class="field">Format<select class="sel"><option>RAW + JPEG</option></select></label>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px"><button class="btn primary" type="button" style="flex:1">Take photo</button><button class="btn" type="button">Test shot</button></div>
+      </div>
+      <div class="card">
+        <h3>Focus <span class="muted small" style="font-weight:500">live, 24 stars</span></h3>
+        <svg width="100%" height="70" viewBox="0 0 300 70" preserveAspectRatio="none" role="img" aria-label="Half-flux radius over time, lowest 2.1 pixels">
+          <polyline points="0,10 40,20 80,34 120,48 150,58 175,61 200,57 230,52 260,55 300,54" fill="none" stroke="#38bdf8" stroke-width="2"></polyline>
+          <line x1="0" y1="61" x2="300" y2="61" stroke="#34d399" stroke-dasharray="4 4"></line>
+        </svg>
+        <dl class="kv"><dt>HFR now / best</dt><dd>2.4 / 2.1 px</dd><dt>FWHM</dt><dd>3.3 px · 6.5″</dd><dt>Brightest star peak</dt><dd>71% (not clipped)</dd></dl>
+      </div>
+      <div class="card">
+        <h3>Histogram <select class="sel" aria-label="Channel"><option>RGB</option></select></h3>
+        <svg width="100%" height="70" viewBox="0 0 300 70" preserveAspectRatio="none" role="img" aria-label="Histogram with the sky peak at 18 percent">
+          <path d="M0,70 L30,69 L45,60 L54,12 L62,30 L80,58 L120,66 L200,68 L300,69 L300,70 Z" fill="rgba(56,189,248,.45)"></path>
+        </svg>
+        <div class="muted small">Peak 18% · clipped 0.02% · black 0.0%</div>
+      </div>
+      <div class="card">
+        <h3>Last frame · IMG_0414 <a href="#" class="small">Album</a></h3>
+        <dl class="kv"><dt>Stars</dt><dd>612</dd><dt>FWHM / HFR</dt><dd>3.1 / 1.8 px</dd><dt>Eccentricity</dt><dd>0.31</dd><dt>Background / noise</dt><dd>18.2% / 0.41%</dd><dt>Clipped</dt><dd>0.02%</dd></dl>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

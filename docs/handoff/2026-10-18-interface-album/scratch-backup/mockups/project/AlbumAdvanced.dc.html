@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Album library, advanced mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Sora:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#38bdf8}a:hover{color:#34d399}
+.app{font-family:'Manrope',sans-serif;color:#edf2ff;background:#05070d;min-height:980px;display:flex;flex-direction:column}
+.nav{display:flex;align-items:center;gap:8px;padding:10px 28px;border-bottom:1px solid #22314a;background:#0b1120;flex-wrap:wrap}
+.brand{font-family:'Sora',sans-serif;font-weight:700;letter-spacing:.04em;margin-right:18px}
+.navlink{color:#9daccc;font-weight:600;font-size:14px;padding:6px 12px;border-radius:999px;text-decoration:none}
+.navlink.on{color:#edf2ff;background:rgba(52,211,153,.18)}
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:10px 20px;border-bottom:1px solid #22314a;background:#080c16}
+.seg{display:inline-flex;border:1px solid #22314a;border-radius:999px;padding:3px;background:#0f1626}
+.seg button{font:inherit;font-size:13px;font-weight:700;border:0;background:transparent;color:#9daccc;padding:6px 14px;border-radius:999px}
+.seg button.on{background:#34d399;color:#05201a}
+.seg.sm button{padding:3px 9px;font-size:12px}
+.tab{font:inherit;font-size:14px;font-weight:700;background:none;border:0;border-bottom:2px solid transparent;color:#9daccc;padding:8px 4px}
+.tab.on{color:#edf2ff;border-bottom-color:#38bdf8}
+.card{background:#0f1626;border:1px solid #22314a;border-radius:12px;padding:10px 12px}
+.card h3{font-family:'Sora',sans-serif;font-size:13px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.muted{color:#9daccc}
+.small{font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;background:#111b2d;border:1px solid #22314a;white-space:nowrap}
+.chip.on{border-color:#38bdf8;background:rgba(56,189,248,.14)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 8px}
+.ok{background:#34d399}.warn{background:#fbbf24}.bad{background:#f87171}
+.btn{font:inherit;font-weight:700;font-size:12.5px;border-radius:8px;padding:6px 10px;border:1px solid #22314a;background:#111b2d;color:#edf2ff;cursor:pointer;white-space:nowrap}
+.btn.primary{background:#34d399;border-color:#34d399;color:#05201a}
+.inp{font:inherit;font-size:12.5px;color:#edf2ff;background:#05070d;border:1px solid #22314a;border-radius:8px;padding:4px 6px;width:56px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9daccc;text-align:right;padding:6px 8px;border-bottom:1px solid #22314a;font-weight:700;white-space:nowrap}
+th:nth-child(-n+4){text-align:left}
+td{padding:5px 8px;border-bottom:1px solid #141f33;text-align:right;white-space:nowrap}
+td:nth-child(-n+4){text-align:left}
+tr.rej td{color:#7d8aa5;text-decoration:line-through}
+tr.cur td{background:rgba(56,189,248,.10)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px;margin:0}
+.kv dt{color:#9daccc}.kv dd{margin:0;text-align:right}
+.mini{width:42px;aspect-ratio:3/2;border-radius:4px;border:1px solid #22314a;display:block}
+.sky{background-color:#02040a;background-image:radial-gradient(circle at 18% 22%,#fff 0 1.2px,transparent 1.8px),radial-gradient(circle at 38% 62%,#fff 0 1px,transparent 1.6px),radial-gradient(circle at 62% 30%,#fff 0 1.5px,transparent 2.2px),radial-gradient(circle at 80% 72%,#ffe2bd 0 1.1px,transparent 1.7px),radial-gradient(circle at 70% 12%,#fff 0 .9px,transparent 1.4px),radial-gradient(circle at 12% 80%,#fff 0 1px,transparent 1.5px),radial-gradient(ellipse at 52% 50%,rgba(170,80,110,.45),transparent 38%),radial-gradient(ellipse at 48% 54%,rgba(80,130,210,.25),transparent 48%)}
+</style>
+</helmet>
+<div class="app">
+  <nav class="nav" aria-label="Site">
+    <span class="brand">SELENO</span>
+    <a class="navlink" href="#">Home</a>
+    <a class="navlink" href="#">Interface</a>
+    <a class="navlink" href="#">Star Map</a>
+    <a class="navlink" href="#">Book</a>
+    <a class="navlink on" href="#">Album</a>
+    <span style="flex:1"></span>
+    <span class="muted small">alex</span>
+  </nav>
+
+  <div class="toolbar">
+    <span style="font-family:'Sora',sans-serif;font-size:20px;font-weight:700;margin-right:12px">Album</span>
+    <button class="tab on" type="button">Photos</button>
+    <button class="tab" type="button">Stacked images</button>
+    <button class="tab" type="button">Activity <span class="chip" style="padding:1px 7px;margin-left:4px">1 running</span></button>
+    <span style="flex:1"></span>
+    <div class="seg" role="group" aria-label="Album mode"><button type="button">Basic</button><button class="on" type="button">Advanced</button></div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;flex-wrap:wrap;border-bottom:1px solid #141f33">
+    <span class="muted small" style="font-weight:700">Group by</span>
+    <div class="seg sm" role="group" aria-label="Group by"><button class="on" type="button">Night</button><button type="button">Target</button><button type="button">Plan</button></div>
+    <span class="muted small" style="font-weight:700;margin-left:8px">Show</span>
+    <span class="chip on">Lights 40</span><span class="chip">Darks 20</span><span class="chip">Flats 0</span><span class="chip">Bias 30</span><span class="chip">Snapshots 2</span><span class="chip">Video 0</span>
+    <span class="chip">Hide rejected</span>
+    <span style="flex:1"></span>
+    <div class="seg sm" role="group" aria-label="Layout"><button type="button">Grid</button><button class="on" type="button">Table</button></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:12px;padding:12px 20px;flex:1">
+    <main style="flex:1 1 640px;min-width:0;display:flex;flex-direction:column;gap:10px">
+      <div class="card">
+        <h3>Quality over the night · M42, 18 Oct <span class="small muted" style="font-weight:500"><span style="color:#38bdf8">━</span> FWHM px <span style="color:#fbbf24;margin-left:8px">━</span> eccentricity <span style="color:#a78bfa;margin-left:8px">━</span> background</span></h3>
+        <svg width="100%" height="120" viewBox="0 0 800 120" preserveAspectRatio="none" role="img" aria-label="FWHM steady near 3.1 pixels with two spikes at frames 4 and 7; background rising after frame 30">
+          <line x1="0" y1="38" x2="800" y2="38" stroke="#f87171" stroke-dasharray="6 5"></line>
+          <polyline points="0,62 20,60 40,61 60,58 80,30 100,60 120,62 140,18 160,61 180,60 200,59 220,61 240,63 260,60 280,62 300,61 320,59 340,60 360,62 380,61 400,58 420,60 440,61 460,63 480,60 500,59 520,61 540,62 560,60 580,59 600,57 620,58 640,56 660,55 680,57 700,56 720,54 740,55 760,53 780,55" fill="none" stroke="#38bdf8" stroke-width="2"></polyline>
+          <polyline points="0,95 20,94 40,96 60,93 80,70 100,95 120,94 140,92 160,96 180,95 200,93 220,95 240,96 260,94 280,95 300,93 320,94 340,96 360,95 380,94 400,93 420,95 440,96 460,95 480,94 500,93 520,95 540,96 560,94 580,93 600,92 620,94 640,93 660,92 680,94 700,93 720,92 740,93 760,94 780,92" fill="none" stroke="#fbbf24" stroke-width="2"></polyline>
+          <polyline points="0,108 100,108 200,107 300,107 400,106 500,105 600,100 700,92 780,86" fill="none" stroke="#a78bfa" stroke-width="2"></polyline>
+          <circle cx="80" cy="30" r="5" fill="#f87171"></circle><circle cx="140" cy="18" r="5" fill="#f87171"></circle>
+        </svg>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px" class="small">
+          <span>Reject frames where FWHM is over</span><input class="inp" value="3.8" aria-label="FWHM limit"><span>px, eccentricity over</span><input class="inp" value="0.55" aria-label="Eccentricity limit"><span>or stars under</span><input class="inp" value="300" aria-label="Star count limit">
+          <button class="btn" type="button">Reject 2 frames</button>
+          <span class="muted">Suggested from this night: median + 3σ</span>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:auto">
+        <table>
+          <thead><tr><th><input type="checkbox" aria-label="Select all"></th><th></th><th>File</th><th>Time</th><th>Type</th><th>Exp</th><th>ISO</th><th>Stars</th><th>FWHM</th><th>HFR</th><th>Ecc</th><th>Bkg</th><th>Noise</th><th>SNR</th><th>Flag</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+              <tr class="{{r.cls}}"><td><input type="checkbox" aria-label="Select"></td><td><span class="mini sky"></span></td><td>{{r.name}} <span class="muted small">CR2</span></td><td>{{r.time}}</td><td>light</td><td>30 s</td><td>800</td><td>{{r.stars}}</td><td>{{r.fwhm}}</td><td>{{r.hfr}}</td><td>{{r.ecc}}</td><td>{{r.bg}}</td><td>0.41%</td><td>{{r.snr}}</td><td><span class="dot {{r.q}}"></span></td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <aside style="flex:0 0 340px;display:flex;flex-direction:column;gap:10px">
+      <div class="card">
+        <div class="sky" style="aspect-ratio:3/2;border-radius:8px;border:1px solid #22314a;margin-bottom:8px;position:relative">
+          <span class="chip" style="position:absolute;right:6px;bottom:6px;background:rgba(15,22,38,.85)">Auto stretch on</span>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" type="button">Open viewer</button><button class="btn" type="button">Blink selected</button><button class="btn" type="button">Develop</button><button class="btn" type="button">Download + RAW</button></div>
+      </div>
+      <div class="card">
+        <h3>IMG_0412 <span class="chip"><span class="dot ok"></span>Accepted</span></h3>
+        <dl class="kv"><dt>Captured</dt><dd>18 Oct 21:09:12 UTC</dd><dt>Camera</dt><dd>Canon EOS 5D Mark II</dd><dt>Exposure</dt><dd>30 s · ISO 800 · RAW + JPEG</dd><dt>Plan</dt><dd>M42 with calibration · step 2 · frame 12</dd><dt>Pointing</dt><dd>RA 83.82° Dec −5.39°</dd><dt>Size</dt><dd>5616 × 3744 · 24.4 MB RAW</dd></dl>
+      </div>
+      <div class="card">
+        <h3>Measured from the RAW</h3>
+        <dl class="kv"><dt>Stars found</dt><dd>612</dd><dt>FWHM / HFR</dt><dd>3.1 / 1.8 px · 2.6″</dd><dt>Eccentricity</dt><dd>0.31</dd><dt>Background</dt><dd>18.2%</dd><dt>Noise</dt><dd>0.41%</dd><dt>Clipped pixels</dt><dd>0.02%</dd></dl>
+      </div>
+      <div class="card">
+        <h3>Histogram <span class="seg sm" role="group" aria-label="Channel"><button class="on" type="button">RGB</button><button type="button">L</button></span></h3>
+        <svg width="100%" height="64" viewBox="0 0 300 64" preserveAspectRatio="none" role="img" aria-label="Histogram with the sky peak at 18 percent">
+          <path d="M0,64 L30,63 L45,55 L54,8 L62,28 L80,54 L120,60 L200,62 L300,63 L300,64 Z" fill="rgba(56,189,248,.45)"></path>
+        </svg>
+      </div>
+    </aside>
+  </div>
+
+  <div style="margin:0 20px 16px;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:#111b2d;border:1px solid #38bdf8;flex-wrap:wrap">
+    <b class="small">38 selected</b>
+    <span style="flex:1"></span>
+    <button class="btn" type="button">Set type</button>
+    <button class="btn" type="button">Accept</button>
+    <button class="btn" type="button">Reject</button>
+    <button class="btn" type="button">Measure quality</button>
+    <button class="btn" type="button">Ask the telescope for RAWs</button>
+    <button class="btn" type="button">Download</button>
+    <button class="btn" type="button">Delete</button>
+    <button class="btn primary" type="button">Stack…</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const data = [
+      ['IMG_0401', '20:58', 598, '3.12', '1.81', '0.30', '17.1%', '38.2', 'ok'],
+      ['IMG_0402', '20:59', 605, '3.08', '1.79', '0.29', '17.2%', '38.9', 'ok'],
+      ['IMG_0403', '20:59', 611, '3.10', '1.80', '0.31', '17.2%', '38.5', 'ok'],
+      ['IMG_0404', '21:00', 589, '3.18', '1.84', '0.33', '17.3%', '37.6', 'ok'],
+      ['IMG_0405', '21:01', 402, '4.41', '2.52', '0.58', '17.3%', '24.0', 'bad'],
+      ['IMG_0406', '21:02', 602, '3.09', '1.79', '0.30', '17.4%', '38.7', 'ok'],
+      ['IMG_0407', '21:02', 608, '3.06', '1.78', '0.29', '17.5%', '39.1', 'ok'],
+      ['IMG_0408', '21:03', 377, '4.93', '2.80', '0.37', '17.5%', '21.3', 'bad'],
+      ['IMG_0409', '21:04', 610, '3.11', '1.80', '0.30', '17.6%', '38.4', 'ok'],
+      ['IMG_0410', '21:05', 606, '3.13', '1.81', '0.32', '17.7%', '38.0', 'ok'],
+      ['IMG_0411', '21:05', 600, '3.15', '1.82', '0.31', '17.8%', '37.8', 'ok'],
+      ['IMG_0412', '21:09', 612, '3.05', '1.77', '0.31', '18.2%', '39.4', 'ok']
+    ];
+    const rows = data.map(d => ({
+      name: d[0], time: d[1], stars: d[2], fwhm: d[3], hfr: d[4], ecc: d[5], bg: d[6], snr: d[7], q: d[8],
+      cls: d[8] === 'bad' ? 'rej' : (d[0] === 'IMG_0412' ? 'cur' : '')
+    }));
+    return { rows };
+  }
+}
+</script>
+</body>
+</html>

@@ -11,14 +11,6 @@
                 <small class="text-muted">(Admin Only)</small>
             </h1>
             
-            <!-- Flash messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-              {% if messages %}
-                {% for category, message in messages %}
-                  <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
-                {% endfor %}
-              {% endif %}
-            {% endwith %}
 
             <!-- Breadcrumb -->
             <nav aria-label="breadcrumb">

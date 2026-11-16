@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Album library, basic mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Sora:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#38bdf8}a:hover{color:#34d399}
+.app{font-family:'Manrope',sans-serif;color:#edf2ff;background:#05070d;min-height:980px;display:flex;flex-direction:column}
+.nav{display:flex;align-items:center;gap:8px;padding:10px 28px;border-bottom:1px solid #22314a;background:#0b1120;flex-wrap:wrap}
+.brand{font-family:'Sora',sans-serif;font-weight:700;letter-spacing:.04em;margin-right:18px}
+.navlink{color:#9daccc;font-weight:600;font-size:14px;padding:6px 12px;border-radius:999px;text-decoration:none}
+.navlink.on{color:#edf2ff;background:rgba(52,211,153,.18)}
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:12px 28px;border-bottom:1px solid #22314a;background:#080c16}
+.seg{display:inline-flex;border:1px solid #22314a;border-radius:999px;padding:3px;background:#0f1626}
+.seg button{font:inherit;font-size:13px;font-weight:700;border:0;background:transparent;color:#9daccc;padding:6px 14px;border-radius:999px}
+.seg button.on{background:#34d399;color:#05201a}
+.tab{font:inherit;font-size:14px;font-weight:700;background:none;border:0;border-bottom:2px solid transparent;color:#9daccc;padding:8px 4px}
+.tab.on{color:#edf2ff;border-bottom-color:#38bdf8}
+.card{background:#0f1626;border:1px solid #22314a;border-radius:14px;padding:14px 16px}
+.card h3{font-family:'Sora',sans-serif;font-size:14px;margin:0 0 10px}
+.muted{color:#9daccc}
+.small{font-size:12.5px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;background:#111b2d;border:1px solid #22314a;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 9px}
+.ok{background:#34d399}.warn{background:#fbbf24}.bad{background:#f87171}
+.btn{font:inherit;font-weight:700;font-size:13.5px;border-radius:10px;padding:9px 14px;border:1px solid #22314a;background:#111b2d;color:#edf2ff;cursor:pointer}
+.btn.primary{background:#34d399;border-color:#34d399;color:#05201a}
+.side a{display:flex;justify-content:space-between;padding:8px 10px;border-radius:10px;color:#edf2ff;text-decoration:none;font-size:13.5px;font-weight:600}
+.side a.on{background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.35)}
+.side .count{color:#9daccc;font-weight:500}
+.label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9daccc;margin:14px 10px 6px}
+.tile{position:relative;border-radius:10px;border:1px solid #22314a;overflow:hidden;background:#0f1626}
+.tile.selected{border-color:#38bdf8;box-shadow:0 0 0 2px rgba(56,189,248,.5)}
+.tile .img{aspect-ratio:3/2}
+.tile .cap{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;font-size:11.5px}
+.rej{position:absolute;inset:0 0 auto 0;aspect-ratio:3/2;background:rgba(5,7,13,.55);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fca5a5}
+.grouprow{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #22314a;border-radius:12px;background:#0f1626}
+.sky{background-color:#02040a;background-image:radial-gradient(circle at 18% 22%,#fff 0 1.2px,transparent 1.8px),radial-gradient(circle at 38% 62%,#fff 0 1px,transparent 1.6px),radial-gradient(circle at 62% 30%,#fff 0 1.5px,transparent 2.2px),radial-gradient(circle at 80% 72%,#ffe2bd 0 1.1px,transparent 1.7px),radial-gradient(circle at 70% 12%,#fff 0 .9px,transparent 1.4px),radial-gradient(circle at 12% 80%,#fff 0 1px,transparent 1.5px),radial-gradient(ellipse at 52% 50%,rgba(170,80,110,.45),transparent 38%),radial-gradient(ellipse at 48% 54%,rgba(80,130,210,.25),transparent 48%)}
+.trail{background-image:linear-gradient(160deg,transparent 46%,rgba(255,255,255,.75) 48%,transparent 50%),radial-gradient(circle at 18% 22%,#fff 0 1.2px,transparent 1.8px),radial-gradient(circle at 62% 30%,#fff 0 1.5px,transparent 2.2px),radial-gradient(ellipse at 52% 50%,rgba(170,80,110,.45),transparent 38%);background-color:#02040a}
+.dark{background:#050608}
+</style>
+</helmet>
+<div class="app">
+  <nav class="nav" aria-label="Site">
+    <span class="brand">SELENO</span>
+    <a class="navlink" href="#">Home</a>
+    <a class="navlink" href="#">Interface</a>
+    <a class="navlink" href="#">Star Map</a>
+    <a class="navlink" href="#">Book</a>
+    <a class="navlink on" href="#">Album</a>
+    <span style="flex:1"></span>
+    <span class="muted small">alex</span>
+  </nav>
+
+  <div class="toolbar">
+    <span style="font-family:'Sora',sans-serif;font-size:20px;font-weight:700;margin-right:12px">Album</span>
+    <button class="tab on" type="button">Photos</button>
+    <button class="tab" type="button">Stacked images</button>
+    <button class="tab" type="button">Activity <span class="chip" style="padding:1px 7px;margin-left:4px">1 running</span></button>
+    <span style="flex:1"></span>
+    <div class="seg" role="group" aria-label="Album mode"><button class="on" type="button">Basic</button><button type="button">Advanced</button></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:18px;padding:16px 28px;flex:1">
+    <aside class="side" style="flex:0 0 230px">
+      <div class="label">Nights</div>
+      <a class="on" href="#"><span>Tonight, 18 Oct</span><span class="count">92</span></a>
+      <a href="#"><span>Fri 10 Oct</span><span class="count">31</span></a>
+      <a href="#"><span>Sun 15 Jun</span><span class="count">12</span></a>
+      <a href="#"><span>Sun 26 Apr</span><span class="count">6</span></a>
+      <div class="label">Targets</div>
+      <a href="#"><span>M42 Orion Nebula</span><span class="count">104</span></a>
+      <a href="#"><span>Moon</span><span class="count">19</span></a>
+      <a href="#"><span>Jupiter</span><span class="count">3 videos</span></a>
+      <div class="label">Everything</div>
+      <a href="#"><span>All photos</span><span class="count">141</span></a>
+    </aside>
+
+    <main style="flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:14px">
+      <div class="card" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="flex:1;min-width:260px">
+          <div style="font-family:'Sora',sans-serif;font-size:19px;font-weight:700">M42 · night of 18 October</div>
+          <div class="muted small">40 photos (20 min of light) · 20 darks · 30 bias · 2 photos look bad</div>
+        </div>
+        <button class="btn" type="button">Download all</button>
+        <button class="btn primary" type="button">Stack this night</button>
+      </div>
+
+      <div class="row" style="display:flex;align-items:baseline;justify-content:space-between">
+        <h2 style="font-family:'Sora',sans-serif;font-size:15px;margin:0">Photos of M42 <span class="muted small" style="font-weight:500">30 s · ISO 800</span></h2>
+        <span class="small muted"><span class="dot ok"></span> good <span class="dot warn" style="margin-left:8px"></span> so-so <span class="dot bad" style="margin-left:8px"></span> bad</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px">
+        <sc-for list="{{lights}}" as="p" hint-placeholder-count="12">
+          <div class="tile {{p.sel}}">
+            <div class="img {{p.look}}"></div>
+            <sc-if value="{{p.rejected}}" hint-placeholder-val="{{false}}"><div class="rej">{{p.why}}</div></sc-if>
+            <div class="cap"><span>{{p.name}}</span><span class="dot {{p.q}}"></span></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div class="grouprow"><div class="dark" style="width:60px;aspect-ratio:3/2;border-radius:6px;border:1px solid #22314a"></div><div style="flex:1"><b>20 darks</b> <span class="muted small">30 s · ISO 800 · cover on · match your photos</span></div><button class="btn" type="button">Show</button></div>
+      <div class="grouprow"><div class="dark" style="width:60px;aspect-ratio:3/2;border-radius:6px;border:1px solid #22314a"></div><div style="flex:1"><b>30 bias frames</b> <span class="muted small">1/8000 s · ISO 800</span></div><button class="btn" type="button">Show</button></div>
+    </main>
+
+    <aside style="flex:0 0 320px;display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="sky" style="aspect-ratio:3/2;border-radius:10px;border:1px solid #22314a;margin-bottom:12px"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><b>IMG_0412</b><span class="chip"><span class="dot ok"></span>Good</span></div>
+        <div class="muted small" style="margin:4px 0 12px">21:09 · 30 s · ISO 800 · RAW + JPEG</div>
+        <div class="small" style="padding:6px 0;border-top:1px solid #1a263b">Sharp, round stars. One of the best photos of the night.</div>
+        <label class="small muted" for="tgt" style="display:block;margin-top:10px">Target</label>
+        <input id="tgt" value="M42" style="font:inherit;width:100%;box-sizing:border-box;background:#05070d;color:#edf2ff;border:1px solid #22314a;border-radius:8px;padding:7px 9px">
+        <label class="small muted" for="notes" style="display:block;margin-top:8px">Notes</label>
+        <textarea id="notes" style="font:inherit;width:100%;box-sizing:border-box;height:60px;background:#05070d;color:#edf2ff;border:1px solid #22314a;border-radius:8px;padding:7px 9px">Slight haze after 21:30</textarea>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn primary" type="button">Edit this photo</button>
+          <button class="btn" type="button">View full size</button>
+          <button class="btn" type="button">Download</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div style="margin:0 28px 18px;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:#111b2d;border:1px solid #38bdf8;flex-wrap:wrap">
+    <b>3 selected</b>
+    <span style="flex:1"></span>
+    <button class="btn" type="button">Mark as bad</button>
+    <button class="btn" type="button">Download</button>
+    <button class="btn" type="button">Delete</button>
+    <button class="btn primary" type="button">Stack these</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const q = ['ok', 'ok', 'ok', 'warn', 'ok', 'ok', 'bad', 'ok', 'ok', 'ok', 'warn', 'ok'];
+    const lights = q.map((quality, i) => ({
+      name: 'IMG_' + String(401 + i).padStart(4, '0'),
+      q: quality,
+      look: quality === 'bad' ? 'trail' : 'sky',
+      rejected: quality === 'bad',
+      why: 'Satellite trail',
+      sel: (i === 1 || i === 4 || i === 11) ? 'selected' : ''
+    }));
+    return { lights };
+  }
+}
+</script>
+</body>
+</html>

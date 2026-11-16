@@ -1,0 +1,8 @@
+<!doctype html><html><body><pre id="out">pending</pre><script>
+(async () => {
+  const out = [];
+  out.push('VideoDecoder: ' + (typeof VideoDecoder));
+  try { const s = await VideoDecoder.isConfigSupported({codec: 'avc1.42E01F'}); out.push('h264 supported: ' + s.supported); } catch (e) { out.push('probe error ' + e); }
+  document.getElementById('out').textContent = out.join('\n');
+})();
+</script></body></html>

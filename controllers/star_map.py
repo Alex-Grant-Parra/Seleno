@@ -1,26 +1,28 @@
 import logging
 from flask import Blueprint, Response, jsonify, render_template, request, session
+from flask_babel import gettext as _
+from app.i18n import cache_by_language, request_language
 from datetime import datetime, timezone
 from typing import Optional
-from models.tables import HDSTARtable, IndexTable, NGCtable
-from app.db import db
-from app import star_catalog
-from sqlalchemy import func
+from models import star_catalog
 
 from astrophysics.planetary_model import getAllCelestialData
 from astrophysics.V1_Keplarian.convert import convert
-from app.telescopeLink import Telescope
+from app.telescopeLink import Telescope, result_error
+from app.telescope_access import telescope_access_error
 
 logger = logging.getLogger(__name__)
 
 star_map_bp = Blueprint("star_map", __name__)
 
+# Bodies the Pi locates itself with trackObject, from its own site: the Moon's
+# parallax alone shifts it by up to about 1 degree
+_TRACK_BY_NAME = {"moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"}
 
-def _require_telescope_control_access():
-    from flask_login import current_user
-    if getattr(current_user, 'is_limited', False):
-        return jsonify({"status": "error", "message": "Limited accounts cannot control telescopes."}), 403
-    return None
+
+def _require_telescope_control_access(telescope_id):
+    # Owner, approved booking covering now, or admin; None when allowed
+    return telescope_access_error(telescope_id)
 
 _CELESTIAL_DEFAULT_VMAGS = {
     "sun": -26.74,
@@ -76,9 +78,7 @@ def loadStarsFromTables(tables=None):
 
 def get_all_celestial_objects(_dt: Optional[datetime] = None):
 
-    tables = [HDSTARtable, IndexTable, NGCtable]
-
-    all_objects = loadStarsFromTables(tables)
+    all_objects = loadStarsFromTables()
 
     # Get celestial objects positions for current UTC date/time
     if _dt is None:
@@ -91,10 +91,7 @@ def get_all_celestial_objects(_dt: Optional[datetime] = None):
         mag = _celestial_magnitude(obj_name, coords)
 
         ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        if dec_d < 0:
-            dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-        else:
-            dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
         obj_payload = {
             "name": obj_name.capitalize(),
@@ -108,24 +105,6 @@ def get_all_celestial_objects(_dt: Optional[datetime] = None):
 
     return all_objects
 
-
-def _star_magnitude(star, default=None):
-    """Magnitude of an ORM row, or `default` when it is unknown.
-
-    Unknown means NULL, or one of the Henry Draper "not recorded" placeholders
-    (20/30/40/50) that HDSTARTable stores in place of a real magnitude.
-    """
-    value = getattr(star, "V_Mag", None)
-    if value is None:
-        return default
-    try:
-        value = float(value)
-    except Exception:
-        return default
-    is_hd = getattr(type(star), "__tablename__", "") == "HDSTARTable"
-    if is_hd and value in star_catalog.HD_PLACEHOLDER_MAGS:
-        return default
-    return value
 
 @star_map_bp.route("/api/stars")
 def get_stars():
@@ -166,10 +145,7 @@ def get_stars():
             mag = _celestial_magnitude(obj_name, coords)
 
             ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-            if dec_d < 0:
-                dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-            else:
-                dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+            dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
             obj_payload = {
                 "name": obj_name.capitalize(),
@@ -280,7 +256,7 @@ def get_star_bands():
     bands = []
     cursor = 0
     for edge in edges:
-        _, hi = catalog.band_range(catalog.min_mag, edge)
+        _lo, hi = catalog.band_range(catalog.min_mag, edge)
         if hi <= cursor:
             continue
         bands.append({"start": cursor, "end": hi, "count": hi - cursor,
@@ -310,10 +286,10 @@ def get_constellations():
     """Constellation figures for the star map, from ConstellationsTable and
     ConstellationLinesTable. Each line is returned as the coordinates of the two
     catalogue stars it joins."""
-    figures = star_catalog.get_constellations()
+    figures = star_catalog.get_constellations(request_language())
     resp = jsonify({"count": len(figures), "constellations": figures})
     resp.headers["Cache-Control"] = "public, max-age=86400"
-    return resp
+    return cache_by_language(resp)
 
 
 @star_map_bp.route("/api/star_names")
@@ -325,13 +301,13 @@ def get_star_names():
     client can label the brightest ones without another lookup.
     """
     catalog = star_catalog.get_catalog()
-    index = {name: i for i, name in enumerate(catalog.names)}
+    lang = request_language()
     entries = []
     for designation, record in star_catalog.get_star_names().items():
-        proper = record.get("name")
+        proper = star_catalog.display_name(designation, lang)
         if not proper:
             continue
-        i = index.get(designation)
+        i = catalog.find(designation)
         if i is None:
             continue
         mag = catalog.mag[i]
@@ -344,7 +320,23 @@ def get_star_names():
     entries.sort(key=lambda e: (e["mag"] is None, e["mag"] if e["mag"] is not None else 0))
     resp = jsonify({"count": len(entries), "stars": entries})
     resp.headers["Cache-Control"] = "public, max-age=86400"
-    return resp
+    return cache_by_language(resp)
+
+
+@star_map_bp.route("/api/search_suggest")
+def search_suggest():
+    """Up to 8 objects for the search box's suggestions as the visitor types:
+    names in any language (forgiving small typos) or an exact catalogue
+    number. Each has its kind, key, displayed name (in ?lang=) and the name
+    the query matched."""
+    query = (request.args.get("q") or "").strip()[:120]
+    if len(query) < 2:
+        return jsonify({"query": query, "matches": []})
+    matches = star_catalog.search(query, request_language(), limit=8)
+    resp = jsonify({"query": query, "matches": [
+        {key: m[key] for key in ("kind", "key", "name", "matched", "match")} for m in matches]})
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return cache_by_language(resp)
 
 
 @star_map_bp.route("/api/stars_meta")
@@ -360,6 +352,41 @@ def get_stars_meta():
         "knownCount": catalog.known_count,
         "unknownCount": catalog.unknown_count,
     })
+
+_geomag_model = None
+
+
+def _get_geomag_model():
+    # WMM2025 (valid 2025-2030), parsed once on first use
+    global _geomag_model
+    if _geomag_model is None:
+        from pygeomag import GeoMag
+        _geomag_model = GeoMag(coefficients_file="wmm/WMM_2025.COF")
+    return _geomag_model
+
+
+@star_map_bp.route("/api/magnetic_declination")
+def get_magnetic_declination():
+    """Magnetic declination at a location, from the World Magnetic Model.
+
+    Phone compasses point at magnetic north; the star map's phone-orientation
+    mode adds this (degrees, east positive) to turn their headings into true
+    ones. Returns 400 unless lat and lon are given and in range.
+    """
+    lat = request.args.get("lat", type=float)
+    lon = request.args.get("lon", type=float)
+    # Written as "not in range" so NaN is rejected too
+    if lat is None or lon is None or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+        return jsonify({"error": "lat and lon are required"}), 400
+
+    from pygeomag import decimal_year_from_date
+    year = decimal_year_from_date(datetime.now(timezone.utc))
+    result = _get_geomag_model().calculate(
+        glat=lat, glon=lon, alt=0, time=year, allow_date_outside_lifespan=True)
+    resp = jsonify({"declination": round(result.d, 3), "model": "WMM2025"})
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
 
 @star_map_bp.route("/api/planets")
 def get_planets():
@@ -377,6 +404,7 @@ def get_planets():
         _dt = datetime.utcnow()
 
     celestial_data = getAllCelestialData(_dt.year, _dt.month, _dt.day, _dt.hour, _dt.minute, _dt.second)
+    lang = request_language()
     planets = []
     for obj_name, coords in celestial_data.items():
         ra_h, ra_m, ra_s = coords["ra"]
@@ -384,13 +412,11 @@ def get_planets():
         mag = _celestial_magnitude(obj_name, coords)
 
         ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        if dec_d < 0:
-            dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-        else:
-            dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
         obj_payload = {
-            "name": obj_name.capitalize(),
+            "name": obj_name.capitalize(),  # the ID: tracking and /star_info use it
+            "label": star_catalog.body_name(obj_name, lang) or obj_name.capitalize(),
             "ra": ra_deg,
             "dec": dec_deg,
             "mag": mag,
@@ -406,23 +432,6 @@ def star_map():
     selected_telescope = session.get('selected_telescope')
     return render_template("star_map.html", stars=[], selected_telescope=selected_telescope)
 
-def extract_friendly_common_name(common_names_field: str) -> str:
-    # Extract the first friendly name from commonNames field; skip catalog designations
-    if not common_names_field:
-        return ''
-    parts = [p.strip() for p in common_names_field.split(',')]
-    for name in parts:
-        name_upper = name.upper()
-        # Skip catalog designations (HD, NGC, IC, M followed by number)
-        if (name_upper.startswith('HD') or 
-            name_upper.startswith('NGC') or 
-            name_upper.startswith('IC') or 
-            (name_upper.startswith('M') and len(name) > 1 and name[1:].strip().replace(' ', '').isdigit())):
-            continue
-        # Found a friendly name
-        return name
-    return ''
-
 @star_map_bp.route("/star_info/<star_name>")
 def star_info(star_name):
     _now = datetime.utcnow()
@@ -435,13 +444,11 @@ def star_info(star_name):
         mag = _celestial_magnitude(obj_name_lower, coords)
 
         ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        if dec_d < 0:
-            dec_deg = dec_d - dec_m / 60 - dec_s / 3600
-        else:
-            dec_deg = dec_d + dec_m / 60 + dec_s / 3600
+        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
 
         obj_payload = {
             "name": star_name.capitalize(),
+            "label": star_catalog.body_name(obj_name_lower, request_language()) or star_name.capitalize(),
             "ra": ra_deg,
             "dec": dec_deg,
             "mag": mag,
@@ -449,39 +456,32 @@ def star_info(star_name):
         }
         return jsonify(_add_celestial_phase_fields(obj_payload, coords))
 
-    tables = [HDSTARtable, IndexTable, NGCtable]
+    # Served from the in-memory catalogue rather than the three tables
+    entry = star_catalog.lookup(star_name)
+    if entry is not None:
+        mag = entry["mag"]  # None when the catalogue has no magnitude
+        record = entry["record"]
 
-    for table in tables:
-        result = table.query.filter_by(Name=star_name).first()
-        if result:
-            mag = _star_magnitude(result)  # None when the catalogue has no magnitude
-            record = star_catalog.star_name_record(result.Name) or {}
-
-            response_data = {
-                "name": result.Name,
-                "ra": float(result.RA) if result.RA is not None else 0,
-                "dec": float(result.DEC) if result.DEC is not None else 0,
-                "mag": mag,
-                "type": "star"
-            }
-            if mag is None:
-                response_data["magUnknown"] = True
-            if record.get("magSource"):
-                # V-Mag was filled in by scripts/import_star_names.py
-                response_data["magSource"] = record["magSource"]
-            if record.get("bayer"):
-                response_data["bayer"] = record["bayer"]
-            if record.get("var"):
-                response_data["variableId"] = record["var"]
-
-            friendly_name = record.get("name")
-            if not friendly_name:
-                common_names_raw = getattr(result, 'commonNames', None) or getattr(result, 'Common_names', None)
-                if common_names_raw:
-                    friendly_name = extract_friendly_common_name(common_names_raw)
-            if friendly_name:
-                response_data['friendlyName'] = friendly_name
-            return jsonify(response_data)
+        response_data = {
+            "name": entry["name"],
+            "ra": entry["ra"],
+            "dec": entry["dec"],
+            "mag": mag,
+            "type": "star"
+        }
+        if mag is None:
+            response_data["magUnknown"] = True
+        if record.get("magSource"):
+            # V-Mag was filled in by scripts/import_star_names.py
+            response_data["magSource"] = record["magSource"]
+        if record.get("bayer"):
+            response_data["bayer"] = record["bayer"]
+        if record.get("var"):
+            response_data["variableId"] = record["var"]
+        friendly = star_catalog.display_name(entry["name"], request_language())
+        if friendly:
+            response_data['friendlyName'] = friendly
+        return jsonify(response_data)
 
     return jsonify({"error": "Star not found"}), 404
 
@@ -492,13 +492,9 @@ def track_star():
         return jsonify({
             "status": "error",
             "error": "Must be logged in",
-            "message": "Must be logged in to control telescope"
+            "message": _("Must be logged in to control telescope")
         }), 401
 
-    guard = _require_telescope_control_access()
-    if guard:
-        return guard
-    
     data = request.get_json()
     ra = data.get("ra")
     dec = data.get("dec")
@@ -520,23 +516,43 @@ def track_star():
             "status": "error",
             "error": "No telescope selected",
             "redirect": True,
-            "message": "Please select a telescope in the Interface page to begin tracking"
+            "message": _("Please select a telescope in the Interface page to begin tracking")
         }), 422
-    
+
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
     try:
         # Create telescope instance and send coordinates
         t = Telescope(telescope_id)
-        print(f"\n[TRACKING] Sending {name} coordinates to telescope {telescope_id}")
-        print(f"[TRACKING] RA: {ra}°, DEC: {dec}°, Mag: {mag}\n", flush=True)
-        
-        # Send track command with coordinates to the telescope
-        result = t.send_command("trackCoordinates", kwargs={
-            "name": name,
-            "ra": ra,
-            "dec": dec,
-            "mag": mag
-        })
-        
+        if str(name or "").strip().lower() in _TRACK_BY_NAME:
+            print(f"\n[TRACKING] Sending {name} to telescope {telescope_id} by name\n", flush=True)
+            result = t.scope.track_object(str(name).strip())
+        else:
+            print(f"\n[TRACKING] Sending {name} coordinates to telescope {telescope_id}")
+            print(f"[TRACKING] RA: {ra}°, DEC: {dec}°, Mag: {mag}\n", flush=True)
+
+            # Send track command with coordinates to the telescope
+            result = t.send_command("trackCoordinates", kwargs={
+                "name": name,
+                "ra": ra,
+                "dec": dec,
+                "mag": mag
+            })
+
+        # A go-to below the horizon, near the Sun, while parked... is refused as a result
+        refusal = result_error(result)
+        if refusal:
+            print(f"[TRACKING] Telescope refused {name}: {refusal}", flush=True)
+            return jsonify({
+                "status": "error",
+                "error": refusal,
+                "message": refusal,
+                "telescope_id": telescope_id,
+                "result": result
+            })
+
         # Store in sesh
         session["selectedObject"] = {
             "name": name,
@@ -559,7 +575,7 @@ def track_star():
         return jsonify({
             "status": "error",
             "error": "Tracking command failed",
-            "message": "Failed to send tracking command"
+            "message": _("Failed to send tracking command")
         }), 500
 
 @star_map_bp.route("/get_tracking_status", methods=["GET"])
@@ -587,10 +603,6 @@ def get_tracking_status():
 
 @star_map_bp.route("/stop_tracking", methods=["POST"])
 def stop_tracking():
-    guard = _require_telescope_control_access()
-    if guard:
-        return guard
-
     # Stop tracking the current object
     # Check if a telescope is selected
     selected_telescope = session.get('selected_telescope')
@@ -601,25 +613,39 @@ def stop_tracking():
         return jsonify({
             "status": "error",
             "error": "No telescope selected",
-            "message": "No telescope selected"
+            "message": _("No telescope selected")
         }), 422
-    
+
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
     try:
         # Create telescope instance and send stop tracking command
         t = Telescope(telescope_id)
         print(f"\n[TRACKING] Stopping tracking on telescope {telescope_id}\n", flush=True)
-        
+
         # Send stop tracking command to the telescope
         result = t.send_command("stopTracking")
-        
+
         # Clear session tracking data
         session.pop("selectedObject", None)
-        
+
+        refusal = result_error(result)
+        if refusal:
+            return jsonify({
+                "status": "error",
+                "error": refusal,
+                "message": refusal,
+                "telescope_id": telescope_id,
+                "result": result
+            })
+
         print(f"[TRACKING] Tracking stopped successfully")
         
         return jsonify({
             "status": "stopped",
-            "message": "Tracking stopped successfully",
+            "message": _("Tracking stopped successfully"),
             "telescope_id": telescope_id,
             "result": result
         })
@@ -631,7 +657,7 @@ def stop_tracking():
         return jsonify({
             "status": "error",
             "error": "Stop tracking command failed",
-            "message": "Failed to stop tracking"
+            "message": _("Failed to stop tracking")
         }), 500
 
 @star_map_bp.route("/api/telescope_position", methods=["GET"])
@@ -645,9 +671,13 @@ def get_telescope_position():
         return jsonify({
             "status": "error",
             "error": "No telescope selected",
-            "message": "No telescope selected"
+            "message": _("No telescope selected")
         }), 422
-    
+
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
     try:
         # Create telescope instance and get current coordinates
         t = Telescope(telescope_id)
@@ -705,7 +735,7 @@ def get_telescope_position():
                 return jsonify({
                     "status": "error",
                     "error": "Failed to parse coordinates as numbers",
-                    "message": "Telescope returned non-numeric coordinates",
+                    "message": _("Telescope returned non-numeric coordinates"),
                     "telescope_id": telescope_id
                 }), 500
         else:
@@ -721,8 +751,39 @@ def get_telescope_position():
         return jsonify({
             "status": "error",
             "error": "Failed to get telescope position",
-            "message": "Failed to get telescope position"
+            "message": _("Failed to get telescope position")
         }), 500
+
+@star_map_bp.route("/api/telescope_dead_zones", methods=["GET"])
+def get_telescope_dead_zones():
+    # The selected telescope's dead zones (alt/az boxes at its own site) and the
+    # site, for the star map to tint. From the telescope's latest status push;
+    # an older telescope that doesn't report them has none to show.
+    from app.WebsocketServer import get_latest_status
+    from app.dead_zones import site_from_status, zones_from_status
+
+    selected_telescope = session.get('selected_telescope')
+    telescope_id = selected_telescope.get('telescope_id') if selected_telescope else None
+    if not telescope_id:
+        return jsonify({"status": "error", "error": "No telescope selected",
+                        "message": _("No telescope selected")}), 422
+    guard = _require_telescope_control_access(telescope_id)
+    if guard:
+        return guard
+
+    age_s, status = get_latest_status(telescope_id)
+    zones = zones_from_status(status)
+    resp = jsonify({
+        "status": "success",
+        "telescope_id": telescope_id,
+        "reported": zones is not None,
+        "zones": zones or [],
+        "site": site_from_status(status),
+        "age_s": round(age_s, 1) if age_s is not None else None,
+    })
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
 
 @star_map_bp.route("/api/debug/session", methods=["GET"])
 def debug_session():

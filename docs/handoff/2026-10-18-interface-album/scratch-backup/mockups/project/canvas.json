@@ -1,0 +1,22 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-18T01:10:00Z"},
+  "title": "Seleno interface and album mockups",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 980, "title": "Interface · Basic", "expand": "fill"},
+    "InterfaceAdvanced.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 980, "title": "Interface · Advanced", "expand": "fill"},
+    "AlbumBasic.dc.html": {"x": 0, "y": 1400, "w": 1440, "h": 980, "title": "Album library · Basic", "expand": "fill"},
+    "AlbumAdvanced.dc.html": {"x": 1520, "y": 1400, "w": 1440, "h": 980, "title": "Album library · Advanced", "expand": "fill"},
+    "Stack.dc.html": {"x": 0, "y": 2800, "w": 1440, "h": 980, "title": "Stacking settings · Advanced", "expand": "fill"},
+    "Editor.dc.html": {"x": 1520, "y": 2800, "w": 1440, "h": 980, "title": "Editing a stack · Advanced", "expand": "fill"}
+  },
+  "order": ["Main.dc.html", "InterfaceAdvanced.dc.html", "AlbumBasic.dc.html", "AlbumAdvanced.dc.html", "Stack.dc.html", "Editor.dc.html"],
+  "notes": {
+    "rowInterface": {"x": 0, "y": -300, "text": "Interface: getting the data", "kind": "title1", "maxW": 2960},
+    "rowAlbum": {"x": 0, "y": 1100, "text": "Album: the library", "kind": "title1", "maxW": 2960},
+    "rowProcess": {"x": 0, "y": 2500, "text": "Album: stacking and editing", "kind": "title1", "maxW": 2960}
+  },
+  "designSystems": []
+}

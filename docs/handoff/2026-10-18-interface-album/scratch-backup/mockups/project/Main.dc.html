@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Interface, basic mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Sora:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#38bdf8}a:hover{color:#34d399}
+.app{font-family:'Manrope',sans-serif;color:#edf2ff;background:#05070d;min-height:980px;display:flex;flex-direction:column}
+.nav{display:flex;align-items:center;gap:8px;padding:10px 28px;border-bottom:1px solid #22314a;background:#0b1120;flex-wrap:wrap}
+.brand{font-family:'Sora',sans-serif;font-weight:700;letter-spacing:.04em;margin-right:18px}
+.navlink{color:#9daccc;font-weight:600;font-size:14px;padding:6px 12px;border-radius:999px;text-decoration:none}
+.navlink.on{color:#edf2ff;background:rgba(52,211,153,.18)}
+.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:12px 28px;border-bottom:1px solid #22314a;background:#080c16}
+.seg{display:inline-flex;border:1px solid #22314a;border-radius:999px;padding:3px;background:#0f1626}
+.seg button{font:inherit;font-size:13px;font-weight:700;border:0;background:transparent;color:#9daccc;padding:6px 14px;border-radius:999px}
+.seg button.on{background:#34d399;color:#05201a}
+.seg.sm button{padding:4px 10px;font-size:12px}
+.card{background:#0f1626;border:1px solid #22314a;border-radius:14px;padding:14px 16px}
+.card h3{font-family:'Sora',sans-serif;font-size:14px;margin:0 0 10px;letter-spacing:.01em;display:flex;align-items:center;gap:8px}
+.muted{color:#9daccc}
+.small{font-size:12.5px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;background:#111b2d;border:1px solid #22314a;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:0 0 8px}
+.ok{background:#34d399}.warn{background:#fbbf24}.bad{background:#f87171}.off{background:#5b6b8a}
+.btn{font:inherit;font-weight:700;font-size:13.5px;border-radius:10px;padding:9px 14px;border:1px solid #22314a;background:#111b2d;color:#edf2ff;cursor:pointer}
+.btn.primary{background:#34d399;border-color:#34d399;color:#05201a}
+.btn.danger{background:#b91c1c;border-color:#b91c1c;color:#fff}
+.btn.sel{border-color:#34d399;background:rgba(52,211,153,.14)}
+.sel{font:inherit;font-size:13.5px;font-weight:700;color:#edf2ff;background:#0f1626;border:1px solid #22314a;border-radius:10px;padding:7px 10px}
+.num{font:inherit;font-size:13.5px;color:#edf2ff;background:#05070d;border:1px solid #22314a;border-radius:8px;padding:6px 8px;width:64px}
+.step{display:flex;gap:12px;align-items:flex-start;padding:10px 8px;border-radius:10px}
+.step.cur{background:rgba(56,189,248,.10);border:1px solid rgba(56,189,248,.35)}
+.badge{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:0 0 26px;border:1px solid #22314a;color:#9daccc}
+.badge.done{background:#34d399;color:#05201a;border-color:#34d399}
+.badge.cur{background:#38bdf8;color:#04131c;border-color:#38bdf8}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-top:1px solid #1a263b;font-size:13px}
+.sky{background-color:#02040a;background-image:radial-gradient(circle at 12% 18%,#fff 0 1.4px,transparent 2px),radial-gradient(circle at 27% 64%,#dfe8ff 0 1.1px,transparent 1.7px),radial-gradient(circle at 41% 33%,#fff 0 2.2px,rgba(255,255,255,.25) 3px,transparent 5px),radial-gradient(circle at 55% 78%,#ffe9c7 0 1.2px,transparent 1.8px),radial-gradient(circle at 63% 22%,#fff 0 1px,transparent 1.6px),radial-gradient(circle at 71% 52%,#cfe0ff 0 1.6px,transparent 2.4px),radial-gradient(circle at 84% 14%,#fff 0 1.2px,transparent 1.8px),radial-gradient(circle at 90% 70%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 18% 86%,#fff 0 1.3px,transparent 1.9px),radial-gradient(circle at 34% 9%,#fff 0 .9px,transparent 1.4px),radial-gradient(circle at 48% 58%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 77% 88%,#ffd9b0 0 1.4px,transparent 2px),radial-gradient(circle at 6% 47%,#fff 0 1px,transparent 1.5px),radial-gradient(circle at 95% 38%,#fff 0 1.1px,transparent 1.6px),radial-gradient(circle at 59% 41%,#fff 0 .8px,transparent 1.3px),radial-gradient(circle at 22% 39%,#fff 0 .8px,transparent 1.3px),radial-gradient(ellipse at 50% 50%,rgba(120,60,90,.25),transparent 45%)}
+.thumb{border-radius:8px;border:1px solid #22314a;aspect-ratio:3/2}
+</style>
+</helmet>
+<div class="app">
+  <nav class="nav" aria-label="Site">
+    <span class="brand">SELENO</span>
+    <a class="navlink" href="#">Home</a>
+    <a class="navlink on" href="#">Interface</a>
+    <a class="navlink" href="#">Star Map</a>
+    <a class="navlink" href="#">Book</a>
+    <a class="navlink" href="#">Album</a>
+    <span style="flex:1"></span>
+    <span class="muted small">alex</span>
+  </nav>
+
+  <div class="toolbar">
+    <label class="muted small" for="scopeSel">Telescope</label>
+    <select id="scopeSel" class="sel"><option>seleno-01 · online</option></select>
+    <span class="chip"><span class="dot ok"></span>Your booking until 23:30</span>
+    <span class="chip"><span class="dot ok"></span>Mount tracking</span>
+    <span class="chip"><span class="dot ok"></span>Camera ready · 74% battery</span>
+    <span class="chip"><span class="dot ok"></span>Dark sky · night until 05:48</span>
+    <span style="flex:1"></span>
+    <button class="btn danger" type="button">Stop the mount</button>
+    <div class="seg" role="group" aria-label="Interface mode"><button class="on" type="button">Basic</button><button type="button">Advanced</button></div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:16px;padding:16px 28px;flex:1">
+    <div style="flex:0 0 290px;display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <h3>Your session</h3>
+        <div class="step"><span class="badge done">✓</span><div><div style="font-weight:700">Choose a target</div><div class="muted small">M42, the Orion Nebula</div></div></div>
+        <div class="step cur"><span class="badge cur">2</span><div><div style="font-weight:700">Focus</div><div class="muted small">Make the stars as small as they'll go</div></div></div>
+        <div class="step"><span class="badge">3</span><div><div style="font-weight:700">Check the exposure</div><div class="muted small">Take a test shot and read the checks</div></div></div>
+        <div class="step"><span class="badge">4</span><div><div style="font-weight:700">Capture</div><div class="muted small">Set how many photos, then start</div></div></div>
+      </div>
+      <div class="card">
+        <h3>Target</h3>
+        <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:700">M42</div>
+        <div class="muted small" style="margin-bottom:10px">Orion Nebula · emission nebula · 85′ across</div>
+        <div class="row small" style="padding:4px 0"><span class="muted">Height now</span><span>38° and rising</span></div>
+        <div class="row small" style="padding:4px 0"><span class="muted">Highest</span><span>01:12 at 47°</span></div>
+        <div class="row small" style="padding:4px 0"><span class="muted">Above 30°</span><span>4 h 10 min more</span></div>
+        <div class="row small" style="padding:4px 0"><span class="muted">Moon</span><span>12% lit, 64° away</span></div>
+        <div class="chip" style="margin:10px 0 12px"><span class="dot ok"></span>Good conditions for this target</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" type="button" style="flex:1">Change target</button>
+          <button class="btn" type="button" style="flex:1">Centre it</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:14px">
+      <div class="sky" style="position:relative;height:560px;border-radius:14px;border:1px solid #22314a;overflow:hidden">
+        <div style="position:absolute;left:14px;top:12px;display:flex;gap:8px;align-items:center">
+          <span class="chip" style="background:rgba(15,22,38,.8)"><span class="dot bad"></span>Live</span>
+          <div class="seg sm" role="group" aria-label="Zoom"><button type="button">1×</button><button class="on" type="button">5×</button><button type="button">10×</button></div>
+        </div>
+        <div style="position:absolute;right:14px;top:12px;display:flex;gap:8px">
+          <button class="btn" type="button" style="background:rgba(15,22,38,.8);padding:6px 10px;font-size:12.5px">Stop live view</button>
+          <button class="btn" type="button" style="background:rgba(15,22,38,.8);padding:6px 10px;font-size:12.5px">Full screen</button>
+        </div>
+        <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(56,189,248,.35)"></div>
+        <div style="position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(56,189,248,.35)"></div>
+        <div style="position:absolute;left:calc(41% - 18px);top:calc(33% - 18px);width:36px;height:36px;border:2px solid #34d399;border-radius:50%"></div>
+        <div class="chip" style="position:absolute;left:calc(41% + 24px);top:calc(33% - 12px);background:rgba(15,22,38,.85)">HFR 2.4 px</div>
+        <div class="muted small" style="position:absolute;left:14px;bottom:12px;background:rgba(15,22,38,.75);padding:4px 8px;border-radius:6px">Click a star to zoom in on it</div>
+      </div>
+      <div class="card" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+        <div>
+          <div class="muted small">Star size (HFR)</div>
+          <div style="font-family:'Sora',sans-serif;font-size:30px;font-weight:700">2.4 px</div>
+        </div>
+        <svg width="320" height="64" viewBox="0 0 320 64" role="img" aria-label="Star size over the last minute, falling from 5 to 2.1 pixels then rising to 2.4">
+          <polyline points="0,8 30,14 60,22 90,30 120,40 150,50 170,55 190,52 210,46 240,49 270,51 300,48 320,49" fill="none" stroke="#38bdf8" stroke-width="2.5"></polyline>
+          <circle cx="170" cy="55" r="4" fill="#34d399"></circle>
+        </svg>
+        <div style="flex:1;min-width:220px">
+          <div style="font-weight:700">Best so far 2.1 px. You've just gone past it.</div>
+          <div class="muted small">Turn the focuser back slowly. Smaller is sharper; the green dot marks the best point.</div>
+        </div>
+        <button class="btn primary" type="button">Focus is good</button>
+      </div>
+    </div>
+
+    <div style="flex:0 0 340px;display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <h3>Exposure</h3>
+        <div class="muted small" style="margin-bottom:8px">What are you photographing?</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px">
+          <button class="btn" type="button">The Moon</button>
+          <button class="btn" type="button">A planet</button>
+          <button class="btn sel" type="button">Bright nebula</button>
+          <button class="btn" type="button">Galaxy or faint nebula</button>
+        </div>
+        <div class="row small" style="margin-bottom:10px"><span class="muted">Settings</span><span>30 s · ISO 800 · RAW + JPEG</span></div>
+        <button class="btn primary" type="button" style="width:100%">Take a test shot</button>
+      </div>
+      <div class="card">
+        <h3>Last test shot <span class="muted small" style="font-weight:500">21:14</span></h3>
+        <div style="display:flex;gap:12px;margin-bottom:8px">
+          <div class="sky thumb" style="width:120px"></div>
+          <div class="small"><div style="font-weight:700;color:#34d399">Looks good</div><div class="muted">You're ready to capture.</div></div>
+        </div>
+        <div class="check"><span class="dot ok" style="margin-top:5px"></span><div><b>Stars are round</b><div class="muted small">Tracking is steady (eccentricity 0.31)</div></div></div>
+        <div class="check"><span class="dot ok" style="margin-top:5px"></span><div><b>In focus</b><div class="muted small">Stars 3.1 px across (2.6″)</div></div></div>
+        <div class="check"><span class="dot ok" style="margin-top:5px"></span><div><b>Exposure is right</b><div class="muted small">Sky background at 18%</div></div></div>
+        <div class="check"><span class="dot warn" style="margin-top:5px"></span><div><b>A few bright stars are clipped</b><div class="muted small">Normal for 30 s; the nebula core is fine</div></div></div>
+      </div>
+      <div class="card">
+        <h3>Capture</h3>
+        <div class="row small" style="margin-bottom:8px"><label for="nPhotos">Photos</label><span><input id="nPhotos" class="num" type="number" value="40"> × 30 s</span></div>
+        <label class="row small" style="padding:4px 0"><span>Take darks afterwards (20)</span><input type="checkbox" checked></label>
+        <label class="row small" style="padding:4px 0"><span>Take bias frames (30)</span><input type="checkbox" checked></label>
+        <label class="row small" style="padding:4px 0"><span>Nudge the mount between photos</span><input type="checkbox" checked></label>
+        <div class="muted small" style="margin:8px 0 10px">About 42 min and 2.9 GB. Ends well before your booking does.</div>
+        <button class="btn primary" type="button" style="width:100%">Start capturing</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;padding:0 28px 18px;flex-wrap:wrap">
+    <span class="muted small" style="font-weight:700">Tonight</span>
+    <sc-for list="{{frames}}" as="f" hint-placeholder-count="6"><div class="sky thumb" style="width:96px"></div></sc-for>
+    <a href="#" class="small" style="font-weight:700">Open tonight's photos in the album</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { frames: [1, 2, 3, 4, 5, 6] };
+  }
+}
+</script>
+</body>
+</html>

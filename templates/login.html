@@ -1,48 +1,40 @@
 {% extends "base.html" %}
 
-{% block title %}Login - Telescope Control{% endblock %}
+{% block title %}{{ _('Login - Telescope Control') }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="text-center">Login</h1>
+    <h1 class="text-center">{{ _('Login') }}</h1>
     
-    <!-- Flash messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} mt-3">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
     
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <div class="mb-3">
-            <label for="username" class="form-label">Username</label>
+            <label for="username" class="form-label">{{ _('Username') }}</label>
             <input type="text" name="username" class="form-control" required>
         </div>
 
         <div class="mb-3">
-            <label for="password" class="form-label">Password</label>
+            <label for="password" class="form-label">{{ _('Password') }}</label>
             <input type="password" name="password" class="form-control" required>
         </div>
 
         <div class="mb-3 form-check">
             <input type="checkbox" name="trust_device" class="form-check-input" id="trust_device">
             <label class="form-check-label" for="trust_device">
-                Trust this device for 30 days (skip 2FA)
+                {{ _('Trust this device for 30 days (skip 2FA)') }}
             </label>
             <small class="form-text text-muted">
-                Only check this on your personal devices. This will remember this device and skip 2FA for 30 days.
+                {{ _('Only check this on your personal devices. This will remember this device and skip 2FA for 30 days.') }}
             </small>
         </div>
 
-        <button type="submit" class="btn btn-primary w-100">Login</button>
+        <button type="submit" class="btn btn-primary w-100">{{ _('Login') }}</button>
     </form>
 
     <!-- Forgot Password Link -->
     <div class="mt-3 text-center">
-        <a href="{{ url_for('auth.forgot_password') }}">Forgot your password?</a>
+        <a href="{{ url_for('auth.forgot_password') }}">{{ _('Forgot your password?') }}</a>
     </div>
 </div>
 {% endblock %}

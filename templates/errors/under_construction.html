@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _("Under Construction") }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <div class="card shadow">
+                <div class="card-body">
+                    <h1 class="display-4 text-warning"><i class="fas fa-hard-hat"></i></h1>
+                    <h2 class="card-title">{{ _("Under Construction") }}</h2>
+                    <p class="card-text lead">{{ _("This page is being worked on and will be back soon.") }}</p>
+                    <div class="mt-4">
+                        <a href="{{ url_for('home.home') }}" class="btn btn-primary">
+                            <i class="fas fa-home"></i> {{ _("Go to Homepage") }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

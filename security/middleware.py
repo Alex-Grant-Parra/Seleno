@@ -312,6 +312,9 @@ class SecurityMiddleware:
                 abort(429)  # Too Many Requests
         else:
             # Normal rate limiting for legitimate requests - now re-enabled!
+            from .config import RATE_LIMIT_EXEMPT_PATHS
+            if any(request.path.startswith(p) for p in RATE_LIMIT_EXEMPT_PATHS):
+                return
             if self._check_rate_limit(client_ip, is_suspicious=False):
                 self._log_security_event('rate_limit_exceeded', {
                     'reason': 'normal_request_rate',

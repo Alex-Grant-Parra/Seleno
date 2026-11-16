@@ -20,6 +20,7 @@ __pycache__/
 
 instance/uploads/contact/
 instance/data.db
+instance/weather_cache.db*
 
 wiki
 
@@ -28,9 +29,10 @@ downloads
 astrophysics/V3_Helios/data
 initial_conditions.json
 
-# Helios auto-generated cache files
-astrophysics/V3_Helios/rHistory.npz
-astrophysics/V3_Helios/cheb_table.npz
+# Helios auto-generated ephemeris checkpoints (built by astrophysics/V3_Helios/ephemeris.py)
+astrophysics/V3_Helios/ephemeris_cache/
+# Helios C++ extension (built by astrophysics/V3_Helios/build_core.py)
+astrophysics/V3_Helios/helios_core*.so
 
 astrophysics/V3_Helios/tests/
 !astrophysics/V3_Helios/tests/seleno_de440_compare.py
@@ -39,3 +41,8 @@ astrophysics/V3_Helios/tests/
 docs/improvements notes.md
 
 alerts.txt
+# End-to-end test screenshots
+tests/e2e/out/
+
+# Compiled translations (built from the .po on startup)
+translations/**/*.mo

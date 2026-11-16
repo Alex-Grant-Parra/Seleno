@@ -4,7 +4,7 @@
             this.canvas = document.getElementById(config.canvasId);
             this.controlsRoot = document.getElementById(config.controlsRootId);
             this.statsElement = config.statsId ? document.getElementById(config.statsId) : null;
-            this.emptyMessage = config.emptyMessage || 'Waiting for image data...';
+            this.emptyMessage = config.emptyMessage || _('Waiting for image data...');
 
             this.sourceImage = null;
             this.onImageLoad = null;
@@ -106,14 +106,17 @@
 
             if (this.sourceImage && this.onImageLoad) {
                 this.sourceImage.removeEventListener('load', this.onImageLoad);
+                this.sourceImage.removeEventListener('liveframe', this.onImageLoad);
             }
 
             this.sourceImage = imageElement;
             this.onImageLoad = () => this.refresh();
 
             if (this.sourceImage) {
+                // A canvas (the live view player) announces each new frame with 'liveframe'
                 this.sourceImage.addEventListener('load', this.onImageLoad);
-                if (this.sourceImage.complete && this.sourceImage.naturalWidth > 0) {
+                this.sourceImage.addEventListener('liveframe', this.onImageLoad);
+                if (this.sourceReady()) {
                     this.refresh();
                 } else {
                     this.drawPlaceholder(this.emptyMessage);
@@ -126,15 +129,26 @@
         clear(message) {
             this.drawPlaceholder(message || this.emptyMessage);
             if (this.statsElement) {
-                this.statsElement.textContent = 'No image loaded.';
+                this.statsElement.textContent = _('No image loaded.');
             }
+        }
+
+        sourceReady() {
+            const source = this.sourceImage;
+            if (!source) {
+                return false;
+            }
+            if (typeof HTMLCanvasElement !== 'undefined' && source instanceof HTMLCanvasElement) {
+                return source.width > 0 && source.height > 0;
+            }
+            return source.complete && source.naturalWidth > 0;
         }
 
         refresh() {
             if (!this.canvas || !this.controlsRoot) {
                 return;
             }
-            if (!this.sourceImage || !this.sourceImage.complete || this.sourceImage.naturalWidth === 0) {
+            if (!this.sourceReady()) {
                 this.drawPlaceholder(this.emptyMessage);
                 return;
             }
@@ -146,9 +160,9 @@
             this.pendingFrame = requestAnimationFrame(() => {
                 const histogramData = this.buildHistogram();
                 if (!histogramData) {
-                    this.drawPlaceholder('Unable to compute histogram.');
+                    this.drawPlaceholder(_('Unable to compute histogram.'));
                     if (this.statsElement) {
-                        this.statsElement.textContent = 'Unable to read image pixel data.';
+                        this.statsElement.textContent = _('Unable to read image pixel data.');
                     }
                     return;
                 }
@@ -368,7 +382,7 @@
             const mean = histogramData.stats.meanLuminance.toFixed(1);
             const peak = histogramData.stats.peakBin;
             const sampleCount = histogramData.stats.samples.toLocaleString();
-            this.statsElement.textContent = `Mean: ${mean} | Peak bin: ${peak} | Samples: ${sampleCount}`;
+            this.statsElement.textContent = _('Mean: {mean} | Peak bin: {peak} | Samples: {sampleCount}', { mean, peak, sampleCount });
         }
     }
 

@@ -1,0 +1,20 @@
+..{"event":"ws_liveview_connected","ip":"127.0.0.1","client_id":"lv-legacy","client_name":"lv-legacy","client_type":"telescope","token_source":"db"}
+{"event":"ws_liveview_disconnected","ip":"127.0.0.1","client_id":"lv-legacy"}
+.{"event":"ws_liveview_connected","ip":"127.0.0.1","client_id":"lv-scope","client_name":"lv-scope","client_type":"telescope","token_source":"db"}
+{"event":"ws_liveview_disconnected","ip":"127.0.0.1","client_id":"lv-scope"}
+.{"event":"ws_viewer_bad_origin","ip":"127.0.0.1","client_id":"lv-scope","origin":"https:\/\/evil.example"}
+{"event":"ws_viewer_bad_ticket","ip":"127.0.0.1","client_id":"lv-scope"}
+{"event":"ws_viewer_bad_ticket","ip":"127.0.0.1","client_id":"lv-scope"}
+{"event":"ws_liveview_client_id_mismatch","ip":"127.0.0.1","client_id":"lv-scope","token_name":"lv-other"}
+.
+----------------------------------------------------------------------
+Ran 5 tests in 6.757s
+
+OK
+[LiveView] lv-legacy (telescope) connected from 127.0.0.1 (proto 1)
+[LiveView] lv-legacy disconnected from live view.
+[Heartbeat] Stopped for lv-legacy (LiveView)
+[LiveView] lv-scope (telescope) connected from 127.0.0.1 (proto 2)
+[LiveView] Dropped bad frame from lv-scope: bad magic, kind or length
+[LiveView] lv-scope disconnected from live view.
+[Heartbeat] Stopped for lv-scope (LiveView)
