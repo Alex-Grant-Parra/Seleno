@@ -130,6 +130,25 @@
         }
         #mag-context-menu button:hover { background: #555; }
 
+        /* No connection: the map runs from what the service worker stored */
+        #offline-badge {
+            position: fixed;
+            left: 50%;
+            bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+            transform: translateX(-50%);
+            z-index: 1001;
+            max-width: calc(100vw - 32px);
+            padding: 6px 12px;
+            background: rgba(120, 72, 0, 0.85);
+            color: #fff;
+            border-radius: 6px;
+            font-family: sans-serif;
+            font-size: 0.85em;
+            text-align: center;
+            pointer-events: none;
+        }
+        #offline-badge[hidden] { display: none; }
+
         /* Bottom-right star loading throbber */
         #star-loading-indicator {
             -webkit-user-select: none; user-select: none;
@@ -781,6 +800,8 @@
 <!-- Render statistics HUD (opt-in) -->
 <div id="render-stats"></div>
 <!-- Small bottom-right throbber for star loading/processing -->
+<!-- Shown while there is no connection (offline.js) -->
+<div id="offline-badge" role="status" hidden>{{ _('Offline: saved sky data, no telescope') }}</div>
 <div id="star-loading-indicator" aria-live="polite" aria-atomic="true">
     <div class="star-spinner" role="status" aria-hidden="true"></div>
     <div id="star-loading-label">{{ _('Loading stars…') }}</div>
@@ -792,11 +813,11 @@
 <!-- Star map scripts share one global scope and must load in this order
      (controls.js last: it wires up functions defined in the others).
      Cache-busting query param to ensure latest JS is fetched. -->
-{% set star_map_js_version = '2026-11-09-3' %}
+{% set star_map_js_version = '2026-11-16-1' %}
 {% for module in ['core', 'astronomy', 'time_control', 'catalogue', 'planets', 'overlays',
                   'render', 'input', 'object_info', 'telescope', 'dead_zones']
                  + (['zone_editor'] if zone_editor else [])
-                 + ['search', 'device_orientation', 'controls'] %}
+                 + ['search', 'offline', 'device_orientation', 'controls'] %}
 <script src="{{ url_for('static', filename='js/star_map/' ~ module ~ '.js') }}?v={{ star_map_js_version }}" defer></script>
 {% endfor %}
 <script>

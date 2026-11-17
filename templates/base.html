@@ -13,8 +13,12 @@
         (function () {
             try {
                 if ('serviceWorker' in navigator) {
+                    // Only that old worker: /sw.js is the star map's offline worker
                     navigator.serviceWorker.getRegistrations().then(function (regs) {
-                        regs.forEach(function (reg) { reg.unregister(); });
+                        regs.forEach(function (reg) {
+                            var worker = reg.active || reg.waiting || reg.installing;
+                            if (worker && worker.scriptURL.indexOf('/static/js/service-worker.js') !== -1) reg.unregister();
+                        });
                     }).catch(function () {});
                 }
                 if ('caches' in window) {
@@ -69,6 +73,7 @@
                                 {% if current_user.is_authenticated %}<a class="nav-link" href="{{ url_for('interface.interface') }}">{{ _('Interface') }}</a>{% else %}<span class="nav-link nav-link-disabled" aria-disabled="true">{{ _('Interface') }}</span>{% endif %}
                             </li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('star_map.star_map') }}">{{ _('Star Map') }}</a></li>
+                            {% if store_in_nav %}<li class="nav-item"><a class="nav-link" href="{{ url_for('store.store_home') }}">{{ _('Store') }}</a></li>{% endif %}
                             <li class="nav-item">
                                 {% if current_user.is_authenticated %}<a class="nav-link" href="{{ url_for('book.book_page') }}">{{ _('Book') }}</a>{% else %}<span class="nav-link nav-link-disabled" aria-disabled="true">{{ _('Book') }}</span>{% endif %}
                             </li>

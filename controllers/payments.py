@@ -10,6 +10,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from flask_login import current_user, login_required
 
 from app.db import db
+from security.client_ip import client_ip
 from app.sumup_service import (
     SumUpAPIError,
     current_sumup_mode,
@@ -64,10 +65,7 @@ def _parse_amount(value):
 
 
 def _get_client_ip():
-    xff = request.headers.get('X-Forwarded-For')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.remote_addr
+    return client_ip()
 
 
 def _webhook_secret_is_valid():
@@ -316,7 +314,7 @@ def sumup_get_checkout(checkout_id):
         if not is_sumup_feature_enabled():
             return _feature_disabled_response()
         try:
-            creds = resolve_sumup_credentials()
+            creds = resolve_sumup_credentials(is_test_mode=row.is_test_mode)
             remote = retrieve_checkout(creds['api_key'], checkout_id)
             row = SumupCheckout.upsert_from_sumup(
                 remote,
@@ -495,7 +493,7 @@ def payment_return_page():
 
     if is_sumup_feature_enabled():
         try:
-            creds = resolve_sumup_credentials()
+            creds = resolve_sumup_credentials(is_test_mode=row.is_test_mode)
             remote = retrieve_checkout(creds['api_key'], row.checkout_id)
             row = SumupCheckout.upsert_from_sumup(
                 remote,
@@ -777,13 +775,29 @@ def sumup_webhook():
         db.session.commit()
         return ('', 204)
 
+    # Every checkout is created by this server, so one it has never seen is not
+    # ours. Answering without calling SumUp keeps strangers from using this
+    # endpoint to make the server spend its API allowance.
+    existing = SumupCheckout.query.filter_by(checkout_id=str(checkout_id)).first()
+    if existing is None:
+        _log_event(
+            checkout_record_id=None,
+            event_source='webhook',
+            event_type=event_type,
+            verification_status='ignored_unknown_checkout',
+            remote_ip=actor_ip,
+            request_payload=payload,
+        )
+        db.session.commit()
+        return ('', 204)
+
     try:
-        creds = resolve_sumup_credentials()
-        remote = retrieve_checkout(creds['api_key'], checkout_id)
-        existing = SumupCheckout.query.filter_by(checkout_id=checkout_id).first()
+        # The body is only a hint: the status comes from SumUp itself
+        creds = resolve_sumup_credentials(is_test_mode=existing.is_test_mode)
+        remote = retrieve_checkout(creds['api_key'], existing.checkout_id)
         row = SumupCheckout.upsert_from_sumup(
             remote,
-            user_id=(existing.user_id if existing else None),
+            user_id=existing.user_id,
             is_test_mode=creds['is_test_mode'],
         )
         _log_event(
@@ -797,10 +811,20 @@ def sumup_webhook():
             response_payload=remote,
         )
         db.session.commit()
-        return ('', 204)
     except SumUpAPIError:
         db.session.rollback()
         return ('', 500)
     except Exception:
         db.session.rollback()
+        current_app.logger.exception('SumUp webhook failed')
         return ('', 500)
+
+    # A store order's checkout: mark the order paid, take stock, send the emails
+    try:
+        from app.store_service import checkout_changed
+        checkout_changed(row)
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Store order update failed for checkout %s', existing.checkout_id)
+        return ('', 500)
+    return ('', 204)

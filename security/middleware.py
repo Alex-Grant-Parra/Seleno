@@ -8,6 +8,7 @@ from flask_login import current_user
 from pathlib import Path
 from .ip_blacklist import get_blacklist
 from .config import REQUEST_LOGGING_CONFIG
+from .client_ip import client_ip
 from models.logging import RequestLog, SecurityLog
 
 class SecurityMiddleware:
@@ -116,24 +117,9 @@ class SecurityMiddleware:
             self.security_logger.error(f"Error writing request log: {e}")
     
     def _get_client_ip(self) -> str:
-        # Get the real client IP address
-        # Check for various forwarded headers (for reverse proxy scenarios)
-        forwarded_headers = [
-            'CF-Connecting-IP',  # Cloudflare
-            'X-Forwarded-For',   # Standard proxy header
-            'X-Real-IP',         # Nginx
-            'X-Client-IP',       # Alternative
-        ]
-        
-        for header in forwarded_headers:
-            ip = request.headers.get(header)
-            if ip:
-                # Take the first IP if comma-separated
-                return ip.split(',')[0].strip()
-        
-        # Fallback to remote_addr
-        return request.remote_addr or 'unknown'
-    
+        # The visitor's address; forwarding headers count only from our own proxy
+        return client_ip()
+
     def _log_security_event(self, event_type: str, details: Dict[str, Any]):
         # Log security events
         client_ip = self._get_client_ip()

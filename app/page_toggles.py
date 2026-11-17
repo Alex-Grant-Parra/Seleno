@@ -10,7 +10,9 @@ PAGES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "pages.txt"
 
 # Paths that must always work, whatever the file says
 ALWAYS_ON = ("/static", "/login", "/logout", "/register", "/forgot_password",
-             "/reset_password", "/admin", "/security", "/errors", "/sitemap.xml", "/favicon.ico")
+             "/reset_password", "/admin", "/security", "/errors", "/sitemap.xml", "/favicon.ico",
+             # SumUp's server calls this when a payment changes; a 503 would lose the news
+             "/payments/sumup/webhook")
 
 _lock = threading.Lock()
 _cache = {"mtime": None, "states": {}}

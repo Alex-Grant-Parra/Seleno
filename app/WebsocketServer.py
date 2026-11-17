@@ -12,11 +12,12 @@ import logging
 import ipaddress
 from flask import jsonify, request
 from flask_login import current_user
+from security.client_ip import client_ip as http_client_ip, forwarded_ip, is_trusted_proxy
 
 # WebSocket Configuration
 commandPort = 4000
 LiveViewPort = 8000
-WS_IP = os.getenv("WS_IP", "0.0.0.0")  # default to all interfaces
+WS_IP = os.getenv("WS_IP", "127.0.0.1")  # loopback: the Cloudflare tunnel is the only way in
 WS_PORT = commandPort
 LIVEVIEW_WS_PORT = LiveViewPort
 WS_PING_INTERVAL = int(os.getenv("WS_PING_INTERVAL", "20"))
@@ -31,7 +32,6 @@ REQUEST_LIMIT_PER_MINUTE = 60
 
 # Global variables
 pending = {}
-clients = []
 heartbeat_tasks = {}  # Store heartbeat tasks by client_id
 ws_event_loop = None  # Store reference to WebSocket thread's event loop
 
@@ -183,118 +183,25 @@ def _security_log(event, **kwargs):
 
 # Resolve client IP for WebSocket connections using forwarded headers when available
 def get_ws_client_ip(ws):
-    def _ws_headers(ws_obj):
-        # Support both websockets APIs:
-        # - legacy: ws.request_headers
-        # - modern: ws.request.headers
-        try:
-            legacy = getattr(ws_obj, 'request_headers', None)
-            if legacy is not None:
-                return legacy
-        except Exception:
-            pass
-
-        try:
-            request_obj = getattr(ws_obj, 'request', None)
-            headers = getattr(request_obj, 'headers', None) if request_obj is not None else None
-            if headers is not None:
-                return headers
-        except Exception:
-            pass
-
-        return None
-
-    def _get_header_ci(headers_obj, header_name):
-        if headers_obj is None:
-            return None
-
-        # `websockets` headers should be case-insensitive, but normalize manually
-        # to handle version differences and proxy edge-cases reliably.
-        try:
-            direct = headers_obj.get(header_name)
-            if direct:
-                return direct
-        except Exception:
-            pass
-
-        try:
-            target = header_name.lower()
-            for key, value in headers_obj.items():
-                if str(key).lower() == target and value:
-                    return value
-        except Exception:
-            pass
-
-        return None
-
-    def _clean_ip_token(token):
-        value = (token or '').strip().strip('"').strip("'")
-        if not value:
-            return None
-
-        # RFC 7239 Forwarded header values can be like: for=1.2.3.4 or for="[2001:db8::1]:1234"
-        if value.lower().startswith('for='):
-            value = value[4:].strip().strip('"').strip("'")
-
-        # Forwarded entries often include params: for=1.2.3.4;proto=https
-        if ';' in value:
-            value = value.split(';', 1)[0].strip().strip('"').strip("'")
-
-        # Bracketed IPv6 with optional port: [2001:db8::1]:443
-        if value.startswith('['):
-            end = value.find(']')
-            if end > 1:
-                return value[1:end]
-
-        # IPv4 with port: 203.0.113.9:443
-        if value.count(':') == 1 and value.rsplit(':', 1)[1].isdigit():
-            return value.rsplit(':', 1)[0]
-
-        return value
-
-    def _collect_ips(raw_value):
-        if not raw_value:
-            return []
-        parts = [part.strip() for part in str(raw_value).split(',') if part.strip()]
-        cleaned = []
-        for part in parts:
-            token = _clean_ip_token(part)
-            if token:
-                cleaned.append(token)
-        return cleaned
-
-    def _pick_best_ip(candidates):
-        valid_ips = []
-        for candidate in candidates:
+    """The telescope's address. Forwarding headers count only when the socket
+    came from our own proxy (the tunnel connects from loopback); sent straight
+    to the port they would be whatever the sender wrote (security/client_ip.py)."""
+    peer = ws.remote_address[0] if ws.remote_address else ''
+    if is_trusted_proxy(peer):
+        headers = None
+        request_obj = getattr(ws, 'request', None)
+        if request_obj is not None:
+            headers = getattr(request_obj, 'headers', None)
+        if headers is None:
+            headers = getattr(ws, 'request_headers', None)
+        if headers is not None:
             try:
-                valid_ips.append(ipaddress.ip_address(candidate))
-            except ValueError:
-                continue
-
-        for ip_obj in valid_ips:
-            if not ip_obj.is_loopback:
-                return str(ip_obj)
-
-        if valid_ips:
-            return str(valid_ips[0])
-
-        return None
-
-    # Prefer forwarded client IP headers, then fall back to the socket peer address.
-    try:
-        headers = _ws_headers(ws)
-        candidate_ips = []
-
-        for header in ('CF-Connecting-IP', 'True-Client-IP', 'X-Real-IP', 'X-Client-IP', 'X-Forwarded-For', 'Forwarded'):
-            candidate_ips.extend(_collect_ips(_get_header_ci(headers, header)))
-
-        selected = _pick_best_ip(candidate_ips)
-        if selected:
-            return selected
-    except Exception:
-        pass
-
-    return ws.remote_address[0] if ws.remote_address else "unknown"
+                reported = forwarded_ip(headers)
+            except Exception:
+                reported = None
+            if reported:
+                return reported
+    return peer or "unknown"
 
 def check_rate_limit(client_ip):
     # Rate limiting check for WebSocket connections
@@ -410,9 +317,24 @@ class ClientManager:
             self.clients[client_id] = Client(client_id, ws)
             return True
 
-    def remove_client(self, client_id):
+    def remove_client(self, client_id, ws=None):
+        # With ws, only remove the entry if it is still that socket: a reconnect
+        # may already have replaced it, and the old handler's cleanup must not
+        # remove the new connection.
         with self._lock:
+            current = self.clients.get(client_id)
+            if current is None:
+                return
+            if ws is not None and current.ws is not ws:
+                return
             self.clients.pop(client_id, None)
+
+    def replace_client(self, client_id, ws):
+        # Put this socket in place of any earlier one; return the earlier socket
+        with self._lock:
+            previous = self.clients.get(client_id)
+            self.clients[client_id] = Client(client_id, ws)
+            return previous.ws if previous is not None and previous.ws is not ws else None
 
     def command(self, client_id, function_name, args=None, kwargs=None, timeout=DEFAULT_COMMAND_TIMEOUT):
         # Send command to client using threadsafe async call; raises ClientError
@@ -568,11 +490,27 @@ async def handle_client(ws):
         await ws.close(code=4000, reason='Authentication error')
         return
     
-    # Authentication successful; refuse silent replacement of existing client_id
-    if not client_manager.try_add_client(client_id, ws):
-        _security_log('ws_command_client_id_already_connected', ip=client_ip, client_id=client_id)
-        await ws.close(code=4009, reason='Client ID already connected')
+    # A telescope's token connects only as that telescope (admin and developer
+    # tokens may use any id), the same rule as the live view socket
+    if not _token_may_command(auth_result, client_id):
+        _security_log('ws_command_client_id_mismatch', ip=client_ip, client_id=client_id, token_name=auth_result.get('name'))
+        await ws.close(code=4001, reason='Token does not match client ID')
         return
+
+    # A reconnect replaces the earlier socket. That one is usually already dead
+    # (a dropped link takes up to WS_PING_TIMEOUT to notice), and refusing the
+    # new one locked the telescope out until then. Only a holder of this
+    # telescope's token gets here, so it can't be used to bump another telescope.
+    previous_ws = client_manager.replace_client(client_id, ws)
+    if previous_ws is not None:
+        _security_log('ws_command_replaced_connection', ip=client_ip, client_id=client_id)
+        old_heartbeat = heartbeat_tasks.pop(client_id, None)
+        if old_heartbeat:
+            old_heartbeat.cancel()
+        try:
+            await asyncio.wait_for(previous_ws.close(code=4009, reason='Replaced by a newer connection'), timeout=2)
+        except Exception:
+            pass
 
     client_type = auth_result.get('client_type', 'unknown')
     client_name = auth_result.get('name', client_id)
@@ -623,10 +561,11 @@ async def handle_client(ws):
         print(f"[ERROR] Error handling {client_id}: {e}")
     finally:
         # Cancel heartbeat task if it exists
-        if client_id in heartbeat_tasks:
-            heartbeat_tasks[client_id].cancel()
-            del heartbeat_tasks[client_id]
-        client_manager.remove_client(client_id)
+        if heartbeat_task is not None and heartbeat_tasks.get(client_id) is heartbeat_task:
+            heartbeat_tasks.pop(client_id, None)
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+        client_manager.remove_client(client_id, ws)
         _security_log('ws_command_disconnected', ip=client_ip, client_id=client_id)
 
 # Status messages pushed by telescopes (type "status"), stored rather than printed
@@ -769,11 +708,10 @@ def _authorize_send_command(client_id):
 
     token = _extract_api_token_from_request()
     if token:
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
         auth_result = authenticate_token_with_policy(
             token,
             client_id=client_id,
-            client_ip=(client_ip.split(',')[0].strip() if client_ip else 'unknown'),
+            client_ip=http_client_ip(),
         )
         if auth_result.get('ok'):
             if _token_may_command(auth_result, client_id):
@@ -851,7 +789,7 @@ def send_command_handler():
             client_id=client_id,
             command=command,
             reason=auth_source,
-            ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+            ip=http_client_ip(),
         )
         return jsonify({"status": "error", "error": "Unauthorized"}), 403
 
@@ -860,7 +798,7 @@ def send_command_handler():
         auth_source=auth_source,
         client_id=client_id,
         command=command,
-        ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+        ip=http_client_ip(),
     )
 
     try:
@@ -936,25 +874,6 @@ def disconnect_client_by_id(client_id, reason='admin_disconnect'):
     except Exception:
         return False
     
-# Handler for /client/register route
-def register_client_handler():
-    print("Client requesting client ID")
-    client_id = str(uuid.uuid4())
-    
-    # Generate a secure token for the client
-    token = generate_token()
-    
-    clients.append(client_id)
-    
-    print(f"[+] New client registered: {client_id}")
-    print(f"[SECURITY] Generated token {token[:6]}... for client {client_id}")
-    
-    return jsonify({
-        "client_id": client_id,
-        "token": token,
-        "message": "Store this token securely - you'll need it to connect via WebSocket"
-    })
-
 # Handler for /admin/add_token route - for manually adding authorized tokens
 def add_api_token_handler():
    

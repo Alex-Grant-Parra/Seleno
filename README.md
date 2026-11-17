@@ -42,7 +42,7 @@ SELENO uses a web-based control server connected to distributed Raspberry Pi \
 
  ## Core Runtime Behavior
 
-- Flask app boots from Server.py.
+- Flask app boots from Server.py and is served by waitress on 127.0.0.1:5000.
 - Blueprints are auto-loaded from controllers/.
 - SQLite database is stored at instance/Data.db.
 - WebSocket services start with the app:
@@ -52,15 +52,27 @@ SELENO uses a web-based control server connected to distributed Raspberry Pi \
 
 ## Important Environment Variables
 
-- FLASK_SECRET_KEY: Flask session secret
+- FLASK_SECRET_KEY: Flask session secret (required: the server won't start without it)
 - ENCRYPTION_KEY: application encryption key
-- FLASK_USE_SSL: enable Flask TLS mode (True/False)
-- SSL_CERT_PATH, SSL_KEY_PATH: cert and key when FLASK_USE_SSL is enabled
-- FLASK_SERVER_HOST, FLASK_SERVER_PORT: host/port display and overrides
+- FLASK_BIND_HOST: address the web server binds to (default 127.0.0.1; the Cloudflare tunnel is the way in)
+- WS_IP: WebSocket bind address (default 127.0.0.1)
+- TRUSTED_PROXIES: extra proxy addresses whose forwarding headers are believed (loopback always is)
+- FLASK_DEBUG: run Flask's development server with the reloader instead of waitress
+- WAITRESS_THREADS, WAITRESS_CHANNEL_TIMEOUT: waitress worker threads (default 48) and idle timeout in s (default 300)
+- COOKIE_SECURE: send session cookies over HTTPS only (default True; False for plain-HTTP development)
+- LOCAL_AUTH_BYPASS: let visitors on this machine or its private network skip emailed 2FA and see reset links on the page (default False)
+- LOG_RETENTION_DAYS: delete request and security log rows older than this, daily (default unset: keep everything)
+- AUTO_INSTALL_REQUIREMENTS: pip-install missing requirements at startup (default False: only warn); set it in the environment, not instance/.env, which is read after the check
+- APP_DOMAIN: the site's domain, used for HTTPS redirects
 - MAX_UPLOAD_BYTES: max upload size (default 128 MiB)
-- WS_IP: WebSocket bind IP (default 0.0.0.0)
 - WS_PING_INTERVAL, WS_PING_TIMEOUT: WebSocket keepalive settings
 - TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY: CAPTCHA support
+- SUMUP_MODE: `sandbox` (default) or `live`. In sandbox only admins can check out at /store and orders are marked as tests
+- SUMUP_TEST_API_KEY, SUMUP_TEST_MERCHANT_CODE / SUMUP_API_KEY, SUMUP_MERCHANT_CODE: SumUp keys for each mode
+- SUMUP_WEBHOOK_SECRET: optional token SumUp's payment notices must carry
+- STORE_NOTIFY_EMAIL: where new paid orders are announced (default: the support sender)
+
+Install dependencies with `venv/bin/pip install -r utility/requirements.txt` (pinned versions).
 
 ## Planetary Models
 

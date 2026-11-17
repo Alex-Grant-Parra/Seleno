@@ -133,6 +133,14 @@ def ensure_requirements():
         print("All requirements satisfied; skipping pip install.")
         return
 
+    # Installing at startup makes boots slow and deploys unpredictable, so it
+    # only happens when asked for (AUTO_INSTALL_REQUIREMENTS=True). Otherwise
+    # say what's missing and carry on; install it with
+    #   venv/bin/pip install -r utility/requirements.txt
+    if os.getenv("AUTO_INSTALL_REQUIREMENTS", "False").lower() not in ("1", "true", "yes"):
+        print("[WARNING] Requirements not satisfied (not installing; set AUTO_INSTALL_REQUIREMENTS=True to):", to_install)
+        return
+
     print("Installing/upgrading these requirements:", to_install)
     try:
         subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade"] + to_install + ["--disable-pip-version-check"], check=False)

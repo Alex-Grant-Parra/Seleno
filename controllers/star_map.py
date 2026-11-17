@@ -1,8 +1,9 @@
 import logging
+import os
 from flask import Blueprint, Response, jsonify, render_template, request, session
 from flask_babel import gettext as _
 from app.i18n import cache_by_language, request_language
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from models import star_catalog
 
@@ -426,6 +427,106 @@ def get_planets():
         planets.append(_add_celestial_phase_fields(obj_payload, coords))
     return jsonify(planets)
 
+
+# ---------------------------------------------------------------------------
+# Offline star map
+#
+# The installed app keeps working without a connection: a service worker
+# (static/js/star_map_sw.js, served at /sw.js so it may control the whole
+# site) stores the page, its scripts and the catalogue, and the map reads
+# planet positions from a table of this server's own ephemeris instead of
+# /api/planets.
+# ---------------------------------------------------------------------------
+
+_PLANET_TABLE_STEP_HOURS = 3      # linear interpolation is good to ~0.01 deg even for the Moon
+_PLANET_TABLE_DAYS_BEFORE = 1
+_PLANET_TABLE_DAYS_AFTER = 45
+_PLANET_TABLE_OPTIONAL = ("phase_angle_deg", "moon_illumination_fraction", "moon_elongation_deg")
+_planet_table_cache = {}
+
+
+def _planet_table(start):
+    """Positions of the solar-system bodies every few hours from `start`.
+    About 1 ms per sample, so the ~370 samples take well under a second;
+    the result is kept until the day rolls over."""
+    cached = _planet_table_cache.get(start)
+    if cached is not None:
+        return cached
+
+    count = (_PLANET_TABLE_DAYS_BEFORE + _PLANET_TABLE_DAYS_AFTER) * 24 // _PLANET_TABLE_STEP_HOURS + 1
+    bodies = {}
+    for i in range(count):
+        t = start + timedelta(hours=i * _PLANET_TABLE_STEP_HOURS)
+        for name, coords in getAllCelestialData(t.year, t.month, t.day, t.hour, t.minute, t.second).items():
+            body = bodies.setdefault(name, {
+                "ra": [], "dec": [], "mag": [], "phase_name": [],
+                **{field: [] for field in _PLANET_TABLE_OPTIONAL},
+            })
+            body["ra"].append(round(convert.HrMinSecToDegrees(*coords["ra"]) * 15, 4))
+            body["dec"].append(round(convert.HrMinSecToDegrees(*coords["dec"]), 4))
+            body["mag"].append(round(float(_celestial_magnitude(name, coords)), 2))
+            for field in _PLANET_TABLE_OPTIONAL:
+                value = coords.get(field)
+                body[field].append(None if value is None else round(float(value), 3))
+            # Phase names change a few times a month: keep [first sample, name] runs
+            phase = coords.get("phase_name")
+            if phase and (not body["phase_name"] or body["phase_name"][-1][1] != phase):
+                body["phase_name"].append([i, phase])
+
+    for body in bodies.values():
+        for field in (*_PLANET_TABLE_OPTIONAL, "phase_name"):
+            if all(v is None for v in body[field]):
+                del body[field]
+
+    table = {"count": count, "bodies": bodies}
+    _planet_table_cache.clear()
+    _planet_table_cache[start] = table
+    return table
+
+
+@star_map_bp.route("/api/planets_table")
+def get_planets_table():
+    """The Sun, Moon and planets sampled every few hours from yesterday to six
+    weeks ahead, for the star map to interpolate when it has no connection."""
+    now = datetime.now(timezone.utc)
+    start = (now - timedelta(days=_PLANET_TABLE_DAYS_BEFORE)).replace(hour=0, minute=0, second=0, microsecond=0)
+    table = _planet_table(start.replace(tzinfo=None))
+    lang = request_language()
+    resp = jsonify({
+        "start": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "startMs": int(start.timestamp() * 1000),
+        "stepMinutes": _PLANET_TABLE_STEP_HOURS * 60,
+        "count": table["count"],
+        "bodies": [{
+            "name": name.capitalize(),
+            "label": star_catalog.body_name(name, lang) or name.capitalize(),
+            "icon": f"/static/icons/planets/{name.lower()}.png",
+            **samples,
+        } for name, samples in table["bodies"].items()],
+    })
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return cache_by_language(resp)
+
+
+@star_map_bp.route("/sw.js")
+def star_map_service_worker():
+    """The offline service worker. Served from the site root so its scope can
+    cover every page (it only stores the star map; elsewhere it just shows
+    the offline page when there is no connection)."""
+    from flask import current_app, send_from_directory
+    resp = send_from_directory(os.path.join(current_app.static_folder, "js"), "star_map_sw.js",
+                               mimetype="application/javascript", max_age=0)
+    resp.headers["Cache-Control"] = "no-cache"
+    resp.headers["Service-Worker-Allowed"] = "/"
+    return resp
+
+
+@star_map_bp.route("/offline")
+def offline_page():
+    """What the installed app shows for a page it hasn't stored, offline."""
+    return render_template("offline.html")
+
+
 @star_map_bp.route("/StarMap")
 def star_map():
     # The client will fetch stars and planets via APIs progressively
@@ -783,14 +884,3 @@ def get_telescope_dead_zones():
     })
     resp.headers["Cache-Control"] = "no-store"
     return resp
-
-
-@star_map_bp.route("/api/debug/session", methods=["GET"])
-def debug_session():
-    # Debug endpoint to check session state
-    selected_telescope = session.get('selected_telescope')
-    return jsonify({
-        "status": "success",
-        "selected_telescope": selected_telescope,
-        "session_keys": list(session.keys())
-    })

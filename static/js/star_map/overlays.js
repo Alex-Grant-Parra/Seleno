@@ -64,11 +64,15 @@ function drawStarNames(Mview, magLimit) {
 let constellationFigures = null;   // [{ id, name, anchor:{v}, paths:[Float64Array-ish] }]
 let constellationLoadPromise = null;
 
+function constellationsUrl() {
+    return `/api/constellations?lang=${encodeURIComponent(window.I18N_LANG || 'en')}`;
+}
+
 function loadConstellations() {
     if (constellationFigures) return Promise.resolve(constellationFigures);
     if (constellationLoadPromise) return constellationLoadPromise;
 
-    constellationLoadPromise = fetch(`/api/constellations?lang=${encodeURIComponent(window.I18N_LANG || 'en')}`)
+    constellationLoadPromise = fetch(constellationsUrl())
         .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
@@ -80,6 +84,7 @@ function loadConstellations() {
                 id: entry.id,
                 name: entry.name,
                 anchor: entry.anchor ? radecToXYZ(entry.anchor[0], entry.anchor[1]) : null,
+                anchorRaDec: entry.anchor || null,  // [ra, dec] degrees, for searching offline
                 paths: entry.lines.map(line => line.map(([ra, dec]) => radecToXYZ(ra, dec))),
             }));
             console.log(`Loaded ${constellationFigures.length} constellation figures`);

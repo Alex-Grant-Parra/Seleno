@@ -67,6 +67,8 @@ STARTUP_VERBOSE = os.getenv("STARTUP_VERBOSE", "False").lower() in ("1", "true",
 
 # Flask Configuration
 app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY")
+if not app.config["SECRET_KEY"]:
+    raise SystemExit("FLASK_SECRET_KEY is not set (instance/.env): sessions and reset links can't be signed")
 
 DATABASE_PATH = f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'Data.db')}"
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_PATH 
@@ -115,6 +117,18 @@ app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=30)
 app.config["REMEMBER_COOKIE_HTTPONLY"] = True
 app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
 app.config["REMEMBER_COOKIE_REFRESH_EACH_REQUEST"] = True
+
+# Session and remember-me cookies only travel over HTTPS (visitors always reach
+# the site through the tunnel's HTTPS). COOKIE_SECURE=False for plain-HTTP dev.
+_cookie_secure = os.getenv("COOKIE_SECURE", "True").lower() in ("1", "true", "yes")
+app.config["SESSION_COOKIE_SECURE"] = _cookie_secure
+app.config["REMEMBER_COOKIE_SECURE"] = _cookie_secure
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# Local visitors skipping 2FA and seeing reset links on the page (controllers/auth.py).
+# Off unless asked for: meant for a self-hosted server on a home network with no mail.
+app.config["LOCAL_AUTH_BYPASS"] = os.getenv("LOCAL_AUTH_BYPASS", "False").lower() in ("1", "true", "yes")
 
 # Flask-Login & Email Configurations
 login_manager = LoginManager()
@@ -230,6 +244,16 @@ def force_https():
     allowed_hosts = {app_domain: app_domain, f"www.{app_domain}": f"www.{app_domain}"} if app_domain else {}
     target_host = allowed_hosts.get(host_only.lower(), app_domain or 'localhost')
     return redirect("https://" + target_host + path, code=301)
+
+@app.after_request
+def security_headers(response):
+    headers = response.headers
+    headers.setdefault("X-Content-Type-Options", "nosniff")
+    headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if request.is_secure or (request.headers.get('X-Forwarded-Proto') or '').lower() == 'https':
+        headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    return response
 
 # Register Blueprints
 controllers_dir = os.path.join(os.path.dirname(__file__), "controllers")
@@ -372,6 +396,7 @@ from models.trusted_device import TrustedDevice  # Import to register the model
 from models.logging import RequestLog, SecurityLog, WebsocketSecurityLog  # Import to register log tables
 from models.client_release import ClientReleaseSubmission  # Import to register release review model
 from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import to register SumUp payment tables
+from models.store import StoreProduct, StoreShippingZone, StoreOrder, StoreOrderItem  # Import to register store tables
 from models.photo import Photo, TelescopeUpload  # Import to register photo and resumable upload tables
 from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
 from models.album import FrameMeta, StackResult, FeaturedTarget, Project  # Import to register album index, stacks, featured targets and projects
@@ -578,7 +603,6 @@ def index():
 from app.WebsocketServer import (
     start_websocket_servers,
     send_command_handler,
-    register_client_handler,
     admin_disconnect_ws_client_handler,
 )
 from app.liveview import liveview_handler
@@ -603,10 +627,6 @@ def liveview(client_id):
         return denied
     return liveview_handler(client_id)
 
-@app.route('/client/register', methods=['POST'])
-def register_client():
-    return register_client_handler()
-
 
 @app.route('/admin/ws/disconnect/<client_id>', methods=['POST'])
 def admin_ws_disconnect(client_id):
@@ -618,12 +638,6 @@ def wikiRedirect():
         "https://github.com/Alex-Grant-Parra/SELENO/wiki",
         code=301
     )
-
-# Exempt client registration endpoint from CSRF checks (used by non-browser clients)
-try:
-    csrf.exempt(register_client)
-except Exception:
-    pass
 
 # Exempt developer release upload API endpoint from CSRF checks.
 try:
@@ -675,41 +689,34 @@ if __name__ == '__main__':
         from app.weather_cache import start_background as start_weather_cache
         start_weather_cache()
 
-    # Cloudflare Tunnel (infrastructure/config.yml) targets localhost:FlaskServerPort
-    flask_host = "0.0.0.0"
+        # Old request/security log rows, when LOG_RETENTION_DAYS is set (models/logging.py)
+        from models.logging import start_log_retention
+        start_log_retention(app)
+
+    # Cloudflare Tunnel (/etc/cloudflared/seleno.yml) targets localhost:FlaskServerPort.
+    # Loopback only: reached straight on the public address, the forwarding
+    # headers the blacklist and rate limits read could be forged.
+    flask_host = os.getenv("FLASK_BIND_HOST", "127.0.0.1")
     flask_port = FlaskServerPort
 
-    # The interactive Werkzeug debugger allows code execution, so only enable it
-    # when the server is bound to loopback.
-    use_debugger = debugMode and flask_host in ("127.0.0.1", "localhost", "::1")
-    if debugMode and not use_debugger:
+    if not debugMode:
+        # Production: waitress. Every live view viewer holds a thread while it
+        # watches (an MJPEG stream), so keep plenty.
+        threads = int(os.getenv("WAITRESS_THREADS", "48"))
+        print(f"Starting waitress on {gethostname()} at http://{flask_host}:{flask_port} ({threads} threads)")
+        serve(app, host=flask_host, port=flask_port, threads=threads,
+              channel_timeout=int(os.getenv("WAITRESS_CHANNEL_TIMEOUT", "300")),
+              ident="SELENO",
+              # Keep the tunnel's X-Forwarded-* headers: force_https reads the
+              # proto, and security/client_ip.py decides which to believe
+              # (only from loopback). Waitress would otherwise strip them.
+              clear_untrusted_proxy_headers=False)
+        raise SystemExit(0)
+
+    # Debug: Flask's own server with the reloader. The interactive Werkzeug
+    # debugger allows code execution, so only on loopback.
+    use_debugger = flask_host in ("127.0.0.1", "localhost", "::1")
+    if not use_debugger:
         print(f"Debug mode on: interactive debugger disabled because host {flask_host} is not loopback")
-
-    run_kwargs = dict(host=flask_host, port=flask_port, debug=debugMode, use_debugger=use_debugger, threaded=True)
-
-    # Environment-driven SSL toggle. If SSL is requested and a cert/key pair is
-    # provided, start with an ssl_context so the server accepts TLS handshakes;
-    # otherwise run plain HTTP (avoids ERR_SSL_PROTOCOL_ERROR confusion).
-    use_ssl = os.getenv('FLASK_USE_SSL', 'False').lower() in ('1', 'true', 'yes')
-    ssl_cert = os.getenv('SSL_CERT_PATH')
-    ssl_key = os.getenv('SSL_KEY_PATH')
-
-    if use_ssl:
-        # Require both cert and key to be present on disk
-        if ssl_cert and ssl_key and os.path.exists(ssl_cert) and os.path.exists(ssl_key):
-            print(f"Starting Flask server on {gethostname()} at https://{flask_host}:{flask_port} using cert: {ssl_cert}")
-            try:
-                app.run(ssl_context=(ssl_cert, ssl_key), **run_kwargs)
-            except Exception as e:
-                print(f"Failed to start Flask with SSL: {e}")
-                print("Falling back to plain HTTP on the same port")
-                app.run(**run_kwargs)
-        else:
-            print("FLASK_USE_SSL is set but SSL_CERT_PATH/SSL_KEY_PATH are missing or files do not exist.")
-            print("Starting without SSL. If you want HTTPS, set FLASK_USE_SSL=True and provide valid SSL_CERT_PATH and SSL_KEY_PATH.")
-            print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
-            app.run(**run_kwargs)
-    else:
-        # Plain HTTP
-        print(f"Starting Flask server on {gethostname()} at http://{flask_host}:{flask_port}")
-        app.run(**run_kwargs)
+    print(f"Starting Flask development server on {gethostname()} at http://{flask_host}:{flask_port}")
+    app.run(host=flask_host, port=flask_port, debug=True, use_debugger=use_debugger, threaded=True)

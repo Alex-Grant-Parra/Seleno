@@ -21,16 +21,16 @@
       <div class="mb-3">
         <label for="message_type" class="form-label">Type</label>
         <select id="message_type" name="message_type" class="form-select" required>
-          <option value="" disabled selected>Select a type</option>
+          <option value="" disabled {% if not prefill_type %}selected{% endif %}>Select a type</option>
           {% for opt in type_options %}
-          <option value="{{ opt }}">{{ opt }}</option>
+          <option value="{{ opt }}" {% if opt == prefill_type %}selected{% endif %}>{{ opt }}</option>
           {% endfor %}
         </select>
       </div>
 
       <div class="mb-3">
         <label for="title" class="form-label">Title</label>
-        <input type="text" id="title" name="title" class="form-control" maxlength="200" placeholder="Short summary (e.g., Telescope slews off target)" required aria-required="true">
+        <input type="text" id="title" name="title" class="form-control" maxlength="200" value="{{ prefill_title or '' }}" placeholder="Short summary (e.g., Telescope slews off target)" required aria-required="true">
       </div>
 
       <div class="mb-3">

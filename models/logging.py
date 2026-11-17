@@ -337,3 +337,59 @@ class WebsocketSecurityLog(db.Model):
             db.session.rollback()
             logger.error("Failed to import legacy websocket_security.log: %s", exc)
             return {"imported": 0, "error": str(exc)}
+
+
+# --- Retention ------------------------------------------------------------
+# Request and security logs grow by every request. LOG_RETENTION_DAYS (in
+# instance/.env) deletes rows older than that once a day; unset or 0 keeps
+# everything. Deleted rows are gone for good, so it is off unless asked for.
+
+def prune_logs(days, batch=5000):
+    """Delete log rows older than `days` days, in batches so the database is
+    never locked for long. Returns {table: rows deleted}."""
+    from datetime import timedelta
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    removed = {}
+    for model in (RequestLog, SecurityLog, WebsocketSecurityLog):
+        total = 0
+        while True:
+            ids = [row.id for row in db.session.query(model.id).filter(model.created_at < cutoff).limit(batch)]
+            if not ids:
+                break
+            db.session.query(model).filter(model.id.in_(ids)).delete(synchronize_session=False)
+            db.session.commit()
+            total += len(ids)
+        removed[model.__tablename__] = total
+    return removed
+
+
+def start_log_retention(app, interval_s=24 * 3600):
+    import os
+    import threading
+    import time
+    try:
+        days = int(os.getenv("LOG_RETENTION_DAYS", "0") or 0)
+    except ValueError:
+        days = 0
+    if days <= 0:
+        return None
+
+    def run():
+        time.sleep(120)
+        while True:
+            try:
+                with app.app_context():
+                    removed = prune_logs(days)
+                if any(removed.values()):
+                    logger.info("Log retention (%s days): removed %s", days, removed)
+            except Exception:
+                logger.exception("Log retention failed")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+            time.sleep(interval_s)
+
+    thread = threading.Thread(target=run, name="log-retention", daemon=True)
+    thread.start()
+    return thread

@@ -29,3 +29,4 @@
 /support        = on      # Support tickets
 /profile        = on      # Profile
 /payments       = off      # Payments
+/store          = on      # Store (upgrade kits)

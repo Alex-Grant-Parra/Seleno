@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Order {{ order.order_number }} - SELENO{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h1 class="h4 mb-1">Order {{ order.order_number }}{% if order.is_test_mode %} <span class="badge bg-warning text-dark">test</span>{% endif %}</h1>
+            <p class="text-muted mb-0">{{ order.status|capitalize }} &middot; placed {{ order.created_at.strftime('%Y-%m-%d %H:%M') }} UTC{% if order.paid_at %} &middot; paid {{ order.paid_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}{% if order.shipped_at %} &middot; sent {{ order.shipped_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('store.admin_store') }}">Back to Store</a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card shadow-sm mb-3"><div class="card-body">
+                <h2 class="h6">Items</h2>
+                <table class="table table-sm align-middle">
+                    <tbody>
+                    {% for item in order.items %}
+                    <tr><td>{{ item.quantity }} &times; {{ item.product_name }}</td><td class="text-end">{{ item.line_pence|money(order.currency) }}</td></tr>
+                    {% endfor %}
+                    <tr><td>Delivery ({{ order.shipping_label }})</td><td class="text-end">{{ order.shipping_pence|money(order.currency) }}</td></tr>
+                    <tr class="fw-bold"><td>Total</td><td class="text-end">{{ order.total_pence|money(order.currency) }}</td></tr>
+                    </tbody>
+                </table>
+            </div></div>
+
+            <div class="card shadow-sm mb-3"><div class="card-body">
+                <h2 class="h6">Payment attempts</h2>
+                <table class="table table-sm align-middle mb-2">
+                    <thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Transaction</th><th></th></tr></thead>
+                    <tbody>
+                    {% for checkout in checkouts %}
+                    <tr><td>{{ checkout.checkout_reference }}</td><td>{{ checkout.status }}</td><td>{{ checkout.amount }} {{ checkout.currency }}</td><td>{{ checkout.transaction_code or '-' }}</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('payments.admin_payment_detail_page', checkout_row_id=checkout.id) }}">Details</a></td></tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-muted text-center">No payment has been started.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                <form method="POST" action="{{ url_for('store.admin_store_order_action', order_id=order.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-primary" name="action" value="sync" type="submit">Check with SumUp now</button>
+                </form>
+            </div></div>
+
+            <div class="card shadow-sm"><div class="card-body">
+                <h2 class="h6">Notes (only admins see these)</h2>
+                <form method="POST" action="{{ url_for('store.admin_store_order_action', order_id=order.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <textarea class="form-control mb-2" name="admin_note" rows="4">{{ order.admin_note or '' }}</textarea>
+                    <button class="btn btn-sm btn-outline-primary" name="action" value="note" type="submit">Save note</button>
+                </form>
+            </div></div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow-sm mb-3"><div class="card-body">
+                <h2 class="h6">Send to</h2>
+                <p class="mb-2" style="white-space: pre-line;">{{ order.address_lines|join('\n') }}</p>
+                <p class="mb-0 small">{{ order.email }}{% if order.phone %}<br>{{ order.phone }}{% endif %}</p>
+                {% if order.customer_note %}<p class="mt-2 mb-0 small"><strong>Customer's note:</strong> {{ order.customer_note }}</p>{% endif %}
+            </div></div>
+
+            <div class="card shadow-sm"><div class="card-body">
+                <h2 class="h6">Actions</h2>
+                {% if order.status in ('PAID', 'SHIPPED') %}
+                <form class="mb-3" method="POST" action="{{ url_for('store.admin_store_order_action', order_id=order.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label class="form-label small" for="o_tracking">Tracking reference (optional)</label>
+                    <input class="form-control form-control-sm mb-2" id="o_tracking" name="tracking_reference" maxlength="120" value="{{ order.tracking_reference or '' }}">
+                    {% if order.status == 'PAID' %}
+                    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="notify" value="1" id="o_notify" checked><label class="form-check-label small" for="o_notify">Email the customer</label></div>
+                    {% endif %}
+                    <button class="btn btn-sm btn-primary" name="action" value="ship" type="submit">{% if order.status == 'PAID' %}Mark as sent{% else %}Update tracking{% endif %}</button>
+                </form>
+                <form method="POST" action="{{ url_for('store.admin_store_order_action', order_id=order.id) }}" onsubmit="return confirm('Record this order as refunded? Send the money back from your SumUp dashboard first.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-danger" name="action" value="refunded" type="submit">Record as refunded</button>
+                    <div class="form-text">This only records it. The refund itself is made in the SumUp dashboard.</div>
+                </form>
+                {% elif order.awaiting_payment %}
+                <form method="POST" action="{{ url_for('store.admin_store_order_action', order_id=order.id) }}" onsubmit="return confirm('Cancel this unpaid order?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-danger" name="action" value="cancel" type="submit">Cancel order</button>
+                    <div class="form-text">Closes its payment page so it can no longer be paid.</div>
+                </form>
+                {% else %}
+                <p class="text-muted small mb-0">Nothing more to do for a {{ order.status|lower }} order.</p>
+                {% endif %}
+                <hr>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('store.store_order', order_number=order.order_number) }}">See the customer's order page</a>
+            </div></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Order %(number)s', number=order.order_number) }} - SELENO{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='store.css') }}">{% endblock %}
+
+{% block content %}
+<div class="store-page">
+    {% if order.is_test_mode %}
+    <div class="store-test-banner" role="note"><strong><i class="fas fa-flask"></i> {{ _('Test order.') }}</strong> {{ _('No money was taken and nothing will be sent.') }}</div>
+    {% endif %}
+
+    {% if order.status == 'PAID' %}
+    <div class="store-status is-paid" role="status"><i class="fas fa-check-circle" aria-hidden="true"></i>
+        <div><h1>{{ _('Thank you, your order is paid') }}</h1><p>{{ _('We have emailed a confirmation and will email again when it is on its way.') }}</p></div></div>
+    {% elif order.status == 'SHIPPED' %}
+    <div class="store-status is-paid" role="status"><i class="fas fa-truck" aria-hidden="true"></i>
+        <div><h1>{{ _('Your order is on its way') }}</h1>
+        <p>{% if order.tracking_reference %}{{ _('Tracking reference: %(ref)s', ref=order.tracking_reference) }}{% else %}{{ _('It has been sent.') }}{% endif %}</p></div></div>
+    {% elif order.status == 'FAILED' %}
+    <div class="store-status is-problem" role="alert"><i class="fas fa-times-circle" aria-hidden="true"></i>
+        <div><h1>{{ _('The payment did not go through') }}</h1><p>{{ _('Nothing was taken. You can try again with the same or a different card.') }}</p></div></div>
+    {% elif order.status == 'EXPIRED' %}
+    <div class="store-status is-problem" role="alert"><i class="fas fa-hourglass-end" aria-hidden="true"></i>
+        <div><h1>{{ _('The payment page timed out') }}</h1><p>{{ _('Nothing was taken. Your order is saved and you can pay for it now.') }}</p></div></div>
+    {% elif order.status == 'CANCELLED' %}
+    <div class="store-status is-problem" role="status"><i class="fas fa-ban" aria-hidden="true"></i>
+        <div><h1>{{ _('This order was cancelled') }}</h1><p>{{ _('Nothing was taken.') }}</p></div></div>
+    {% elif order.status == 'REFUNDED' %}
+    <div class="store-status" role="status"><i class="fas fa-undo" aria-hidden="true"></i>
+        <div><h1>{{ _('This order was refunded') }}</h1><p>{{ _('The money can take a few days to reach your account.') }}</p></div></div>
+    {% else %}
+    <div class="store-status is-waiting" role="status"><i class="fas fa-clock" aria-hidden="true"></i>
+        <div><h1>{{ _('Waiting for payment') }}</h1>
+        <p>{% if sync_failed %}{{ _('We could not check with the payment provider just now. Refresh this page in a moment.') }}{% else %}{{ _('We have not received a payment for this order yet. If you have just paid, refresh this page in a moment.') }}{% endif %}</p></div></div>
+    {% endif %}
+
+    {% if order.awaiting_payment %}
+    <form method="POST" action="{{ url_for('store.store_order_pay', order_number=order.order_number) }}" class="d-flex gap-2 mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="key" value="{{ key }}">
+        <button class="btn btn-primary" type="submit"><i class="fas fa-lock"></i> {% if order.status == 'PENDING' %}{{ _('Pay now') }}{% else %}{{ _('Try the payment again') }}{% endif %}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('store.store_order', order_number=order.order_number, key=key) }}">{{ _('Refresh') }}</a>
+    </form>
+    {% endif %}
+
+    <div class="store-split">
+        <div class="store-panel">
+            <h2>{{ _('Order %(number)s', number=order.order_number) }}</h2>
+            <table class="store-lines">
+                <tbody>
+                {% for item in order.items %}
+                <tr><td>{{ item.quantity }} &times; {{ item.product_name }}</td><td class="num">{{ item.line_pence|money(order.currency) }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <dl class="store-totals">
+                <div><dt>{{ _('Items') }}</dt><dd>{{ order.subtotal_pence|money(order.currency) }}</dd></div>
+                <div><dt>{{ _('Delivery') }} ({{ order.shipping_label }})</dt><dd>{{ order.shipping_pence|money(order.currency) }}</dd></div>
+                <div class="grand"><dt>{{ _('Total') }}</dt><dd>{{ order.total_pence|money(order.currency) }}</dd></div>
+            </dl>
+            <p class="store-fineprint mt-3 mb-0">{{ _('Placed %(when)s UTC', when=order.created_at.strftime('%Y-%m-%d %H:%M')) }}{% if order.transaction_code %} &middot; {{ _('Payment reference %(code)s', code=order.transaction_code) }}{% endif %}</p>
+        </div>
+        <div class="store-panel">
+            <h2>{{ _('Delivering to') }}</h2>
+            <p class="store-address">{{ order.address_lines|join('\n') }}</p>
+            <p class="store-fineprint mt-3 mb-0">{{ order.email }}</p>
+            <p class="store-fineprint mt-3 mb-0">{{ _('Something wrong?') }} <a href="{{ url_for('contact.contact_form', type='payment', title=_('Order %(number)s', number=order.order_number)) }}">{{ _('Contact support') }}</a> {{ _('and quote your order number.') }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

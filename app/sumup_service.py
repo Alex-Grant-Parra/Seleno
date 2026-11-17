@@ -7,6 +7,8 @@ from urllib import error, parse, request
 # - SUMUP_FEATURE_ENABLED: turn SumUp integration on/off quickly.
 # - SUMUP_MODE: choose exactly one mode for credential selection.
 #   Accepted values: 'live' or 'sandbox'.
+#   SUMUP_MODE in instance/.env overrides the value here, so going live is an
+#   .env edit and a restart, not a code change.
 SUMUP_FEATURE_ENABLED = True
 SUMUP_MODE = 'sandbox'
 
@@ -24,7 +26,7 @@ def is_sumup_feature_enabled():
 
 
 def _resolve_mode():
-    mode = (SUMUP_MODE or '').strip().lower()
+    mode = (os.getenv('SUMUP_MODE') or SUMUP_MODE or '').strip().lower()
     if mode not in {'live', 'sandbox'}:
         raise SumUpAPIError("Invalid SUMUP_MODE. Use 'live' or 'sandbox'.")
     return mode
@@ -34,11 +36,17 @@ def current_sumup_mode():
     return _resolve_mode()
 
 
-def resolve_sumup_credentials():
+def resolve_sumup_credentials(is_test_mode=None):
+    """Credentials for the current mode, or for the mode a checkout was created in
+    (is_test_mode True/False), so a sandbox checkout is still looked up with the
+    sandbox key after the site has gone live."""
     if not is_sumup_feature_enabled():
         raise SumUpAPIError('SumUp feature is disabled in code toggle.')
 
-    mode = _resolve_mode()
+    if is_test_mode is None:
+        mode = _resolve_mode()
+    else:
+        mode = 'sandbox' if is_test_mode else 'live'
     if mode == 'sandbox':
         api_key = (os.getenv('SUMUP_TEST_API_KEY') or '').strip()
         merchant_code = (os.getenv('SUMUP_TEST_MERCHANT_CODE') or '').strip()

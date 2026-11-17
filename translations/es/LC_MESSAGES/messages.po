@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: SELENO VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-11-16 14:36+0000\n"
+"POT-Creation-Date: 2026-11-16 22:13+0000\n"
 "PO-Revision-Date: 2026-10-23 18:47+0100\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: es\n"
@@ -73,7 +73,7 @@ msgstr "Bastante bajo y bajando"
 msgid "Good conditions for this target"
 msgstr "Buenas condiciones para este objetivo"
 
-#: app/telescope_access.py:130 controllers/star_map.py:495
+#: app/telescope_access.py:130 controllers/star_map.py:596
 msgid "Must be logged in to control telescope"
 msgstr "Debes iniciar sesión para controlar el telescopio"
 
@@ -82,9 +82,9 @@ msgid "Limited accounts cannot control telescopes."
 msgstr "Las cuentas limitadas no pueden controlar telescopios."
 
 #: app/telescope_access.py:134 controllers/interface.py:406
-#: controllers/star_map.py:616 controllers/star_map.py:674
-#: controllers/star_map.py:769 static/js/interface.js:64
-#: static/js/interface.js:661 static/js/interface.js:1550
+#: controllers/star_map.py:717 controllers/star_map.py:775
+#: controllers/star_map.py:870 static/js/interface.js:64
+#: static/js/interface.js:666 static/js/interface.js:1563
 msgid "No telescope selected"
 msgstr "No hay ningún telescopio seleccionado"
 
@@ -451,27 +451,27 @@ msgstr "El servidor se está quedando sin espacio en disco"
 msgid "Too much to record"
 msgstr "Demasiado para registrar"
 
-#: controllers/star_map.py:519
+#: controllers/star_map.py:620
 msgid "Please select a telescope in the Interface page to begin tracking"
 msgstr "Selecciona un telescopio en la página Interfaz para empezar el seguimiento"
 
-#: controllers/star_map.py:578
+#: controllers/star_map.py:679
 msgid "Failed to send tracking command"
 msgstr "No se pudo enviar la orden de seguimiento"
 
-#: controllers/star_map.py:648 static/js/star_map/telescope.js:151
+#: controllers/star_map.py:749 static/js/star_map/telescope.js:151
 msgid "Tracking stopped successfully"
 msgstr "Seguimiento detenido"
 
-#: controllers/star_map.py:660 static/js/star_map/telescope.js:153
+#: controllers/star_map.py:761 static/js/star_map/telescope.js:153
 msgid "Failed to stop tracking"
 msgstr "No se pudo detener el seguimiento"
 
-#: controllers/star_map.py:738
+#: controllers/star_map.py:839
 msgid "Telescope returned non-numeric coordinates"
 msgstr "El telescopio devolvió coordenadas no numéricas"
 
-#: controllers/star_map.py:754
+#: controllers/star_map.py:855
 msgid "Failed to get telescope position"
 msgstr "No se pudo obtener la posición del telescopio"
 
@@ -497,7 +497,7 @@ msgstr "Bandas de nubes y las cuatro grandes lunas."
 msgid "planet"
 msgstr "planeta"
 
-#: models/album.py:223 static/js/interface.js:1339
+#: models/album.py:223 static/js/interface.js:1352
 #: templates/about_astrophysics.html:343 templates/interface.html:133
 msgid "Jupiter"
 msgstr "Júpiter"
@@ -506,7 +506,7 @@ msgstr "Júpiter"
 msgid "The rings, even in small telescopes."
 msgstr "Los anillos, incluso con telescopios pequeños."
 
-#: models/album.py:224 static/js/interface.js:1339 templates/interface.html:133
+#: models/album.py:224 static/js/interface.js:1352 templates/interface.html:133
 msgid "Saturn"
 msgstr "Saturno"
 
@@ -514,7 +514,7 @@ msgstr "Saturno"
 msgid "Small and bright; shows most near opposition."
 msgstr "Pequeño y brillante; se ve mejor cerca de la oposición."
 
-#: models/album.py:225 static/js/interface.js:1338
+#: models/album.py:225 static/js/interface.js:1351
 #: templates/about_astrophysics.html:343 templates/interface.html:132
 msgid "Mars"
 msgstr "Marte"
@@ -523,7 +523,7 @@ msgstr "Marte"
 msgid "A dazzling crescent or gibbous disc."
 msgstr "Un disco deslumbrante, en fase creciente o gibosa."
 
-#: models/album.py:226 static/js/interface.js:1338 templates/interface.html:132
+#: models/album.py:226 static/js/interface.js:1351 templates/interface.html:132
 msgid "Venus"
 msgstr "Venus"
 
@@ -1015,8 +1015,8 @@ msgstr "Cancelado"
 msgid "Nothing running."
 msgstr "No hay nada en marcha."
 
-#: static/js/album/jobs.js:76 templates/star_map.html:759
-#: templates/star_map.html:768 templates/star_map.html:776
+#: static/js/album/jobs.js:76 templates/star_map.html:778
+#: templates/star_map.html:787 templates/star_map.html:795
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1166,7 +1166,7 @@ msgstr "Archivo"
 
 #: static/js/album/main.js:246 static/js/album/main.js:618
 #: templates/album.html:135 templates/interface.html:217
-#: templates/star_map.html:589 templates/telescope_detail.html:47
+#: templates/star_map.html:608 templates/telescope_detail.html:47
 msgid "Type"
 msgstr "Tipo"
 
@@ -1307,7 +1307,7 @@ msgid "Plan"
 msgstr "Plan"
 
 #: static/js/album/main.js:620 static/js/album/main.js:753
-#: static/js/album/stack-dialog.js:283 static/js/star_map/search.js:527
+#: static/js/album/stack-dialog.js:283 static/js/star_map/search.js:531
 #: templates/interface.html:44 templates/interface.html:45
 #: templates/interface.html:46
 msgid "Telescope"
@@ -2094,7 +2094,7 @@ msgstr "Parpadeo"
 msgid "Pause"
 msgstr "Pausa"
 
-#: static/js/capture-plan.js:12 static/js/interface.js:1186
+#: static/js/capture-plan.js:12 static/js/interface.js:1193
 #: templates/interface.html:126 templates/interface.html:135
 msgid "Go to"
 msgstr "Ir a"
@@ -2103,7 +2103,7 @@ msgstr "Ir a"
 msgid "Moon, Jupiter… (or RA/Dec below)"
 msgstr "Luna, Júpiter… (o AR/Dec abajo)"
 
-#: static/js/capture-plan.js:14 static/js/interface.js:1108
+#: static/js/capture-plan.js:14 static/js/interface.js:1115
 #: templates/album.html:65 templates/album.html:139 templates/interface.html:83
 #: templates/interface.html:107 templates/interface.html:138
 msgid "Target"
@@ -2348,9 +2348,9 @@ msgid "Saved \"{name}\" to your plans."
 msgstr "«{name}» se ha guardado en tus planes."
 
 #: static/js/capture-plan.js:488 static/js/capture-plan.js:518
-#: static/js/interface.js:63 static/js/interface.js:619
-#: static/js/interface.js:660 static/js/interface.js:820
-#: static/js/interface.js:1497 static/js/interface.js:1549
+#: static/js/interface.js:63 static/js/interface.js:624
+#: static/js/interface.js:665 static/js/interface.js:827
+#: static/js/interface.js:1510 static/js/interface.js:1562
 msgid "Select a telescope first."
 msgstr "Selecciona primero un telescopio."
 
@@ -2437,7 +2437,7 @@ msgstr "Elige algo que esté en el cielo esta noche"
 
 #: static/js/album/jobs.js:45 static/js/interface-guide.js:82
 #: static/js/interface-guide.js:83 templates/about.html:98
-#: templates/star_map.html:603
+#: templates/star_map.html:622
 msgid "Done"
 msgstr "Hecho"
 
@@ -2491,7 +2491,7 @@ msgstr "{bestTime} a {bestAlt}°"
 msgid "{duration} more"
 msgstr "{duration} más"
 
-#: static/js/interface-guide.js:121 static/js/interface.js:1111
+#: static/js/interface-guide.js:121 static/js/interface.js:1118
 msgid "Not tonight"
 msgstr "Esta noche no"
 
@@ -2573,11 +2573,11 @@ msgstr "Más información en Wikipedia ↗"
 msgid "Couldn't load targets: {message}"
 msgstr "No se han podido cargar los objetivos: {message}"
 
-#: static/js/interface-guide.js:200 static/js/interface.js:1179
+#: static/js/interface-guide.js:200 static/js/interface.js:1186
 msgid "Searching…"
 msgstr "Buscando…"
 
-#: static/js/interface-guide.js:203 static/js/interface.js:1182
+#: static/js/interface-guide.js:203 static/js/interface.js:1189
 #, python-brace-format
 msgid "Nothing called “{text}” in the catalogue."
 msgstr "No hay nada llamado «{text}» en el catálogo."
@@ -2586,7 +2586,7 @@ msgstr "No hay nada llamado «{text}» en el catálogo."
 msgid "Choose this"
 msgstr "Elegir este"
 
-#: static/js/interface-guide.js:209 static/js/interface.js:1194
+#: static/js/interface-guide.js:209 static/js/interface.js:1201
 msgid "The search failed."
 msgstr "La búsqueda ha fallado."
 
@@ -2611,7 +2611,7 @@ msgstr "Elige uno arriba"
 #: static/js/album/main.js:330 static/js/album/main.js:357
 #: static/js/album/main.js:590 static/js/album/main.js:617
 #: static/js/album/stack-dialog.js:116 static/js/album/viewer.js:161
-#: static/js/interface-guide.js:303 static/js/interface.js:1469
+#: static/js/interface-guide.js:303 static/js/interface.js:1482
 #, python-brace-format
 msgid "ISO {iso}"
 msgstr "ISO {iso}"
@@ -2845,7 +2845,7 @@ msgid "You haven't checked a test shot yet. Start capturing anyway?"
 msgstr "Todavía no has comprobado una foto de prueba. ¿Empezar a capturar de todos modos?"
 
 #: static/js/album/jobs.js:32 static/js/interface-guide.js:627
-#: static/js/interface.js:495
+#: static/js/interface.js:500
 msgid "Starting…"
 msgstr "Iniciando…"
 
@@ -2948,8 +2948,8 @@ msgstr "Tienes que volver a iniciar sesión para controlar el telescopio."
 msgid "Not authenticated"
 msgstr "Sin autenticar"
 
-#: static/js/interface.js:76 static/js/interface.js:1288
-#: static/js/interface.js:1322
+#: static/js/interface.js:76 static/js/interface.js:1295
+#: static/js/interface.js:1329
 msgid "failed"
 msgstr "ha fallado"
 
@@ -3018,7 +3018,7 @@ msgstr "desviado {off}′"
 msgid "Last solve {time} · {parts}"
 msgstr "Última resolución {time} · {parts}"
 
-#: static/js/interface.js:168 static/js/interface.js:1142
+#: static/js/interface.js:168 static/js/interface.js:1149
 #: static/js/star_map/object_info.js:322
 msgid "Unknown"
 msgstr "Desconocido"
@@ -3101,7 +3101,7 @@ msgstr "Solo visualización"
 msgid "Controlling it needs ownership or a booking that covers now"
 msgstr "Para controlarlo tienes que ser su propietario o tener una reserva vigente en este momento"
 
-#: static/js/interface.js:331 static/js/interface.js:337
+#: static/js/interface.js:331 static/js/interface.js:338
 #: templates/interface.html:108
 msgid "Mount"
 msgstr "Montura"
@@ -3110,713 +3110,718 @@ msgstr "Montura"
 msgid "Parked"
 msgstr "Aparcada"
 
-#: static/js/interface.js:342 static/js/interface.js:368
+#: static/js/interface.js:343 static/js/interface.js:370
 msgid "Not connected"
 msgstr "No conectada"
 
-#: static/js/interface.js:342 static/js/interface.js:368
+#: static/js/interface.js:343 static/js/interface.js:370
 #: static/js/star_map/zone_editor.js:208 static/js/telescope_zones.js:110
 msgid "Connected"
 msgstr "Conectada"
 
-#: static/js/album/main.js:616 static/js/interface.js:342
-#: static/js/interface.js:400 templates/interface.html:418
+#: static/js/album/main.js:616 static/js/interface.js:343
+#: static/js/interface.js:402 templates/interface.html:418
 msgid "Camera"
 msgstr "Cámara"
 
-#: static/js/interface.js:343
+#: static/js/interface.js:344
 msgid "Sensor"
 msgstr "Sensor"
 
-#: static/js/interface.js:347 static/js/interface.js:352
+#: static/js/interface.js:348 static/js/interface.js:353
 #: templates/interface.html:166
 msgid "Live view"
 msgstr "Vista en directo"
 
-#: static/js/interface.js:349
+#: static/js/interface.js:350
 msgid "Paused (no viewers)"
 msgstr "En pausa (sin espectadores)"
 
-#: static/js/interface.js:349
+#: static/js/interface.js:350
 msgid "On"
 msgstr "Activada"
 
-#: static/js/interface.js:349 static/js/interface.js:744
-#: static/js/interface.js:813 templates/interface.html:295
+#: static/js/interface.js:350 static/js/interface.js:751
+#: static/js/interface.js:820 templates/interface.html:295
 msgid "Off"
 msgstr "Desactivada"
 
-#: static/js/interface.js:355
+#: static/js/interface.js:356
 msgid "Watching"
 msgstr "Espectadores"
 
-#: static/js/interface.js:357
+#: static/js/interface.js:358
 msgid "Recording"
 msgstr "Grabando"
 
-#: static/js/interface.js:357
+#: static/js/interface.js:358
 #, python-brace-format
 msgid "{kind} · {frames} frames"
 msgstr "{kind} · {frames} fotogramas"
 
-#: static/js/interface.js:360 templates/interface.html:109
+#: static/js/interface.js:361 templates/interface.html:109
 #: templates/interface.html:555
 msgid "Uploads"
 msgstr "Subidas"
 
-#: static/js/interface.js:361
+#: static/js/interface.js:362
 #, python-brace-format
 msgid "{waiting} waiting · {failed} failed{lastError}"
 msgstr "{waiting} en espera · {failed} fallidas{lastError}"
 
-#: static/js/interface.js:364
+#: static/js/interface.js:365
 msgid "Clock"
 msgstr "Reloj"
 
-#: static/js/interface.js:364
+#: static/js/interface.js:365
 msgid "Trusted"
 msgstr "Fiable"
 
-#: static/js/interface.js:364
+#: static/js/interface.js:365
 msgid "Not trusted"
 msgstr "No fiable"
 
-#: static/js/interface.js:366
+#: static/js/interface.js:368
 msgid "Disk"
 msgstr "Disco"
 
-#: static/js/interface.js:366 static/js/interface.js:699
+#: static/js/interface.js:368 static/js/interface.js:706
 #, python-brace-format
 msgid "{size} free"
 msgstr "{size} libres"
 
-#: static/js/interface.js:368
+#: static/js/interface.js:370
 msgid " · E-STOP"
 msgstr " · PARADA"
 
-#: static/js/interface.js:368 templates/interface.html:222
+#: static/js/interface.js:370 templates/interface.html:222
 msgid "Controller"
 msgstr "Controlador"
 
-#: static/js/interface.js:375 static/js/interface.js:430
+#: static/js/interface.js:377 static/js/interface.js:435
 msgid "No status from the telescope yet"
 msgstr "Todavía no hay estado del telescopio"
 
-#: static/js/interface.js:376 static/js/interface.js:396
+#: static/js/interface.js:378 static/js/interface.js:398
 #: templates/interface.html:51
 msgid "Camera —"
 msgstr "Cámara —"
 
-#: static/js/interface.js:382
+#: static/js/interface.js:384
 msgid "Emergency stop is on"
 msgstr "La parada de emergencia está activada"
 
-#: static/js/interface.js:384
+#: static/js/interface.js:386
 #, python-brace-format
 msgid "Mount: {error}"
 msgstr "Montura: {error}"
 
-#: static/js/interface.js:384 templates/interface.html:50
+#: static/js/interface.js:386 templates/interface.html:50
 msgid "Mount —"
 msgstr "Montura —"
 
-#: static/js/interface.js:386
+#: static/js/interface.js:388
 msgid "Mount parked"
 msgstr "Montura aparcada"
 
-#: static/js/interface.js:391
+#: static/js/interface.js:393
 #, python-brace-format
 msgid "Mount {state}{extra}"
 msgstr "Montura: {state}{extra}"
 
-#: static/js/interface.js:396
+#: static/js/interface.js:398
 #, python-brace-format
 msgid "Camera: {error}"
 msgstr "Cámara: {error}"
 
-#: static/js/interface.js:398
+#: static/js/interface.js:400
 msgid "Camera not connected"
 msgstr "Cámara no conectada"
 
-#: static/js/interface.js:400
+#: static/js/interface.js:402
 msgid "Camera ready"
 msgstr "Cámara lista"
 
-#: static/js/interface.js:406
+#: static/js/interface.js:408
 #, python-brace-format
 msgid "Clock {source}{offsetS}"
 msgstr "Reloj {source}{offsetS}"
 
-#: static/js/interface.js:411
+#: static/js/interface.js:413
+#, fuzzy, python-brace-format
+msgid "Disk {free}"
+msgstr "Disco: {free} libres"
+
+#: static/js/interface.js:416
 #, python-brace-format
 msgid "Disk {free} free"
 msgstr "Disco: {free} libres"
 
-#: static/js/interface.js:418
+#: static/js/interface.js:423
 #, python-brace-format
 msgid "Uploads {waiting} waiting{held}{failed}"
 msgstr "Subidas: {waiting} en espera{held}{failed}"
 
-#: static/js/interface.js:418
+#: static/js/interface.js:423
 #, python-brace-format
 msgid " · {held} RAWs held"
 msgstr " · {held} RAW retenidos"
 
-#: static/js/interface.js:418
+#: static/js/interface.js:423
 #, python-brace-format
 msgid " · {failed} failed"
 msgstr " · {failed} fallidas"
 
-#: static/js/interface.js:425
+#: static/js/interface.js:430
 #, python-brace-format
 msgid "updated {n} s ago"
 msgstr "actualizado hace {n} s"
 
-#: static/js/interface.js:462
+#: static/js/interface.js:467
 msgid "Status unavailable"
 msgstr "Estado no disponible"
 
-#: static/js/interface.js:480
+#: static/js/interface.js:485
 #, python-brace-format
 msgid "Step {stepIndex} of {steps}: {type}"
 msgstr "Paso {stepIndex} de {steps}: {type}"
 
-#: static/js/interface.js:482
+#: static/js/interface.js:487
 #, python-brace-format
 msgid " · frame {frame} of {count}"
 msgstr " · fotograma {frame} de {count}"
 
-#: static/js/album/main.js:619 static/js/interface.js:482
+#: static/js/album/main.js:619 static/js/interface.js:487
 #, python-brace-format
 msgid " · frame {frame}"
 msgstr " · fotograma {frame}"
 
-#: static/js/interface.js:488
+#: static/js/interface.js:493
 #, python-brace-format
 msgid "{duration} left"
 msgstr "quedan {duration}"
 
-#: static/js/interface.js:489
+#: static/js/interface.js:494
 #, python-brace-format
 msgid "ends {time}"
 msgstr "termina a las {time}"
 
-#: static/js/interface.js:492
+#: static/js/interface.js:497
 #, python-brace-format
 msgid "booking ends {time}"
 msgstr "la reserva termina a las {time}"
 
-#: static/js/interface.js:536 static/js/interface.js:632
+#: static/js/interface.js:541 static/js/interface.js:637
 msgid "unknown error"
 msgstr "error desconocido"
 
-#: static/js/interface.js:549
+#: static/js/interface.js:554
 #, python-brace-format
 msgid "Couldn't pause the plan: {error}"
 msgstr "No se ha podido pausar el plan: {error}"
 
-#: static/js/interface.js:550
+#: static/js/interface.js:555
 #, python-brace-format
 msgid "Couldn't resume the plan: {error}"
 msgstr "No se ha podido reanudar el plan: {error}"
 
-#: static/js/interface.js:551
+#: static/js/interface.js:556
 #, python-brace-format
 msgid "Couldn't skip the step: {error}"
 msgstr "No se ha podido omitir el paso: {error}"
 
-#: static/js/interface.js:552
+#: static/js/interface.js:557
 #, python-brace-format
 msgid "Couldn't stop the plan: {error}"
 msgstr "No se ha podido detener el plan: {error}"
 
-#: static/js/interface.js:553
+#: static/js/interface.js:558
 #, python-brace-format
 msgid "Couldn't change the plan: {error}"
 msgstr "No se ha podido cambiar el plan: {error}"
 
-#: static/js/interface.js:565
+#: static/js/interface.js:570
 msgid "No plans run on this telescope yet."
 msgstr "Todavía no se ha ejecutado ningún plan en este telescopio."
 
-#: static/js/interface.js:596
+#: static/js/interface.js:601
 #, python-brace-format
 msgid "Camera settings unavailable: {message}"
 msgstr "Ajustes de cámara no disponibles: {message}"
 
-#: static/js/interface.js:632
+#: static/js/interface.js:637
 #, python-brace-format
 msgid "Camera setting not changed: {message}"
 msgstr "No se ha cambiado el ajuste de la cámara: {message}"
 
-#: static/js/interface.js:670
+#: static/js/interface.js:675
 msgid "Enter a bulb exposure between 0 and 900 seconds."
 msgstr "Introduce una exposición bulb de entre 0 y 900 segundos."
 
-#: static/js/interface.js:685
+#: static/js/interface.js:690
 msgid "The photo failed"
 msgstr "La foto ha fallado"
 
-#: static/js/interface.js:700
+#: static/js/interface.js:707
 #, python-brace-format
 msgid "Battery {battery} · Card {cardText}"
 msgstr "Batería {battery} · Tarjeta {cardText}"
 
-#: static/js/interface.js:733
+#: static/js/interface.js:740
 msgid "Live"
 msgstr "En directo"
 
-#: static/js/interface.js:739
+#: static/js/interface.js:746
 msgid "Connecting…"
 msgstr "Conectando…"
 
-#: static/js/interface.js:740
+#: static/js/interface.js:747
 msgid "Waiting for the telescope…"
 msgstr "Esperando al telescopio…"
 
-#: static/js/interface.js:741 static/js/interface.js:814
+#: static/js/interface.js:748 static/js/interface.js:821
 #: templates/interface.html:293
 msgid "Live view off"
 msgstr "Vista en directo desactivada"
 
-#: static/js/interface.js:742 static/js/interface.js:844
+#: static/js/interface.js:749 static/js/interface.js:851
 msgid "Live view unavailable"
 msgstr "Vista en directo no disponible"
 
-#: static/js/interface.js:744
+#: static/js/interface.js:751
 msgid "Connecting"
 msgstr "Conectando"
 
-#: static/js/interface.js:800
+#: static/js/interface.js:807
 msgid "Waiting for live view…"
 msgstr "Esperando la vista en directo…"
 
-#: static/js/interface.js:807
+#: static/js/interface.js:814
 msgctxt "button"
 msgid "Live view off"
 msgstr "Desactivar vista en directo"
 
-#: static/js/interface.js:807 templates/interface.html:257
+#: static/js/interface.js:814 templates/interface.html:257
 msgid "Live view on"
 msgstr "Activar vista en directo"
 
-#: static/js/interface.js:809
+#: static/js/interface.js:816
 msgid "Stop live view"
 msgstr "Detener la vista en directo"
 
-#: static/js/interface.js:809 templates/interface.html:303
+#: static/js/interface.js:816 templates/interface.html:303
 msgid "Start live view"
 msgstr "Iniciar la vista en directo"
 
-#: static/js/interface.js:811
+#: static/js/interface.js:818
 msgid "live"
 msgstr "en directo"
 
-#: static/js/interface.js:811 templates/interface.html:436
+#: static/js/interface.js:818 templates/interface.html:436
 msgid "live view off"
 msgstr "vista en directo desactivada"
 
-#: static/js/interface.js:823
+#: static/js/interface.js:830
 msgid "Starting live view…"
 msgstr "Iniciando la vista en directo…"
 
-#: static/js/interface.js:833
+#: static/js/interface.js:840
 #, python-brace-format
 msgid "Couldn't start live view: {message}"
 msgstr "No se ha podido iniciar la vista en directo: {message}"
 
-#: static/js/interface.js:858
+#: static/js/interface.js:865
 #, python-brace-format
 msgid "Couldn't stop live view: {message}"
 msgstr "No se ha podido detener la vista en directo: {message}"
 
-#: static/js/interface.js:889
+#: static/js/interface.js:896
 #, python-brace-format
 msgid "Full screen isn't available: {message}"
 msgstr "La pantalla completa no está disponible: {message}"
 
-#: static/js/interface.js:968
+#: static/js/interface.js:975
 #, python-brace-format
 msgid "Sky at {background}% · clipped {clippedPct}% · {stars} stars measured"
 msgstr "Cielo al {background} % · saturado {clippedPct} % · {stars} estrellas medidas"
 
-#: static/js/interface.js:988
+#: static/js/interface.js:995
 msgid " (clipped)"
 msgstr " (saturado)"
 
-#: static/js/interface.js:1008
+#: static/js/interface.js:1015
 #, python-brace-format
 msgid "Last recording error: {error}"
 msgstr "Último error de grabación: {error}"
 
-#: static/js/interface.js:1011
+#: static/js/interface.js:1018
 #, python-brace-format
 msgid "● Recording {kind}: {frames} frames{seconds}"
 msgstr "● Grabando {kind}: {frames} fotogramas{seconds}"
 
-#: static/js/interface.js:1013
+#: static/js/interface.js:1020
 #, python-brace-format
 msgid "Saved {path}"
 msgstr "Guardado {path}"
 
-#: static/js/interface.js:1029
+#: static/js/interface.js:1036
 #, python-brace-format
 msgid "{n} watching"
 msgstr "{n} viendo"
 
-#: static/js/interface.js:1068
+#: static/js/interface.js:1075
 #, python-brace-format
 msgid "Sky: {message}"
 msgstr "Cielo: {message}"
 
-#: static/js/interface.js:1077 static/js/star_map/time_control.js:204
+#: static/js/interface.js:1084 static/js/star_map/time_control.js:204
 msgid "Day"
 msgstr "Día"
 
-#: static/js/interface.js:1078
+#: static/js/interface.js:1085
 msgid "Civil twilight"
 msgstr "Crepúsculo civil"
 
-#: static/js/interface.js:1079
+#: static/js/interface.js:1086
 msgid "Nautical twilight"
 msgstr "Crepúsculo náutico"
 
-#: static/js/interface.js:1080
+#: static/js/interface.js:1087
 msgid "Astronomical twilight"
 msgstr "Crepúsculo astronómico"
 
-#: static/js/interface.js:1081
+#: static/js/interface.js:1088
 msgid "Astronomical night"
 msgstr "Noche astronómica"
 
-#: static/js/interface.js:1091
+#: static/js/interface.js:1098
 msgid "Site unknown"
 msgstr "Lugar desconocido"
 
-#: static/js/interface.js:1092
+#: static/js/interface.js:1099
 msgid "Sky"
 msgstr "Cielo"
 
-#: static/js/interface.js:1100
+#: static/js/interface.js:1107
 #, python-brace-format
 msgid "Dark sky · night until {nightEnd}"
 msgstr "Cielo oscuro · noche hasta las {nightEnd}"
 
-#: static/js/interface.js:1100
+#: static/js/interface.js:1107
 msgid "Dark sky"
 msgstr "Cielo oscuro"
 
-#: static/js/interface.js:1101
+#: static/js/interface.js:1108
 #, python-brace-format
 msgid "{state} · dark from {nightStart}"
 msgstr "{state} · noche cerrada desde las {nightStart}"
 
-#: static/js/interface.js:1102
+#: static/js/interface.js:1109
 msgid "No full darkness tonight"
 msgstr "Esta noche no llega a oscurecer del todo"
 
-#: static/js/interface.js:1103
+#: static/js/interface.js:1110
 #, python-brace-format
 msgid "Sun {sunAlt}° · {state}"
 msgstr "Sol {sunAlt}° · {state}"
 
-#: static/js/interface.js:1109
+#: static/js/interface.js:1116
 msgid "Alt / Az"
 msgstr "Alt. / Az."
 
-#: static/js/interface.js:1110
+#: static/js/interface.js:1117
 msgid "Transit"
 msgstr "Tránsito"
 
-#: static/js/interface.js:1111 templates/interface.html:93
+#: static/js/interface.js:1118 templates/interface.html:93
 msgid "Above 30°"
 msgstr "Por encima de 30°"
 
-#: static/js/interface.js:1112
+#: static/js/interface.js:1119
 #, python-brace-format
 msgid "{illumination}% · {moonSeparation}° away"
 msgstr "{illumination} % · a {moonSeparation}°"
 
-#: static/js/interface.js:1112 static/js/interface.js:1114
-#: static/js/interface.js:1338 templates/about_astrophysics.html:343
+#: static/js/interface.js:1119 static/js/interface.js:1121
+#: static/js/interface.js:1351 templates/about_astrophysics.html:343
 #: templates/interface.html:94 templates/interface.html:132
 msgid "Moon"
 msgstr "Luna"
 
-#: static/js/interface.js:1114
+#: static/js/interface.js:1121
 #, no-python-format, python-brace-format
 msgid "{illumination}% lit · {alt}"
 msgstr "{illumination} % iluminada · {alt}"
 
-#: static/js/interface.js:1114
+#: static/js/interface.js:1121
 #, python-brace-format
 msgid "up, {alt}°"
 msgstr "en el cielo, {alt}°"
 
-#: static/js/interface.js:1114
+#: static/js/interface.js:1121
 msgid "below the horizon"
 msgstr "bajo el horizonte"
 
-#: static/js/interface.js:1116
+#: static/js/interface.js:1123
 msgid "Astro dark"
 msgstr "Noche astronómica"
 
-#: static/js/interface.js:1116
+#: static/js/interface.js:1123
 msgid "None tonight"
 msgstr "Esta noche no hay"
 
-#: static/js/interface.js:1159
+#: static/js/interface.js:1166
 msgid "Everything the catalogue says"
 msgstr "Todo lo que dice el catálogo"
 
-#: static/js/interface.js:1169
+#: static/js/interface.js:1176
 #, python-brace-format
 msgid "RA {ra} · Dec {dec}{mag}"
 msgstr "AR {ra} · Dec {dec}{mag}"
 
-#: static/js/interface.js:1187 templates/interface.html:127
+#: static/js/interface.js:1194 templates/interface.html:127
 msgid "Go to + centre"
 msgstr "Ir a + centrar"
 
-#: static/js/interface.js:1192
+#: static/js/interface.js:1199
 msgid "Use as target"
 msgstr "Usar como objetivo"
 
-#: static/js/interface.js:1218
+#: static/js/interface.js:1225
 msgid "That target has no coordinates to go to."
 msgstr "Ese objetivo no tiene coordenadas a las que ir."
 
-#: static/js/interface.js:1221
+#: static/js/interface.js:1228
 #, python-brace-format
 msgid "… go to {name} (RA {ra}°, Dec {dec}°)"
 msgstr "… ir a {name} (AR {ra}°, Dec {dec}°)"
 
-#: static/js/interface.js:1230
+#: static/js/interface.js:1237
 #, python-brace-format
 msgid "✓ tracking {name}"
 msgstr "✓ siguiendo {name}"
 
-#: static/js/interface.js:1234
+#: static/js/interface.js:1241
 msgid "The go-to failed"
 msgstr "El go-to ha fallado"
 
-#: static/js/interface.js:1235
+#: static/js/interface.js:1242
 #, python-brace-format
 msgid "✗ go to {name}: {message}"
 msgstr "✗ ir a {name}: {message}"
 
-#: static/js/interface.js:1240
+#: static/js/interface.js:1247
 #, python-brace-format
 msgid "The go-to failed: {error}"
 msgstr "El go-to ha fallado: {error}"
 
-#: static/js/interface.js:1258
+#: static/js/interface.js:1265
 msgid "Enter RA as h m s (or degrees) and Dec as ° ′ ″."
 msgstr "Introduce la AR como h m s (o en grados) y la Dec como ° ′ ″."
 
-#: static/js/interface.js:1269
+#: static/js/interface.js:1276
 #, python-brace-format
 msgid "Tracking {name}"
 msgstr "Siguiendo {name}"
 
-#: static/js/interface.js:1273 templates/interface.html:140
+#: static/js/interface.js:1280 templates/interface.html:140
 msgid "Not tracking anything"
 msgstr "No se está siguiendo nada"
 
-#: static/js/interface.js:1286
+#: static/js/interface.js:1293
 msgid "✓ stopped tracking"
 msgstr "✓ seguimiento detenido"
 
-#: static/js/interface.js:1288
+#: static/js/interface.js:1295
 #, python-brace-format
 msgid "✗ stop tracking: {message}"
 msgstr "✗ detener seguimiento: {message}"
 
-#: static/js/interface.js:1319
+#: static/js/interface.js:1326
 msgid "idle"
 msgstr "en reposo"
 
-#: static/js/interface.js:1319
+#: static/js/interface.js:1326
 msgid "tracking"
 msgstr "siguiendo"
 
-#: static/js/interface.js:1319
+#: static/js/interface.js:1326
 msgid "slewing"
 msgstr "moviéndose"
 
-#: static/js/interface.js:1319
+#: static/js/interface.js:1326
 msgid "parked"
 msgstr "aparcada"
 
-#: static/js/interface.js:1319
+#: static/js/interface.js:1326
 msgid "parking"
 msgstr "aparcando"
 
-#: static/js/interface.js:1320
+#: static/js/interface.js:1327
 msgid "stopped"
 msgstr "detenido"
 
-#: static/js/interface.js:1320
+#: static/js/interface.js:1327
 msgid "homing"
 msgstr "buscando el origen"
 
-#: static/js/interface.js:1320
+#: static/js/interface.js:1327
 msgid "error"
 msgstr "error"
 
-#: static/js/interface.js:1321
+#: static/js/interface.js:1328
 msgid "sidereal"
 msgstr "sideral"
 
-#: static/js/interface.js:1321
+#: static/js/interface.js:1328
 msgid "lunar"
 msgstr "lunar"
 
-#: static/js/interface.js:1321
+#: static/js/interface.js:1328
 msgid "solar"
 msgstr "solar"
 
-#: static/js/interface.js:1321
+#: static/js/interface.js:1328
 msgid "king"
 msgstr "King"
 
-#: static/js/interface.js:1321
+#: static/js/interface.js:1328
 msgid "custom"
 msgstr "personalizada"
 
-#: static/js/interface.js:1322
+#: static/js/interface.js:1329
 msgid "running"
 msgstr "en marcha"
 
-#: static/js/interface.js:1322
+#: static/js/interface.js:1329
 msgid "waiting"
 msgstr "en espera"
 
-#: static/js/interface.js:1322
+#: static/js/interface.js:1329
 msgid "paused"
 msgstr "en pausa"
 
-#: static/js/interface.js:1322
+#: static/js/interface.js:1329
 msgid "done"
 msgstr "terminado"
 
-#: static/js/interface.js:1323
+#: static/js/interface.js:1330
 msgid "starting"
 msgstr "iniciando"
 
-#: static/js/interface.js:1323
+#: static/js/interface.js:1330
 msgid "queued"
 msgstr "en cola"
 
-#: static/js/album/editor.js:151 static/js/interface.js:1324
+#: static/js/album/editor.js:151 static/js/interface.js:1331
 #: static/js/processing/stack.js:30
 msgid "bias"
 msgstr "bias"
 
-#: static/js/album/quality.js:11 static/js/interface.js:1324
+#: static/js/album/quality.js:11 static/js/interface.js:1331
 #: static/js/processing/stack.js:30
 msgid "light"
 msgstr "light"
 
-#: static/js/album/quality.js:11 static/js/interface.js:1324
+#: static/js/album/quality.js:11 static/js/interface.js:1331
 #: static/js/processing/stack.js:30
 msgid "dark"
 msgstr "dark"
 
-#: static/js/album/quality.js:11 static/js/interface.js:1324
+#: static/js/album/quality.js:11 static/js/interface.js:1331
 #: static/js/processing/stack.js:30
 msgid "flat"
 msgstr "flat"
 
-#: static/js/album/quality.js:12 static/js/interface.js:1324
+#: static/js/album/quality.js:12 static/js/interface.js:1331
 msgid "test shot"
 msgstr "foto de prueba"
 
-#: static/js/album/quality.js:12 static/js/interface.js:1325
+#: static/js/album/quality.js:12 static/js/interface.js:1332
 msgid "snapshot"
 msgstr "instantánea"
 
-#: static/js/album/quality.js:13 static/js/interface.js:1325
+#: static/js/album/quality.js:13 static/js/interface.js:1332
 msgid "video"
 msgstr "vídeo"
 
-#: static/js/interface.js:1338
+#: static/js/interface.js:1351
 msgid "Sun"
 msgstr "Sol"
 
-#: static/js/interface.js:1338 templates/about_astrophysics.html:343
+#: static/js/interface.js:1351 templates/about_astrophysics.html:343
 #: templates/interface.html:132
 msgid "Mercury"
 msgstr "Mercurio"
 
-#: static/js/interface.js:1339
+#: static/js/interface.js:1352
 msgid "Pluto"
 msgstr "Plutón"
 
-#: static/js/interface.js:1339 templates/about_astrophysics.html:343
+#: static/js/interface.js:1352 templates/about_astrophysics.html:343
 #: templates/interface.html:133
 msgid "Neptune"
 msgstr "Neptuno"
 
-#: static/js/interface.js:1339 templates/interface.html:133
+#: static/js/interface.js:1352 templates/interface.html:133
 msgid "Uranus"
 msgstr "Urano"
 
-#: static/js/interface.js:1368
+#: static/js/interface.js:1381
 msgid "E-STOP sent"
 msgstr "PARADA enviada"
 
-#: static/js/interface.js:1369
+#: static/js/interface.js:1382
 msgid "Emergency stop sent: every motor is stopping."
 msgstr "Parada de emergencia enviada: todos los motores se están deteniendo."
 
-#: static/js/interface.js:1375
+#: static/js/interface.js:1388
 msgid "Clear the emergency stop? Make sure nothing is in the way of the mount."
 msgstr "¿Desactivar la parada de emergencia? Asegúrate de que nada se interpone en el camino de la montura."
 
-#: static/js/interface.js:1388
+#: static/js/interface.js:1401
 msgid "Enter a custom rate in arcseconds per second."
 msgstr "Introduce una velocidad personalizada en segundos de arco por segundo."
 
-#: static/js/interface.js:1415
+#: static/js/interface.js:1428
 msgid "This telescope does not report exclusion zones. Update its Pi software to use them."
 msgstr "Este telescopio no informa de zonas de exclusión. Actualiza el software de su Pi para usarlas."
 
-#: static/js/interface.js:1417
+#: static/js/interface.js:1430
 msgid "None: the telescope may point anywhere above its horizon limit."
 msgstr "Ninguna: el telescopio puede apuntar a cualquier parte por encima de su límite de horizonte."
 
-#: static/js/interface.js:1419 static/js/star_map/zone_editor.js:110
+#: static/js/interface.js:1432 static/js/star_map/zone_editor.js:110
 #: static/js/star_map/zone_editor.js:186
 msgid "Unnamed zone"
 msgstr "Zona sin nombre"
 
-#: static/js/interface.js:1436
+#: static/js/interface.js:1449
 #, python-brace-format
 msgid "Uploads: {error}"
 msgstr "Subidas: {error}"
 
-#: static/js/interface.js:1440
+#: static/js/interface.js:1453
 #, python-brace-format
 msgid "Waiting {waiting}"
 msgstr "En espera {waiting}"
 
-#: static/js/interface.js:1440
+#: static/js/interface.js:1453
 #, python-brace-format
 msgid "RAWs held {held}"
 msgstr "RAW retenidos {held}"
 
-#: static/js/interface.js:1441
+#: static/js/interface.js:1454
 #, python-brace-format
 msgid "Failed {failed}"
 msgstr "Fallidas {failed}"
 
-#: static/js/interface.js:1441
+#: static/js/interface.js:1454
 #, python-brace-format
 msgid "Sent {sent}"
 msgstr "Enviadas {sent}"
 
-#: static/js/interface.js:1442
+#: static/js/interface.js:1455
 #, python-brace-format
 msgid ""
 "\n"
@@ -3825,7 +3830,7 @@ msgstr ""
 "\n"
 "Enviando {filename}"
 
-#: static/js/interface.js:1443
+#: static/js/interface.js:1456
 #, python-brace-format
 msgid ""
 "\n"
@@ -3834,155 +3839,155 @@ msgstr ""
 "\n"
 "Último error: {lastError}"
 
-#: static/js/album/main.js:249 static/js/interface.js:1477
-#: templates/star_map.html:656
+#: static/js/album/main.js:249 static/js/interface.js:1490
+#: templates/star_map.html:675
 msgid "Stars"
 msgstr "Estrellas"
 
-#: static/js/album/main.js:629 static/js/interface.js:1478
+#: static/js/album/main.js:629 static/js/interface.js:1491
 msgid "FWHM / HFR"
 msgstr "FWHM / HFR"
 
-#: static/js/album/main.js:630 static/js/interface.js:1479
+#: static/js/album/main.js:630 static/js/interface.js:1492
 msgid "Eccentricity"
 msgstr "Excentricidad"
 
-#: static/js/interface.js:1480
+#: static/js/interface.js:1493
 msgid "Background / noise"
 msgstr "Fondo / ruido"
 
-#: static/js/interface.js:1481 static/js/interface.js:1484
+#: static/js/interface.js:1494 static/js/interface.js:1497
 msgid "Clipped"
 msgstr "Saturado"
 
-#: static/js/interface.js:1483
+#: static/js/interface.js:1496
 msgid "Sky level"
 msgstr "Nivel del cielo"
 
 #: static/js/album/main.js:585 static/js/album/main.js:634
-#: static/js/interface.js:1486 templates/album.html:158
+#: static/js/interface.js:1499 templates/album.html:158
 msgid "Measured"
 msgstr "Medida"
 
-#: static/js/album/main.js:634 static/js/interface.js:1486
+#: static/js/album/main.js:634 static/js/interface.js:1499
 msgid "Not yet"
 msgstr "Todavía no"
 
-#: static/js/interface.js:1488
+#: static/js/interface.js:1501
 msgid "Uploaded"
 msgstr "Subido"
 
-#: static/js/interface.js:1488
+#: static/js/interface.js:1501
 msgid "On the telescope"
 msgstr "En el telescopio"
 
-#: static/js/interface.js:1502
+#: static/js/interface.js:1515
 msgid "Motor controls open, ready for commands"
 msgstr "Controles del motor abiertos, listos para recibir órdenes"
 
-#: static/js/interface.js:1519
+#: static/js/interface.js:1532
 msgid "Motor 1 (azimuth)"
 msgstr "Motor 1 (acimut)"
 
-#: static/js/interface.js:1519
+#: static/js/interface.js:1532
 msgid "Motor 2 (altitude)"
 msgstr "Motor 2 (altitud)"
 
-#: static/js/interface.js:1530
+#: static/js/interface.js:1543
 #, python-brace-format
 msgid "Switched to {selectedMotorId}"
 msgstr "Cambiado a {selectedMotorId}"
 
-#: static/js/interface.js:1535
+#: static/js/interface.js:1548
 msgid "Stop all motor movement now?"
 msgstr "¿Detener ahora todo el movimiento de los motores?"
 
-#: static/js/interface.js:1536
+#: static/js/interface.js:1549
 msgid "EMERGENCY STOP SENT"
 msgstr "PARADA DE EMERGENCIA ENVIADA"
 
-#: static/js/interface.js:1543
+#: static/js/interface.js:1556
 msgid "Disable"
 msgstr "Desactivar"
 
-#: static/js/interface.js:1543 templates/interface.html:600
+#: static/js/interface.js:1556 templates/interface.html:600
 msgid "Enable"
 msgstr "Activar"
 
-#: static/js/interface.js:1552
+#: static/js/interface.js:1565
 #, python-brace-format
 msgid "Running {command} on {selectedMotorId}…"
 msgstr "Ejecutando {command} en {selectedMotorId}…"
 
-#: static/js/interface.js:1560
+#: static/js/interface.js:1573
 msgid "Motor command failed"
 msgstr "La orden del motor ha fallado"
 
-#: static/js/interface.js:1561
+#: static/js/interface.js:1574
 #, python-brace-format
 msgid "{command} done on {motor}"
 msgstr "{command} hecho en {motor}"
 
-#: static/js/interface.js:1566
+#: static/js/interface.js:1579
 #, python-brace-format
 msgid "{command} failed on {motor}: {error}"
 msgstr "{command} ha fallado en {motor}: {error}"
 
-#: static/js/interface.js:1597
+#: static/js/interface.js:1610
 #, python-brace-format
 msgid "Enter a valid value for {label}."
 msgstr "Introduce un valor válido para {label}."
 
-#: static/js/interface.js:1604 static/js/interface.js:1613
-#: static/js/interface.js:1629
+#: static/js/interface.js:1617 static/js/interface.js:1626
+#: static/js/interface.js:1642
 msgid "speed"
 msgstr "la velocidad"
 
-#: static/js/interface.js:1610 static/js/interface.js:1625
+#: static/js/interface.js:1623 static/js/interface.js:1638
 msgid "Enable the motor first."
 msgstr "Activa primero el motor."
 
-#: static/js/interface.js:1615
+#: static/js/interface.js:1628
 #, python-brace-format
 msgid "{speed} steps/s is fast. Carry on?"
 msgstr "{speed} pasos/s es rápido. ¿Continuar?"
 
-#: static/js/interface.js:1628
+#: static/js/interface.js:1641
 msgid "number of steps"
 msgstr "el número de pasos"
 
-#: static/js/interface.js:1631
+#: static/js/interface.js:1644
 #, python-brace-format
 msgid "Move {steps} steps? That's a large movement."
 msgstr "¿Mover {steps} pasos? Es un movimiento grande."
 
-#: static/js/interface.js:1640
+#: static/js/interface.js:1653
 msgid "current"
 msgstr "la corriente"
 
-#: static/js/interface.js:1645
+#: static/js/interface.js:1658
 msgid "acceleration"
 msgstr "la aceleración"
 
-#: static/js/interface.js:1658
+#: static/js/interface.js:1671
 #, python-brace-format
 msgid "Motor status ({selectedMotorId}):"
 msgstr "Estado del motor ({selectedMotorId}):"
 
-#: static/js/interface.js:1677
+#: static/js/interface.js:1690
 msgid "All motors:"
 msgstr "Todos los motores:"
 
-#: static/js/interface.js:1772
+#: static/js/interface.js:1785
 msgid "Photo taken. It shows up here and in the album once it uploads."
 msgstr "Foto hecha. Aparecerá aquí y en el álbum cuando se suba."
 
-#: static/js/interface.js:1773
+#: static/js/interface.js:1786
 #, python-brace-format
 msgid "The photo failed: {message}"
 msgstr "La foto ha fallado: {message}"
 
-#: static/js/interface.js:1783
+#: static/js/interface.js:1796
 msgid "Stop the capture plan?"
 msgstr "¿Detener el plan de captura?"
 
@@ -4274,11 +4279,11 @@ msgstr "Alineando fotogramas ({done} de {total})"
 msgid "Combining {n} frames"
 msgstr "Combinando {n} fotogramas"
 
-#: static/js/star_map/catalogue.js:299 templates/star_map.html:786
+#: static/js/star_map/catalogue.js:312 templates/star_map.html:807
 msgid "Loading stars…"
 msgstr "Cargando estrellas…"
 
-#: static/js/star_map/catalogue.js:303
+#: static/js/star_map/catalogue.js:316
 #, python-brace-format
 msgid "Loading stars… {pct}%"
 msgstr "Cargando estrellas… {pct}%"
@@ -4324,13 +4329,13 @@ msgid "SE"
 msgstr "SE"
 
 #: static/js/star_map/device_orientation.js:637
-#: static/js/star_map/overlays.js:296
+#: static/js/star_map/overlays.js:301
 msgctxt "compass"
 msgid "N"
 msgstr "N"
 
 #: static/js/star_map/device_orientation.js:637
-#: static/js/star_map/overlays.js:297
+#: static/js/star_map/overlays.js:302
 msgctxt "compass"
 msgid "E"
 msgstr "E"
@@ -4346,13 +4351,13 @@ msgid "NW"
 msgstr "NO"
 
 #: static/js/star_map/device_orientation.js:638
-#: static/js/star_map/overlays.js:298
+#: static/js/star_map/overlays.js:303
 msgctxt "compass"
 msgid "S"
 msgstr "S"
 
 #: static/js/star_map/device_orientation.js:638
-#: static/js/star_map/overlays.js:299
+#: static/js/star_map/overlays.js:304
 msgctxt "compass"
 msgid "W"
 msgstr "O"
@@ -4464,13 +4469,13 @@ msgid "Compass only · tap Align for accuracy"
 msgstr "Solo brújula · pulsa Alinear para más precisión"
 
 #: static/js/star_map/input.js:36 static/js/star_map/object_info.js:55
-#: static/js/star_map/search.js:368 static/js/star_map/search.js:546
+#: static/js/star_map/search.js:372 static/js/star_map/search.js:550
 #, python-brace-format
 msgid "RA: {ra}"
 msgstr "AR: {ra}"
 
 #: static/js/star_map/input.js:37 static/js/star_map/object_info.js:56
-#: static/js/star_map/search.js:368 static/js/star_map/search.js:546
+#: static/js/star_map/search.js:372 static/js/star_map/search.js:550
 #, python-brace-format
 msgid "DEC: {dec}"
 msgstr "Dec: {dec}"
@@ -4489,7 +4494,7 @@ msgstr "Alt: {alt}°"
 msgid "Swipe to look around. Tap Draw a zone, then drag one finger across the sky to mark it."
 msgstr "Desliza para mirar alrededor. Toca Dibujar una zona y arrastra un dedo por el cielo para marcarla."
 
-#: static/js/star_map/object_info.js:9 templates/star_map.html:564
+#: static/js/star_map/object_info.js:9 templates/star_map.html:583
 msgid "Drag to look around. Press Draw a zone, then drag across the sky to mark it."
 msgstr "Arrastra para mirar alrededor. Pulsa Dibujar una zona y arrastra por el cielo para marcarla."
 
@@ -4497,16 +4502,16 @@ msgstr "Arrastra para mirar alrededor. Pulsa Dibujar una zona y arrastra por el 
 msgid "Swipe to rotate. Pinch to zoom. Tap a star/planet for info."
 msgstr "Desliza para girar. Pellizca para hacer zoom. Toca una estrella o planeta para ver su información."
 
-#: static/js/star_map/object_info.js:13 templates/star_map.html:615
+#: static/js/star_map/object_info.js:13 templates/star_map.html:634
 msgid "Drag to rotate. Click a star/planet for info."
 msgstr "Arrastra para girar. Haz clic en una estrella o planeta para ver su información."
 
 #: static/js/star_map/object_info.js:22 static/js/star_map/object_info.js:332
-#: static/js/star_map/search.js:351 static/js/star_map/telescope.js:129
+#: static/js/star_map/search.js:355 static/js/star_map/telescope.js:129
 msgid "not recorded"
 msgstr "sin registrar"
 
-#: static/js/star_map/object_info.js:57 static/js/star_map/search.js:368
+#: static/js/star_map/object_info.js:57 static/js/star_map/search.js:372
 #, python-brace-format
 msgid "V-Mag: {mag}"
 msgstr "Mag. V: {mag}"
@@ -4516,11 +4521,11 @@ msgstr "Mag. V: {mag}"
 msgid "In the telescope's exclusion zone ({zone}): it won't point here"
 msgstr "En una zona de exclusión del telescopio ({zone}): no apuntará aquí"
 
-#: static/js/star_map/object_info.js:85 static/js/star_map/search.js:364
+#: static/js/star_map/object_info.js:85 static/js/star_map/search.js:368
 msgid "Track"
 msgstr "Seguir"
 
-#: static/js/star_map/object_info.js:87 static/js/star_map/search.js:365
+#: static/js/star_map/object_info.js:87 static/js/star_map/search.js:369
 msgid "Advanced Info"
 msgstr "Más información"
 
@@ -4683,14 +4688,14 @@ msgstr "Seguir objeto"
 
 #: static/js/star_map/object_info.js:394 templates/album.html:361
 #: templates/album.html:440 templates/album.html:459 templates/album.html:479
-#: templates/base.html:146 templates/interface.html:493
+#: templates/base.html:150 templates/interface.html:493
 #: templates/interface.html:514 templates/interface.html:573
 #: templates/interface.html:586 templates/interface.html:671
-#: templates/star_map.html:751
+#: templates/star_map.html:770
 msgid "Close"
 msgstr "Cerrar"
 
-#: static/js/star_map/overlays.js:442 static/js/star_map/overlays.js:443
+#: static/js/star_map/overlays.js:447 static/js/star_map/overlays.js:448
 #, python-brace-format
 msgid "HA {h}h"
 msgstr "AH {h}h"
@@ -4722,77 +4727,77 @@ msgstr "telescopio"
 msgid "Solar System"
 msgstr "Sistema solar"
 
-#: static/js/star_map/search.js:35 static/js/star_map/search.js:367
+#: static/js/star_map/search.js:35 static/js/star_map/search.js:371
 msgid "Constellation"
 msgstr "Constelación"
 
-#: static/js/star_map/search.js:175
+#: static/js/star_map/search.js:177
 msgid "Please enter a search term."
 msgstr "Escribe algo para buscar."
 
-#: static/js/star_map/search.js:182
+#: static/js/star_map/search.js:184
 msgid "No telescope selected. Please select a telescope first."
 msgstr "No hay ningún telescopio seleccionado. Selecciona uno primero."
 
-#: static/js/star_map/search.js:202
+#: static/js/star_map/search.js:204
 #, python-brace-format
 msgid "Telescope position not available: {reason}"
 msgstr "La posición del telescopio no está disponible: {reason}"
 
-#: static/js/star_map/search.js:202
+#: static/js/star_map/search.js:204
 msgid "No telescope selected or unable to contact telescope"
 msgstr "No hay telescopio seleccionado o no se puede contactar con él"
 
-#: static/js/star_map/search.js:207
+#: static/js/star_map/search.js:209
 msgid "Error fetching telescope position. Check browser console for details."
 msgstr "Error al obtener la posición del telescopio. Consulta la consola del navegador para más detalles."
 
-#: static/js/star_map/search.js:212
+#: static/js/star_map/search.js:214
 msgid "Telescope position not available. Make sure a telescope is selected."
 msgstr "La posición del telescopio no está disponible. Comprueba que hay un telescopio seleccionado."
 
-#: static/js/star_map/search.js:363 static/js/star_map/search.js:409
-#: static/js/star_map/search.js:548 templates/album.html:189
-#: templates/interface.html:355 templates/star_map.html:693
+#: static/js/star_map/search.js:367 static/js/star_map/search.js:413
+#: static/js/star_map/search.js:552 templates/album.html:189
+#: templates/interface.html:355 templates/star_map.html:712
 msgid "Clear"
 msgstr "Limpiar"
 
-#: static/js/star_map/search.js:375
+#: static/js/star_map/search.js:379
 msgid "Object not found."
 msgstr "No se ha encontrado el objeto."
 
-#: static/js/star_map/search.js:380
+#: static/js/star_map/search.js:384
 msgid "Search failed. Please try again."
 msgstr "La búsqueda ha fallado. Vuelve a intentarlo."
 
-#: static/js/star_map/search.js:390
+#: static/js/star_map/search.js:394
 #, python-brace-format
 msgid "Closest match for “{query}”"
 msgstr "Lo más parecido a «{query}»"
 
-#: static/js/star_map/search.js:393
+#: static/js/star_map/search.js:397
 #, python-brace-format
 msgid "Found by its name “{name}”"
 msgstr "Encontrado por su nombre «{name}»"
 
-#: static/js/star_map/search.js:397
+#: static/js/star_map/search.js:401
 msgid "Other matches:"
 msgstr "Otras coincidencias:"
 
-#: static/js/star_map/search.js:406
+#: static/js/star_map/search.js:410
 #, python-brace-format
 msgid "No exact match for “{query}”. Did you mean:"
 msgstr "Nada coincide exactamente con «{query}». ¿Buscabas alguno de estos?"
 
-#: static/js/star_map/search.js:521
+#: static/js/star_map/search.js:525
 msgid "Telescope position not available."
 msgstr "La posición del telescopio no está disponible."
 
-#: static/js/star_map/search.js:546
+#: static/js/star_map/search.js:550
 msgid "Telescope Position"
 msgstr "Posición del telescopio"
 
-#: static/js/star_map/telescope.js:117 templates/star_map.html:621
+#: static/js/star_map/telescope.js:117 templates/star_map.html:640
 msgid "No object being tracked"
 msgstr "No se está siguiendo ningún objeto"
 
@@ -4868,17 +4873,17 @@ msgid "Zone added. Name it, then save it to the telescope."
 msgstr "Zona añadida. Ponle nombre y guárdala en el telescopio."
 
 #: static/js/star_map/dead_zones.js:26 static/js/telescope_zones.js:20
-#: templates/base.html:163 templates/star_map.html:578
-#: templates/star_map.html:591
+#: templates/base.html:167 templates/star_map.html:597
+#: templates/star_map.html:610
 msgid "Privacy"
 msgstr "Privacidad"
 
 #: static/js/star_map/dead_zones.js:26 static/js/telescope_zones.js:20
-#: templates/star_map.html:579 templates/star_map.html:592
+#: templates/star_map.html:598 templates/star_map.html:611
 msgid "Physical limit"
 msgstr "Límite físico"
 
-#: static/js/telescope_zones.js:69 templates/star_map.html:588
+#: static/js/telescope_zones.js:69 templates/star_map.html:607
 msgid "e.g. Next door"
 msgstr "p. ej. Casa del vecino"
 
@@ -4891,6 +4896,7 @@ msgid "Remove this zone"
 msgstr "Quitar esta zona"
 
 #: static/js/star_map/zone_editor.js:208 static/js/telescope_zones.js:110
+#: templates/offline.html:6
 msgid "Offline"
 msgstr "Sin conexión"
 
@@ -4952,8 +4958,12 @@ msgstr ""
 msgid "Try the star map"
 msgstr "Mapa estelar"
 
-#: templates/about.html:31 templates/about.html:131
+#: templates/about.html:31 templates/about.html:134
 msgid "For engineers and recruiters"
+msgstr ""
+
+#: templates/about.html:35 templates/about.html:84
+msgid "A colour image of the Andromeda Galaxy and its companion galaxies M32 and M110, against a dense star field"
 msgstr ""
 
 #: templates/about.html:41
@@ -5022,10 +5032,13 @@ msgstr "Exposición"
 msgid "Search over 110,000 stars, planets and deep sky objects, and find your next target in seconds."
 msgstr ""
 
-#: templates/about.html:76
-#, fuzzy
+#: templates/about.html:76 templates/offline.html:35
 msgid "Open the star map"
-msgstr "Mapa estelar"
+msgstr "Abrir el mapa estelar"
+
+#: templates/about.html:79
+msgid "The Seleno telescope interface tracking the Andromeda Galaxy, with the live view, camera settings, focus readout and command log"
+msgstr ""
 
 #: templates/about.html:80
 #, fuzzy
@@ -5073,216 +5086,216 @@ msgstr "1 light"
 msgid "Next"
 msgstr "Siguiente (→)"
 
-#: templates/about.html:115
+#: templates/about.html:117
 msgid "Follow the build"
 msgstr ""
 
-#: templates/about.html:118
+#: templates/about.html:120
 #, fuzzy
 msgid "Latest"
 msgstr "Última:"
 
-#: templates/about.html:120
+#: templates/about.html:122
 msgid "Printing the mount parts this week."
 msgstr ""
 
-#: templates/about.html:130
+#: templates/about.html:133
 msgid "A deeper look"
 msgstr ""
 
-#: templates/about.html:132
+#: templates/about.html:135
 msgid "Seleno is a solo project that covers hardware, embedded firmware, networking, a web server and a browser based image processing engine, designed and built by me."
 msgstr "Seleno es un proyecto individual que abarca hardware, firmware embebido, redes, un servidor web y un motor de procesamiento de imágenes que funciona en el navegador, todo diseñado y construido por mí."
 
-#: templates/about.html:185
+#: templates/about.html:188
 msgid "How a command travels from your browser to the telescope motors."
 msgstr ""
 
-#: templates/about.html:191
+#: templates/about.html:194
 msgid "Seleno's software has three parts: a Flask server, a Python client on each telescope's Raspberry Pi, and C++ firmware on the ESP32. The server uses SQLAlchemy over SQLite, Jinja2 templates, Bootstrap 5 and plain JavaScript, with a custom canvas star map and some compute heavy code in C++. The interface is available in English and Spanish, with about 1,750 translated strings."
 msgstr ""
 
-#: templates/about.html:193
+#: templates/about.html:196
 #, fuzzy
 msgid "Server and interface"
 msgstr "Abrir interfaz"
 
-#: templates/about.html:194
+#: templates/about.html:197
 msgid "Basic mode lets you pick a curated target, check focus, take a test shot and capture, with a live view while imaging. Advanced mode adds custom coordinates, direct console output, full camera settings, a live histogram and stream controls. Both modes can run imaging plans, which are lists of steps such as go to, wait, lights, darks, flats, bias and video. Each plan is validated against a schema and the camera's capabilities, and its running time is estimated from overheads learned on earlier plans."
 msgstr ""
 
-#: templates/about.html:195
+#: templates/about.html:198
 msgid "Bookings are converted to UTC and checked against the owner's rules inside a write locked SQLite transaction, so a multi date request either fully succeeds or rolls back. Owners approve each booking, every change is audit logged, and a watchdog stops any plan when the slot ends. SumUp payments are built but still in sandbox. A new telescope gets a random token that is stored only as a hash and shown once, and it stays inactive until an admin approves it."
 msgstr ""
 
-#: templates/about.html:197
+#: templates/about.html:200
 #, fuzzy
 msgid "Telescope node"
 msgstr "No se ha encontrado el telescopio"
 
-#: templates/about.html:198
+#: templates/about.html:201
 msgid "Each node is an asyncio Python client, with slow work pushed to threads. It connects out over two WebSockets, one for commands and one for live view, so it works behind a home router with no port forwarding. Commands run in separate lanes and carry request IDs, so a long exposure never blocks a slew and a stop always gets through. A single thread owns the camera through gphoto2. Live view frames are reencoded on the Pi, skipped when unchanged and stepped down on slow links. Photos upload from a queue saved on disk, JPEGs first and RAW later, so nothing is lost across restarts or dropped connections."
 msgstr ""
 
-#: templates/about.html:199
-msgid "The Pi also plate solves locally with ASTAP, records video including uncompressed SER, and checks every go to against the Sun, the horizon and dead zones. Offline mode runs all of this without the server, with a phone page protected by a code on the front panel. Nodes can update themselves from a webhook, and every update is reviewed by an admin first."
-msgstr ""
-
-#: templates/about.html:201
-#, fuzzy
-msgid "Firmware"
-msgstr "Adelante"
-
 #: templates/about.html:202
-msgid "The ESP32 runs C++ on the Arduino framework, built with PlatformIO and FreeRTOS. The Pi sends newline delimited JSON over UART at 921600 baud, and each reply echoes the command's ID. A 20 kHz timer interrupt uses phase accumulators to produce exact step rates, which keeps tracking drift minimal, while a 1 ms timer runs trapezoidal ramps and multi segment slew paths that can curve around the Sun. Microstepping and TMC2209 chopper mode are chosen per move, fine and quiet for tracking, coarse and strong for slews. Pointing uses a least squares model of up to six terms, fitted from plate solves or stars centred by hand, along with three point polar alignment, refraction and precession corrections."
+msgid "The Pi also plate solves locally with ASTAP, records video including uncompressed SER, and checks every go to against the Sun, the horizon and dead zones. Offline mode runs all of this without the server, with a phone page protected by a code on the front panel. Nodes can update themselves from a webhook, and every update is reviewed by an admin first."
 msgstr ""
 
 #: templates/about.html:204
 #, fuzzy
+msgid "Firmware"
+msgstr "Adelante"
+
+#: templates/about.html:205
+msgid "The ESP32 runs C++ on the Arduino framework, built with PlatformIO and FreeRTOS. The Pi sends newline delimited JSON over UART at 921600 baud, and each reply echoes the command's ID. A 20 kHz timer interrupt uses phase accumulators to produce exact step rates, which keeps tracking drift minimal, while a 1 ms timer runs trapezoidal ramps and multi segment slew paths that can curve around the Sun. Microstepping and TMC2209 chopper mode are chosen per move, fine and quiet for tracking, coarse and strong for slews. Pointing uses a least squares model of up to six terms, fitted from plate solves or stars centred by hand, along with three point polar alignment, refraction and precession corrections."
+msgstr ""
+
+#: templates/about.html:207
+#, fuzzy
 msgid "Stacking in the browser"
 msgstr "En marcha en este navegador"
 
-#: templates/about.html:205
+#: templates/about.html:208
 msgid "The album's stacking engine runs entirely in the browser with JavaScript and web workers, switching between memory, OPFS and streaming modes so huge stacks still fit. Pass one calibrates each frame with master darks, flats and bias, measures the stars and picks the sharpest frame as the reference. Frames that are blurred, stretched or star poor are rejected using robust statistics, and the rest are aligned to the reference. Pass two debayers and resamples each frame, matches its background and noise to the reference, weights it by noise and combines everything with iterative winsorized sigma clipping. The output is a master FITS file with a preview, a coverage map and a per frame report of what was rejected and why."
 msgstr ""
 
-#: templates/about.html:207 templates/about.html:232
+#: templates/about.html:210 templates/about.html:235
 msgid "Challenges and lessons"
 msgstr ""
 
-#: templates/about.html:208
+#: templates/about.html:211
 msgid "The star map was my hardest problem, and the current one is its third version. My first attempt in Three.js drew every star as a white dot or a streak falling from the zenith. I later found the cause: I had treated right ascension as hours when the database stored degrees, so every position was 15 times too large. Inexperience with Three.js made it much harder to debug, so I replaced it with a custom canvas renderer."
 msgstr ""
 
-#: templates/about.html:210
+#: templates/about.html:213
 msgid "What's next"
 msgstr ""
 
-#: templates/about.html:211
+#: templates/about.html:214
 msgid "I still need to finish payments and add the Pi runner for fully automated plans. After that I would like to track satellites, asteroids and dwarf planets, and add focuser control. A custom plate solver is a maybe. Ideas are welcome on the GitHub issue tracker."
 msgstr ""
 
-#: templates/about.html:215
+#: templates/about.html:218
 msgid "Seleno runs on a custom four layer PCB that I designed myself in KiCad. It measures 85 × 50 mm and connects the motor drivers, motors, Raspberry Pi Zero 2 W, buttons, screen, IMU and power supply in a clean, space efficient way. The ESP32 handles low level hardware control, such as the motors, screen and LEDs, while the Pi Zero 2 W handles higher level control, network interfacing and camera control."
 msgstr ""
 
-#: templates/about.html:217
+#: templates/about.html:220
 msgid "Why I built it"
 msgstr ""
 
-#: templates/about.html:218
+#: templates/about.html:221
 msgid "Designing my own board let me add features that most telescope control systems don't have, such as a screen, and gave advanced users more control over the system than other controllers offer. It also let me make the whole product much smaller, and it was the best way to teach myself PCB manufacturing, soldering and KiCad."
 msgstr ""
 
-#: templates/about.html:219
-msgid "The board's two standout features are that it works both online, connected to Seleno's servers, and offline, and that it offers much higher customisation than commercial boards. The whole node also runs from a single socket, with reverse polarity protection, a fuse against overcurrent, and traces sized for the current they carry."
-msgstr ""
-
-#: templates/about.html:221
-#, fuzzy
-msgid "How it was made"
-msgstr "Cómo se apiló"
-
 #: templates/about.html:222
-msgid "I taught myself KiCad to do the schematic and layout. For v0.1 to v0.7, JLCPCB printed only the bare board and I assembled everything else myself. For v0.8, JLCPCB made the PCB and did most of the assembly, leaving about 20 percent for me to finish by hand. Only three revisions were actually made: v0.2, v0.5 and v0.8, which is the current board."
+msgid "The board's two standout features are that it works both online, connected to Seleno's servers, and offline, and that it offers much higher customisation than commercial boards. The whole node also runs from a single socket, with reverse polarity protection, a fuse against overcurrent, and traces sized for the current they carry."
 msgstr ""
 
 #: templates/about.html:224
 #, fuzzy
-msgid "Revisions"
-msgstr "Versión"
+msgid "How it was made"
+msgstr "Cómo se apiló"
 
-#: templates/about.html:226
-msgid "v0.1 was my first PCB ever, and mostly a way of learning KiCad."
+#: templates/about.html:225
+msgid "I taught myself KiCad to do the schematic and layout. For v0.1 to v0.7, JLCPCB printed only the bare board and I assembled everything else myself. For v0.8, JLCPCB made the PCB and did most of the assembly, leaving about 20 percent for me to finish by hand. Only three revisions were actually made: v0.2, v0.5 and v0.8, which is the current board."
 msgstr ""
 
 #: templates/about.html:227
+#, fuzzy
+msgid "Revisions"
+msgstr "Versión"
+
+#: templates/about.html:229
+msgid "v0.1 was my first PCB ever, and mostly a way of learning KiCad."
+msgstr ""
+
+#: templates/about.html:230
 msgid "v0.2 shrank the board to 50 × 85 mm."
 msgstr ""
 
-#: templates/about.html:228
+#: templates/about.html:231
 msgid "v0.3 to v0.5 replaced the ESP32 dev board plug in with a smaller module."
 msgstr ""
 
-#: templates/about.html:229
+#: templates/about.html:232
 msgid "v0.6 to v0.8 replaced every remaining module except the ESP32 with bare ICs, changed the screw connectors to JST connectors, and added proper power handling circuitry. They also changed the link to the Pi from USB to UART over GPIO. USB support remains in the firmware in case I want to use it again."
 msgstr ""
 
-#: templates/about.html:233
+#: templates/about.html:236
 msgid "Soldering 0402 passives (1.0 × 0.5 mm) was really difficult. I tried a hot air gun, but found I was faster with a soldering iron and a microscope. The 1 mm pitch JST SH connectors also took a lot of patience. On an older board, probably v0.5, I accidentally pulled a buck converter pad off the PCB and had to learn how to replace it."
 msgstr ""
 
-#: templates/about.html:234
+#: templates/about.html:237
 msgid "I didn't realise on the early versions how much trace width matters. Traces carrying higher currents need to be wider, while less critical signals like GPIO can stay thin. I also learned the importance of test pads and debugging. That was the main focus of v0.8, so I can debug the board easily instead of buying a new one every time."
 msgstr ""
 
-#: templates/about.html:236 templates/base.html:161
+#: templates/about.html:239 templates/base.html:165
 msgid "Licence"
 msgstr "Licencia"
 
-#: templates/about.html:237
+#: templates/about.html:240
 msgid "I haven't decided to make the PCB design public. The current plan is for it to be source available rather than open source. People could make it at home for personal use but not sell it, as laid out in the licence."
 msgstr ""
 
-#: templates/about.html:239
+#: templates/about.html:242
 msgid "What's next: v1.0"
 msgstr ""
 
-#: templates/about.html:240
+#: templates/about.html:243
 msgid "For v1.0 I want to remove the Raspberry Pi Zero 2 W completely and do everything on the board. The hardest challenge will be camera control, including livestreaming, from the ESP32. I plan to use the new ESP32-S31, which supports USB high speed and has enough processing power to host the entire client. Cutting the 5V adapters, the Pi and other circuitry should save between £20 and £30 per board."
 msgstr ""
 
-#: templates/about.html:241
+#: templates/about.html:244
 msgid "I'd also like to add a mirror heating port, so everything plugs into the main enclosure and only one socket is needed. I'm considering power monitoring and feedback as well, so that on battery you can estimate whether an observation session will finish."
 msgstr ""
 
-#: templates/about.html:244
+#: templates/about.html:247
 msgid "The assembled SELENO v0.8 controller board, with an ESP32 module, stepper drivers under a blue heatsink, and connectors for the IMU, LCD and buttons"
 msgstr ""
 
-#: templates/about.html:245
+#: templates/about.html:248
 msgid "Seleno v0.8, four layers, 85 × 50 mm."
 msgstr ""
 
-#: templates/about.html:249 templates/about_astrophysics.html:16
+#: templates/about.html:252 templates/about_astrophysics.html:16
 msgid "Astrophysics"
 msgstr "Astrofísica"
 
-#: templates/about.html:250
+#: templates/about.html:253
 msgid "Planet and Moon positions come from Helios, a custom N body engine."
 msgstr ""
 
-#: templates/about.html:251
+#: templates/about.html:254
 msgid "Read the full write up"
 msgstr ""
 
-#: templates/about.html:255
+#: templates/about.html:258
 msgid "Seleno began as an idea in the summer between my GCSEs and A Levels. I wanted to control my telescope's tracking so I could find and image objects faster, and at a higher quality, than I could by hand. I later developed it into my A Level Computer Science Non Exam Assessment, and it has been a personal project ever since. I plan to keep building it."
 msgstr "Seleno empezó como una idea el verano entre mis GCSE y mis A Levels (los exámenes británicos al final de la secundaria y del bachillerato). Quería controlar el seguimiento de mi telescopio para encontrar y fotografiar objetos más rápido, y con mejor calidad, que a mano. Más tarde lo convertí en mi proyecto evaluado de A Level de Informática (Non Exam Assessment), y desde entonces ha sido un proyecto personal. Tengo pensado seguir desarrollándolo."
 
-#: templates/about.html:256
+#: templates/about.html:259
 msgid "While developing it, I realised how many people are interested in astronomy, physics and space but have no cheap or easy way to get started. That became the real goal of Seleno: to lower the barriers to entry for astronomy and help more people into the hobby."
 msgstr "Mientras lo desarrollaba, me di cuenta de cuánta gente se interesa por la astronomía, la física y el espacio, pero no tiene una forma barata ni sencilla de empezar. Ese se convirtió en el verdadero objetivo de Seleno: reducir las barreras de entrada a la astronomía y ayudar a más personas a iniciarse en la afición."
 
-#: templates/about.html:264
+#: templates/about.html:267
 msgid "COMING SOON"
 msgstr "PRÓXIMAMENTE"
 
-#: templates/about.html:272
+#: templates/about.html:275
 #, fuzzy
 msgid "About me"
 msgstr "Acerca de"
 
-#: templates/about.html:284
+#: templates/about.html:287
 msgid "Get in touch"
 msgstr ""
 
-#: templates/about.html:286
+#: templates/about.html:289
 #, fuzzy
 msgid "Or use the"
 msgstr "Usarlos"
 
-#: templates/about.html:286
+#: templates/about.html:289
 #, fuzzy
 msgid "support page"
 msgstr "Soporte"
@@ -5763,7 +5776,7 @@ msgstr "Las posiciones son ascensión recta y declinación en grados: geocéntri
 msgid "Album - SELENO"
 msgstr "Álbum - SELENO"
 
-#: templates/album.html:44 templates/album.html:45 templates/base.html:76
+#: templates/album.html:44 templates/album.html:45 templates/base.html:80
 #: templates/home.html:40 templates/home.html:53 templates/interface.html:465
 msgid "Album"
 msgstr "Álbum"
@@ -6326,7 +6339,7 @@ msgid "Save JPEG to album"
 msgstr "Guardar JPEG en el álbum"
 
 #: templates/album.html:359 templates/album.html:444
-#: templates/interface.html:215 templates/star_map.html:588
+#: templates/interface.html:215 templates/star_map.html:607
 #: templates/telescope_detail.html:42
 msgid "Name"
 msgstr "Nombre"
@@ -6628,95 +6641,95 @@ msgstr "Rechazar (x)"
 msgid "Close (Esc)"
 msgstr "Cerrar (Esc)"
 
-#: templates/base.html:62
+#: templates/base.html:66
 msgid "Toggle navigation"
 msgstr "Mostrar u ocultar la navegación"
 
-#: templates/base.html:67
+#: templates/base.html:71
 msgid "Home"
 msgstr "Inicio"
 
-#: templates/base.html:69 templates/home.html:32 templates/home.html:45
+#: templates/base.html:73 templates/home.html:32 templates/home.html:45
 msgid "Interface"
 msgstr "Interfaz"
 
-#: templates/base.html:71 templates/home.html:19
+#: templates/base.html:75 templates/home.html:19
 msgid "Star Map"
 msgstr "Mapa estelar"
 
-#: templates/base.html:73 templates/home.html:36 templates/home.html:49
+#: templates/base.html:77 templates/home.html:36 templates/home.html:49
 msgid "Book"
 msgstr "Reservar"
 
-#: templates/base.html:82
+#: templates/base.html:86
 msgid "Language"
 msgstr "Idioma"
 
-#: templates/base.html:92
+#: templates/base.html:96
 msgid "Toggle dark mode"
 msgstr "Activar o desactivar el modo oscuro"
 
-#: templates/base.html:94 templates/landing.html:48
+#: templates/base.html:98 templates/landing.html:52
 msgid "Theme"
 msgstr "Tema"
 
-#: templates/base.html:103
+#: templates/base.html:107
 msgid "Profile"
 msgstr "Perfil"
 
-#: templates/base.html:104
+#: templates/base.html:108
 msgid "Edit Profile"
 msgstr "Editar perfil"
 
-#: templates/base.html:108
+#: templates/base.html:112
 msgid "Trusted Devices"
 msgstr "Dispositivos de confianza"
 
-#: templates/base.html:115
+#: templates/base.html:119
 msgid "Account Info"
 msgstr "Información de la cuenta"
 
-#: templates/base.html:117 templates/telescope_detail.html:9
+#: templates/base.html:121 templates/telescope_detail.html:9
 msgid "My Telescopes"
 msgstr "Mis telescopios"
 
-#: templates/base.html:118
+#: templates/base.html:122
 msgid "My Bookings"
 msgstr "Mis reservas"
 
-#: templates/base.html:119
+#: templates/base.html:123
 msgid "Owner Booking Queue"
 msgstr "Cola de reservas del propietario"
 
-#: templates/base.html:122
+#: templates/base.html:126
 msgid "Admin Panel"
 msgstr "Panel de administración"
 
-#: templates/base.html:125
+#: templates/base.html:129
 msgid "Logout"
 msgstr "Cerrar sesión"
 
-#: templates/base.html:129 templates/login.html:7 templates/login.html:32
+#: templates/base.html:133 templates/login.html:7 templates/login.html:32
 msgid "Login"
 msgstr "Iniciar sesión"
 
-#: templates/base.html:130 templates/register.html:7 templates/register.html:39
+#: templates/base.html:134 templates/register.html:7 templates/register.html:39
 msgid "Register"
 msgstr "Registrarse"
 
-#: templates/base.html:159
+#: templates/base.html:163
 msgid "About"
 msgstr "Acerca de"
 
-#: templates/base.html:165
+#: templates/base.html:169
 msgid "Terms"
 msgstr "Términos"
 
-#: templates/base.html:167 templates/home.html:66
+#: templates/base.html:171 templates/home.html:66
 msgid "Support"
 msgstr "Soporte"
 
-#: templates/base.html:169
+#: templates/base.html:173
 msgid "SELENO observatory platform"
 msgstr "Plataforma de observatorio SELENO"
 
@@ -6956,7 +6969,7 @@ msgid "Search the catalogue"
 msgstr "Buscar en el catálogo"
 
 #: templates/interface.html:117 templates/interface.html:498
-#: templates/star_map.html:692
+#: templates/star_map.html:711
 msgid "Search"
 msgstr "Buscar"
 
@@ -7165,8 +7178,8 @@ msgid "Updates only run if the Pi's own config allows them."
 msgstr "Las actualizaciones solo se ejecutan si la configuración de la propia Pi las permite."
 
 #: templates/interface.html:240 templates/star_map.html:7
-#: templates/star_map.html:565 templates/star_map.html:573
-#: templates/star_map.html:675 templates/telescope_detail.html:30
+#: templates/star_map.html:584 templates/star_map.html:592
+#: templates/star_map.html:694 templates/telescope_detail.html:30
 msgid "Exclusion zones"
 msgstr "Zonas de exclusión"
 
@@ -7627,63 +7640,63 @@ msgstr "Detener todos los motores"
 msgid "SELENO Landing"
 msgstr "SELENO – Bienvenida"
 
-#: templates/landing.html:44
+#: templates/landing.html:48
 msgid "Toggle light and dark mode"
 msgstr "Cambiar entre modo claro y oscuro"
 
-#: templates/landing.html:53
+#: templates/landing.html:57
 msgid "Skip intro"
 msgstr "Saltar introducción"
 
-#: templates/landing.html:63
+#: templates/landing.html:67
 msgid "Remote astronomy, redesigned"
 msgstr "Astronomía remota, reinventada"
 
-#: templates/landing.html:64
+#: templates/landing.html:68
 msgid "Command your telescope network from across the globe."
 msgstr "Controla tu red de telescopios desde cualquier parte del mundo."
 
-#: templates/landing.html:65
+#: templates/landing.html:69
 msgid "SELENO allows you to control your telescopes, at any time, from anywhere."
 msgstr "SELENO te permite controlar tus telescopios en cualquier momento y desde cualquier lugar."
 
-#: templates/landing.html:75
+#: templates/landing.html:79
 msgid "Track and align"
 msgstr "Seguimiento y alineación"
 
-#: templates/landing.html:76
+#: templates/landing.html:80
 msgid "Point, center, and monitor automatically, or manually"
 msgstr "Apunta, centra y supervisa de forma automática o manual"
 
-#: templates/landing.html:77
+#: templates/landing.html:81
 msgid "Allow SELENO to perform automated observation runs of the night's sky, or experiment with refined manual control on a specific object."
 msgstr "Deja que SELENO realice sesiones de observación automáticas del cielo nocturno, o experimenta con un control manual preciso sobre un objeto concreto."
 
-#: templates/landing.html:87
+#: templates/landing.html:91
 msgid "Capture and curate"
 msgstr "Captura y organiza"
 
-#: templates/landing.html:88
+#: templates/landing.html:92
 msgid "Turn nightly sessions into a gallery."
 msgstr "Convierte tus sesiones nocturnas en una galería."
 
-#: templates/landing.html:89
+#: templates/landing.html:93
 msgid "Review your astrophotography and telescope telemetry in one unified center built for nightly use."
 msgstr "Revisa tu astrofotografía y la telemetría del telescopio en un único centro pensado para el uso nocturno."
 
-#: templates/landing.html:99
+#: templates/landing.html:103
 msgid "Ready to launch"
 msgstr "Todo listo"
 
-#: templates/landing.html:100
+#: templates/landing.html:104
 msgid "Scroll to enter your control dashboard."
 msgstr "Desplázate para entrar en tu panel de control."
 
-#: templates/landing.html:101
+#: templates/landing.html:105
 msgid "When you reach the end of this sequence, we automatically move you to the main home page."
 msgstr "Al llegar al final de esta secuencia, te llevaremos automáticamente a la página de inicio."
 
-#: templates/landing.html:102
+#: templates/landing.html:106
 msgid "Enter home now"
 msgstr "Ir al inicio ahora"
 
@@ -7727,6 +7740,18 @@ msgstr "Código 2FA"
 msgid "Submit"
 msgstr "Enviar"
 
+#: templates/offline.html:32
+msgid "You're offline"
+msgstr "No tienes conexión"
+
+#: templates/offline.html:33
+msgid "This page needs a connection. The star map is saved on this device and works without one."
+msgstr "Esta página necesita conexión. El mapa estelar está guardado en este dispositivo y funciona sin ella."
+
+#: templates/offline.html:36
+msgid "Try again"
+msgstr "Reintentar"
+
 #: templates/register.html:3
 msgid "Register - Telescope Control"
 msgstr "Registro - Control de telescopios"
@@ -7756,362 +7781,366 @@ msgstr "Nueva contraseña:"
 msgid "3D Planetarium"
 msgstr "Planetario 3D"
 
-#: templates/star_map.html:552
+#: templates/star_map.html:571
 msgid "Loading planetarium..."
 msgstr "Cargando planetario..."
 
-#: templates/star_map.html:554
+#: templates/star_map.html:573
 msgid "Toggle controls"
 msgstr "Mostrar u ocultar controles"
 
-#: templates/star_map.html:555
+#: templates/star_map.html:574
 msgid "Point your phone at the sky"
 msgstr "Apunta el móvil al cielo"
 
-#: templates/star_map.html:559
+#: templates/star_map.html:578
 msgid "Align"
 msgstr "Alinear"
 
-#: templates/star_map.html:560
+#: templates/star_map.html:579
 msgid "Use compass"
 msgstr "Usar brújula"
 
-#: templates/star_map.html:570
+#: templates/star_map.html:589
 msgid "Show or hide the zone list"
 msgstr "Mostrar u ocultar la lista de zonas"
 
-#: templates/star_map.html:576
+#: templates/star_map.html:595
 msgid "Draw a zone"
 msgstr "Dibujar una zona"
 
-#: templates/star_map.html:577
+#: templates/star_map.html:596
 msgid "Type of the zones you draw"
 msgstr "Tipo de las zonas que dibujes"
 
-#: templates/star_map.html:580 templates/star_map.html:593
+#: templates/star_map.html:599 templates/star_map.html:612
 msgctxt "dead zone reason"
 msgid "Other"
 msgstr "Otro motivo"
 
-#: templates/star_map.html:584
+#: templates/star_map.html:603
 msgid "Reach down to the ground"
 msgstr "Llegar hasta el suelo"
 
-#: templates/star_map.html:584
+#: templates/star_map.html:603
 msgid "Covers everything below what you draw, such as a whole house"
 msgstr "Cubre todo lo que hay debajo de lo que dibujas, como una casa entera"
 
-#: templates/star_map.html:597 templates/telescope_detail.html:43
+#: templates/star_map.html:616 templates/telescope_detail.html:43
 msgid "Azimuth from (°)"
 msgstr "Acimut desde (°)"
 
-#: templates/star_map.html:598 templates/telescope_detail.html:44
+#: templates/star_map.html:617 templates/telescope_detail.html:44
 msgid "Azimuth to (°)"
 msgstr "Acimut hasta (°)"
 
-#: templates/star_map.html:599 templates/telescope_detail.html:45
+#: templates/star_map.html:618 templates/telescope_detail.html:45
 msgid "Altitude from (°)"
 msgstr "Altitud desde (°)"
 
-#: templates/star_map.html:600 templates/telescope_detail.html:46
+#: templates/star_map.html:619 templates/telescope_detail.html:46
 msgid "Altitude to (°)"
 msgstr "Altitud hasta (°)"
 
-#: templates/star_map.html:604
+#: templates/star_map.html:623
 msgid "Delete zone"
 msgstr "Eliminar zona"
 
-#: templates/star_map.html:608 templates/telescope_detail.html:57
+#: templates/star_map.html:627 templates/telescope_detail.html:57
 msgid "Save to the telescope"
 msgstr "Guardar en el telescopio"
 
-#: templates/star_map.html:609 templates/telescope_detail.html:58
+#: templates/star_map.html:628 templates/telescope_detail.html:58
 msgid "Undo changes"
 msgstr "Deshacer cambios"
 
-#: templates/star_map.html:619
+#: templates/star_map.html:638
 msgid "Tracking Status"
 msgstr "Estado del seguimiento"
 
-#: templates/star_map.html:623
+#: templates/star_map.html:642
 msgid "Stop Tracking"
 msgstr "Detener seguimiento"
 
-#: templates/star_map.html:627
+#: templates/star_map.html:646
 msgid "Mag ≤"
 msgstr "Mag ≤"
 
-#: templates/star_map.html:631
+#: templates/star_map.html:650
 msgid "Auto-adjust magnitude on zoom"
 msgstr "Ajustar la magnitud al hacer zoom"
 
-#: templates/star_map.html:633
+#: templates/star_map.html:652
 msgid "Latitude:"
 msgstr "Latitud:"
 
-#: templates/star_map.html:634 templates/star_map.html:637
+#: templates/star_map.html:653 templates/star_map.html:656
 msgid "The telescope's site"
 msgstr "El lugar del telescopio"
 
-#: templates/star_map.html:636
+#: templates/star_map.html:655
 msgid "Longitude:"
 msgstr "Longitud:"
 
-#: templates/star_map.html:640
+#: templates/star_map.html:659
 msgid "Time (local):"
 msgstr "Hora (local):"
 
-#: templates/star_map.html:643
+#: templates/star_map.html:662
 msgid "Set to current time"
 msgstr "Poner la hora actual"
 
-#: templates/star_map.html:643
+#: templates/star_map.html:662
 msgid "Now"
 msgstr "Ahora"
 
-#: templates/star_map.html:647
+#: templates/star_map.html:666
 msgid "Live Time"
 msgstr "Hora en directo"
 
-#: templates/star_map.html:651
+#: templates/star_map.html:670
 msgid "Grid shows Hour Angle (HA) using your longitude and the selected time."
 msgstr "La cuadrícula muestra el ángulo horario (AH) según tu longitud y la hora elegida."
 
-#: templates/star_map.html:657
+#: templates/star_map.html:676
 msgid "Planets"
 msgstr "Planetas"
 
-#: templates/star_map.html:660
+#: templates/star_map.html:679
 msgid "Label named objects: the 407 stars with an official IAU proper name, plus named clusters, nebulae and galaxies. Brightest first."
 msgstr "Etiqueta los objetos con nombre: las 407 estrellas con nombre propio oficial de la UAI, además de cúmulos, nebulosas y galaxias con nombre. Los más brillantes primero."
 
-#: templates/star_map.html:661
+#: templates/star_map.html:680
 msgid "Star names"
 msgstr "Nombres de estrellas"
 
-#: templates/star_map.html:663
+#: templates/star_map.html:682
 msgid "Figures for the 24 most prominent constellations. Every vertex sits on a star in this catalogue."
 msgstr "Figuras de las 24 constelaciones más destacadas. Cada vértice está sobre una estrella de este catálogo."
 
-#: templates/star_map.html:664
+#: templates/star_map.html:683
 msgid "Constellations"
 msgstr "Constelaciones"
 
-#: templates/star_map.html:666
+#: templates/star_map.html:685
 msgid "Label each figure with its constellation name"
 msgstr "Etiqueta cada figura con el nombre de su constelación"
 
-#: templates/star_map.html:667
+#: templates/star_map.html:686
 msgid "Constellation names"
 msgstr "Nombres de constelaciones"
 
-#: templates/star_map.html:671
+#: templates/star_map.html:690
 msgid "Horizon Grid"
 msgstr "Cuadrícula horizontal"
 
-#: templates/star_map.html:672
+#: templates/star_map.html:691
 msgid "Equatorial Grid"
 msgstr "Cuadrícula ecuatorial"
 
-#: templates/star_map.html:673
+#: templates/star_map.html:692
 msgid "Ecliptic"
 msgstr "Eclíptica"
 
-#: templates/star_map.html:675
+#: templates/star_map.html:694
 msgid "Parts of the sky the telescope never points at: it would hit its own mount, or look into a window"
 msgstr "Partes del cielo a las que el telescopio nunca apunta: chocaría con su propia montura o miraría por una ventana"
 
-#: templates/star_map.html:679
+#: templates/star_map.html:698
 msgid "RA/DEC at cursor"
 msgstr "AR/Dec en el cursor"
 
-#: templates/star_map.html:680
+#: templates/star_map.html:699
 msgid "Az/Elv at cursor"
 msgstr "Az/Alt en el cursor"
 
-#: templates/star_map.html:683
+#: templates/star_map.html:702
 msgid "Invert controls"
 msgstr "Invertir controles"
 
-#: templates/star_map.html:686
+#: templates/star_map.html:705
 msgid "Search Object:"
 msgstr "Buscar objeto:"
 
-#: templates/star_map.html:687
+#: templates/star_map.html:706
 msgid "Name, constellation, planet, HD, NGC, IC or M"
 msgstr "Nombre, constelación, planeta, HD, NGC, IC o M"
 
-#: templates/star_map.html:690
+#: templates/star_map.html:709
 msgid "Suggestions"
 msgstr "Sugerencias"
 
-#: templates/star_map.html:697
+#: templates/star_map.html:716
 msgid "Advanced settings"
 msgstr "Ajustes avanzados"
 
-#: templates/star_map.html:699
+#: templates/star_map.html:718
 msgid "Catalogue objects with no recorded V-Mag. They are drawn separately, in blue."
 msgstr "Objetos del catálogo sin magnitud V registrada. Se dibujan aparte, en azul."
 
-#: templates/star_map.html:700
+#: templates/star_map.html:719
 msgid "Unknown magnitude"
 msgstr "Magnitud desconocida"
 
-#: templates/star_map.html:703
+#: templates/star_map.html:722
 msgid "Below-horizon tint"
 msgstr "Sombreado bajo el horizonte"
 
-#: templates/star_map.html:705
+#: templates/star_map.html:724
 msgid "Tint opacity"
 msgstr "Opacidad del sombreado"
 
-#: templates/star_map.html:706 templates/star_map.html:758
+#: templates/star_map.html:725 templates/star_map.html:777
 msgid "Apply"
 msgstr "Aplicar"
 
-#: templates/star_map.html:710
+#: templates/star_map.html:729
 msgid "Render stats"
 msgstr "Estadísticas de dibujo"
 
-#: templates/star_map.html:712
+#: templates/star_map.html:731
 msgid "Magnitude limit added when zoom doubles on this device"
 msgstr "Magnitud límite que se suma cada vez que el zoom se duplica en este dispositivo"
 
-#: templates/star_map.html:713
+#: templates/star_map.html:732
 msgid "Zoom/magnitude ratio"
 msgstr "Relación zoom/magnitud"
 
-#: templates/star_map.html:718
+#: templates/star_map.html:737
 msgid "Reset View"
 msgstr "Restablecer vista"
 
-#: templates/star_map.html:719
+#: templates/star_map.html:738
 msgid "Help"
 msgstr "Ayuda"
 
-#: templates/star_map.html:723
+#: templates/star_map.html:742
 msgid "3D Planetarium Controls"
 msgstr "Controles del planetario 3D"
 
-#: templates/star_map.html:725
+#: templates/star_map.html:744
 msgid "Drag mouse to rotate the sky"
 msgstr "Arrastra con el ratón para girar el cielo"
 
-#: templates/star_map.html:726
+#: templates/star_map.html:745
 msgid "Scroll wheel to zoom in/out (auto-adjusts magnitude to show fainter stars when zoomed in)"
 msgstr "Usa la rueda del ratón para acercar o alejar (ajusta la magnitud para mostrar estrellas más débiles al acercar)"
 
-#: templates/star_map.html:727
+#: templates/star_map.html:746
 msgid "Click a star/planet for info"
 msgstr "Haz clic en una estrella o planeta para ver su información"
 
-#: templates/star_map.html:728
+#: templates/star_map.html:747
 msgid "Right-click magnitude slider for custom values"
 msgstr "Haz clic derecho en el control de magnitud para introducir un valor propio"
 
-#: templates/star_map.html:729
+#: templates/star_map.html:748
 msgid "Touch: swipe with one finger to rotate the sky"
 msgstr "Táctil: desliza un dedo para girar el cielo"
 
-#: templates/star_map.html:730
+#: templates/star_map.html:749
 msgid "Touch: pinch with two fingers to zoom in/out"
 msgstr "Táctil: pellizca con dos dedos para acercar o alejar"
 
-#: templates/star_map.html:731
+#: templates/star_map.html:750
 msgid "Touch: tap a star/planet for info"
 msgstr "Táctil: toca una estrella o planeta para ver su información"
 
-#: templates/star_map.html:732
+#: templates/star_map.html:751
 msgid "Touch: use the ☰ button to show/hide these controls"
 msgstr "Táctil: usa el botón ☰ para mostrar u ocultar estos controles"
 
-#: templates/star_map.html:733
+#: templates/star_map.html:752
 msgid "Touch: press and hold the magnitude slider for custom values"
 msgstr "Táctil: mantén pulsado el control de magnitud para introducir un valor propio"
 
-#: templates/star_map.html:734
+#: templates/star_map.html:753
 msgid "Phone: tap 🧭 and hold your phone up to the sky - the map follows where the back of the phone points. Tap Align and centre a bright object in the camera to correct the compass; align on a second object for the best accuracy. Pinch still zooms; dragging hands control back to your finger"
 msgstr "Móvil: pulsa 🧭 y levanta el móvil hacia el cielo; el mapa sigue hacia donde apunta la parte trasera del móvil. Pulsa Alinear y centra un objeto brillante en la cámara para corregir la brújula; alinea con un segundo objeto para la máxima precisión. Pellizcar sigue haciendo zoom; arrastrar devuelve el control a tu dedo"
 
-#: templates/star_map.html:735
+#: templates/star_map.html:754
 msgid "Adjust magnitude filter to show/hide faint stars"
 msgstr "Ajusta el filtro de magnitud para mostrar u ocultar estrellas débiles"
 
-#: templates/star_map.html:736
+#: templates/star_map.html:755
 msgid "Toggle \"Auto-adjust magnitude on zoom\" to link zoom level with star visibility"
 msgstr "Activa «Ajustar la magnitud al hacer zoom» para vincular el zoom con las estrellas visibles"
 
-#: templates/star_map.html:737
+#: templates/star_map.html:756
 msgid "Set your latitude/longitude for local sky orientation"
 msgstr "Indica tu latitud y longitud para orientar el cielo según tu ubicación"
 
-#: templates/star_map.html:738
+#: templates/star_map.html:757
 msgid "Toggle stars/planets visibility"
 msgstr "Muestra u oculta estrellas y planetas"
 
-#: templates/star_map.html:739
+#: templates/star_map.html:758
 msgid "Toggle horizon grid (altitude/azimuth with N/E/S/W)"
 msgstr "Muestra u oculta la cuadrícula horizontal (altitud/acimut con N/E/S/O)"
 
-#: templates/star_map.html:740
+#: templates/star_map.html:759
 msgid "Toggle equatorial grid (HA/DEC: Hour Angle and Declination)"
 msgstr "Muestra u oculta la cuadrícula ecuatorial (AH/Dec: ángulo horario y declinación)"
 
-#: templates/star_map.html:741
+#: templates/star_map.html:760
 msgid "Toggle the ecliptic line"
 msgstr "Muestra u oculta la línea de la eclíptica"
 
-#: templates/star_map.html:742
+#: templates/star_map.html:761
 msgid "Toggle constellation figures for the 24 most prominent constellations, with optional names. The line data comes from d3-celestial and every vertex has been snapped onto a star in this catalogue, so the figures meet the stars they are drawn from"
 msgstr "Muestra u oculta las figuras de las 24 constelaciones más destacadas, con nombres opcionales. Las líneas proceden de d3-celestial y cada vértice se ha ajustado a una estrella de este catálogo, así que las figuras coinciden con las estrellas que las forman"
 
-#: templates/star_map.html:743
+#: templates/star_map.html:762
 msgid "Toggle star names to label named objects - 407 stars carrying an official IAU proper name, plus the named clusters, nebulae and galaxies in this catalogue. Search accepts those names too (try \"Mizar\", \"Algol\" or \"Andromeda Galaxy\")"
 msgstr "Activa los nombres de estrellas para etiquetar los objetos con nombre: 407 estrellas con nombre propio oficial de la UAI, además de los cúmulos, nebulosas y galaxias con nombre de este catálogo. La búsqueda también acepta esos nombres (prueba «Mizar», «Algol» o «Andromeda Galaxy»)"
 
-#: templates/star_map.html:744
+#: templates/star_map.html:763
 msgid "Search finds names in every language the map offers and forgives small typos (\"Betelguese\" finds Betelgeuse). Suggestions appear as you type: pick one with the arrow keys and Enter, or click it. Catalogue numbers (HD, NGC, IC, M) must be exact, so \"M13\" never turns into M31"
 msgstr "La búsqueda encuentra nombres en todos los idiomas del mapa y perdona pequeñas erratas («Betelguese» encuentra Betelgeuse). Las sugerencias aparecen mientras escribes: elige una con las flechas e Intro, o tócala. Los números de catálogo (HD, NGC, IC, M) tienen que ser exactos, así que «M13» nunca se convierte en M31"
 
-#: templates/star_map.html:745
+#: templates/star_map.html:764
 msgid "Tick \"Unknown magnitude\" to show catalogue objects that have no recorded V-Mag (drawn in blue); they are excluded from the magnitude slider because there is no honest value to compare against"
 msgstr "Marca «Magnitud desconocida» para mostrar los objetos del catálogo sin magnitud V registrada (en azul); el control de magnitud no los tiene en cuenta porque no hay un valor fiable con el que compararlos"
 
-#: templates/star_map.html:746
+#: templates/star_map.html:765
 msgid "Tick \"Render stats\" for a readout of how many objects the last frame drew and how long it took"
 msgstr "Marca «Estadísticas de dibujo» para ver cuántos objetos dibujó el último fotograma y cuánto tardó"
 
-#: templates/star_map.html:747
+#: templates/star_map.html:766
 msgid "Reset view to default orientation and zoom"
 msgstr "Restablece la vista a la orientación y el zoom iniciales"
 
-#: templates/star_map.html:748
+#: templates/star_map.html:767
 msgid "Use the Time control to preview the sky at any date/time; the grid labels show Hour Angle (HA)."
 msgstr "Usa el control de hora para ver el cielo en cualquier fecha y hora; las etiquetas de la cuadrícula muestran el ángulo horario (AH)."
 
-#: templates/star_map.html:749
+#: templates/star_map.html:768
 msgid "Tip: Focus the Time box and press Arrow Up/Down to adjust with rollover. Move the caret over year/month/day/hour/minute to change that unit. If caret isn't available, use Shift (hour), Ctrl (day), Alt (month), or Ctrl+Shift (year)."
 msgstr "Consejo: selecciona el campo de hora y pulsa las flechas arriba/abajo para ajustarlo (los valores se encadenan). Pon el cursor sobre el año, mes, día, hora o minuto para cambiar esa unidad. Si no hay cursor, usa Mayús (hora), Ctrl (día), Alt (mes) o Ctrl+Mayús (año)."
 
-#: templates/star_map.html:755
+#: templates/star_map.html:774
 msgid "Set Magnitude Limit:"
 msgstr "Magnitud límite:"
 
-#: templates/star_map.html:756
+#: templates/star_map.html:775
 msgid "e.g. 6.5"
 msgstr "p. ej. 6.5"
 
-#: templates/star_map.html:765
+#: templates/star_map.html:784
 msgid "Align on a bright object"
 msgstr "Alinear con un objeto brillante"
 
-#: templates/star_map.html:766
+#: templates/star_map.html:785
 msgid "Pick one you can see. You'll centre it in the camera, which corrects the compass. Aligning on a second object, well away from the first, fixes all three axes."
 msgstr "Elige uno que puedas ver. Lo centrarás en la cámara, lo que corrige la brújula. Alinear con un segundo objeto, bien separado del primero, corrige los tres ejes."
 
-#: templates/star_map.html:777
+#: templates/star_map.html:796
 msgid "Lock"
 msgstr "Fijar"
+
+#: templates/star_map.html:804
+msgid "Offline: saved sky data, no telescope"
+msgstr "Sin conexión: datos del cielo guardados, sin telescopio"
 
 #: templates/telescope_detail.html:15
 msgid "Disabled by Admin"

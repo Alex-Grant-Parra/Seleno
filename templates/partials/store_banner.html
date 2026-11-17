@@ -1,0 +1,10 @@
+{% if store.mode == 'sandbox' and current_user.is_authenticated and current_user.is_admin %}
+<div class="store-test-banner" role="note">
+    <strong><i class="fas fa-flask"></i> Test mode.</strong>
+    SumUp is in sandbox, so only admins can check out and no money moves. Visitors see the products with ordering closed.
+    Pay with a test card such as <code>4200 0000 0000 0091</code>, any future expiry and any CVV.
+    <a href="{{ url_for('store.admin_store') }}">Manage the store</a>
+</div>
+{% elif store.mode == 'off' and current_user.is_authenticated and current_user.is_admin %}
+<div class="store-test-banner" role="note"><strong>Payments are switched off</strong> (app/sumup_service.py), so nobody can check out.</div>
+{% endif %}

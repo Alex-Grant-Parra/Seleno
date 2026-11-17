@@ -13,6 +13,7 @@ import urllib.parse
 import urllib.request
 
 from app.db import db
+from security.client_ip import client_ip
 from models.contact import ContactMessage
 from models.contact_thread import ContactMessageEntry
 
@@ -168,6 +169,10 @@ def support_tickets():
     return render_template('support_tickets.html', tickets=tickets, require_login=require_login)
 
 
+# Also used by the store, which links here with ?type=payment
+PAYMENT_TYPE = '💳 Payment or Order Issue'
+
+
 @contact_bp.route('/contact', methods=['GET'])
 def contact_form():
     prefill_email = ''
@@ -185,6 +190,7 @@ def contact_form():
         '📚 Help / How-To Question',
         '⭐ Database / Star Catalog Issue',
         '💡 Feature Request',
+        PAYMENT_TYPE,
         '🔒 Privacy or Account Issue',
         '🧪 Experimental Feature Feedback',
         '🌐 Website / Interface Feedback',
@@ -195,9 +201,14 @@ def contact_form():
     captcha_secret_key = (current_app.config.get('TURNSTILE_SECRET_KEY') or '').strip()
     captcha_enabled = bool(captcha_site_key)
     captcha_required = bool(captcha_required_config and captcha_site_key and captcha_secret_key)
+    # ?type=payment preselects that type; ?title= fills the summary (e.g. an order number)
+    prefill_type = PAYMENT_TYPE if (request.args.get('type') or '').strip().lower() == 'payment' else ''
+    prefill_title = (request.args.get('title') or '').strip()[:200]
     return render_template(
         'contact.html',
         prefill_email=prefill_email,
+        prefill_type=prefill_type,
+        prefill_title=prefill_title,
         type_options=type_options,
         captcha_required=captcha_required,
         captcha_enabled=captcha_enabled,
@@ -221,7 +232,7 @@ def submit_contact():
         turnstile_token = (request.form.get('cf-turnstile-response') or '').strip()
         is_valid_captcha, captcha_errors = _verify_turnstile_token(
             turnstile_token,
-            request.headers.get('X-Forwarded-For', request.remote_addr)
+            client_ip()
         )
         if not is_valid_captcha:
             current_app.logger.warning('Contact CAPTCHA failed: %s', ','.join(captcha_errors or []))
@@ -236,7 +247,7 @@ def submit_contact():
     # Gather server-side metadata
     meta = {
         'server_received_at': datetime.utcnow().isoformat() + 'Z',
-        'ip': request.headers.get('X-Forwarded-For', request.remote_addr),
+        'ip': client_ip(),
         'user_agent': request.headers.get('User-Agent', ''),
         'accept_language': request.headers.get('Accept-Language', ''),
         'referer': request.headers.get('Referer', ''),

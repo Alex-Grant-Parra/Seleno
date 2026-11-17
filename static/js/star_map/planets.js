@@ -1,4 +1,5 @@
-// Star map - solar-system objects: server ephemerides and their icons.
+// Star map - solar-system objects: server ephemerides and their icons
+// (offline, interpolated from a stored table: see offline.js).
 
 // --- Dynamic planet updates (server-driven ephemerides) ---
 let planetsRefreshTimer = null;
@@ -9,10 +10,12 @@ async function fetchPlanetsForDate(date) {
         const res = await fetch(`/api/planets?datetime=${encodeURIComponent(iso)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        noteServerReachable(true);
         return data; // [{name, ra, dec, mag, icon, type:'planet'}]
     } catch (err) {
-        console.error('Failed to fetch planets:', err);
-        return null;
+        // No connection: interpolate the stored table of the server's ephemeris
+        console.warn('Planets from the server unavailable, using the stored table:', err);
+        return offlinePlanetsForDate(date);
     }
 }
 

@@ -81,6 +81,8 @@ function requestSearchSuggestions() {
         const lang = encodeURIComponent(window.I18N_LANG || 'en');
         fetch(`/api/search_suggest?q=${encodeURIComponent(query)}&lang=${lang}`)
             .then(r => r.json())
+            // No connection: match the names already loaded instead
+            .catch(() => localSearchMatches(query, 8).then(matches => ({ matches })))
             .then(data => {
                 if (seq === suggestSeq && searchInput.value.trim() === query) {
                     renderSearchSuggestions(data.matches || []);
@@ -222,6 +224,8 @@ function searchObject(pick) {
         body: JSON.stringify(pick ? { searchValue, pick } : { searchValue })
     })
     .then(response => response.json())
+    // No connection: search the names and catalogue already loaded instead
+    .catch(() => localSearchObject(searchValue, pick))
     .then(data => {
         if (data.status === 'choose' && data.matches && data.matches.length) {
             showSearchChoices(data.query, data.matches);
