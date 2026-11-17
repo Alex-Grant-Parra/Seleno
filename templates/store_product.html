@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - SELENO{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='store.css') }}">{% endblock %}
+
+{% block content %}
+<div class="store-page">
+    {% include 'partials/store_banner.html' %}
+    <p><a href="{{ url_for('store.store_home') }}"><i class="fas fa-arrow-left"></i> {{ _('Back to the store') }}</a></p>
+    {% if not product.is_active %}<div class="alert alert-warning">This product is hidden from visitors.</div>{% endif %}
+    <div class="store-product">
+        <div class="store-picture">
+            {% if product.image_filename %}<img src="{{ url_for('store.store_image', filename=product.image_filename) }}" alt="{{ product.name }}">{% else %}<i class="fas fa-toolbox" aria-hidden="true"></i>{% endif %}
+        </div>
+        <div>
+            <h1>{{ product.name }}</h1>
+            <div class="store-price">{{ product.price_pence|money }}</div>
+            {% if product.summary %}<p class="text-muted mt-2 mb-0">{{ product.summary }}</p>{% endif %}
+            {% if product.description %}<div class="store-description">{{ product.description }}</div>{% endif %}
+
+            {% if not product.in_stock %}
+            <p class="store-stock is-out">{{ _('Sold out') }}</p>
+            {% elif not product.is_active %}
+            {% elif store.can_order %}
+            <form class="store-buy" method="POST" action="{{ url_for('store.store_basket_add') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <label class="visually-hidden" for="quantity">{{ _('Quantity') }}</label>
+                <input class="form-control" id="quantity" type="number" name="quantity" value="1" min="1" max="{{ product.most_orderable }}" inputmode="numeric">
+                <button class="btn btn-primary" type="submit"><i class="fas fa-shopping-basket"></i> {{ _('Add to basket') }}</button>
+            </form>
+            {% if product.stock is not none and product.stock <= 5 %}<p class="store-stock mt-2">{{ _('Only %(count)s left.', count=product.stock) }}</p>{% endif %}
+            {% else %}
+            <div class="alert alert-info mb-0" role="status">{{ _('Ordering is not open yet.') }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

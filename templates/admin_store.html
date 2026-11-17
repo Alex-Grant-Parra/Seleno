@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Store Admin - SELENO{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h1 class="h4 mb-1">Store</h1>
+            <p class="text-muted mb-0">Products, delivery options and orders.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" href="{{ url_for('store.store_home') }}">View store</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('payments.admin_payments_page') }}">Payments</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('admin.admin') }}">Back to Admin</a>
+        </div>
+    </div>
+
+    {% if mode == 'live' %}
+    <div class="alert alert-success"><strong>Live.</strong> Anyone can order and SumUp takes real money.</div>
+    {% elif mode == 'sandbox' %}
+    <div class="alert alert-warning"><strong>Test mode (SumUp sandbox).</strong> Only admins can check out, no money moves, and orders are marked as tests.
+        To open the store, set <code>SUMUP_MODE=live</code> in <code>instance/.env</code> and restart the server.</div>
+    {% else %}
+    <div class="alert alert-danger"><strong>Payments are off.</strong> Nobody can check out. See <code>app/sumup_service.py</code>.</div>
+    {% endif %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h6 mb-0">Products</h2>
+                <a class="btn btn-sm btn-primary" href="{{ url_for('store.admin_store_product') }}">Add product</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Name</th><th>Price</th><th>Stock</th><th>Shown</th><th></th></tr></thead>
+                    <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.price_pence|money }}</td>
+                        <td>{% if product.stock is none %}<span class="text-muted">not tracked</span>{% elif product.stock == 0 %}<span class="text-danger">sold out</span>{% else %}{{ product.stock }}{% endif %}</td>
+                        <td>{% if product.is_active %}<span class="badge bg-success">on sale</span>{% else %}<span class="badge bg-secondary">hidden</span>{% endif %}</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('store.store_product', slug=product.slug) }}">Preview</a>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('store.admin_store_product', product_id=product.id) }}">Edit</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-muted text-center">No products yet. Visitors see "Upgrade kits are on the way".</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h6 mb-1">Delivery options</h2>
+            {% if not delivery_on %}
+            <div class="alert alert-info py-2 small">Switched off: customers aren't asked to choose delivery and aren't charged for it, so the options below aren't used.
+                To turn them back on, set <code>STORE_DELIVERY=on</code> in <code>instance/.env</code> (or <code>DELIVERY_ENABLED</code> in <code>app/store_service.py</code>) and restart.</div>
+            {% endif %}
+            <p class="text-muted small">The customer picks one at checkout and its price is added to the order. At least one is needed before anyone can order.</p>
+            {% for zone in zones %}
+            <form class="row g-2 align-items-center mb-2" method="POST" action="{{ url_for('store.admin_store_shipping') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="zone_id" value="{{ zone.id }}">
+                <div class="col-md-5"><input class="form-control form-control-sm" name="label" value="{{ zone.label }}" aria-label="Name" required></div>
+                <div class="col-md-2"><div class="input-group input-group-sm"><span class="input-group-text">£</span><input class="form-control" name="price" value="{{ '%.2f'|format(zone.price_pence / 100) }}" aria-label="Price" required></div></div>
+                <div class="col-md-1"><input class="form-control form-control-sm" name="sort_order" value="{{ zone.sort_order }}" aria-label="Position"></div>
+                <div class="col-md-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_active" value="1" id="zone_on_{{ zone.id }}" {% if zone.is_active %}checked{% endif %}><label class="form-check-label small" for="zone_on_{{ zone.id }}">Offered</label></div></div>
+                <div class="col-md-2 text-end">
+                    <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
+                    <button class="btn btn-sm btn-outline-danger" type="submit" name="delete" value="1" onclick="return confirm('Remove this delivery option?')">Remove</button>
+                </div>
+            </form>
+            {% endfor %}
+            <form class="row g-2 align-items-center mt-3" method="POST" action="{{ url_for('store.admin_store_shipping') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-5"><input class="form-control form-control-sm" name="label" placeholder="New option, e.g. United Kingdom" required></div>
+                <div class="col-md-2"><div class="input-group input-group-sm"><span class="input-group-text">£</span><input class="form-control" name="price" placeholder="0.00" required></div></div>
+                <div class="col-md-1"><input class="form-control form-control-sm" name="sort_order" placeholder="0" aria-label="Position"></div>
+                <div class="col-md-4 text-end"><button class="btn btn-sm btn-primary" type="submit">Add delivery option</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <h2 class="h6 mb-0">Orders</h2>
+                <div class="d-flex gap-1 flex-wrap">
+                    <a class="btn btn-sm {% if not status_filter %}btn-secondary{% else %}btn-outline-secondary{% endif %}" href="{{ url_for('store.admin_store') }}">All</a>
+                    {% for status in statuses %}
+                    <a class="btn btn-sm {% if status_filter == status %}btn-secondary{% else %}btn-outline-secondary{% endif %}" href="{{ url_for('store.admin_store', status=status) }}">{{ status|capitalize }}{% if counts.get(status) %} ({{ counts[status] }}){% endif %}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>Order</th><th>Placed (UTC)</th><th>Customer</th><th>Total</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order.order_number }}{% if order.is_test_mode %} <span class="badge bg-warning text-dark">test</span>{% endif %}</td>
+                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ order.full_name }}</td>
+                        <td>{{ order.total_pence|money(order.currency) }}</td>
+                        <td>{{ order.status|capitalize }}{% if order.status == 'PAID' %} <span class="text-muted small">&middot; to send</span>{% endif %}</td>
+                        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('store.admin_store_order', order_id=order.id) }}">Open</a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-muted text-center">No orders{% if status_filter %} with this status{% endif %}.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

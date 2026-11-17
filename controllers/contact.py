@@ -169,6 +169,10 @@ def support_tickets():
     return render_template('support_tickets.html', tickets=tickets, require_login=require_login)
 
 
+# Also used by the store, which links here with ?type=payment
+PAYMENT_TYPE = '💳 Payment or Order Issue'
+
+
 @contact_bp.route('/contact', methods=['GET'])
 def contact_form():
     prefill_email = ''
@@ -186,6 +190,7 @@ def contact_form():
         '📚 Help / How-To Question',
         '⭐ Database / Star Catalog Issue',
         '💡 Feature Request',
+        PAYMENT_TYPE,
         '🔒 Privacy or Account Issue',
         '🧪 Experimental Feature Feedback',
         '🌐 Website / Interface Feedback',
@@ -196,9 +201,14 @@ def contact_form():
     captcha_secret_key = (current_app.config.get('TURNSTILE_SECRET_KEY') or '').strip()
     captcha_enabled = bool(captcha_site_key)
     captcha_required = bool(captcha_required_config and captcha_site_key and captcha_secret_key)
+    # ?type=payment preselects that type; ?title= fills the summary (e.g. an order number)
+    prefill_type = PAYMENT_TYPE if (request.args.get('type') or '').strip().lower() == 'payment' else ''
+    prefill_title = (request.args.get('title') or '').strip()[:200]
     return render_template(
         'contact.html',
         prefill_email=prefill_email,
+        prefill_type=prefill_type,
+        prefill_title=prefill_title,
         type_options=type_options,
         captcha_required=captcha_required,
         captcha_enabled=captcha_enabled,

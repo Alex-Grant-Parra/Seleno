@@ -396,6 +396,7 @@ from models.trusted_device import TrustedDevice  # Import to register the model
 from models.logging import RequestLog, SecurityLog, WebsocketSecurityLog  # Import to register log tables
 from models.client_release import ClientReleaseSubmission  # Import to register release review model
 from models.payment import SumupCheckout, SumupTransaction, SumupEvent  # Import to register SumUp payment tables
+from models.store import StoreProduct, StoreShippingZone, StoreOrder, StoreOrderItem  # Import to register store tables
 from models.photo import Photo, TelescopeUpload  # Import to register photo and resumable upload tables
 from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
 from models.album import FrameMeta, StackResult, FeaturedTarget, Project  # Import to register album index, stacks, featured targets and projects

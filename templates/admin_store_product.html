@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{% if product %}Edit {{ product.name }}{% else %}New product{% endif %} - SELENO{% endblock %}
+
+{% set v = form if form is not none else {} %}
+{% block content %}
+<div class="container py-4" style="max-width: 820px;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">{% if product %}Edit {{ product.name }}{% else %}New product{% endif %}</h1>
+        <a class="btn btn-outline-secondary" href="{{ url_for('store.admin_store') }}">Back to Store</a>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label" for="p_name">Name</label>
+                        <input class="form-control" id="p_name" name="name" maxlength="120" required value="{{ v.get('name', product.name if product else '') }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="p_summary">One-line summary</label>
+                        <input class="form-control" id="p_summary" name="summary" maxlength="240" value="{{ v.get('summary', (product.summary or '') if product else '') }}">
+                        <div class="form-text">Shown on the store's front page under the name.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="p_description">Description</label>
+                        <textarea class="form-control" id="p_description" name="description" rows="7">{{ v.get('description', (product.description or '') if product else '') }}</textarea>
+                        <div class="form-text">Plain text. Line breaks are kept.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="p_price">Price</label>
+                        <div class="input-group"><span class="input-group-text">£</span>
+                            <input class="form-control" id="p_price" name="price" required inputmode="decimal" value="{{ v.get('price', '%.2f'|format(product.price_pence / 100) if product else '') }}"></div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="p_stock">Stock</label>
+                        <input class="form-control" id="p_stock" name="stock" inputmode="numeric" value="{{ v.get('stock', (product.stock if product.stock is not none else '') if product else '') }}">
+                        <div class="form-text">Blank = don't track.</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="p_max">Most per order</label>
+                        <input class="form-control" id="p_max" name="max_per_order" inputmode="numeric" value="{{ v.get('max_per_order', product.max_per_order if product else 5) }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="p_sort">Position</label>
+                        <input class="form-control" id="p_sort" name="sort_order" inputmode="numeric" value="{{ v.get('sort_order', product.sort_order if product else 0) }}">
+                        <div class="form-text">Lower comes first.</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="p_image">Picture</label>
+                        {% if product and product.image_filename %}
+                        <div class="mb-2 d-flex align-items-center gap-3">
+                            <img src="{{ url_for('store.store_image', filename=product.image_filename) }}" alt="" style="height: 72px; border-radius: 8px;">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="remove_image" value="1" id="p_remove"><label class="form-check-label" for="p_remove">Remove picture</label></div>
+                        </div>
+                        {% endif %}
+                        <input class="form-control" id="p_image" type="file" name="image" accept=".png,.jpg,.jpeg,.webp">
+                        <div class="form-text">PNG, JPEG or WebP, up to 8 MB. Landscape 4:3 fits best.</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="p_active" name="is_active" value="1" {% if (form is not none and v.get('is_active')) or (form is none and product and product.is_active) %}checked{% endif %}>
+                            <label class="form-check-label" for="p_active">On sale (shown to visitors)</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-4">
+                    <button class="btn btn-primary" type="submit">Save</button>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('store.admin_store') }}">Cancel</a>
+                </div>
+            </form>
+            {% if product %}
+            <hr>
+            <form method="POST" action="{{ url_for('store.admin_store_product_delete', product_id=product.id) }}" onsubmit="return confirm('Delete this product? Past orders keep their record of it.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Delete product</button>
+                <span class="text-muted small ms-2">To stop selling it for now, switch "On sale" off instead.</span>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

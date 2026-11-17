@@ -48,8 +48,10 @@
                     <hr>
                     <h3 class="h6">Quick test amounts</h3>
                     <ul class="mb-0">
-                        <li><strong>12.00</strong> typically success flow</li>
-                        <li><strong>11.00</strong> intentional failure scenario in sandbox</li>
+                        <li><strong>12.00</strong> with card <code>4200 0000 0000 0091</code>: paid, no challenge</li>
+                        <li>card <code>4200 0000 0000 0042</code>: 3-D Secure challenge</li>
+                        <li><strong>11.00</strong>, 42.01, 42.76 or 42.91: always declined</li>
+                        <li>Any future expiry, any CVV. Full list: <a href="https://developer.sumup.com/online-payments/testing/" target="_blank" rel="noopener">SumUp testing guide</a></li>
                     </ul>
                 </div>
             </div>

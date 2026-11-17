@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Store') }} - SELENO{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='store.css') }}">{% endblock %}
+
+{% block content %}
+<div class="store-page">
+    {% include 'partials/store_banner.html' %}
+    <div class="store-head">
+        <div>
+            <h1>{{ _('Store') }}</h1>
+            <p>{{ _('Upgrade kits and parts for your SELENO telescope.') }}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <a class="btn btn-outline-primary store-basket-link" href="{{ url_for('store.admin_store') }}">
+                <i class="fas fa-cogs"></i> Manage store
+            </a>
+            {% endif %}
+            {% if products %}
+            <a class="btn btn-outline-secondary store-basket-link" href="{{ url_for('store.store_basket') }}">
+                <i class="fas fa-shopping-basket"></i> {{ _('Basket') }}{% if store.basket_count %} ({{ store.basket_count }}){% endif %}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if products %}
+    {% if not store.can_order %}
+    <div class="alert alert-info" role="status">{{ _('Ordering is not open yet. You can look around in the meantime.') }}</div>
+    {% endif %}
+    <div class="store-grid">
+        {% for product in products %}
+        <a class="store-card" href="{{ url_for('store.store_product', slug=product.slug) }}">
+            <div class="store-picture">
+                {% if product.image_filename %}<img src="{{ url_for('store.store_image', filename=product.image_filename) }}" alt="" loading="lazy">{% else %}<i class="fas fa-toolbox" aria-hidden="true"></i>{% endif %}
+            </div>
+            <div class="store-card-body">
+                <h2>{{ product.name }}</h2>
+                {% if product.summary %}<p>{{ product.summary }}</p>{% endif %}
+                <div class="store-card-foot">
+                    <span class="store-price">{{ product.price_pence|money }}</span>
+                    {% if not product.in_stock %}<span class="store-stock is-out">{{ _('Sold out') }}</span>{% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="store-empty">
+        <i class="fas fa-toolbox" aria-hidden="true"></i>
+        <h2 class="h4">{{ _('Upgrade kits are on the way') }}</h2>
+        <p>{{ _('Nothing is on sale just yet. Kits for upgrading a telescope to SELENO will be listed here when they are ready.') }}</p>
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <a class="btn btn-primary mt-3" href="{{ url_for('store.admin_store_product') }}">Add the first product</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

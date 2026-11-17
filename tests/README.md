@@ -8,7 +8,7 @@ database in a temporary folder, and fake telescopes in place of real sockets.
 
 ```bash
 cd tests
-../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search test_weather_cache test_sharing test_auth_security
+../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search test_weather_cache test_sharing test_auth_security test_store
 ```
 
 | File | Covers |
@@ -22,7 +22,19 @@ cd tests
 | `test_star_search.py` | the star map's name search: typos, other languages, exact-only catalogue numbers, suggestions |
 | `test_weather_cache.py` | the world map's local weather cache and `/map/weather/`, against a fake Open-Meteo |
 | `test_sharing.py` | sharing a telescope by username: standing access without a booking, and what stays with the owner |
+| `test_store.py` | the store: baskets, checkout, when an order counts as paid (webhook, return page, wrong amounts, retries), stock, admin, against a fake SumUp |
 | `test_auth_security.py` | who a request is from (forged forwarding headers), 2FA codes, reset links, reconnecting telescopes |
+
+## The store against the real SumUp sandbox (about 20 s, needs internet)
+
+Places two orders through the store's pages and pays them with SumUp's test cards,
+3-D Secure step included: one is paid, one is declined (an 11.00 total) and retried.
+Needs the sandbox key in `instance/.env`; no money moves and the live key is never loaded.
+
+```bash
+venv/bin/python tests/store_sandbox.py            # run the checks
+venv/bin/python tests/store_sandbox.py --serve    # click through it by hand on http://127.0.0.1:18095/sandbox-login
+```
 
 ## The processing engine (Node, about 10 s)
 

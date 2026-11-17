@@ -67,6 +67,10 @@ SELENO uses a web-based control server connected to distributed Raspberry Pi \
 - MAX_UPLOAD_BYTES: max upload size (default 128 MiB)
 - WS_PING_INTERVAL, WS_PING_TIMEOUT: WebSocket keepalive settings
 - TURNSTILE_SITE_KEY, TURNSTILE_SECRET_KEY: CAPTCHA support
+- SUMUP_MODE: `sandbox` (default) or `live`. In sandbox only admins can check out at /store and orders are marked as tests
+- SUMUP_TEST_API_KEY, SUMUP_TEST_MERCHANT_CODE / SUMUP_API_KEY, SUMUP_MERCHANT_CODE: SumUp keys for each mode
+- SUMUP_WEBHOOK_SECRET: optional token SumUp's payment notices must carry
+- STORE_NOTIFY_EMAIL: where new paid orders are announced (default: the support sender)
 
 Install dependencies with `venv/bin/pip install -r utility/requirements.txt` (pinned versions).
 

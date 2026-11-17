@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Checkout') }} - SELENO{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='store.css') }}">{% endblock %}
+
+{% macro field(name, label, type='text', required=false, autocomplete='', col='col-12') %}
+<div class="{{ col }}">
+    <label class="form-label" for="f_{{ name }}">{{ label }}{% if not required %} <span class="store-fineprint">({{ _('optional') }})</span>{% endif %}</label>
+    <input class="form-control{% if errors.get(name) %} is-invalid{% endif %}" id="f_{{ name }}" name="{{ name }}" type="{{ type }}"
+           value="{{ details.get(name, '') }}" {% if required %}required{% endif %} {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}>
+    {% if errors.get(name) == 'required' %}<div class="invalid-feedback">{{ _('This is needed.') }}</div>
+    {% elif errors.get(name) == 'too_long' %}<div class="invalid-feedback">{{ _('That is too long.') }}</div>
+    {% elif errors.get(name) == 'invalid' %}<div class="invalid-feedback">{{ _('That does not look right.') }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="store-page">
+    {% include 'partials/store_banner.html' %}
+    <div class="store-head"><h1>{{ _('Checkout') }}</h1></div>
+
+    <form method="POST" action="{{ url_for('store.store_checkout') }}" class="store-split" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+            <div class="store-panel">
+                <h2>{{ _('Your details') }}</h2>
+                <div class="row g-3">
+                    {{ field('email', _('Email'), type='email', required=true, autocomplete='email') }}
+                    {{ field('full_name', _('Full name'), required=true, autocomplete='name', col='col-md-7') }}
+                    {{ field('phone', _('Phone'), type='tel', autocomplete='tel', col='col-md-5') }}
+                </div>
+            </div>
+            <div class="store-panel">
+                <h2>{{ _('Delivery address') }}</h2>
+                <div class="row g-3">
+                    {{ field('address_line1', _('Address line 1'), required=true, autocomplete='address-line1') }}
+                    {{ field('address_line2', _('Address line 2'), autocomplete='address-line2') }}
+                    {{ field('city', _('Town or city'), required=true, autocomplete='address-level2', col='col-md-6') }}
+                    {{ field('region', _('County or region'), autocomplete='address-level1', col='col-md-6') }}
+                    {{ field('postcode', _('Postcode'), required=true, autocomplete='postal-code', col='col-md-4') }}
+                    {{ field('country', _('Country'), required=true, autocomplete='country-name', col='col-md-8') }}
+                    <div class="col-12">
+                        <label class="form-label" for="f_customer_note">{{ _('Anything we should know?') }} <span class="store-fineprint">({{ _('optional') }})</span></label>
+                        <textarea class="form-control" id="f_customer_note" name="customer_note" rows="2" maxlength="500">{{ details.get('customer_note', '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+            {% if store.delivery_on %}
+            <div class="store-panel">
+                <h2>{{ _('Delivery') }}</h2>
+                {% for zone in zones %}
+                <label class="store-zone">
+                    <input type="radio" name="zone_id" value="{{ zone.id }}" data-pence="{{ zone.price_pence }}" {% if chosen_zone and chosen_zone.id == zone.id %}checked{% endif %} required>
+                    <span>{{ zone.label }}</span>
+                    <span>{% if zone.price_pence %}{{ zone.price_pence|money }}{% else %}{{ _('Free') }}{% endif %}</span>
+                </label>
+                {% else %}
+                <p class="store-fineprint mb-0">{{ _('Delivery is not set up yet, so orders cannot be placed.') }}</p>
+                {% endfor %}
+                {% if errors.get('zone_id') %}<div class="text-danger small">{{ _('Choose a delivery option.') }}</div>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="store-panel">
+            <h2>{{ _('Your order') }}</h2>
+            <table class="store-lines">
+                <tbody>
+                {% for line in lines %}
+                <tr><td>{{ line.quantity }} &times; {{ line.product.name }}</td><td class="num">{{ line.line_pence|money }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <dl class="store-totals" id="storeTotals" data-subtotal="{{ subtotal }}">
+                <div><dt>{{ _('Items') }}</dt><dd>{{ subtotal|money }}</dd></div>
+                <div><dt>{{ _('Delivery') }}</dt><dd id="storeDelivery">{% if not store.delivery_on %}{{ _('No charge') }}{% elif chosen_zone %}{{ chosen_zone.price_pence|money }}{% else %}&ndash;{% endif %}</dd></div>
+                <div class="grand"><dt>{{ _('Total') }}</dt><dd id="storeTotal">{% if chosen_zone %}{{ (subtotal + chosen_zone.price_pence)|money }}{% else %}{{ subtotal|money }}{% endif %}</dd></div>
+            </dl>
+            <div class="form-check mt-3">
+                <input class="form-check-input{% if errors.get('accept_terms') %} is-invalid{% endif %}" type="checkbox" id="f_terms" name="accept_terms" value="1" required>
+                <label class="form-check-label" for="f_terms">{{ _('I agree to the') }} <a href="{{ url_for('about.tos') }}" target="_blank" rel="noopener">{{ _('terms') }}</a> {{ _('and') }} <a href="{{ url_for('about.privacy') }}" target="_blank" rel="noopener">{{ _('privacy policy') }}</a>.</label>
+            </div>
+            <button class="btn btn-primary w-100 mt-3" type="submit" {% if store.delivery_on and not zones %}disabled{% endif %}><i class="fas fa-lock"></i> {{ _('Continue to payment') }}</button>
+            <p class="store-fineprint mt-2 mb-0">{{ _('You pay on a secure page run by SumUp. We never see your card details.') }}</p>
+        </div>
+    </form>
+</div>
+<script>
+(function () {
+    var totals = document.getElementById('storeTotals');
+    if (!totals) return;
+    var subtotal = parseInt(totals.dataset.subtotal, 10) || 0;
+    function money(pence) { return '£' + (pence / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    document.querySelectorAll('input[name="zone_id"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var delivery = parseInt(radio.dataset.pence, 10) || 0;
+            document.getElementById('storeDelivery').textContent = money(delivery);
+            document.getElementById('storeTotal').textContent = money(subtotal + delivery);
+        });
+    });
+})();
+</script>
+{% endblock %}
