@@ -218,7 +218,6 @@ function draw() {
     currentSiderealTime(selectedDate, lonDeg);
 
     const showStarsVal = showStars.checked;
-    const showPlanetsVal = showPlanets.checked;
     const { sinLat, cosLat } = precomputeObserver(latDeg);
 
     // Optional below-horizon tint, draw first so grids and stars are above
@@ -265,13 +264,15 @@ function draw() {
         drawStarNames(Mview, magLimit);
     }
 
-    // Planets on top
-    if (showPlanetsVal) {
+    // Planets on top; the bodies with no picture (dwarf planets, asteroids)
+    // are small dots with their names beside them
+    {
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
         for (let i = 0; i < planetsList.length; i++) {
             const obj = planetsList[i];
-            // Respect magnitude filter for planets: hide planets fainter than limit
-            const effectiveMag = obj.mag == null ? 50 : obj.mag;
-            if (effectiveMag > magLimit) continue;
+            if (!bodyShown(obj) || !bodyWithinMag(obj, magLimit)) continue;
             const v = obj.xyz || radecToXYZ(obj.ra, obj.dec);
             const w0 = Mview[0], w1 = Mview[1], w2 = Mview[2];
             const x = w0[0]*v[0] + w0[1]*v[1] + w0[2]*v[2];
@@ -286,10 +287,14 @@ function draw() {
                 const img = planetImages[obj.icon];
                 ctx.drawImage(img, cx - size/2, cy - size/2, size, size);
             } else {
-                ctx.fillStyle = "#ffa500";
+                const dot = bodyDotSize();
+                ctx.fillStyle = bodyKind(obj).colour;
                 ctx.beginPath();
-                ctx.arc(cx, cy, size/2, 0, 2*Math.PI);
+                ctx.arc(cx, cy, dot/2, 0, 2*Math.PI);
                 ctx.fill();
+                ctx.globalAlpha = 0.85;
+                ctx.fillText(obj.label || obj.name, cx + dot/2 + 4, cy);
+                ctx.globalAlpha = 1;
             }
         }
     }
@@ -299,7 +304,7 @@ function draw() {
         // An explicitly searched object is always ringed, including ones with no
         // recorded magnitude that the slider can't reach
         const effectiveMag = searchedObject.mag == null ? -99 : searchedObject.mag;
-        if (effectiveMag <= magLimit) {
+        if (searchedObject.type === 'planet' ? bodyWithinMag(searchedObject, magLimit) : effectiveMag <= magLimit) {
             const { altDeg, azDeg } = radecToAltAz(searchedObject.ra, searchedObject.dec, selectedDate, latDeg, lonDeg);
             let [x, y, z] = altazToXYZ(altDeg, azDeg);
             [x, y, z] = horizonToView([x, y, z]);

@@ -308,7 +308,9 @@ function searchObject(pick) {
             const currentMagLimit = parseFloat(magFilter.value);
             
             // If the object is fainter than current limit, increase the magnitude limit
-            if (!isConstellation && objectMag > currentMagLimit) {
+            // (not for a planet that is shown whatever the limit)
+            const shownAnyway = foundObject.type === 'planet' && bodyWithinMag(foundObject, currentMagLimit);
+            if (!isConstellation && !shownAnyway && objectMag > currentMagLimit) {
                 const newMagLimit = Math.ceil(objectMag) + 0.3;
                 const maxSliderMag = parseFloat(magFilter.max) || 20;
                 const clampedMagLimit = Math.min(newMagLimit, maxSliderMag);

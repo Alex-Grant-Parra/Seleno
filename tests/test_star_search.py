@@ -29,6 +29,7 @@ TRANSLATIONS = {"es": {
     ("NGCtable", "NGC1432"): {"name": "Pléyades", "aliases": ["Siete Hermanas"]},
     ("SolarSystem", "moon"): {"name": "Luna", "aliases": []},
     ("SolarSystem", "jupiter"): {"name": "Júpiter", "aliases": []},
+    ("SolarSystem", "pallas"): {"name": "Palas", "aliases": []},
     ("ConstellationsTable", "Ori"): {"name": "Orión", "aliases": []},
 }}
 
@@ -93,6 +94,13 @@ class CatalogueNumberTests(SearchTestCase):
 
 
 class NameTests(SearchTestCase):
+    def test_dwarf_planets_and_asteroids(self):
+        for query, key in (("vesta", "vesta"), ("Ceres", "ceres"), ("makemake", "makemake"), ("sedna", "sedna")):
+            found = star_catalog.search(query)[0]
+            self.assertEqual((found["kind"], found["key"]), ("body", key), query)
+        self.assertEqual(self.keys("Palas", "es")[0], "pallas")
+        self.assertEqual(star_catalog.find_body("Quaoar"), "quaoar")
+
     def test_typos(self):
         self.assertEqual(self.keys("sirus")[0], "HD48915")
         self.assertEqual(self.keys("betelguese")[0], "HD39801")

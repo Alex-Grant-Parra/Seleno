@@ -60,6 +60,7 @@ _icKey = None
 _expectedMetadata = None
 _blocks = OrderedDict()             # block index -> (r, v) arrays, LRU order
 _epochCache = None
+_photometry = {}                    # small body -> (H, G), from initial_conditions.json
 
 
 # ---------------------------------------------------------------------------
@@ -73,7 +74,7 @@ def _currentIcKey():
 
 def _refresh():
     """(Re)create the propagator and caches when initial_conditions.json changes."""
-    global _propagator, _icKey, _expectedMetadata, _epochCache
+    global _propagator, _icKey, _expectedMetadata, _epochCache, _photometry
     key = _currentIcKey()
     if _propagator is not None and key == _icKey:
         return
@@ -90,6 +91,8 @@ def _refresh():
     }, sort_keys=True)
     _blocks.clear()
     _epochCache = None
+    _photometry = {name: (float(body["H"]), float(body["G"]))
+                   for name, body in json.loads(IC_PATH.read_text())["bodies"].items() if "H" in body}
     _icKey = key
 
 
@@ -221,6 +224,13 @@ def getEpochUTC():
             parsed = datetime.fromisoformat(text)
             _epochCache = parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
         return _epochCache
+
+
+def photometry():
+    """{name: (H, G)} for the small bodies (asteroid magnitude system)."""
+    with _lock:
+        _refresh()
+        return _photometry
 
 
 def coverage():

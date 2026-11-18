@@ -6,14 +6,14 @@ import sys
 import numpy as np
 
 try:
-    from .ephemeris import evaluateAt, evaluateAtBatch, getEpochEt
+    from .ephemeris import evaluateAt, evaluateAtBatch, getEpochEt, photometry
     from .frames import eclipticToEquatorial, precessionMatrix
     from .timescales import utcToEt
     from .constants import (AU_M, SECONDS_PER_DAY, SECONDS_PER_JULIAN_CENTURY, JD_UNIX_EPOCH,
                             JD_J2000, DAYS_PER_JULIAN_CENTURY, WGS84_A_M, WGS84_F,
                             METERS_PER_KM, MOON_MEAN_DISTANCE_KM)
 except ImportError:
-    from ephemeris import evaluateAt, evaluateAtBatch, getEpochEt
+    from ephemeris import evaluateAt, evaluateAtBatch, getEpochEt, photometry
     from frames import eclipticToEquatorial, precessionMatrix
     from timescales import utcToEt
     from constants import (AU_M, SECONDS_PER_DAY, SECONDS_PER_JULIAN_CENTURY, JD_UNIX_EPOCH,
@@ -156,6 +156,17 @@ def _planetVisualMagnitude(body, rAu, deltaAu, phaseDeg):
     return None
 
 
+def _smallBodyVisualMagnitude(h, g, rAu, deltaAu, phaseDeg):
+    # The IAU H, G system (Bowell et al. 1989): H is the brightness at 1 AU from
+    # both the Sun and the Earth at zero phase; G sets how fast it fades with phase.
+    if rAu <= 0.0 or deltaAu <= 0.0:
+        return None
+    half = np.tan(np.deg2rad(min(float(phaseDeg), 179.0)) / 2.0)
+    phi1 = np.exp(-3.33 * half ** 0.63)
+    phi2 = np.exp(-1.87 * half ** 1.22)
+    return float(h + 5.0 * np.log10(rAu * deltaAu) - 2.5 * np.log10((1.0 - g) * phi1 + g * phi2))
+
+
 def _moonVisualMagnitude(earthMoonDistanceM, phaseAngleDeg):
     distanceKm = float(earthMoonDistanceM) / METERS_PER_KM
     if distanceKm <= 0.0:
@@ -211,14 +222,14 @@ def _visualMagnitudePayload(body, positions, observer):
         payload.update(_moonPhaseFromGeometry(sunPos, earthPos, bodyPos))
         return payload
 
-    if body in {"mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"}:
+    small = photometry().get(body)
+    if small is not None or body in {"mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"}:
         phaseDeg = _phaseAngleDeg(bodyPos, sunPos, earthPos)
         rAu = float(np.linalg.norm(bodyPos - sunPos) / AU_M)
         deltaAu = float(np.linalg.norm(bodyPos - earthPos) / AU_M)
-        return {
-            "visual_mag": _planetVisualMagnitude(body, rAu, deltaAu, phaseDeg),
-            "phase_angle_deg": float(phaseDeg),
-        }
+        mag = (_smallBodyVisualMagnitude(*small, rAu, deltaAu, phaseDeg) if small is not None
+               else _planetVisualMagnitude(body, rAu, deltaAu, phaseDeg))
+        return {"visual_mag": mag, "phase_angle_deg": float(phaseDeg)}
 
     return {}
 

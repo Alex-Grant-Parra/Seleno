@@ -8,6 +8,7 @@ from typing import Optional
 from models import star_catalog
 
 from astrophysics.planetary_model import getAllCelestialData
+from astrophysics.V3_Helios.small_bodies import SMALL_BODIES
 from astrophysics.V1_Keplarian.convert import convert
 from app.telescopeLink import Telescope, result_error
 from app.telescope_access import telescope_access_error
@@ -17,8 +18,23 @@ logger = logging.getLogger(__name__)
 star_map_bp = Blueprint("star_map", __name__)
 
 # Bodies the Pi locates itself with trackObject, from its own site: the Moon's
-# parallax alone shifts it by up to about 1 degree
-_TRACK_BY_NAME = {"moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"}
+# parallax alone shifts it by up to about 1 degree. It has no ephemeris for
+# anything else (Pluto included): those go as coordinates plus drift rates.
+_TRACK_BY_NAME = {"moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"}
+
+# What kind of solar-system object each ephemeris body is; the star map
+# shows and hides each kind separately. Anything not listed is a planet.
+# Every body keeps "type": "planet" as well, which is what telescope clients
+# (and older star maps) pick solar-system objects out by.
+_BODY_KINDS = {"sun": "sun", "moon": "moon", "pluto": "dwarf_planet",
+               **{key: entry[2] for key, entry in SMALL_BODIES.items()}}
+
+# Bodies with a picture in static/icons/planets/; the rest are drawn as dots
+_ICON_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "icons", "planets")
+_BODY_ICONS = {name[:-4] for name in os.listdir(_ICON_DIR) if name.endswith(".png")} if os.path.isdir(_ICON_DIR) else set()
+
+# Moving targets: how far apart the two positions their rates come from are
+_RATE_STEP_S = 600.0
 
 
 def _require_telescope_control_access(telescope_id):
@@ -70,6 +86,57 @@ def _add_celestial_phase_fields(payload, coords):
 
     return payload
 
+def _body_kind(obj_name):
+    return _BODY_KINDS.get(obj_name.lower(), "planet")
+
+
+def _body_icon(key):
+    key = key.lower()
+    return f"/static/icons/planets/{key}.png" if key in _BODY_ICONS else None
+
+
+def _body_payload(obj_name, coords, lang=None):
+    """One ephemeris body as the star map and telescope clients take it.
+    With a language it also carries its displayed name."""
+    ra_h, ra_m, ra_s = coords["ra"]
+    dec_d, dec_m, dec_s = coords["dec"]
+    key = obj_name.lower()
+    payload = {
+        "name": obj_name.capitalize(),  # the ID: tracking and /star_info use it
+        "ra": convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15,
+        "dec": convert.HrMinSecToDegrees(dec_d, dec_m, dec_s),
+        "mag": _celestial_magnitude(obj_name, coords),
+        "icon": _body_icon(key),
+        "type": "planet",
+        "kind": _body_kind(key),
+    }
+    if lang is not None:
+        payload["label"] = star_catalog.body_name(key, lang) or obj_name.capitalize()
+    return _add_celestial_phase_fields(payload, coords)
+
+
+def _celestial_data_at(dt):
+    return getAllCelestialData(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+
+
+def _body_motion(obj_name, now=None):
+    """(ra, dec, ra_rate, dec_rate) of an ephemeris body: J2000 degrees now
+    and degrees per second against the stars. None for an unknown body."""
+    now = now or datetime.utcnow()
+    key = obj_name.lower()
+    half = timedelta(seconds=_RATE_STEP_S / 2)
+    samples = []
+    for t in (now - half, now, now + half):
+        coords = _celestial_data_at(t).get(key)
+        if coords is None:
+            return None
+        samples.append((convert.HrMinSecToDegrees(*coords["ra"]) * 15,
+                        convert.HrMinSecToDegrees(*coords["dec"])))
+    (ra0, dec0), (ra, dec), (ra1, dec1) = samples
+    ra_rate = (((ra1 - ra0) + 180.0) % 360.0 - 180.0) / _RATE_STEP_S
+    return ra % 360.0, dec, ra_rate, (dec1 - dec0) / _RATE_STEP_S
+
+
 def loadStarsFromTables(tables=None):
     # Served from the cached in-memory catalogue; `tables` is accepted for
     # backwards compatibility but the catalogue always covers all three.
@@ -87,22 +154,7 @@ def get_all_celestial_objects(_dt: Optional[datetime] = None):
     celestial_data = getAllCelestialData(_dt.year, _dt.month, _dt.day, _dt.hour, _dt.minute, _dt.second)
 
     for obj_name, coords in celestial_data.items():
-        ra_h, ra_m, ra_s = coords["ra"]
-        dec_d, dec_m, dec_s = coords["dec"]
-        mag = _celestial_magnitude(obj_name, coords)
-
-        ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
-
-        obj_payload = {
-            "name": obj_name.capitalize(),
-            "ra": ra_deg,
-            "dec": dec_deg,
-            "mag": mag,
-            "icon": f"/static/icons/planets/{obj_name.lower()}.png",
-            "type": "planet"
-        }
-        all_objects.append(_add_celestial_phase_fields(obj_payload, coords))
+        all_objects.append(_body_payload(obj_name, coords))
 
     return all_objects
 
@@ -141,22 +193,7 @@ def get_stars():
             _dt = datetime.utcnow()
         celestial_data = getAllCelestialData(_dt.year, _dt.month, _dt.day, _dt.hour, _dt.minute, _dt.second)
         for obj_name, coords in celestial_data.items():
-            ra_h, ra_m, ra_s = coords["ra"]
-            dec_d, dec_m, dec_s = coords["dec"]
-            mag = _celestial_magnitude(obj_name, coords)
-
-            ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-            dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
-
-            obj_payload = {
-                "name": obj_name.capitalize(),
-                "ra": ra_deg,
-                "dec": dec_deg,
-                "mag": mag,
-                "icon": f"/static/icons/planets/{obj_name.lower()}.png",
-                "type": "planet"
-            }
-            planets.append(_add_celestial_phase_fields(obj_payload, coords))
+            planets.append(_body_payload(obj_name, coords))
 
     # Stars come from the cached, magnitude-sorted catalogue: a band is a
     # contiguous slice, so this costs a slice + serialise instead of a scan.
@@ -406,26 +443,7 @@ def get_planets():
 
     celestial_data = getAllCelestialData(_dt.year, _dt.month, _dt.day, _dt.hour, _dt.minute, _dt.second)
     lang = request_language()
-    planets = []
-    for obj_name, coords in celestial_data.items():
-        ra_h, ra_m, ra_s = coords["ra"]
-        dec_d, dec_m, dec_s = coords["dec"]
-        mag = _celestial_magnitude(obj_name, coords)
-
-        ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
-
-        obj_payload = {
-            "name": obj_name.capitalize(),  # the ID: tracking and /star_info use it
-            "label": star_catalog.body_name(obj_name, lang) or obj_name.capitalize(),
-            "ra": ra_deg,
-            "dec": dec_deg,
-            "mag": mag,
-            "icon": f"/static/icons/planets/{obj_name.lower()}.png",
-            "type": "planet"
-        }
-        planets.append(_add_celestial_phase_fields(obj_payload, coords))
-    return jsonify(planets)
+    return jsonify([_body_payload(obj_name, coords, lang) for obj_name, coords in celestial_data.items()])
 
 
 # ---------------------------------------------------------------------------
@@ -500,7 +518,9 @@ def get_planets_table():
         "bodies": [{
             "name": name.capitalize(),
             "label": star_catalog.body_name(name, lang) or name.capitalize(),
-            "icon": f"/static/icons/planets/{name.lower()}.png",
+            "icon": _body_icon(name),
+            "type": "planet",
+            "kind": _body_kind(name),
             **samples,
         } for name, samples in table["bodies"].items()],
     })
@@ -539,23 +559,7 @@ def star_info(star_name):
     celestial_data = getAllCelestialData(_now.year, _now.month, _now.day, _now.hour, _now.minute, _now.second)
     obj_name_lower = star_name.lower()
     if obj_name_lower in celestial_data:
-        coords = celestial_data[obj_name_lower]
-        ra_h, ra_m, ra_s = coords["ra"]
-        dec_d, dec_m, dec_s = coords["dec"]
-        mag = _celestial_magnitude(obj_name_lower, coords)
-
-        ra_deg = convert.HrMinSecToDegrees(ra_h, ra_m, ra_s) * 15
-        dec_deg = convert.HrMinSecToDegrees(dec_d, dec_m, dec_s)
-
-        obj_payload = {
-            "name": star_name.capitalize(),
-            "label": star_catalog.body_name(obj_name_lower, request_language()) or star_name.capitalize(),
-            "ra": ra_deg,
-            "dec": dec_deg,
-            "mag": mag,
-            "type": "planet"
-        }
-        return jsonify(_add_celestial_phase_fields(obj_payload, coords))
+        return jsonify(_body_payload(obj_name_lower, celestial_data[obj_name_lower], request_language()))
 
     # Served from the in-memory catalogue rather than the three tables
     entry = star_catalog.lookup(star_name)
@@ -631,16 +635,24 @@ def track_star():
             print(f"\n[TRACKING] Sending {name} to telescope {telescope_id} by name\n", flush=True)
             result = t.scope.track_object(str(name).strip())
         else:
+            track_kwargs = {"name": name, "ra": ra, "dec": dec, "mag": mag}
+            # A solar-system body the Pi has no ephemeris for (Pluto, and the
+            # asteroids and comets to come): aim where it is now, not where the
+            # map's time slider had it, and say how fast it moves so the Pi
+            # can follow it rather than a fixed point among the stars.
+            motion = _body_motion(str(name or "").strip()) if name else None
+            if motion is not None:
+                track_kwargs["ra"], track_kwargs["dec"] = round(motion[0], 6), round(motion[1], 6)
+                if t.has_capability("moving_targets"):
+                    track_kwargs["ra_rate"], track_kwargs["dec_rate"] = motion[2], motion[3]
             print(f"\n[TRACKING] Sending {name} coordinates to telescope {telescope_id}")
-            print(f"[TRACKING] RA: {ra}°, DEC: {dec}°, Mag: {mag}\n", flush=True)
+            print(f"[TRACKING] RA: {track_kwargs['ra']}°, DEC: {track_kwargs['dec']}°, Mag: {mag}"
+                  + (f", rates {track_kwargs['ra_rate']:.3g}/{track_kwargs['dec_rate']:.3g} deg/s"
+                     if "ra_rate" in track_kwargs else "") + "\n", flush=True)
 
             # Send track command with coordinates to the telescope
-            result = t.send_command("trackCoordinates", kwargs={
-                "name": name,
-                "ra": ra,
-                "dec": dec,
-                "mag": mag
-            })
+            result = t.send_command("trackCoordinates", kwargs=track_kwargs)
+            ra, dec = track_kwargs["ra"], track_kwargs["dec"]
 
         # A go-to below the horizon, near the Sun, while parked... is refused as a result
         refusal = result_error(result)

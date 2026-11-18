@@ -180,6 +180,7 @@ function planetsFromTable(date) {
             label: body.label,
             icon: body.icon,
             type: 'planet',
+            kind: body.kind || 'planet',
             ra: lerpAngleDeg(body.ra[i], body.ra[i + 1], f),
             dec: lerpSample(body.dec, i, f),
             mag: lerpSample(body.mag, i, f),

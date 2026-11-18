@@ -231,6 +231,83 @@ class FixFirst(Base):
         self.assertEqual(self.fake.last("trackObject")[1], ["Moon"])
         self.assertIsNone(self.fake.last("trackCoordinates"))
 
+    def test_pluto_goes_as_coordinates_with_its_rates(self):
+        # The Pi has no ephemeris for Pluto: it gets the server's position now
+        # (not the map's stale ra/dec) and, if it understands them, the rates
+        from unittest import mock
+        from controllers import star_map
+
+        ra, dec, ra_rate, dec_rate = star_map._body_motion("Pluto")
+        self.assertLess(abs(ra_rate), 1e-5)  # Pluto crawls: well under 0.04 deg/hour
+        with mock.patch.object(telescopeLink.Telescope, "has_capability",
+                               lambda self, name: name == "moving_targets"):
+            r = self.as_user(self.booker).post("/track_star", json={"name": "Pluto", "ra": 1.0, "dec": 2.0, "mag": 14})
+        self.assertEqual(r.get_json()["status"], "tracking", r.get_json())
+        self.assertIsNone(self.fake.last("trackObject"))
+        kwargs = self.fake.last("trackCoordinates")[2]
+        self.assertAlmostEqual(kwargs["ra"], ra, places=3)
+        self.assertAlmostEqual(kwargs["dec"], dec, places=3)
+        self.assertAlmostEqual(kwargs["ra_rate"], ra_rate, delta=1e-8)
+        self.assertAlmostEqual(kwargs["dec_rate"], dec_rate, delta=1e-8)
+
+        # A client without the capability gets the position only, as before
+        with mock.patch.object(telescopeLink.Telescope, "has_capability", lambda self, name: False):
+            self.as_user(self.booker).post("/track_star", json={"name": "Pluto", "ra": 1.0, "dec": 2.0, "mag": 14})
+        kwargs = self.fake.last("trackCoordinates")[2]
+        self.assertNotIn("ra_rate", kwargs)
+        self.assertAlmostEqual(kwargs["ra"], ra, places=3)
+
+        # A star is sent exactly as given
+        self.as_user(self.booker).post("/track_star", json={"name": "Vega", "ra": 279.2, "dec": 38.8, "mag": 0})
+        self.assertEqual(self.fake.last("trackCoordinates")[2],
+                         {"name": "Vega", "ra": 279.2, "dec": 38.8, "mag": 0})
+
+    def test_bodies_carry_their_kind(self):
+        bodies = {b["name"]: b for b in client.get("/api/planets").get_json()}
+        self.assertEqual(bodies["Pluto"]["kind"], "dwarf_planet")
+        self.assertEqual(bodies["Mars"]["kind"], "planet")
+        self.assertEqual(bodies["Moon"]["kind"], "moon")
+        self.assertEqual(bodies["Sun"]["kind"], "sun")
+        # Clients pick solar-system objects out by type: every body keeps it
+        self.assertEqual({b["type"] for b in bodies.values()}, {"planet"})
+        self.assertEqual(client.get("/star_info/pluto").get_json()["kind"], "dwarf_planet")
+        table = client.get("/api/planets_table").get_json()
+        self.assertEqual({b["name"]: b["kind"] for b in table["bodies"]}["Pluto"], "dwarf_planet")
+
+    def test_dwarf_planets_and_asteroids_from_helios(self):
+        from astrophysics.V3_Helios.small_bodies import SMALL_BODIES
+
+        bodies = {b["name"].lower(): b for b in client.get("/api/planets").get_json()}
+        for key, (name, _record, kind, region) in SMALL_BODIES.items():
+            self.assertIn(key, bodies)
+            self.assertEqual(bodies[key]["kind"], kind, key)
+            self.assertEqual(bodies[key]["type"], "planet")
+            mag = bodies[key]["mag"]
+            # H, G magnitudes: the main belt 5-12, everything past Neptune 15-22
+            self.assertTrue(5.0 < mag < 12.0 if region == "main_belt" else 15.0 < mag < 22.0, (key, mag))
+        self.assertGreaterEqual(sum(r == "main_belt" for *_x, r in SMALL_BODIES.values()), 5)
+        self.assertGreaterEqual(sum(r == "kuiper_belt" for *_x, r in SMALL_BODIES.values()), 5)
+        # No picture for them: drawn as dots, nothing to fetch
+        self.assertIsNone(bodies["vesta"]["icon"])
+        self.assertEqual(bodies["pluto"]["icon"], "/static/icons/planets/pluto.png")
+        # Labelled (in English here: the test database has no translations)
+        self.assertEqual(bodies["pallas"]["label"], "Pallas")
+        self.assertEqual(client.get("/star_info/vesta").get_json()["kind"], "asteroid")
+
+    def test_an_asteroid_is_tracked_with_its_rates(self):
+        from unittest import mock
+        from controllers import star_map
+
+        ra, dec, ra_rate, dec_rate = star_map._body_motion("Vesta")
+        self.assertGreater(abs(ra_rate) + abs(dec_rate), 1e-7)  # a main-belt asteroid visibly moves
+        with mock.patch.object(telescopeLink.Telescope, "has_capability",
+                               lambda self, name: name == "moving_targets"):
+            r = self.as_user(self.booker).post("/track_star", json={"name": "Vesta", "ra": 1.0, "dec": 2.0, "mag": 7})
+        self.assertEqual(r.get_json()["status"], "tracking", r.get_json())
+        kwargs = self.fake.last("trackCoordinates")[2]
+        self.assertAlmostEqual(kwargs["ra"], ra, places=3)
+        self.assertAlmostEqual(kwargs["dec_rate"], dec_rate, delta=1e-8)
+
     def test_camera_settings(self):
         r = self.as_user(self.booker).post("/interface/update_camera", json={"aperture": "f/8"})
         self.assertEqual(r.get_json()["changed"], ["aperture"])

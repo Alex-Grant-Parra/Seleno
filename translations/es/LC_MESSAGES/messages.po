@@ -7906,6 +7906,38 @@ msgstr "La cuadrícula muestra el ángulo horario (AH) según tu longitud y la h
 msgid "Planets"
 msgstr "Planetas"
 
+#: templates/star_map.html:677
+msgid "Ceres, Pluto, Eris, Haumea and Makemake"
+msgstr "Ceres, Plutón, Eris, Haumea y Makemake"
+
+#: templates/star_map.html
+msgid "Asteroids"
+msgstr "Asteroides"
+
+#: templates/star_map.html
+msgid "The brightest asteroids of the main belt, such as Vesta and Pallas. Shown down to the magnitude limit, like stars."
+msgstr "Los asteroides más brillantes del cinturón principal, como Vesta y Palas. Se muestran hasta el límite de magnitud, como las estrellas."
+
+#: templates/star_map.html
+msgid "Beyond Neptune"
+msgstr "Más allá de Neptuno"
+
+#: templates/star_map.html
+msgid "Kuiper belt and more distant bodies beyond Neptune, such as Quaoar and Sedna: mag 19 to 21, so only shown with a deep magnitude limit."
+msgstr "Cuerpos del cinturón de Kuiper y más lejanos, más allá de Neptuno, como Quaoar y Sedna: magnitud 19 a 21, así que solo se muestran con un límite de magnitud profundo."
+
+#: templates/star_map.html
+msgid "Planets and dwarf planets are shown whatever the magnitude limit. Tick this to hide the ones fainter than it, like stars."
+msgstr "Los planetas y planetas enanos se muestran sea cual sea el límite de magnitud. Marca esta casilla para ocultar los más tenues que él, como las estrellas."
+
+#: templates/star_map.html
+msgid "Planets follow magnitude limit"
+msgstr "Los planetas siguen el límite de magnitud"
+
+#: templates/star_map.html:678
+msgid "Dwarf planets"
+msgstr "Planetas enanos"
+
 #: templates/star_map.html:679
 msgid "Label named objects: the 407 stars with an official IAU proper name, plus named clusters, nebulae and galaxies. Brightest first."
 msgstr "Etiqueta los objetos con nombre: las 407 estrellas con nombre propio oficial de la UAI, además de cúmulos, nebulosas y galaxias con nombre. Los más brillantes primero."

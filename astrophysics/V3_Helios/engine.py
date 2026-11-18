@@ -117,7 +117,8 @@ class Propagator:
         rounding (centimetres after a year).
 
     The epoch state has the system's net centre-of-mass velocity removed, so
-    the barycentre of the eleven bodies stays put.
+    the barycentre of the bodies with mass stays put (the small bodies of
+    small_bodies.py are massless test particles).
     """
 
     def __init__(self, *, dt=DEFAULT_DT, pole_interval=DEFAULT_POLE_INTERVAL, relativity="eih",

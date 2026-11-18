@@ -674,6 +674,15 @@
     <div class="control-group">
         <label for="show-stars"><input type="checkbox" id="show-stars" checked> <span>{{ _('Stars') }}</span></label>
         <label for="show-planets"><input type="checkbox" id="show-planets" checked> <span>{{ _('Planets') }}</span></label>
+        <label for="show-dwarf-planets" title="{{ _('Ceres, Pluto, Eris, Haumea and Makemake') }}">
+            <input type="checkbox" id="show-dwarf-planets" checked> <span>{{ _('Dwarf planets') }}</span>
+        </label>
+        <label for="show-asteroids" title="{{ _('The brightest asteroids of the main belt, such as Vesta and Pallas. Shown down to the magnitude limit, like stars.') }}">
+            <input type="checkbox" id="show-asteroids" checked> <span>{{ _('Asteroids') }}</span>
+        </label>
+        <label for="show-tnos" title="{{ _('Kuiper belt and more distant bodies beyond Neptune, such as Quaoar and Sedna: mag 19 to 21, so only shown with a deep magnitude limit.') }}">
+            <input type="checkbox" id="show-tnos" checked> <span>{{ _('Beyond Neptune') }}</span>
+        </label>
     </div>
     <div class="control-group">
         <label for="show-star-names" title="{{ _('Label named objects: the 407 stars with an official IAU proper name, plus named clusters, nebulae and galaxies. Brightest first.') }}">
@@ -725,6 +734,9 @@
                     <button type="button" id="horizon-tint-apply">{{ _('Apply') }}</button>
                 </span>
             </div>
+            <label for="bodies-follow-mag" title="{{ _('Planets and dwarf planets are shown whatever the magnitude limit. Tick this to hide the ones fainter than it, like stars.') }}">
+                <span><input type="checkbox" id="bodies-follow-mag"> {{ _('Planets follow magnitude limit') }}</span>
+            </label>
             <label for="show-render-stats">
                 <span><input type="checkbox" id="show-render-stats"> {{ _('Render stats') }}</span>
             </label>

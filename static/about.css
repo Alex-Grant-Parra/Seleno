@@ -2,6 +2,9 @@
 
 .about-page {
     display: grid;
+    /* minmax(0, 1fr) stops wide children (equations, tables) from stretching
+       the column past the viewport, so their own overflow scrolling works */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-7);
     max-width: 1100px;
     margin: 0 auto;
@@ -479,6 +482,18 @@
 
 .about-astro .about-section h3 {
     margin-top: var(--space-5);
+}
+
+@media (max-width: 640px) {
+    /* Fit more of each display equation on screen before it needs to scroll */
+    .about-astro .katex-display > .katex {
+        font-size: 1em;
+    }
+
+    .about-astro .astro-table th,
+    .about-astro .astro-table td {
+        padding: var(--space-2);
+    }
 }
 
 /* Astrophysics page: accuracy tables */

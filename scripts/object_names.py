@@ -16,10 +16,25 @@ import sys
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 DB_PATH = os.path.join(BASE_DIR, "instance", "Data.db")
 
-# The ephemeris' names for the bodies the SolarSystem rows can name
+# The ephemeris' names for the bodies the SolarSystem rows can name, with the
+# dwarf planets and asteroids of small_bodies.py (read from its file, so this
+# script needs nothing else of the server)
 SOLAR_SYSTEM = {"sun": "Sun", "moon": "Moon", "mercury": "Mercury", "venus": "Venus", "mars": "Mars",
                 "jupiter": "Jupiter", "saturn": "Saturn", "uranus": "Uranus", "neptune": "Neptune",
                 "pluto": "Pluto"}
+
+
+def _small_bodies():
+    import importlib.util
+
+    path = os.path.join(BASE_DIR, "astrophysics", "V3_Helios", "small_bodies.py")
+    spec = importlib.util.spec_from_file_location("small_bodies", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return {key: entry[0] for key, entry in module.SMALL_BODIES.items()}
+
+
+SOLAR_SYSTEM.update(_small_bodies())
 
 
 def is_designation(alias):

@@ -33,6 +33,7 @@ SCENARIOS = {
     "narrow_album": "/e2e-login?next=/album",
     "engine": "/e2e-login?next=/album",
     "star_map": "/e2e-login?next=/StarMap",
+    "solar_system": "/e2e-login?next=/StarMap",
     "telescope_zones": "/e2e-login?next=/telescopes/named/e2e-scope",
     "zone_map": "/e2e-login?next=/e2e-zone-map",
     "world_map": "/e2e-login?next=/map",

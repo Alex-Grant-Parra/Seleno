@@ -58,6 +58,8 @@ from bisect import bisect_left, bisect_right
 
 from sqlalchemy import or_
 
+from astrophysics.V3_Helios.small_bodies import SMALL_BODIES
+
 from app.db import db
 from models.tables import (ConstellationLinesTable, ConstellationsTable,
                            HDSTARtable, IndexTable, NGCtable, ObjectNamesTable)
@@ -211,14 +213,17 @@ def get_constellations(lang=None):
 # only ever match exactly, through lookup(), so "M13" can't turn into M31.
 # ---------------------------------------------------------------------------
 
-# English names of the bodies the ephemeris knows, by its keys
+# English names of the bodies the ephemeris knows, by its keys: the planets,
+# and the dwarf planets and asteroids of small_bodies.py
 SOLAR_SYSTEM = {"sun": "Sun", "moon": "Moon", "mercury": "Mercury", "venus": "Venus",
                 "mars": "Mars", "jupiter": "Jupiter", "saturn": "Saturn", "uranus": "Uranus",
-                "neptune": "Neptune", "pluto": "Pluto"}
+                "neptune": "Neptune", "pluto": "Pluto",
+                **{key: entry[0] for key, entry in SMALL_BODIES.items()}}
 
 # Rough brightness, used only to rank the bodies among equally good matches
 _BODY_MAGS = {"sun": -26.7, "moon": -12.7, "venus": -4.4, "jupiter": -2.5, "mars": -1.5,
-              "mercury": -0.5, "saturn": 0.5, "uranus": 5.7, "neptune": 7.8, "pluto": 14.4}
+              "mercury": -0.5, "saturn": 0.5, "uranus": 5.7, "neptune": 7.8, "pluto": 14.4,
+              **{key: 8.0 if entry[3] == "main_belt" else 18.0 for key, entry in SMALL_BODIES.items()}}
 _CONSTELLATION_MAG = 0.0
 
 # Small words that don't have to match ("galaxia andromeda" finds "Galaxia de

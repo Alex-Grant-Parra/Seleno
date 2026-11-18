@@ -31,6 +31,17 @@ latInput.addEventListener('change', draw);
 lonInput.addEventListener('change', draw);
 showStars.addEventListener('change', draw);
 showPlanets.addEventListener('change', draw);
+for (const box of [showDwarfPlanets, showAsteroids, showTnos]) {
+    if (box) box.addEventListener('change', draw);
+}
+if (bodiesFollowMag) {
+    // Remembered per browser, like the vertical flip
+    try { bodiesFollowMag.checked = localStorage.getItem('starMap.bodiesFollowMag') === '1'; } catch {}
+    bodiesFollowMag.addEventListener('change', () => {
+        try { localStorage.setItem('starMap.bodiesFollowMag', bodiesFollowMag.checked ? '1' : '0'); } catch {}
+        draw();
+    });
+}
 showHorizonGrid.addEventListener('change', draw);
 showEquatorialGrid.addEventListener('change', draw);
 if (showEcliptic) showEcliptic.addEventListener('change', draw);
@@ -107,6 +118,9 @@ resetBtn.addEventListener('click', () => {
     magValue.textContent = "4.0";
     showStars.checked = true;
     showPlanets.checked = true;
+    for (const box of [showDwarfPlanets, showAsteroids, showTnos]) {
+        if (box) box.checked = true;
+    }
     clearSearch(); // Clear search when resetting view
     
     // Reset auto-magnitude zoom to enabled

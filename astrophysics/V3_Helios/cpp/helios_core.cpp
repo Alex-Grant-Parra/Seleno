@@ -6,6 +6,12 @@
 // passes every value in (see integrator.compiledModel), so constants.py stays
 // the single source.
 //
+// Test particles (GM = 0, the dwarf planets and asteroids of small_bodies.py)
+// pull on nothing, so every term whose source is one is exactly zero: those
+// terms are skipped rather than added, which leaves every result as it was
+// and saves most of the cost of the extra bodies.  integrator.py computes
+// them (as zeros) like any other.
+//
 // Thread safety: a Model is immutable after construction and each call gets
 // its own Workspace, so one Model can serve concurrent calls (the GIL is
 // released while integrating).
@@ -101,6 +107,7 @@ public:
         std::fill(acc, acc + 3 * n_, 0.0);
         for (int i = 0; i < n_; ++i) {
             for (int j = i + 1; j < n_; ++j) {
+                if (mu_[i] == 0.0 && mu_[j] == 0.0) continue;   // two test particles
                 const double dx = r[3 * i] - r[3 * j];
                 const double dy = r[3 * i + 1] - r[3 * j + 1];
                 const double dz = r[3 * i + 2] - r[3 * j + 2];
@@ -225,7 +232,7 @@ private:
         for (int i = 0; i < n_; ++i) {
             double sum = 0.0;
             for (int k = 0; k < n_; ++k) {
-                if (k == i) continue;
+                if (k == i || mu_[k] == 0.0) continue;
                 const double dx = r[3 * i] - r[3 * k];
                 const double dy = r[3 * i + 1] - r[3 * k + 1];
                 const double dz = r[3 * i + 2] - r[3 * k + 2];
@@ -238,7 +245,7 @@ private:
             const double viSq = dot3(vi, vi);
             double t[3] = {0.0, 0.0, 0.0};
             for (int j = 0; j < n_; ++j) {
-                if (j == i) continue;
+                if (j == i || mu_[j] == 0.0) continue;   // every term below is a multiple of mu_j
                 const double* vj = v + 3 * j;
                 const double* aj = aN + 3 * j;
                 const double d[3] = {r[3 * i] - r[3 * j], r[3 * i + 1] - r[3 * j + 1], r[3 * i + 2] - r[3 * j + 2]};

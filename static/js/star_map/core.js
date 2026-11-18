@@ -57,6 +57,41 @@ const latInput = document.getElementById('latitude');
 const lonInput = document.getElementById('longitude');
 const showStars = document.getElementById('show-stars');
 const showPlanets = document.getElementById('show-planets');
+const showDwarfPlanets = document.getElementById('show-dwarf-planets');
+const showAsteroids = document.getElementById('show-asteroids');
+const showTnos = document.getElementById('show-tnos');
+const bodiesFollowMag = document.getElementById('bodies-follow-mag');
+
+// Solar-system objects by kind (the server's `kind`): the checkbox that
+// shows them, the dot drawn when a body has no icon, and whether they are
+// shown whatever the magnitude limit (unless "Planets follow magnitude
+// limit" is on). Every body has type 'planet'; a body with no kind is a planet.
+const BODY_KINDS = {
+    sun:          { toggle: () => showPlanets,      colour: '#ffd54f', ignoresMag: true },
+    moon:         { toggle: () => showPlanets,      colour: '#d0d0d0', ignoresMag: true },
+    planet:       { toggle: () => showPlanets,      colour: '#ffa500', ignoresMag: true },
+    dwarf_planet: { toggle: () => showDwarfPlanets, colour: '#c8a27a', ignoresMag: true },
+    // Asteroids and trans-Neptunian objects follow the limit, like stars
+    asteroid:     { toggle: () => showAsteroids,    colour: '#9fb7c9', ignoresMag: false },
+    tno:          { toggle: () => showTnos,         colour: '#a7c4a0', ignoresMag: false },
+};
+
+function bodyKind(obj) {
+    return BODY_KINDS[obj && obj.kind] || BODY_KINDS.planet;
+}
+
+// Whether a solar-system object's kind is switched on
+function bodyShown(obj) {
+    const toggle = bodyKind(obj).toggle();
+    return !toggle || toggle.checked;
+}
+
+// Whether the magnitude limit lets a solar-system object through: planets
+// and dwarf planets always, unless the viewer asked for them to follow it
+function bodyWithinMag(obj, magLimit) {
+    if (bodyKind(obj).ignoresMag && !(bodiesFollowMag && bodiesFollowMag.checked)) return true;
+    return (obj.mag == null ? 50 : obj.mag) <= magLimit;
+}
 const showHorizonGrid = document.getElementById('show-horizon-grid');
 const showEquatorialGrid = document.getElementById('show-equatorial-grid');
 const showEcliptic = document.getElementById('show-ecliptic');
@@ -217,6 +252,11 @@ function getZoomedStarSize(baseMagnitudeSize) {
     // At zoom 1.0, use base size; higher zoom = larger stars
     const zoomScale = 0.5 + (zoom * 0.5); // Range from 0.5x to ~3.85x
     return Math.max(0.5, baseMagnitudeSize * baseStarSizeMultiplier * zoomScale);
+}
+
+// A body with no picture: a dot about a third of a planet's size
+function bodyDotSize() {
+    return Math.max(4, getZoomedPlanetSize() * 0.3);
 }
 
 function getZoomedPlanetSize() {

@@ -7,12 +7,20 @@ after that is integrated by engine.py.
 
     python astrophysics/V3_Helios/loader.py                       # epoch = now
     python astrophysics/V3_Helios/loader.py --epoch 2026-01-01T00:00:00
+    python astrophysics/V3_Helios/loader.py --small-bodies          # add/refresh small_bodies.py
 
 Required kernels are downloaded from NAIF into data/ if they are missing.
+
+--small-bodies adds the dwarf planets and asteroids of small_bodies.py to the
+existing file, at its epoch, leaving every other body's entry untouched.
+Their states come from JPL Horizons (barycentric, ecliptic and equinox of
+J2000, which is SPICE's ECLIPJ2000) and their H and G magnitudes from JPL's
+small-body database; both need internet.
 """
 
 import argparse
 import json
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,9 +28,11 @@ from pathlib import Path
 import spiceypy as spice
 
 try:
-    from .constants import METERS_PER_KM
+    from .constants import METERS_PER_KM, SECONDS_PER_DAY, JD_J2000
+    from .small_bodies import SMALL_BODIES, DEFAULT_G
 except ImportError:
-    from constants import METERS_PER_KM
+    from constants import METERS_PER_KM, SECONDS_PER_DAY, JD_J2000
+    from small_bodies import SMALL_BODIES, DEFAULT_G
 
 base = Path(__file__).resolve().parent
 dataPath = base / "data"
@@ -108,11 +118,100 @@ def writeInitialConditions(utcStr):
     # Release loaded kernels before exiting.
     spice.kclear()
 
+    # A new epoch needs the small bodies' states at it too
+    addSmallBodies(outputPath)
+
+
+# ---------------------------------------------------------------------------
+# Small bodies, from JPL Horizons and the small-body database
+# ---------------------------------------------------------------------------
+
+HORIZONS_API = "https://ssd.jpl.nasa.gov/api/horizons.api"
+SBDB_API = "https://ssd-api.jpl.nasa.gov/sbdb.api"
+
+
+def _getJson(url, params):
+    request = urllib.request.Request(f"{url}?{urllib.parse.urlencode(params)}",
+                                     headers={"User-Agent": "helios-loader"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.load(response)
+
+
+def horizonsState(record, et):
+    """(position m, velocity m/s) of a Horizons record ("1;" = asteroid 1, "399" =
+    the Earth) at TDB seconds past J2000: barycentric, ECLIPJ2000."""
+    jdTdb = JD_J2000 + et / SECONDS_PER_DAY
+    result = _getJson(HORIZONS_API, {
+        "format": "json", "COMMAND": f"'{record}'", "OBJ_DATA": "'NO'", "MAKE_EPHEM": "'YES'",
+        "EPHEM_TYPE": "'VECTORS'", "CENTER": "'500@0'", "REF_PLANE": "'ECLIPTIC'",
+        "REF_SYSTEM": "'ICRF'", "TLIST": f"'{jdTdb:.10f}'", "TIME_TYPE": "'TDB'",
+        "OUT_UNITS": "'KM-S'", "VEC_TABLE": "'2'", "CSV_FORMAT": "'YES'",
+    })["result"]
+    if "$$SOE" not in result:
+        raise RuntimeError(f"Horizons gave no state for {record!r}:\n{result[-800:]}")
+    row = result.split("$$SOE", 1)[1].split("$$EOE", 1)[0].strip().split(",")
+    values = [float(x) for x in row[2:8]]
+    return ([x * METERS_PER_KM for x in values[:3]], [x * METERS_PER_KM for x in values[3:]])
+
+
+def photometry(number):
+    """(H, G) from the small-body database; G is DEFAULT_G where it has none."""
+    data = _getJson(SBDB_API, {"sstr": number, "phys-par": "1"})
+    params = {p["name"]: p["value"] for p in data.get("phys_par", [])}
+    if params.get("H") is None:
+        raise RuntimeError(f"No H magnitude for {number} in the small-body database")
+    g = params.get("G")
+    return float(params["H"]), float(g) if g is not None else DEFAULT_G, data["object"]["fullname"]
+
+
+def addSmallBodies(path=outputPath):
+    """Add (or refresh) every body of small_bodies.py in initial_conditions.json."""
+    state = json.loads(path.read_text())
+    et = float(state["epoch_et"])
+    print(f"Epoch {state['epoch_utc']} (ET {et})")
+
+    # The frames must agree: Horizons' Earth against DE440's, from SPICE
+    earthR, earthV = horizonsState("399", et)
+    ours = state["bodies"]["earth"]
+    dr = sum((a - b) ** 2 for a, b in zip(earthR, ours["position_m"])) ** 0.5
+    dv = sum((a - b) ** 2 for a, b in zip(earthV, ours["velocity_m_s"])) ** 0.5
+    print(f"Earth, Horizons vs DE440: {dr:.1f} m, {dv * 1000:.2f} mm/s")
+    if dr > 1000.0 or dv > 0.01:
+        raise RuntimeError("Horizons' frame or epoch doesn't match initial_conditions.json")
+
+    for key, (name, number, kind, region) in SMALL_BODIES.items():
+        r, v = horizonsState(f"{number};", et)
+        h, g, fullname = photometry(number)
+        state["bodies"][key] = {
+            "horizons": f"{number};",
+            "designation": fullname,
+            "kind": kind,
+            "region": region,
+            "position_m": r,
+            "velocity_m_s": v,
+            "gm_m3_s2": 0.0,        # a test particle: see small_bodies.py
+            "H": h,
+            "G": g,
+        }
+        print(f"  {fullname:28s} {kind:13s} r = {sum(x * x for x in r) ** 0.5 / 1.495978707e11:6.2f} AU"
+              f"  H {h:5.2f}  G {g:.2f}")
+    state["small_bodies_source"] = "JPL Horizons (states), JPL SBDB (H, G)"
+
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, indent=2))
+    tmp.replace(path)
+    print("Saved:", path)
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--epoch", help="UTC epoch, ISO 8601 (default: now)")
+    parser.add_argument("--small-bodies", action="store_true",
+                        help="add the bodies of small_bodies.py to the existing file, at its epoch")
     args = parser.parse_args()
+    if args.small_bodies:
+        addSmallBodies()
+        return
 
     if args.epoch:
         epoch = datetime.fromisoformat(args.epoch.replace("Z", "+00:00"))

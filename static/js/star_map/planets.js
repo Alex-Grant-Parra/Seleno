@@ -11,7 +11,7 @@ async function fetchPlanetsForDate(date) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         noteServerReachable(true);
-        return data; // [{name, ra, dec, mag, icon, type:'planet'}]
+        return data; // [{name, label, ra, dec, mag, icon, type:'planet', kind}]
     } catch (err) {
         // No connection: interpolate the stored table of the server's ephemeris
         console.warn('Planets from the server unavailable, using the stored table:', err);
@@ -36,7 +36,8 @@ function replacePlanetsInScene(newPlanets) {
             dec: p.dec, // degrees
             mag: p.mag,
             icon: p.icon,
-            type: 'planet'
+            type: 'planet',
+            kind: p.kind || 'planet'  // planet, dwarf_planet, sun, moon: which checkbox shows it
         };
         try { obj.xyz = radecToXYZ(obj.ra, obj.dec); } catch { obj.xyz = radecToXYZ(0,0); }
         stars.push(obj);

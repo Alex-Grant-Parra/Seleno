@@ -149,9 +149,10 @@ function selectObjectAt(mx, my, { touch = false } = {}) {
     // Solar-system objects first (a short object list)
     for (const obj of stars) {
         const effectiveMag = obj.mag == null ? 50 : obj.mag;
-        if (effectiveMag > magLimit) continue;
+        if (obj.type === "planet") {
+            if (!bodyShown(obj) || !bodyWithinMag(obj, magLimit)) continue;
+        } else if (effectiveMag > magLimit) continue;
         if (obj.type === "star" && !showStars.checked) continue;
-        if (obj.type === "planet" && !showPlanets.checked) continue;
 
         const { altDeg, azDeg } = radecToAltAz(obj.ra, obj.dec, selectedDate, latDeg, lonDeg);
         let [x, y, z] = altazToXYZ(altDeg, azDeg);
