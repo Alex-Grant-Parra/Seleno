@@ -89,6 +89,9 @@ constexpr uint32_t kExpanderPowerUpMs = 250;
 // kReturnDoublePressMs while tracking: panel stop + menu (see estop.h).
 constexpr float kReturnEstopAboveFsps = 50.0f;
 constexpr uint32_t kReturnDoublePressMs = 500;
+// Host move still running and nothing from the host for this long: stop
+// (estop.h, hostSilencePoll). Several times the Pi's longest normal gap.
+constexpr uint32_t kHostSilenceStopMs = 30000;
 constexpr uint32_t kButtonDebounceMs = 15;
 constexpr uint32_t kButtonBackupPollMs = 20;
 constexpr uint32_t kIoTaskTickMs = 5;

@@ -214,7 +214,9 @@ def _target_j2000(target: Dict[str, Any]) -> Tuple[float, float]:
 		site = _site()
 		ra, dec = ephemeris.position(body, clock.now(), site if body == "Moon" else None)
 	else:
-		ra, dec = float(target["ra"]), float(target["dec"])
+		from core.hardware.tracking import target_j2000
+
+		ra, dec = target_j2000(target)  # where a moving target has got to
 	return ra + off_ra, dec + off_dec
 
 

@@ -169,6 +169,21 @@ def _default_static_state() -> Dict[str, Any]:
             "enabled": True,
             "poll_s": 60.0,
         },
+        "hotspot": {
+            # Offline mode: the Pi broadcasts its own Wi-Fi, and the seleno.org
+            # app on phones that join talks to the telescope directly
+            # (core/networking/hotspot.py and phone_link.py). There's no
+            # internet on it. Its on/off, name and password are in
+            # config/hotspot.json (HOTSPOT_FILE_DEFAULTS).
+            "country": "GB",       # Wi-Fi rules: the country it's used in
+            "channel": 6,          # 2.4 GHz, 1-13
+            "interface": "wlan0",
+            "address": "10.42.0.1",
+            # Testing only: a certificate and key for the phone link instead
+            # of seleno.org's (utils/phone_credentials.py)
+            "tls_cert": "",
+            "tls_key": "",
+        },
         "esp32": {
             # "auto": USB serial devices (dev kit) first, then the Pi's GPIO
             # UART (SELENO v0.8 board on J7). A found port is saved here and
@@ -232,7 +247,9 @@ def _save_json(path: str, payload: Dict[str, Any], sync: bool = True) -> None:
     # a telescope in a field stops) leaves the old file or the new one, not nothing.
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp_path = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
-    with open(tmp_path, "w") as f:
+    # Owner-only: client_profile.json holds the server's API token
+    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
         json.dump(payload, f, indent=2)
         if sync:
             f.flush()
@@ -577,15 +594,69 @@ def get_slew_config() -> Dict[str, float]:
     }
 
 
+# The hotspot's on/off, name and password live in their own file,
+# config/hotspot.json, easy to read or change by hand (over SSH, say); the
+# client picks up a change by itself (core/networking/hotspot.py). The rest of
+# the hotspot section stays in client_config.json.
+HOTSPOT_FILE_DEFAULTS = {
+    "enabled": True,  # broadcast it in offline mode
+    # The Wi-Fi's name, which is also the telescope's name on the phone
+    # ("": the device name, or SELENO-<4 digits>)
+    "name": "",
+    # WPA2, 8 to 63 characters ("": one is made up the first time)
+    "password": "",
+}
+HOTSPOT_FILE_KEYS = tuple(HOTSPOT_FILE_DEFAULTS)
+_hotspot_lock = threading.Lock()
+
+
+def hotspot_file() -> str:
+    """config/hotspot.json: next to client_config.json (so the tests' scratch
+    config moves it too)."""
+    return os.path.join(os.path.dirname(STATIC_STATE_FILE) or ".", "hotspot.json")
+
+
+def load_hotspot_file() -> Dict[str, Any]:
+    """What config/hotspot.json holds ({} when it isn't there yet)."""
+    saved = _load_json(hotspot_file()) or {}
+    return {k: saved[k] for k in HOTSPOT_FILE_KEYS if k in saved}
+
+
 def get_section(name: str) -> Dict[str, Any]:
-    """One section of config/client_config.json with its defaults filled in."""
+    """One section of config/client_config.json with its defaults filled in
+    (for "hotspot", with config/hotspot.json over it)."""
     defaults = _default_static_state().get(name, {})
     saved = load_static_state().get(name, {})
-    return _merge_defaults(defaults, saved if isinstance(saved, dict) else {})
+    saved = dict(saved) if isinstance(saved, dict) else {}
+    if name == "hotspot":
+        defaults = dict(defaults, **HOTSPOT_FILE_DEFAULTS)
+        saved.update(load_hotspot_file())
+    return _merge_defaults(defaults, saved)
 
 
 def save_section(name: str, values: Dict[str, Any]) -> None:
-    """Change some settings in one section of config/client_config.json."""
+    """Change some settings in one section of config/client_config.json
+    (the hotspot's on/off, name and password: config/hotspot.json)."""
+    if name == "hotspot":
+        values = dict(values)
+        own = {k: values.pop(k) for k in HOTSPOT_FILE_KEYS if k in values}
+        state = load_static_state()
+        section = state.get(name) if isinstance(state.get(name), dict) else {}
+        moved = {k: section[k] for k in HOTSPOT_FILE_KEYS if k in section}
+        if own or moved or not os.path.exists(hotspot_file()):
+            with _hotspot_lock:
+                current = get_section("hotspot")
+                payload = {k: current[k] for k in HOTSPOT_FILE_KEYS}
+                payload.update(own)
+                _save_json(hotspot_file(), payload)  # owner-only: it holds the password
+        if not values and not moved:
+            return
+        # Values saved in client_config.json before hotspot.json existed move over
+        section = {k: v for k, v in section.items() if k not in HOTSPOT_FILE_KEYS}
+        section.update(values)
+        state[name] = section
+        save_static_state(state)
+        return
     state = load_static_state()
     current = state.get(name) if isinstance(state.get(name), dict) else {}
     current = dict(current)

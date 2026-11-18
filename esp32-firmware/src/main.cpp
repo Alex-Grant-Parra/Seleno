@@ -7,6 +7,7 @@
 
 #include "board_pins.h"
 #include "config.h"
+#include "estop.h"
 #include "front_panel.h"
 #include "host_link.h"
 #include "i2c_bus.h"
@@ -99,6 +100,7 @@ void loop() {
   hostPoll();
   driversPoll();
   motorsPoll();
+  hostSilencePoll(millis());
   uiPoll();
   hostFlushEvents();
   // Let the idle task run (task watchdog) without adding real latency.

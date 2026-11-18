@@ -6,6 +6,10 @@ from __future__ import annotations
 
 import io
 import os
+
+# Before anything imports the client: tests never switch the Pi's real Wi-Fi
+# (core/networking/hotspot.helper_installed)
+os.environ["SELENO_TESTS"] = "1"
 import tempfile
 import time
 import unittest

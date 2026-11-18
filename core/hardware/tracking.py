@@ -73,6 +73,10 @@ RATE_PRESETS = {"sidereal": SIDEREAL_ARCSEC_PER_S, "lunar": 14.685, "solar": 15.
 TRACK_POLL_S = 5.0          # position and watchdog while tracking
 SLEW_POLL_S = 2.0           # status poll while slewing, if no motion_done comes
 RATE_UPDATE_S = 30.0        # recompute the rates while tracking
+# Fastest motion against the stars trackCoordinates follows (36"/s): far
+# beyond any comet or asteroid, well short of a satellite, which this
+# loop's 30 s rate updates couldn't follow anyway.
+MOVING_RATE_MAX_DEG_PER_S = 0.01
 DRIFT_GAIN_S = 60.0         # correct a drift over about this long
 DRIFT_MAX_FRACTION = 0.1    # ... at most 10% of the sidereal rate
 DITHER_TIMEOUT_S = 60.0
@@ -257,6 +261,19 @@ def _sun_hour_angle(longitude: float, when: Optional[datetime] = None):
     return mount_model.wrap180(lst_degrees(when, longitude) - sun_ra), sun_dec
 
 
+def target_j2000(target: Dict[str, Any], when: Optional[datetime] = None) -> Tuple[float, float]:
+    """J2000 RA/Dec of a coordinate target now (or at when), without any
+    dither offset. A moving target (an asteroid or comet the server sent
+    with rates) is carried along from where it was when it was sent."""
+    ra, dec = float(target["ra"]), float(target["dec"])
+    motion = target.get("motion")
+    if motion:
+        elapsed = ((when or clock.now()) - motion["t0"]).total_seconds()
+        ra = (ra + motion["ra_rate"] * elapsed) % 360.0
+        dec = max(-90.0, min(90.0, dec + motion["dec_rate"] * elapsed))
+    return ra, dec
+
+
 def target_sky(target: Dict[str, Any], when: Optional[datetime] = None) -> Optional[Tuple[float, float]]:
     """Where to aim for a target now (or at when): its apparent hour angle
     and declination of date, real sky. None without a site."""
@@ -273,8 +290,8 @@ def target_sky(target: Dict[str, Any], when: Optional[datetime] = None) -> Optio
         ha = mount_model.wrap180(lst - (p["ra"] + off_ra))
         dec = p["dec"] + off_dec
         return astrometry.apparent_hadec(ha, dec, lat) if astrometry.refraction_enabled() else (ha, dec)
-    return astrometry.j2000_to_apparent_hadec(float(target["ra"]) + off_ra, float(target["dec"]) + off_dec,
-        lst, lat, when)
+    ra, dec = target_j2000(target, when)
+    return astrometry.j2000_to_apparent_hadec(ra + off_ra, dec + off_dec, lst, lat, when)
 
 
 def plan_goto(ra: float, dec: float, start_axes=None, speed_sps: Optional[float] = None,
@@ -556,6 +573,10 @@ def sky_rates(target: Dict[str, Any], when: Optional[datetime] = None) -> Tuple[
         site = _site()
         dra, ddec = ephemeris.rates(body, when, site if body == "Moon" else None)
         return SIDEREAL_DEG_PER_S - dra, ddec, body.lower()
+    motion = target.get("motion")
+    if motion and auto:
+        # J2000 rates; against rates of date the difference is ~1e-4 of them
+        return SIDEREAL_DEG_PER_S - motion["ra_rate"], motion["dec_rate"], "target"
     name, arcsec = _rate_setting()
     return arcsec / 3600.0, 0.0, name
 
@@ -977,9 +998,13 @@ def _checks(name: str, ra: float, dec: float, sun_approval, allow_below_horizon:
     return None, approval
 
 
-def trackCoordinates(name, ra, dec, mag, *, sun_approval=None, allow_below_horizon=False):
+def trackCoordinates(name, ra, dec, mag, *, ra_rate=None, dec_rate=None, sun_approval=None,
+        allow_below_horizon=False):
     # Slew to J2000 (ra, dec) and track it as the sky turns (see the module
-    # docstring). sun_approval: from sun_guard.confirm_goto when a panel
+    # docstring). ra_rate, dec_rate: how fast the target moves against the
+    # stars, J2000 degrees per second (asteroids, comets, Pluto: anything
+    # the Pi has no ephemeris for); it is followed from where it is now.
+    # sun_approval: from sun_guard.confirm_goto when a panel
     # flow already asked (keyword only; a server request can't make one).
     # allow_below_horizon: the panel asked "go anyway?".
     try:
@@ -991,6 +1016,16 @@ def trackCoordinates(name, ra, dec, mag, *, sun_approval=None, allow_below_horiz
         return {"error": "Invalid RA or Dec"}
     if not -90.0 <= dec <= 90.0:
         return {"error": "Dec must be -90 to 90"}
+    motion = None
+    if ra_rate is not None or dec_rate is not None:
+        try:
+            rates = (float(ra_rate or 0.0), float(dec_rate or 0.0))
+        except (ValueError, TypeError):
+            return {"error": "Invalid RA or Dec rate"}
+        if not all(math.isfinite(r) and abs(r) <= MOVING_RATE_MAX_DEG_PER_S for r in rates):
+            return {"error": f"Target rates must be within {MOVING_RATE_MAX_DEG_PER_S * 3600:.0f} arcsec/s"}
+        if any(rates):
+            motion = {"ra_rate": rates[0], "dec_rate": rates[1], "t0": clock.now()}
     if allow_below_horizon is not True:
         allow_below_horizon = False  # only a real True from the panel
     body = ephemeris.find(str(name)) if name else None
@@ -1004,6 +1039,8 @@ def trackCoordinates(name, ra, dec, mag, *, sun_approval=None, allow_below_horiz
     target: Dict[str, Any] = {"name": name, "ra": ra, "dec": dec, "mag": mag_value, "below_ok": allow_below_horizon}
     if body and body != "Sun":
         target["body"] = body  # followed with its own rates
+    elif motion:
+        target["motion"] = motion
     return _start_goto(target, approval)
 
 

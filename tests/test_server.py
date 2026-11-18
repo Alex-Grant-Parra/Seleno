@@ -149,7 +149,7 @@ class HandlerTests(ScratchConfig):
 
 		self.assertIn("error", handlers.setClock("whenever"))
 		with mock.patch.object(clock, "system_synced", return_value=False):
-			result = handlers.setClock("2030-01-01 00:00")
+			result = handlers.setClock("2040-01-01 00:00")
 		self.assertGreater(result["offset_s"], 1e8)
 		clock.clear()
 		self.assertEqual(handlers.setHorizon(min_alt_deg=12, profile=[[0, 5], [180, 20]])["min_alt_deg"], 12.0)
@@ -476,6 +476,44 @@ class TrackingTests(ScratchConfig):
 		rate = self.tracking.current_rate()
 		self.assertEqual(rate["rate"], "moon")
 		self.assertLess(rate["ha_arcsec_per_s"], 15.0)  # slower than the stars
+
+	def test_a_moving_target_is_followed_at_its_own_rates(self) -> None:
+		from datetime import timedelta
+
+		from utils import clock
+		from utils.telescope_state import set_mount_axes
+
+		set_mount_axes(0.0, 90.0, source="test", when="now")
+		target = self.radec(-30.0, 30.0)
+		ra_rate, dec_rate = 2e-4, -1e-4  # deg/s: a fast near-Earth asteroid
+		with self.sun_far()[0], self.sun_far()[1]:
+			result = self.tracking.trackCoordinates("Pluto", target[0], target[1], 14.0,
+				ra_rate=ra_rate, dec_rate=dec_rate)
+			self.assertEqual(result["status"], "slewing")
+			moving = self.tracking._target_object
+			self.assertNotIn("body", moving)
+			self.assertTrue(wait_for(lambda: self.tracking.is_sidereal_tracking(), timeout=10))
+		rate = self.tracking.current_rate()
+		self.assertEqual(rate["rate"], "target")
+		self.assertAlmostEqual(rate["ha_arcsec_per_s"], 15.0410686 - ra_rate * 3600.0, places=3)
+		self.assertAlmostEqual(rate["dec_arcsec_per_s"], dec_rate * 3600.0, places=4)
+		# An hour on it has moved 0.72 deg in RA and -0.36 in Dec
+		later = moving["motion"]["t0"] + timedelta(hours=1)
+		ra, dec = self.tracking.target_j2000(moving, later)
+		self.assertAlmostEqual((ra - target[0] + 180.0) % 360.0 - 180.0, 0.72, places=6)
+		self.assertAlmostEqual(dec - target[1], -0.36, places=6)
+		self.assertLess(abs((moving["motion"]["t0"] - clock.now()).total_seconds()), 30)
+
+	def test_rates_too_fast_or_not_numbers_are_refused(self) -> None:
+		target = self.radec(-30.0, 30.0)
+		with self.sun_far()[0], self.sun_far()[1]:
+			self.assertIn("arcsec/s", self.tracking.trackCoordinates("Sat", target[0], target[1], 1.0,
+				ra_rate=0.5)["error"])
+			self.assertIn("arcsec/s", self.tracking.trackCoordinates("Sat", target[0], target[1], 1.0,
+				dec_rate=float("nan"))["error"])
+			self.assertIn("rate", self.tracking.trackCoordinates("Sat", target[0], target[1], 1.0,
+				ra_rate="fast")["error"])
+		self.assertIsNone(self.tracking._target_object)
 
 	def test_south_of_the_equator_the_ra_motor_turns_backwards(self) -> None:
 		from utils.config_state import save_location

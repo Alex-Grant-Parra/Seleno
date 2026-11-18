@@ -49,7 +49,8 @@ class StatusTests(CameraTestCase):
 		plate_solve._last_solve = None
 		status = client_status.collect()
 		self.assertEqual(status["capabilities"],
-			["capture_frame_type", "upload_pending_filter", "liveview_jpeg_options", "dead_zones"])
+			["capture_frame_type", "upload_pending_filter", "liveview_jpeg_options", "dead_zones",
+			 "moving_targets"])
 		self.assertEqual(status["site"], {"lat": 51.4623, "lon": -2.5502})
 		self.assertEqual(status["dead_zones"], {"zones": []})
 		self.assertIsNone(status["solve"])

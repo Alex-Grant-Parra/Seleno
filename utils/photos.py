@@ -9,7 +9,9 @@ telescope was pointing at and where.
 Photos the server asks for (utils/handlers.capturePhoto) go to
 photos/default and upload through the queue (utils/uploads.py). Panel
 photos stay on the Pi unless a photo owner id is set and they're sent with
-"Upload offline photos".
+"Upload offline photos". Photos the seleno.org app takes on the hotspot
+(utils/phone_api.py) go to tonight's folder too, queued for the user's
+account: they upload by themselves once the telescope is back online.
 
 Sequences: a run can be lights, darks, flats or bias frames, with an
 exposure (bulb, in seconds) or the camera's own setting, a pause between

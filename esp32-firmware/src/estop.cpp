@@ -123,3 +123,19 @@ void returnButtonSetNavigates(bool navigates) {
 bool returnButtonNavigates() {
   return g_returnNavigates;
 }
+
+void hostSilencePoll(uint32_t nowMs) {
+  static bool fired = false;
+  uint32_t lastRx = hostLastRxMs();
+  bool hostMoving = false;
+  motorsHostMotionFsps(&hostMoving);
+  if (!hostMoving || lastRx == 0 || nowMs - lastRx <= kHostSilenceStopMs) {
+    fired = false;
+    return;
+  }
+  if (fired || panelStopPending()) {
+    return;
+  }
+  fired = true;
+  panelStopTrigger("host_silent");
+}

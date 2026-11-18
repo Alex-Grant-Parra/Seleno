@@ -79,6 +79,15 @@ host has stopped its own tracking and sends `{"cmd":"ui","action":"ack_stop"}`.
 that was away when it happened still finds out. Moves the panel starts
 itself (jog, test turns) are not held.
 
+### Host silence stop
+
+The Sun guard, dead zones and horizon limit all run on the Pi, so the board
+doesn't let a host move carry on without it. If a host move is still running
+and nothing has arrived from the host for 30 s (`kHostSilenceStopMs`; the Pi
+normally talks at least every 2 to 7 s), the board makes a panel stop with
+`"reason":"host_silent"`: the motors stop, new host moves are held, and the
+host finds `panel_stop_pending` when it comes back, as above.
+
 ## Motors
 
 The board has two fixed axes, registered at boot and disengaged:

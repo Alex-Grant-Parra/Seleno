@@ -99,7 +99,8 @@ put back afterwards.
     RAWs following the `upload.raw` setting (`after_jpeg`, `on_request` or
     `never`); `uploadPending("raw", files=..., pairs=...)` sends just some
     held RAWs, first;
-  - each file goes on its own, with its meta: where the telescope pointed
+  - each file goes on its own, resumably (tus, `/api/telescope/uploads`,
+    with the telescope's token: a cut-out costs only the chunk in flight), with its meta: where the telescope pointed
     (J2000), `frame_type`, `captured` (UTC with ms), `exposure_s`, `iso`,
     `camera`, `temperature_c` and `focal_mm` when known, and `pair` (the id
     a capture's RAW and JPEG share).
@@ -185,6 +186,53 @@ Go-tos come from the panel (Scope tab) or the server. The order is:
     (Setup > UTC);
   - nothing needs root.
 - **GPS:** read from `gpsd` in the background, for the site and the time.
+- **Offline hotspot, for the seleno.org app** (`core/networking/hotspot.py`,
+  `core/networking/phone_link.py`, `utils/phone_api.py`):
+  - in offline mode the Pi makes its own Wi-Fi, with no internet. Its name
+    (Setup > Offline name) is also the telescope's name in the app; its
+    password is Setup > Hotspot pass. Both are shown on the panel when
+    offline mode goes on, and in the Setup tab while it's on;
+  - phones join it and open the seleno.org app (installed from seleno.org
+    and used online at least once). The app finds the telescope by itself
+    and its telescope list has just this one: the interface, live view, the
+    camera, mount and motor controls and Telescope Settings work as online,
+    the star map runs on the phone and sends only what to track, and the
+    album shows the Pi's photos;
+  - how: the app's service worker sends its requests about the telescope to
+    `https://<slug>.tel.seleno.org:8443/` (the hotspot's own address, with a
+    real certificate seleno.org gets and the Pi fetches while online:
+    `utils/phone_credentials.py`), and the Pi answers each as seleno.org
+    would (`utils/phone_api.py`); live view comes over `wss://...:8444`. Every
+    request carries the user's offline pass, signed by seleno.org with a
+    secret only it and this telescope know. The hotspot answers the
+    telescope's name itself (dnsmasq), for phones without mobile data;
+  - photos taken from the app are kept in tonight's offline folder and
+    queued for the user's seleno.org account: they upload by themselves once
+    the telescope is back online;
+  - search and basic mode's suggestions offline come from the offline pack
+    seleno.org sends with the credentials (`utils/offline_pack.py`) and the
+    sky view's stars; the sky panel uses `utils/sky_tonight.py`, a copy of
+    the server's `app/sky.py`;
+  - Telescope Settings (in the app, here or online, for the owner) changes
+    the panel's settings: the hotspot's name and password, the site, the
+    clock (from the phone's), the horizon, tracking, live view, RAWs, the
+    photo owner and the motor guard (`utils/remote_settings.py`);
+  - the hotspot's on/off (`enabled`), name and password are kept in
+    `config/hotspot.json` (only the Pi's user can read it): `cat` it over
+    SSH to see them, or edit it and the client applies it within a few
+    seconds. It only broadcasts while offline mode is on;
+  - **setting it up**, once per Pi: `sudo deploy/hotspot-setup.sh` (installs
+    hostapd and dnsmasq-base, the `seleno-hotspot` helper and its sudo rule).
+    Then the client, online, fetches the telescope's name and certificate by
+    itself (Setup > App link shows how that's going; the certificate needs
+    the server's Cloudflare token);
+  - the Pi has one Wi-Fi radio: with the hotspot on, SSH over the ordinary
+    Wi-Fi goes too. Join the hotspot (`ssh <user>@10.42.0.1`), use ethernet,
+    or turn offline mode off on the panel. A reboot always comes back on the
+    ordinary Wi-Fi first, and `sudo /usr/local/sbin/seleno-hotspot down
+    </dev/null` switches back by hand;
+  - tests never switch the real Wi-Fi: they set `SELENO_TESTS=1`
+    (`tests/helpers.py`), which hides the helper from the client.
 - **Local page** (`core/networking/local_page.py`):
   - turn it on in Setup;
   - it serves live view, photos, snapshots, recording and stop to a phone at
@@ -222,6 +270,7 @@ take their defaults, and most can be set from the panel.
 | `server` | `raw_motor_commands` (`guarded`/`off`/`unrestricted`), `status_push_s` (default 30; 0 = only on connecting), `allow_remote_update`, `allow_firmware_update` (both off by default) |
 | `solver` | `path`, `fov_deg` (0 = learn it), `search_radius_deg`, `timeout_s`, `centre_tolerance_arcmin`, `drift_check_min` |
 | `gps` | `enabled` |
+| `hotspot` | `enabled`, `name` (the Wi-Fi's and the telescope's offline name) and `password` are in their own file, `config/hotspot.json` (read or change it by hand: the client picks a change up within a few seconds; it's made at startup, with a password made up the first time); here: `country`, `channel`, `interface`, `address` (`10.42.0.1`), `tls_cert` / `tls_key` (testing only: instead of seleno.org's certificate) |
 
 `camera.backend: "fake"` gives a made-up camera with a star field, for trying
 everything without one.
@@ -244,6 +293,7 @@ went.
 | Camera and photos | `getCameraStatus()`, `startPhotoSequence(kind, count, exposure_s, interval_s, dither_every, dither_arcmin, dither_settle_s)`, `stopPhotoSequence()`, `getPhotoSequenceStatus()`, `getUploadQueue()`, `uploadPending(kind, files=None, pairs=None)`, `retryFailedUploads()`, `uploadOfflinePhotos(currentid)` |
 | Pointing and tracking | `trackObject(name)` (Moon, planets, named stars), `park()`, `unpark()`, `setParkHere()`, `setTrackingRate(rate, custom_arcsec_per_s)`, `dither(arcmin)`, `getAlignment()`, `clearAlignment()`, `solveAndSync(source)`, `centreTarget(source)` (waits for a slew to finish), `polarAlign(step_deg, source)`, `getMountStatus()`, `getJobStatus(name)`, `setClock(utc)`, `setHorizon(min_alt_deg, profile, stop_when_set)`, `getDeadZones()`, `setDeadZones(zones)` (keeps locked zones), `getPlanets()` |
 | ESP32 extras | `espSetAuto`, `espDriverStatus`, `espEstop`, `espClearEstop`, `espEstopStatus`, `espInfo`, `espPanelStatus`, `espImuRead`, `espTurnDegrees` |
+| Settings | `getSettings()` (the panel's settings, described for a form), `setSettings(changes)` (`{key: value}`; replies what was applied, what wasn't and why): the server's Telescope Settings page |
 | The client | `echo`, `getClientStatus()`, `updateClient()`, `updateFirmware()` (the last two only when allowed in config) |
 
 **Two server-side additions would help:**
@@ -277,9 +327,9 @@ a fake `gphoto2`, and the solver test runs the real ASTAP if it's installed.
 | `core/camera/` | The camera service and backends, live view stream, JPEG framing, focus, recording |
 | `core/hardware/` | Tracking, the mount model and route planner, the pointing model |
 | `core/astrometry/` | ASTAP plate solving |
-| `core/networking/` | The server links, CSRF, the local page |
+| `core/networking/` | The server links, CSRF, the local page, the offline hotspot and the seleno.org app's link to the telescope on it |
 | `utils/` | Configuration and state, the front panel (`panel_ui.py`, `panel_menu.py`, `manual_control.py`), the Sun guard, ephemeris, astrometry, clock, GPS, uploads, photos, LEDs |
 | `esp32/` | The ESP32 serial interface and bring-up tools |
 | `esp32-firmware/` | The controller firmware (PlatformIO) |
-| `deploy/` | The systemd unit |
+| `deploy/` | The systemd unit; the offline hotspot's setup script and root helper |
 | `tests/` | The client's tests |

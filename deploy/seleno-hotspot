@@ -1,0 +1,315 @@
+#!/usr/bin/env python3
+"""Switch the Pi's Wi-Fi between its own hotspot and the ordinary Wi-Fi.
+
+Runs as root, through sudo, for the SELENO client (core/networking/hotspot.py).
+deploy/hotspot-setup.sh installs it as /usr/local/sbin/seleno-hotspot and lets
+the client's user run it without a password. The settings come as JSON on
+stdin, so the Wi-Fi password never shows on a command line:
+
+    seleno-hotspot up      {"ssid", "password", "country", "channel", "interface", "address", "dns_names"}
+    seleno-hotspot down    {"interface"}
+    seleno-hotspot status  {}
+
+Ubuntu's netplan with systemd-networkd and wpa_supplicant (the SELENO Pi
+image):
+
+* up: the ordinary Wi-Fi (netplan-wpa-<interface>.service) lets go of the
+  interface; a runtime networkd file gives it <address>/24 and a DHCP server
+  for phones, with no gateway offered (there's no internet: phones keep
+  their mobile data); hostapd broadcasts the hotspot
+  (seleno-hostapd.service, with /run/seleno-hotspot/hostapd.conf); with
+  dns_names, dnsmasq (seleno-dns.service) answers those names (the
+  telescope's own, for the seleno.org app) with <address> and nothing else,
+  and the DHCP server offers it as the phones' DNS.
+* down: all of that undone, and the ordinary Wi-Fi back.
+
+Where NetworkManager runs the Wi-Fi instead (Raspberry Pi OS), its own
+shared-mode hotspot is used: a "seleno-hotspot" connection, deleted on down.
+
+Everything it writes is under /run, so a reboot always comes back on the
+ordinary Wi-Fi (the client turns the hotspot on again if offline mode is on).
+"""
+import ipaddress
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+RUN_DIR = "/run/seleno-hotspot"
+HOSTAPD_CONF = os.path.join(RUN_DIR, "hostapd.conf")
+STATE_FILE = os.path.join(RUN_DIR, "state.json")
+NETWORK_FILE = "/run/systemd/network/05-seleno-hotspot.network"
+HOSTAPD_UNIT = "seleno-hostapd.service"
+DNS_UNIT = "seleno-dns.service"
+DNSMASQ_CONF = os.path.join(RUN_DIR, "dnsmasq.conf")
+
+
+def fail(message):
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
+def run(*cmd, check=True, timeout=30):
+    result = subprocess.run(list(cmd), capture_output=True, text=True, timeout=timeout)
+    if check and result.returncode != 0:
+        fail(f"{' '.join(cmd)}: {(result.stderr or result.stdout).strip()[:200]}")
+    return result
+
+
+def have(cmd):
+    return shutil.which(cmd) is not None
+
+
+def unit_exists(unit):
+    return run("systemctl", "cat", unit, check=False).returncode == 0
+
+
+def nm_manages(interface):
+    if not have("nmcli") or run("systemctl", "is-active", "NetworkManager", check=False).stdout.strip() != "active":
+        return False
+    out = run("nmcli", "-t", "-f", "DEVICE,STATE", "device", check=False).stdout
+    return any(line.startswith(f"{interface}:") and "unmanaged" not in line for line in out.splitlines())
+
+
+def interface_of(cfg):
+    interface = str(cfg.get("interface") or "wlan0")
+    if not re.fullmatch(r"wl[a-z0-9]{1,13}", interface):
+        fail("interface must be a Wi-Fi interface name like wlan0")
+    return interface
+
+
+def read_config():
+    try:
+        cfg = json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        fail("stdin must be JSON")
+    if not isinstance(cfg, dict):
+        fail("stdin must be a JSON object")
+    return cfg
+
+
+def validate(cfg):
+    ssid = str(cfg.get("ssid") or "")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._-]{0,31}", ssid):
+        fail("ssid: 1-32 letters, numbers, space . _ -")
+    password = str(cfg.get("password") or "")
+    if not 8 <= len(password) <= 63 or any(not 32 <= ord(c) <= 126 for c in password):
+        fail("password: 8-63 printable characters")
+    country = str(cfg.get("country") or "GB").upper()
+    if not re.fullmatch(r"[A-Z]{2}", country):
+        fail("country: two letters, like GB")
+    try:
+        channel = int(cfg.get("channel", 6))
+    except (TypeError, ValueError):
+        fail("channel: 1-13")
+    if not 1 <= channel <= 13:
+        fail("channel: 1-13")
+    try:
+        address = ipaddress.ip_address(str(cfg.get("address") or "10.42.0.1"))
+    except ValueError:
+        fail("address: an IPv4 address")
+    if address.version != 4 or not address.is_private or str(address).endswith((".0", ".255")):
+        fail("address: a private IPv4 address, like 10.42.0.1")
+    names = cfg.get("dns_names") or []
+    if not isinstance(names, list) or any(not re.fullmatch(r"(?=.{1,200}$)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+",
+                                                             str(n)) for n in names):
+        fail("dns_names: domain names like tel.seleno.org")
+    return {"ssid": ssid, "password": password, "country": country, "channel": channel,
+            "interface": interface_of(cfg), "address": str(address), "dns_names": [str(n) for n in names][:4]}
+
+
+def write(path, text, mode=0o644):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    os.replace(tmp, path)
+
+
+def release_wifi(interface):
+    """The ordinary Wi-Fi (netplan's wpa_supplicant) lets go of the interface."""
+    unit = f"netplan-wpa-{interface}.service"
+    if unit_exists(unit):
+        run("systemctl", "stop", unit, check=False)
+    run("systemctl", "stop", f"wpa_supplicant@{interface}.service", check=False)
+    return "networkd"
+
+
+def restore_wifi(interface, how):
+    if how == "networkmanager":
+        # Its ordinary Wi-Fi connection comes back by itself
+        run("nmcli", "connection", "down", NM_CONNECTION, check=False)
+        run("nmcli", "connection", "delete", NM_CONNECTION, check=False)
+        return
+    unit = f"netplan-wpa-{interface}.service"
+    if unit_exists(unit):
+        run("systemctl", "start", unit, check=False)
+    run("networkctl", "reload", check=False)
+    run("networkctl", "reconfigure", interface, check=False)
+
+
+NM_CONNECTION = "seleno-hotspot"
+
+
+def nm_up(cfg):
+    """NetworkManager's own hotspot (Raspberry Pi OS): its shared mode runs the
+    DHCP server. The password goes in a root-only file, not the command line."""
+    interface = cfg["interface"]
+    run("nmcli", "connection", "delete", NM_CONNECTION, check=False)
+    run("nmcli", "connection", "add", "type", "wifi", "ifname", interface, "con-name", NM_CONNECTION,
+        "autoconnect", "no", "ssid", cfg["ssid"], "802-11-wireless.mode", "ap", "802-11-wireless.band", "bg",
+        "802-11-wireless.channel", str(cfg["channel"]), "ipv4.method", "shared",
+        "ipv4.addresses", f"{cfg['address']}/24", "ipv6.method", "disabled",
+        "wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.proto", "rsn", "wifi-sec.pairwise", "ccmp",
+        "wifi-sec.psk-flags", "2")
+    secrets = os.path.join(RUN_DIR, "psk")
+    write(secrets, f"802-11-wireless-security.psk:{cfg['password']}\n", mode=0o600)
+    try:
+        run("nmcli", "connection", "up", NM_CONNECTION, "passwd-file", secrets, timeout=60)
+    finally:
+        os.remove(secrets)
+    write(STATE_FILE, json.dumps({"active": True, "ssid": cfg["ssid"], "interface": interface,
+                                  "wifi": "networkmanager", "address": cfg["address"]}))
+    print(json.dumps({"active": True, "ssid": cfg["ssid"], "address": cfg["address"]}))
+
+
+def up(cfg):
+    cfg = validate(cfg)
+    interface = cfg["interface"]
+    previous = read_state()
+    if previous.get("wifi") == "networkmanager" or (not previous.get("active") and nm_manages(interface)):
+        nm_up(cfg)
+        return
+    if not have("hostapd"):
+        fail("hostapd isn't installed: run deploy/hotspot-setup.sh")
+    how = previous.get("wifi") if previous.get("active") else release_wifi(interface)
+    write(HOSTAPD_CONF, "\n".join([
+        f"interface={interface}",
+        "driver=nl80211",
+        f"ssid2={cfg['ssid'].encode().hex()}",
+        "utf8_ssid=1",
+        f"country_code={cfg['country']}",
+        "ieee80211d=1",
+        "hw_mode=g",
+        f"channel={cfg['channel']}",
+        "ieee80211n=1",
+        "wmm_enabled=1",
+        "auth_algs=1",
+        "ignore_broadcast_ssid=0",
+        "wpa=2",
+        "wpa_key_mgmt=WPA-PSK",
+        "rsn_pairwise=CCMP",
+        f"wpa_passphrase={cfg['password']}",
+        "",
+    ]), mode=0o600)
+    # The telescope's own name(s), answered here: a phone without mobile data
+    # has no other DNS (seleno-dns.service; only these names, nothing else)
+    dns = bool(cfg["dns_names"]) and os.path.exists("/usr/sbin/dnsmasq")
+    if dns:
+        write(DNSMASQ_CONF, "\n".join([
+            "# The SELENO hotspot's DNS (seleno-hotspot); gone at the next reboot",
+            "no-resolv", "no-hosts", "bind-interfaces", f"listen-address={cfg['address']}", "port=53",
+            *[f"address=/{name}/{cfg['address']}" for name in cfg["dns_names"]],
+            "",
+        ]))
+    # networkd: the address and the DHCP server, no gateway (phones keep their
+    # mobile data for the internet), and this Pi as DNS when it answers names
+    write(NETWORK_FILE, "\n".join([
+        "# The SELENO hotspot (seleno-hotspot); gone at the next reboot",
+        "[Match]",
+        f"Name={interface}",
+        "",
+        "[Network]",
+        f"Address={cfg['address']}/24",
+        "DHCPServer=yes",
+        "ConfigureWithoutCarrier=yes",
+        "IgnoreCarrierLoss=yes",
+        "LinkLocalAddressing=no",
+        "IPv6AcceptRA=no",
+        "",
+        "[DHCPServer]",
+        "PoolOffset=20",
+        "PoolSize=100",
+        f"EmitDNS={'yes' if dns else 'no'}",
+        *([f"DNS={cfg['address']}"] if dns else []),
+        "EmitRouter=no",
+        "EmitNTP=no",
+        "",
+    ]))
+    run("networkctl", "reload")
+    run("systemctl", "restart", HOSTAPD_UNIT, timeout=40)
+    run("networkctl", "reconfigure", interface, check=False)
+    if dns:
+        # After the address exists (dnsmasq binds to it)
+        time.sleep(1.0)
+        run("systemctl", "restart", DNS_UNIT, check=False, timeout=20)
+    for _ in range(20):
+        if run("systemctl", "is-active", HOSTAPD_UNIT, check=False).stdout.strip() == "active":
+            break
+        time.sleep(0.5)
+    else:
+        log = run("journalctl", "-u", HOSTAPD_UNIT, "-n", "5", "--no-pager", check=False).stdout.strip()
+        down({"interface": interface}, how)
+        fail(f"hostapd didn't start: {log.splitlines()[-1] if log else 'no log'}")
+    write(STATE_FILE, json.dumps({"active": True, "ssid": cfg["ssid"], "interface": interface, "wifi": how,
+                                  "address": cfg["address"]}))
+    print(json.dumps({"active": True, "ssid": cfg["ssid"], "address": cfg["address"]}))
+
+
+def read_state():
+    try:
+        with open(STATE_FILE) as f:
+            state = json.load(f)
+        return state if isinstance(state, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def down(cfg, how=None):
+    state = read_state()
+    interface = interface_of({"interface": cfg.get("interface") or state.get("interface") or "wlan0"})
+    how = how or state.get("wifi") or ("networkmanager" if nm_manages(interface) else "networkd")
+    run("systemctl", "stop", HOSTAPD_UNIT, check=False)
+    run("systemctl", "stop", DNS_UNIT, check=False)
+    for path in (NETWORK_FILE, HOSTAPD_CONF, DNSMASQ_CONF, STATE_FILE):
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+    restore_wifi(interface, how)
+    print(json.dumps({"active": False}))
+
+
+def status():
+    state = read_state()
+    if state.get("wifi") == "networkmanager":
+        out = run("nmcli", "-t", "-f", "NAME", "connection", "show", "--active", check=False).stdout
+        active = NM_CONNECTION in out.splitlines()
+    else:
+        active = bool(state.get("active")) and \
+            run("systemctl", "is-active", HOSTAPD_UNIT, check=False).stdout.strip() == "active"
+    print(json.dumps({"active": active, "ssid": state.get("ssid") if active else None,
+                      "address": state.get("address") if active else None}))
+
+
+def main():
+    if os.geteuid() != 0:
+        fail("run as root (sudo)")
+    action = sys.argv[1] if len(sys.argv) > 1 else ""
+    cfg = read_config()
+    if action == "up":
+        up(cfg)
+    elif action == "down":
+        down(cfg)
+    elif action == "status":
+        status()
+    else:
+        fail("usage: seleno-hotspot up|down|status (settings as JSON on stdin)")
+
+
+if __name__ == "__main__":
+    main()
