@@ -50,11 +50,41 @@ SELENO uses a web-based control server connected to distributed Raspberry Pi \
 	- LiveView server: port 8000
 - Route list is auto-generated to templates/routes.txt at startup.
 
+## Offline mode (on a telescope's Pi)
+
+A telescope in offline mode makes its own Wi-Fi hotspot, with no internet, and runs a copy of this
+server on its Raspberry Pi for the phones that join it (SelenoClient's `core/networking/hotspot.py`
+and `offline_server.py`). Phones open `http://10.42.0.1/` and get the interface, star map, album and
+Telescope Settings as online, with just that telescope (`app/offline_mode.py`):
+
+- one account, the observer, which every visitor is (the Wi-Fi password is the way in), and one
+  telescope, owned by it and selected for everyone, named by the telescope;
+- the other pages redirect to the interface; the CDN files are served locally;
+- live view goes straight from the Pi to the phone (`ws://<address the phone used>:8000`).
+
+The copy is a bundle built here and downloaded by telescopes with their API token from
+`/api/telescope/offline_bundle` (the panel's Setup > Get phone app). Rebuild it after changing the
+pages (about 15 s; needs the internet once, for the CDN files):
+
+```bash
+venv/bin/python scripts/build_offline_bundle.py    # -> downloads/offline/seleno-offline.tar.gz
+```
+
+It holds the code, the star catalogue (no accounts, logs or photos), V3 Helios's checkpoint cache
+(not its SPICE kernels) and local copies of Bootstrap, Font Awesome and the fonts.
+
+Telescope Settings (`/interface/telescope_settings/`, `controllers/telescope_settings.py`) works online
+too, for a telescope's owner: it shows and changes the telescope's own panel settings through the
+client's `getSettings` and `setSettings`.
+
 ## Important Environment Variables
 
 - FLASK_SECRET_KEY: Flask session secret (required: the server won't start without it)
 - ENCRYPTION_KEY: application encryption key
 - FLASK_BIND_HOST: address the web server binds to (default 127.0.0.1; the Cloudflare tunnel is the way in)
+- FLASK_PORT: the web server's port (default 5000)
+- SELENO_OFFLINE, SELENO_OFFLINE_TELESCOPE, SELENO_OFFLINE_TOKEN: offline mode on a telescope's Pi, its telescope's name and token (set by the telescope client, see above)
+- LIVEVIEW_WS_IP: the live-view socket's bind address, when it differs from WS_IP (offline mode: phones connect to it directly)
 - WS_IP: WebSocket bind address (default 127.0.0.1)
 - TRUSTED_PROXIES: extra proxy addresses whose forwarding headers are believed (loopback always is)
 - FLASK_DEBUG: run Flask's development server with the reloader instead of waitress

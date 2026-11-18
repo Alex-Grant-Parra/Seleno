@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('Telescope Settings') }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4 telescope-settings" id="ts-root"
+     data-telescope-id="{{ telescope_id or '' }}"
+     data-url="{{ url_for('telescope_settings.read_settings') }}"
+     data-offline="{{ offline_mode|tojson }}">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 class="mb-0">{{ _('Telescope Settings') }}
+            {% if telescope_id %}<span class="badge bg-secondary fs-6 align-middle">{{ telescope_id }}</span>{% endif %}
+        </h2>
+        <button class="btn btn-sm btn-outline-secondary" type="button" id="ts-reload"><i class="fas fa-sync-alt"></i> {{ _('Reload') }}</button>
+    </div>
+    <p class="text-muted small">{{ _("These are the settings on the telescope's own menu. Changes are saved on the telescope straight away.") }}</p>
+
+    {% if not telescope_id %}
+    <div class="alert alert-info">{{ _('Choose a telescope on the Interface page first.') }}</div>
+    {% else %}
+    <div id="ts-status" class="alert alert-secondary small py-2" role="status">{{ _('Asking the telescope...') }}</div>
+    <div id="ts-sections"></div>
+    <div class="d-flex flex-wrap gap-2 mb-5 d-none" id="ts-actions">
+        <button class="btn btn-success" type="button" id="ts-save" disabled>{{ _('Save changes') }}</button>
+        <button class="btn btn-outline-secondary" type="button" id="ts-revert" disabled>{{ _('Undo changes') }}</button>
+    </div>
+    {% endif %}
+</div>
+<script>
+    window.TS_TEXT = {
+        loading: {{ _('Asking the telescope...')|tojson }},
+        offline: {{ _("The telescope isn't connected.")|tojson }},
+        saved: {{ _('Saved on the telescope.')|tojson }},
+        saving: {{ _('Saving...')|tojson }},
+        some_failed: {{ _("Some settings weren't saved:")|tojson }},
+        failed: {{ _("Couldn't reach the telescope.")|tojson }},
+        unchanged: {{ _('No changes to save.')|tojson }},
+        use_phone_time: {{ _("Use this device's time")|tojson }},
+        clock_now: {{ _('Telescope time (UTC)')|tojson }},
+        clock_device: {{ _('This device (UTC)')|tojson }},
+        clock_set: {{ _('Clock set from this device.')|tojson }},
+        show: {{ _('Show')|tojson }},
+        hide: {{ _('Hide')|tojson }},
+        on: {{ _('On')|tojson }},
+        reconnect: {{ _('Reconnect')|tojson }}
+    };
+</script>
+<script src="{{ url_for('static', filename='js/telescope-settings.js') }}" defer></script>
+{% endblock %}

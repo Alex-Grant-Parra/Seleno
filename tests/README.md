@@ -8,7 +8,7 @@ database in a temporary folder, and fake telescopes in place of real sockets.
 
 ```bash
 cd tests
-../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search test_weather_cache test_sharing test_auth_security test_store
+../venv/bin/python -m unittest test_commands test_uploads_plans test_liveview test_album_api test_interface_api test_projects_api test_star_search test_weather_cache test_sharing test_auth_security test_store test_offline_mode
 ```
 
 | File | Covers |
@@ -23,6 +23,7 @@ cd tests
 | `test_weather_cache.py` | the world map's local weather cache and `/map/weather/`, against a fake Open-Meteo |
 | `test_sharing.py` | sharing a telescope by username: standing access without a booking, and what stays with the owner |
 | `test_store.py` | the store: baskets, checkout, when an order counts as paid (webhook, return page, wrong amounts, retries), stock, admin, against a fake SumUp |
+| `test_offline_mode.py` | offline mode on a telescope's Pi: the one telescope and account, the pages it serves, Telescope Settings, the live view address, the bundle download |
 | `test_auth_security.py` | who a request is from (forged forwarding headers), 2FA codes, reset links, reconnecting telescopes |
 
 ## The store against the real SumUp sandbox (about 20 s, needs internet)

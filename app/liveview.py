@@ -574,8 +574,15 @@ def _app_domain():
 
 
 def watch_url(client_id, ticket):
-    # LIVEVIEW_PUBLIC_URL overrides the address for local testing, e.g. ws://localhost:8000
-    base = os.getenv("LIVEVIEW_PUBLIC_URL") or f"wss://liveview.{_app_domain()}"
+    # LIVEVIEW_PUBLIC_URL overrides the address for local testing, e.g. ws://localhost:8000.
+    # Offline mode (a telescope's hotspot): this Pi, at the address the phone used.
+    from app import offline_mode
+    base = os.getenv("LIVEVIEW_PUBLIC_URL")
+    if not base and offline_mode.enabled():
+        from flask import has_request_context, request
+        base = offline_mode.watch_base(request.host if has_request_context() else "",
+                                       secure=has_request_context() and request.is_secure)
+    base = base or f"wss://liveview.{_app_domain()}"
     return f"{base.rstrip('/')}/watch/{quote(str(client_id), safe='')}?ticket={quote(ticket, safe='')}"
 
 
@@ -596,7 +603,8 @@ async def _handle_viewer(ws, client_id, query):
         return
 
     origin = (_ws_header(ws, 'Origin') or '').rstrip('/')
-    if origin not in allowed_origins():
+    from app import offline_mode
+    if origin not in allowed_origins() and not (offline_mode.enabled() and offline_mode.origin_allowed(origin)):
         _security_log('ws_viewer_bad_origin', ip=client_ip, client_id=client_id, origin=origin)
         await ws.close(code=4003, reason='Origin not allowed')
         return
@@ -754,18 +762,27 @@ def start_liveview_ws_server():
     lv_event_loop = loop
 
     async def run_server():
+        options = dict(
+            max_size=2*1024*1024,
+            ping_interval=WS_PING_INTERVAL,
+            ping_timeout=WS_PING_TIMEOUT,
+            # Frames are already compressed; deflate would only burn CPU
+            compression=None,
+        )
         try:
-            async with websockets.serve(
-                handle_liveview_socket,
-                WS_IP,
-                LIVEVIEW_WS_PORT,
-                max_size=2*1024*1024,
-                ping_interval=WS_PING_INTERVAL,
-                ping_timeout=WS_PING_TIMEOUT,
-                # Frames are already compressed; deflate would only burn CPU
-                compression=None,
-            ):
-                await asyncio.Future()
+            # Phones near a telescope reach this socket directly (offline
+            # mode); the command socket stays on WS_IP
+            servers = [await websockets.serve(handle_liveview_socket, os.getenv("LIVEVIEW_WS_IP") or WS_IP,
+                                              LIVEVIEW_WS_PORT, **options)]
+            from app import offline_mode
+            context = offline_mode.tls_context() if offline_mode.enabled() else None
+            if context is not None:
+                # The seleno.org app watches over TLS (an HTTPS page can't open ws://)
+                tls_port = int(os.getenv("SELENO_TLS_LIVEVIEW_PORT") or 8443)
+                servers.append(await websockets.serve(handle_liveview_socket, "0.0.0.0", tls_port, ssl=context,
+                                                      **options))
+                print(f"[LiveView] TLS on port {tls_port} for the Seleno app")
+            await asyncio.Future()
         except Exception as e:
             # Single write so concurrent thread output doesn't interleave on one line
             print(f"[LiveView] WebSocket server failed to start: {e}\n", end="", flush=True)
