@@ -37,6 +37,7 @@ log = get_logger("panel")
 HEARTBEAT_S = 2.0
 SKY_FAST_S = 1.0    # while the scope moves
 SKY_SLOW_S = 5.0    # while it tracks or sits still
+OFFLINE_WATCH_S = 3.0  # how often config/client_profile.json is checked for offline mode
 
 
 class PromptCancelled(Exception):
@@ -64,6 +65,8 @@ class PanelUI:
 		self._stop_queued = threading.Event()
 		self.sky_options = self._load_sky_options()
 		self.attached = threading.Event()
+		self._offline_seen: Optional[bool] = None  # offline mode as last applied
+		self._offline_watching = False
 
 	# --- connection ---------------------------------------------------------------
 
@@ -480,6 +483,7 @@ class PanelUI:
 		from utils.config_state import get_client_config, set_offline_mode
 
 		set_offline_mode(on)
+		self._offline_seen = on
 		self.refresh_values()
 		hotspot.apply()
 		try:
@@ -503,6 +507,42 @@ class PanelUI:
 			websocket.apply_client_config(get_client_config())
 		self._post("sky-data", lambda: get_sky_data().refresh())
 		return "Connecting to the server"
+
+	def watch_offline(self) -> None:
+		"""At startup: offline mode can also be switched by hand, in
+		config/client_profile.json (client_config.offline); a change is
+		applied within a few seconds, as if made on the panel."""
+		if self._offline_watching:
+			return
+		self._offline_watching = True
+		self._offline_seen = self.offline()
+
+		def watch() -> None:
+			while True:
+				time.sleep(OFFLINE_WATCH_S)
+				try:
+					self.check_offline()
+				except Exception as exc:
+					log.warning(f"Couldn't check offline mode: {exc}")
+		threading.Thread(target=watch, name="offline-watch", daemon=True).start()
+
+	def check_offline(self) -> bool:
+		"""Apply offline mode if it was changed by hand since; True if so."""
+		on = self.offline()
+		if self._offline_seen is None or on == self._offline_seen:
+			self._offline_seen = on
+			return False
+		log.info(f"Offline mode turned {'on' if on else 'off'} in config/client_profile.json")
+		if not on and self.missing_settings() and not self.has_panel():
+			# No panel for the setup wizard: wait for the settings (Client.py)
+			self._offline_seen = on
+			log.warning("Online, but the server settings are missing: set "
+				+ ", ".join(self.missing_settings()) + " in config/client_profile.json")
+			return True
+		message = self.set_offline(on)
+		if message:
+			self.toast(message)
+		return True
 
 	# --- photos ------------------------------------------------------------------
 

@@ -577,24 +577,6 @@ def _set_horizon(value: float) -> Optional[str]:
 	return None
 
 
-def _local_page_on() -> bool:
-	from core.networking import local_page
-
-	return local_page.running()
-
-
-def _set_local_page(on: bool) -> Optional[str]:
-	from core.networking import local_page
-
-	return local_page.set_enabled(on)
-
-
-def _local_page_text() -> str:
-	from core.networking import local_page
-
-	return f"{local_page.address().replace('http://', '')} code {local_page.code()}"
-
-
 # --- the offline hotspot (core/networking/hotspot.py) ---------------------------------
 
 def _hotspot_shown() -> bool:
@@ -836,8 +818,6 @@ def build_panels(ui: "PanelUI") -> List[Panel]:
 			Text("set_time", "UTC", _utc_text, _set_time, max_length=24, hint="UTC: 10-16 21:30"),
 			Number("horizon", "Horizon", _horizon, _set_horizon, -5, 45, 1, "deg"),
 			Choice("hemisphere", "Hemisphere", ["Auto", "North", "South"], _hemisphere_index, _set_hemisphere),
-			Toggle("local_page", "Local page", _local_page_on, _set_local_page),
-			only_when(Info("local_addr", "Page", _local_page_text), _local_page_on),
 			Text("owner", "Photo owner", photos.owner_id, photos.set_owner_id, max_length=12, hint="account id"),
 			Choice("motors", "Server motors", ["Guarded", "Off", "Any"], _motor_policy_index, _set_motor_policy),
 			Action("wizard", "Run setup again", ui.start_wizard),

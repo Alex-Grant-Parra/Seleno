@@ -412,12 +412,6 @@ def start_services() -> None:
             pass
     get_live_stream().on_auto_stop = auto_stopped
     try:
-        from core.networking import local_page
-
-        local_page.start_if_enabled()
-    except Exception as exc:
-        log.warning("Local page not started: %s", exc)
-    try:
         from utils import gps
 
         gps.start()
@@ -431,6 +425,13 @@ def start_services() -> None:
         hotspot.start()
     except Exception as exc:
         log.warning("Hotspot not started: %s", exc)
+    try:
+        # Offline mode switched by hand in config/client_profile.json
+        from utils.panel_ui import get_panel_ui
+
+        get_panel_ui().watch_offline()
+    except Exception as exc:
+        log.warning("Offline mode watch not started: %s", exc)
     try:
         # The seleno.org app's way in on the hotspot: its name, certificate and
         # pass secret, fetched while online (utils/phone_credentials.py)

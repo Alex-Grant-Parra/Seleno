@@ -233,11 +233,6 @@ Go-tos come from the panel (Scope tab) or the server. The order is:
     </dev/null` switches back by hand;
   - tests never switch the real Wi-Fi: they set `SELENO_TESTS=1`
     (`tests/helpers.py`), which hides the helper from the client.
-- **Local page** (`core/networking/local_page.py`):
-  - turn it on in Setup;
-  - it serves live view, photos, snapshots, recording and stop to a phone at
-    `http://<pi>:8080/`;
-  - it asks for the code shown on the panel.
 
 ### Server link
 
@@ -250,7 +245,9 @@ Go-tos come from the panel (Scope tab) or the server. The order is:
 ## Configuration
 
 **`config/client_profile.json`:** the device name, server and API key, offline
-mode and the site.
+mode and the site. Offline mode (`client_config.offline`, `true`/`false`) can
+be switched by hand while the client runs: it's picked up within a few
+seconds, as if from the panel.
 
 **`config/client_config.json`:** everything else, by section. Missing values
 take their defaults, and most can be set from the panel.
@@ -266,7 +263,6 @@ take their defaults, and most can be set from the panel.
 | `camera` | `backend` (`auto`/`libgphoto2`/`cli`/`fake`), `keep_awake`, `focal_mm` (sent with photos; 0 = unknown) |
 | `upload` | `raw` (`after_jpeg`/`on_request`/`never`), `retry_max_s` |
 | `photos` | `local_dir`, `owner_id`, `shots`, `kind`, `exposure_s`, `dither` |
-| `local_page` | `enabled`, `port` |
 | `server` | `raw_motor_commands` (`guarded`/`off`/`unrestricted`), `status_push_s` (default 30; 0 = only on connecting), `allow_remote_update`, `allow_firmware_update` (both off by default) |
 | `solver` | `path`, `fov_deg` (0 = learn it), `search_radius_deg`, `timeout_s`, `centre_tolerance_arcmin`, `drift_check_min` |
 | `gps` | `enabled` |
@@ -327,7 +323,7 @@ a fake `gphoto2`, and the solver test runs the real ASTAP if it's installed.
 | `core/camera/` | The camera service and backends, live view stream, JPEG framing, focus, recording |
 | `core/hardware/` | Tracking, the mount model and route planner, the pointing model |
 | `core/astrometry/` | ASTAP plate solving |
-| `core/networking/` | The server links, CSRF, the local page, the offline hotspot and the seleno.org app's link to the telescope on it |
+| `core/networking/` | The server links, CSRF, the offline hotspot and the seleno.org app's link to the telescope on it |
 | `utils/` | Configuration and state, the front panel (`panel_ui.py`, `panel_menu.py`, `manual_control.py`), the Sun guard, ephemeris, astrometry, clock, GPS, uploads, photos, LEDs |
 | `esp32/` | The ESP32 serial interface and bring-up tools |
 | `esp32-firmware/` | The controller firmware (PlatformIO) |

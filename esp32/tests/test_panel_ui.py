@@ -700,6 +700,20 @@ class OfflineModeTests(PanelUIBase):
 		self.assertTrue(wait_for(lambda: any(c.get("item") == "liveview" and c.get("fields") == {"visible": True}
 			for c in self.conn.actions("set"))))
 
+	def test_switched_by_hand_in_the_profile(self) -> None:
+		self.ui._offline_seen = config_state.is_offline_mode()
+		self.assertFalse(self.ui.check_offline())
+		profile = config_state.load_client_profile()
+		profile["client_config"]["offline"] = True
+		config_state.save_client_profile(profile)  # as an edit by hand would
+		self.assertTrue(self.ui.check_offline())
+		self.assertTrue(wait_for(lambda: self.reconnects))
+		self.assertFalse(self.ui.check_offline())  # applied once
+
+		self.ui.set_offline(False)  # the panel's own change isn't applied twice
+		self.assertFalse(self.ui.check_offline())
+		self.assertTrue(wait_for(lambda: self.applied))
+
 
 class FirstRunTests(PanelUIBase):
 	profile = {"client_config": {"client_id": "", "base_url": "", "api_token": ""}}

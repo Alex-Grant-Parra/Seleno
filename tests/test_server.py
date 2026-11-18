@@ -1,17 +1,15 @@
 """The server link (command lanes, ids, backoff), the server's commands,
-the raw-motor guard, the local page, plate solving, tracking with a fake
+the raw-motor guard, plate solving, tracking with a fake
 mount, and the LED batching."""
 from __future__ import annotations
 
 import asyncio
 import json
 import os
-import socket
 import stat
 import sys
 import time
 import unittest
-import urllib.request
 from typing import Any, Dict, List, Optional
 from unittest import mock
 
@@ -212,78 +210,6 @@ class MotorGuardTests(ScratchConfig):
 		self.assertIn("off", self.check(motor_id="motor1", steps=1))
 		save_section("server", {"raw_motor_commands": "unrestricted"})
 		self.assertIsNone(self.check(motor_id="motor1", steps=10 ** 9))
-
-
-# --- the local page -------------------------------------------------------------------------
-
-def free_port() -> int:
-	with socket.socket() as s:
-		s.bind(("127.0.0.1", 0))
-		return s.getsockname()[1]
-
-
-class LocalPageTests(ScratchConfig):
-	def setUp(self) -> None:
-		super().setUp()
-		self.in_scratch_dir()
-		self.service = CameraService(backend=FakeBackend(width=160, height=100, fps=20)).start()
-		set_camera_service(self.service)
-		from core.networking import local_page
-
-		self.page = local_page
-		self.port = free_port()
-		local_page.start(self.port)
-		self.base = f"http://127.0.0.1:{self.port}"
-
-	def tearDown(self) -> None:
-		self.page.stop()
-		self.service.stop()
-		set_camera_service(None)
-		super().tearDown()
-
-	def request(self, path: str, data: Optional[bytes] = None, cookie: str = "", json_body: bool = False):
-		req = urllib.request.Request(self.base + path, data=data)
-		if cookie:
-			req.add_header("Cookie", cookie)
-		if json_body:
-			req.add_header("Content-Type", "application/json")
-		opener = urllib.request.build_opener(NoRedirect)
-		try:
-			with opener.open(req, timeout=5) as resp:
-				return resp.status, resp.headers, resp.read()
-		except urllib.error.HTTPError as err:
-			return err.code, err.headers, err.read()
-
-	def test_the_code_guards_everything(self) -> None:
-		status, _h, _b = self.request("/api/status")
-		self.assertEqual(status, 401)
-		status, _h, _b = self.request("/login", b"code=nope")
-		self.assertEqual(status, 403)
-		status, headers, _b = self.request("/login", f"code={self.page.code()}".encode())
-		self.assertEqual(status, 303)
-		cookie = headers["Set-Cookie"].split(";")[0]
-		status, _h, body = self.request("/api/status", cookie=cookie)
-		self.assertEqual(status, 200)
-		self.assertTrue(json.loads(body)["camera"]["connected"])
-		status, _h, _b = self.request("/files/..%2F..%2Fetc%2Fpasswd", cookie=cookie)
-		self.assertEqual(status, 404)
-		status, _h, body = self.request("/api/photo", b"{}", cookie=cookie, json_body=True)
-		self.assertIn("Saved", json.loads(body)["status"])
-		status, _h, body = self.request("/api/files", cookie=cookie)
-		self.assertTrue(json.loads(body)["files"])
-
-	def test_too_many_wrong_codes(self) -> None:
-		self.page._failed.clear()
-		for _ in range(5):
-			self.request("/login", b"code=000000" if self.page.code() != "000000" else b"code=111111")
-		status, _h, _b = self.request("/login", f"code={self.page.code()}".encode())
-		self.assertEqual(status, 429)
-		self.page._failed.clear()
-
-
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-	def redirect_request(self, *args, **kwargs):
-		return None
 
 
 # --- plate solving ---------------------------------------------------------------------------

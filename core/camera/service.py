@@ -1,7 +1,7 @@
 """The camera, owned by one thread.
 
 Everything that uses the camera goes through here: live view for the
-server, the local page and recordings; photos from the server and the
+server and the app, and recordings; photos from the server and the
 panel; settings. One thread talks to the camera (core/camera/backends.py),
 so nothing fights over it:
 

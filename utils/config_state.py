@@ -137,12 +137,6 @@ def _default_static_state() -> Dict[str, Any]:
             "raw": "after_jpeg",
             "retry_max_s": 600,
         },
-        "local_page": {
-            # A page on the local network with the live view, photos and
-            # status; it asks for the code shown on the front panel.
-            "enabled": False,
-            "port": 8080,
-        },
         "server": {
             # Raw motor commands from the server (espStart, espMoveSteps...):
             # "guarded" (refused near the Sun or past the axis limits),
