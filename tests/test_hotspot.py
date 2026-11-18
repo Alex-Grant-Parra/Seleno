@@ -129,7 +129,9 @@ class HotspotFile(ScratchConfig):
 		with mock.patch.object(hotspot, "apply"), mock.patch.object(hotspot.threading, "Thread"):
 			hotspot.start()
 		saved = self.read()
-		self.assertEqual(set(saved), {"enabled", "name", "password"})
+		self.assertEqual(set(saved), {"offline", "name", "password"})
+		self.assertTrue(saved["offline"])  # moved over from client_profile.json
+		self.assertNotIn("offline", config_state.load_client_profile()["client_config"])
 		self.assertEqual(saved["name"], "test")
 		self.assertIsNone(hotspot.validate_password(saved["password"]))
 		self.assertEqual(os.stat(config_state.hotspot_file()).st_mode & 0o077, 0)  # it holds the password
@@ -141,9 +143,9 @@ class HotspotFile(ScratchConfig):
 		with mock.patch.object(hotspot, "apply"):
 			hotspot.set_name("Field Scope")
 			hotspot.set_password("starry-night")
-			hotspot.set_enabled(False)
-		self.assertEqual(self.read(), {"enabled": False, "name": "Field Scope", "password": "starry-night"})
-		self.assertFalse(hotspot.enabled())
+			config_state.set_offline_mode(False)
+		self.assertEqual(self.read(), {"offline": False, "name": "Field Scope", "password": "starry-night"})
+		self.assertFalse(hotspot.wanted())
 		self.assertFalse(hotspot.check_file())  # its own saves aren't changes by hand
 
 	def test_old_settings_move_over(self) -> None:
@@ -164,7 +166,7 @@ class HotspotFile(ScratchConfig):
 		with mock.patch.object(hotspot, "apply"), mock.patch.object(hotspot.threading, "Thread"):
 			hotspot.start()
 		saved = self.read()
-		saved.update(name="By Hand", enabled="off")
+		saved.update(name="By Hand", offline="off")
 		with open(config_state.hotspot_file(), "w") as f:
 			json.dump(saved, f)
 		with mock.patch.object(hotspot, "apply") as apply:
@@ -172,7 +174,7 @@ class HotspotFile(ScratchConfig):
 			apply.assert_called_once_with()
 			self.assertFalse(hotspot.check_file())
 		self.assertEqual(hotspot.name(), "By Hand")
-		self.assertFalse(hotspot.enabled())
+		self.assertFalse(config_state.is_offline_mode())
 		# A password that won't do is replaced, and saved
 		saved = self.read()
 		saved["password"] = "short"

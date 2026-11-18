@@ -217,10 +217,11 @@ Go-tos come from the panel (Scope tab) or the server. The order is:
     the panel's settings: the hotspot's name and password, the site, the
     clock (from the phone's), the horizon, tracking, live view, RAWs, the
     photo owner and the motor guard (`utils/remote_settings.py`);
-  - the hotspot's on/off (`enabled`), name and password are kept in
-    `config/hotspot.json` (only the Pi's user can read it): `cat` it over
-    SSH to see them, or edit it and the client applies it within a few
-    seconds. It only broadcasts while offline mode is on;
+  - offline mode (`offline`: `true`/`false`) and the hotspot's name and
+    password are kept in `config/hotspot.json` (only the Pi's user can read
+    it): `cat` it over SSH to see them, or edit it and the client applies it
+    within a few seconds, as if from the panel. Offline means no server
+    connection and the hotspot on;
   - **setting it up**, once per Pi: `sudo deploy/hotspot-setup.sh` (installs
     hostapd and dnsmasq-base, the `seleno-hotspot` helper and its sudo rule).
     Then the client, online, fetches the telescope's name and certificate by
@@ -244,10 +245,11 @@ Go-tos come from the panel (Scope tab) or the server. The order is:
 
 ## Configuration
 
-**`config/client_profile.json`:** the device name, server and API key, offline
-mode and the site. Offline mode (`client_config.offline`, `true`/`false`) can
-be switched by hand while the client runs: it's picked up within a few
-seconds, as if from the panel.
+**`config/client_profile.json`:** the device name, server and API key, and the
+site.
+
+**`config/hotspot.json`:** what changes while the client runs: offline mode
+and the hotspot's name and password (see the offline hotspot above).
 
 **`config/client_config.json`:** everything else, by section. Missing values
 take their defaults, and most can be set from the panel.
@@ -266,7 +268,7 @@ take their defaults, and most can be set from the panel.
 | `server` | `raw_motor_commands` (`guarded`/`off`/`unrestricted`), `status_push_s` (default 30; 0 = only on connecting), `allow_remote_update`, `allow_firmware_update` (both off by default) |
 | `solver` | `path`, `fov_deg` (0 = learn it), `search_radius_deg`, `timeout_s`, `centre_tolerance_arcmin`, `drift_check_min` |
 | `gps` | `enabled` |
-| `hotspot` | `enabled`, `name` (the Wi-Fi's and the telescope's offline name) and `password` are in their own file, `config/hotspot.json` (read or change it by hand: the client picks a change up within a few seconds; it's made at startup, with a password made up the first time); here: `country`, `channel`, `interface`, `address` (`10.42.0.1`), `tls_cert` / `tls_key` (testing only: instead of seleno.org's certificate) |
+| `hotspot` | `offline`, `name` (the Wi-Fi's and the telescope's offline name) and `password` are in their own file, `config/hotspot.json` (read or change it by hand: the client picks a change up within a few seconds; it's made at startup, with a password made up the first time); here: `country`, `channel`, `interface`, `address` (`10.42.0.1`), `tls_cert` / `tls_key` (testing only: instead of seleno.org's certificate) |
 
 `camera.backend: "fake"` gives a made-up camera with a star field, for trying
 everything without one.

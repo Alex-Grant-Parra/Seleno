@@ -1,11 +1,11 @@
 """The Pi's own Wi-Fi, for phones, in offline mode.
 
-In offline mode (with hotspot "enabled"), the Pi stops joining Wi-Fi and
-broadcasts its own: its "name", which is also the telescope's name on the
-phone, with the WPA2 "password". All three are in config/hotspot.json, which
-can be changed by hand (the client notices within a few seconds), on the
-front panel (Setup) or from the phone (Telescope Settings), and the name and
-password are shown on the panel.
+In offline mode ("offline"), the Pi stops joining Wi-Fi and broadcasts its
+own: its "name", which is also the telescope's name on the phone, with the
+WPA2 "password". All three are in config/hotspot.json, which can be changed
+by hand (the client notices within a few seconds), on the front panel
+(Setup) or, the name and password, from the phone (Telescope Settings), and
+the name and password are shown on the panel.
 Phones that join get an address from the Pi, and the seleno.org app
 installed on them talks to the telescope directly, over HTTPS at its own name
 (core/networking/phone_link.py). There's no internet on it: the Pi offers no
@@ -124,7 +124,7 @@ def _save(values: Dict[str, Any]) -> None:
 	hand)."""
 	global _seen_file
 	save_section("hotspot", values)
-	_seen_file = load_hotspot_file()
+	_seen_file = {k: v for k, v in load_hotspot_file().items() if k != "offline"}
 
 
 def set_name(value: str, delay_s: float = 0.0) -> Optional[str]:
@@ -151,24 +151,9 @@ def set_password(value: str, delay_s: float = 0.0) -> Optional[str]:
 	return None
 
 
-def enabled() -> bool:
-	value = settings().get("enabled", True)
-	if isinstance(value, str):  # an edit by hand: "off", "false", "no"...
-		return value.strip().lower() not in ("", "0", "off", "false", "no")
-	return bool(value)
-
-
-def set_enabled(on: bool) -> Optional[str]:
-	_save({"enabled": bool(on)})
-	apply()
-	if not on:
-		return "Hotspot off"
-	return "Hotspot on" if is_offline_mode() else "On in offline mode"
-
-
 def wanted() -> bool:
-	"""Offline mode with the hotspot on."""
-	return is_offline_mode() and enabled()
+	"""Offline mode: the hotspot is on whenever it is."""
+	return is_offline_mode()
 
 
 # --- what the panel shows --------------------------------------------------------------
@@ -326,7 +311,7 @@ def start() -> None:
 		ensure_credentials()
 	except OSError as exc:
 		log.warning("Couldn't save %s: %s", hotspot_file(), exc)
-	_seen_file = load_hotspot_file()
+	_seen_file = {k: v for k, v in load_hotspot_file().items() if k != "offline"}
 	if helper_installed() and helper_status().get("active"):
 		state.update(state="on", detail="")
 		if not wanted():
@@ -339,9 +324,12 @@ def start() -> None:
 
 
 def check_file() -> bool:
-	"""Apply config/hotspot.json if it was changed by hand since; True if so."""
+	"""Apply config/hotspot.json if it was changed by hand since; True if so.
+	(Offline mode is left to utils/panel_ui.py, which also connects or
+	disconnects the server.)"""
 	global _seen_file
 	current = load_hotspot_file()
+	current.pop("offline", None)
 	if _seen_file is None:
 		_seen_file = current
 		return False

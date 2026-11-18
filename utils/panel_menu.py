@@ -156,10 +156,8 @@ def validate_api_key(value: str) -> Optional[str]:
 
 def _server_state() -> str:
 	if is_offline_mode():
-		from core.networking import hotspot, phone_link
+		from core.networking import phone_link
 
-		if not hotspot.enabled():
-			return "offline"
 		viewers = phone_link.viewer_count()
 		return f"offline: {viewers} watching" if viewers else f"offline: app {phone_link.status_text()}"
 	try:
@@ -585,18 +583,6 @@ def _hotspot_shown() -> bool:
 	return hotspot.wanted()
 
 
-def _hotspot_enabled() -> bool:
-	from core.networking import hotspot
-
-	return hotspot.enabled()
-
-
-def _set_hotspot_enabled(on: bool) -> Optional[str]:
-	from core.networking import hotspot
-
-	return hotspot.set_enabled(on)
-
-
 def _hotspot_name() -> str:
 	from core.networking import hotspot
 
@@ -801,7 +787,6 @@ def build_panels(ui: "PanelUI") -> List[Panel]:
 			only_when(Info("hs_wifi", "Wi-Fi", _hotspot_wifi), _hotspot_shown),
 			only_when(Info("hs_state", "Hotspot", _hotspot_state), _hotspot_shown),
 			only_when(Action("hs_show", "Show hotspot", lambda: ui.run_flow("hotspot", _show_hotspot)), _hotspot_shown),
-			Toggle("hotspot", "Phone hotspot", _hotspot_enabled, _set_hotspot_enabled),
 			Text("hs_name", "Offline name", _hotspot_name, _set_hotspot_name, max_length=32,
 				hint="Wi-Fi + telescope name"),
 			Text("hs_pass", "Hotspot pass", _hotspot_password, _set_hotspot_password, max_length=63,

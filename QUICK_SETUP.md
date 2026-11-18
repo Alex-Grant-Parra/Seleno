@@ -79,7 +79,7 @@ Edit `config/client_profile.json` and set the required values:
 
 With the SELENO front panel you can enter these on the panel at first start
 instead, or choose **Offline** to use the telescope without a server
-(`client_config.offline: true`): go-to and photos from the panel, with photos
+(`"offline": true` in `config/hotspot.json`): go-to and photos from the panel, with photos
 saved in `photos/offline/`.
 
 ## 7. Start the client

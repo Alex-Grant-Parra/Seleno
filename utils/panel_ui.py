@@ -37,7 +37,7 @@ log = get_logger("panel")
 HEARTBEAT_S = 2.0
 SKY_FAST_S = 1.0    # while the scope moves
 SKY_SLOW_S = 5.0    # while it tracks or sits still
-OFFLINE_WATCH_S = 3.0  # how often config/client_profile.json is checked for offline mode
+OFFLINE_WATCH_S = 3.0  # how often config/hotspot.json is checked for offline mode
 
 
 class PromptCancelled(Exception):
@@ -476,9 +476,9 @@ class PanelUI:
 
 	def set_offline(self, on: bool) -> Optional[str]:
 		"""Offline mode: no server connection (core/networking/websocket.py
-		waits); go-to and photos from the panel still work. With the
-		hotspot on, the Pi makes its own Wi-Fi for phones (core/networking/
-		hotspot.py), and its name and password are shown here."""
+		waits); go-to and photos from the panel still work, and the Pi makes
+		its own Wi-Fi for phones (core/networking/hotspot.py), whose name and
+		password are shown here."""
 		from core.networking import hotspot
 		from utils.config_state import get_client_config, set_offline_mode
 
@@ -493,13 +493,11 @@ class PanelUI:
 		if on:
 			if websocket is not None:
 				websocket.request_reconnect()  # drops the open connections
-			if hotspot.enabled():
-				from utils.panel_menu import hotspot_message
+			from utils.panel_menu import hotspot_message
 
-				message = hotspot_message()
-				self.run_flow("hotspot", lambda ui: ui.prompt("message", "Phone hotspot", message[:140]))
-				return "Offline: hotspot starting"
-			return "Offline: no server"
+			message = hotspot_message()
+			self.run_flow("hotspot", lambda ui: ui.prompt("message", "Phone hotspot", message[:140]))
+			return "Offline: hotspot starting"
 		if self.missing_settings():
 			self.start_wizard()
 			return None
@@ -510,8 +508,8 @@ class PanelUI:
 
 	def watch_offline(self) -> None:
 		"""At startup: offline mode can also be switched by hand, in
-		config/client_profile.json (client_config.offline); a change is
-		applied within a few seconds, as if made on the panel."""
+		config/hotspot.json ("offline"); a change is applied within a few
+		seconds, as if made on the panel."""
 		if self._offline_watching:
 			return
 		self._offline_watching = True
@@ -532,7 +530,7 @@ class PanelUI:
 		if self._offline_seen is None or on == self._offline_seen:
 			self._offline_seen = on
 			return False
-		log.info(f"Offline mode turned {'on' if on else 'off'} in config/client_profile.json")
+		log.info(f"Offline mode turned {'on' if on else 'off'} in config/hotspot.json")
 		if not on and self.missing_settings() and not self.has_panel():
 			# No panel for the setup wizard: wait for the settings (Client.py)
 			self._offline_seen = on

@@ -700,12 +700,13 @@ class OfflineModeTests(PanelUIBase):
 		self.assertTrue(wait_for(lambda: any(c.get("item") == "liveview" and c.get("fields") == {"visible": True}
 			for c in self.conn.actions("set"))))
 
-	def test_switched_by_hand_in_the_profile(self) -> None:
+	def test_switched_by_hand_in_hotspot_json(self) -> None:
+		import json
+
 		self.ui._offline_seen = config_state.is_offline_mode()
 		self.assertFalse(self.ui.check_offline())
-		profile = config_state.load_client_profile()
-		profile["client_config"]["offline"] = True
-		config_state.save_client_profile(profile)  # as an edit by hand would
+		with open(config_state.hotspot_file(), "w") as f:  # an edit by hand
+			json.dump({"offline": True, "name": "Scope", "password": "starry-night"}, f)
 		self.assertTrue(self.ui.check_offline())
 		self.assertTrue(wait_for(lambda: self.reconnects))
 		self.assertFalse(self.ui.check_offline())  # applied once

@@ -197,9 +197,6 @@ def _default_client_profile() -> Dict[str, Any]:
             "client_id": "",
             "base_url": "",
             "api_token": "",
-            # Offline mode: no server connection; go-to and photos from the
-            # front panel only (utils/panel_menu.py).
-            "offline": False,
         },
         "location": {},
     }
@@ -562,14 +559,32 @@ def get_missing_required_client_fields() -> list[str]:
 
 
 def is_offline_mode() -> bool:
+    """Offline mode: no server connection, and the Pi's own Wi-Fi for phones
+    (core/networking/hotspot.py). "offline" in config/hotspot.json."""
     try:
-        return bool(get_client_config().get("offline", False))
+        value = get_section("hotspot").get("offline", False)
     except Exception:
         return False
+    if isinstance(value, str):  # an edit by hand: "on", "true", "yes"...
+        return value.strip().lower() in ("1", "on", "true", "yes")
+    return bool(value)
 
 
 def set_offline_mode(on: bool) -> None:
-    save_client_config({"offline": bool(on)})
+    save_section("hotspot", {"offline": bool(on)})
+
+
+def _legacy_offline() -> bool:
+    """Offline mode as saved in config/client_profile.json before it moved to
+    config/hotspot.json."""
+    return bool(load_client_profile().get("client_config", {}).get("offline", False))
+
+
+def _drop_legacy_offline() -> None:
+    profile = load_client_profile()
+    if "offline" in profile.get("client_config", {}):
+        profile["client_config"].pop("offline")
+        save_client_profile(profile)
 
 
 def get_slew_config() -> Dict[str, float]:
@@ -588,12 +603,14 @@ def get_slew_config() -> Dict[str, float]:
     }
 
 
-# The hotspot's on/off, name and password live in their own file,
+# Offline mode and the hotspot's name and password live in their own file,
 # config/hotspot.json, easy to read or change by hand (over SSH, say); the
-# client picks up a change by itself (core/networking/hotspot.py). The rest of
-# the hotspot section stays in client_config.json.
+# client picks up a change by itself (core/networking/hotspot.py,
+# utils/panel_ui.py). The rest of the hotspot section stays in
+# client_config.json.
 HOTSPOT_FILE_DEFAULTS = {
-    "enabled": True,  # broadcast it in offline mode
+    # Offline mode: no server connection, and the hotspot on
+    "offline": False,
     # The Wi-Fi's name, which is also the telescope's name on the phone
     # ("": the device name, or SELENO-<4 digits>)
     "name": "",
@@ -623,7 +640,7 @@ def get_section(name: str) -> Dict[str, Any]:
     saved = load_static_state().get(name, {})
     saved = dict(saved) if isinstance(saved, dict) else {}
     if name == "hotspot":
-        defaults = dict(defaults, **HOTSPOT_FILE_DEFAULTS)
+        defaults = dict(defaults, **dict(HOTSPOT_FILE_DEFAULTS, offline=_legacy_offline()))
         saved.update(load_hotspot_file())
     return _merge_defaults(defaults, saved)
 
@@ -643,6 +660,7 @@ def save_section(name: str, values: Dict[str, Any]) -> None:
                 payload = {k: current[k] for k in HOTSPOT_FILE_KEYS}
                 payload.update(own)
                 _save_json(hotspot_file(), payload)  # owner-only: it holds the password
+            _drop_legacy_offline()  # offline mode is in hotspot.json now
         if not values and not moved:
             return
         # Values saved in client_config.json before hotspot.json existed move over
