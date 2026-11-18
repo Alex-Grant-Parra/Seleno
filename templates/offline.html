@@ -30,8 +30,9 @@
 <body>
 <main>
     <h1>{{ _("You're offline") }}</h1>
-    <p>{{ _("This page needs a connection. The star map is saved on this device and works without one.") }}</p>
+    <p>{{ _("This page needs a connection. The telescope interface and the star map are saved on this device: on your telescope's Wi-Fi, the interface finds the telescope.") }}</p>
     <div class="actions">
+        <a href="/interface/">{{ _('Telescope interface') }}</a>
         <a href="/StarMap">{{ _('Open the star map') }}</a>
         <button type="button" onclick="location.reload()">{{ _('Try again') }}</button>
     </div>

@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}SELENO{% endblock %}</title>
+    {# A telescope nearby on its own Wi-Fi: found early, before the page asks it anything (static/js/offline-link.js) #}
+    <script src="{{ url_for('static', filename='js/offline-link.js') }}"></script>
     <script>
         // One-time cleanup: an older build registered a service worker that intercepted
         // <video> range requests and broke playback (infinite net::ERR_ABORTED loop).
@@ -62,24 +64,11 @@
         <header class="site-header">
             <nav class="navbar navbar-expand-lg seleno-nav">
                 <div class="container-fluid seleno-nav-inner">
-                    <a class="navbar-brand seleno-brand" href="{{ url_for('interface.interface') if offline_mode else url_for('home.home') }}">{% include 'partials/logo_mark.html' %}SELENO</a>
+                    <a class="navbar-brand seleno-brand" href="{{ url_for('home.home') }}">{% include 'partials/logo_mark.html' %}SELENO</a>
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="{{ _('Toggle navigation') }}">
                         <span class="navbar-toggler-icon"></span>
                     </button>
                     <div class="collapse navbar-collapse" id="navbarNav">
-                        {% if offline_mode %}
-                        {# The telescope's own hotspot (app/offline_mode.py): just what works without the internet #}
-                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('interface.interface') }}">{{ _('Interface') }}</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('star_map.star_map') }}">{{ _('Star Map') }}</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('album.album') }}">{{ _('Album') }}</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('telescope_settings.page') }}">{{ _('Telescope Settings') }}</a></li>
-                            {% if offline_via_app %}
-                            {# Through the seleno.org app: back to its Nearby telescopes screen (its service worker answers /local) #}
-                            <li class="nav-item"><a class="nav-link" href="/local">{{ _('Nearby telescopes') }}</a></li>
-                            {% endif %}
-                        </ul>
-                        {% else %}
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('home.home') }}">{{ _('Home') }}</a></li>
                             <li class="nav-item">
@@ -93,11 +82,13 @@
                             <li class="nav-item">
                                 {% if current_user.is_authenticated %}<a class="nav-link" href="{{ url_for('album.album') }}">{{ _('Album') }}</a>{% else %}<span class="nav-link nav-link-disabled" aria-disabled="true">{{ _('Album') }}</span>{% endif %}
                             </li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('local_access.launcher') }}">{{ _('Nearby') }}</a></li>
                         </ul>
-                        {% endif %}
 
                         <div class="d-flex align-items-center gap-2">
+                            <span id="offlineLinkBadge" class="nav-link d-none" title="{{ _('Talking straight to the telescope over its own Wi-Fi') }}">
+                                <i class="fas fa-wifi"></i> <span data-name></span>
+                                <button type="button" class="btn btn-sm btn-link p-0 ms-1" data-disconnect>{{ _('Disconnect') }}</button>
+                            </span>
                             <div class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ _('Language') }}">
                                     <i class="fas fa-globe"></i> {{ current_language|upper }}
@@ -114,11 +105,7 @@
                                 <span class="theme-toggle-label">{{ _('Theme') }}</span>
                             </button>
 
-                            {% if offline_mode %}
-                            <span class="nav-link offline-telescope-badge" title="{{ _('Connected to the telescope over its own Wi-Fi, without the internet') }}">
-                                <i class="fas fa-wifi"></i> {{ offline_telescope }} &middot; {{ _('Offline') }}
-                            </span>
-                            {% elif current_user.is_authenticated %}
+                            {% if current_user.is_authenticated %}
                             <div class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-user-circle"></i> {{ current_user.username }}
@@ -180,7 +167,6 @@
 
         <footer class="site-footer">
             <div class="container-fluid footer-inner">
-                {% if not offline_mode %}
                 <p>
                     <a href="{{ url_for('about.about') }}">{{ _('About') }}</a>
                     <span>•</span>
@@ -192,22 +178,19 @@
                     <span>•</span>
                     <a href="{{ url_for('contact.support_home') }}">{{ _('Support') }}</a>
                 </p>
-                {% endif %}
                 <small>{{ _('SELENO observatory platform') }}</small>
             </div>
         </footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    {% if not offline_mode %}
     <script>
-        // The site's service worker (static/js/star_map_sw.js): the star map and
-        // Nearby telescopes without the internet, and connecting to a telescope nearby
+        // The site's service worker (static/js/star_map_sw.js): the app's pages
+        // without the internet, and a telescope nearby (static/js/offline-link.js)
         if ('serviceWorker' in navigator && window.isSecureContext) {
             navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
         }
     </script>
-    {% endif %}
     <script>
         (function () {
             var isAuthenticated = document.body.getAttribute('data-authenticated') === 'true';

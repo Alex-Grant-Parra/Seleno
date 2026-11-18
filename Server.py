@@ -5,9 +5,7 @@ import sys
 if __name__ == "__main__":
     sys.modules.setdefault("Server", sys.modules["__main__"])
 
-import os as _os
-# FLASK_PORT: the offline server on a telescope's Pi sets it (app/offline_mode.py)
-FlaskServerPort = int(_os.getenv("FLASK_PORT", "5000"))
+FlaskServerPort = 5000
 ifOnline = True
 
 from utility.setupLibs import ensure_requirements
@@ -122,9 +120,7 @@ app.config["REMEMBER_COOKIE_REFRESH_EACH_REQUEST"] = True
 
 # Session and remember-me cookies only travel over HTTPS (visitors always reach
 # the site through the tunnel's HTTPS). COOKIE_SECURE=False for plain-HTTP dev.
-# Offline mode (app/offline_mode.py) is plain HTTP on the telescope's hotspot.
-from app import offline_mode
-_cookie_secure = os.getenv("COOKIE_SECURE", "False" if offline_mode.enabled() else "True").lower() in ("1", "true", "yes")
+_cookie_secure = os.getenv("COOKIE_SECURE", "True").lower() in ("1", "true", "yes")
 app.config["SESSION_COOKIE_SECURE"] = _cookie_secure
 app.config["REMEMBER_COOKIE_SECURE"] = _cookie_secure
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -211,9 +207,6 @@ def force_https():
       requested); unknown Host headers are never echoed into the redirect.
     """
     if request.is_secure or (request.headers.get('X-Forwarded-Proto') or '').lower() == 'https':
-        return None
-    # The telescope's hotspot has no certificate to offer
-    if offline_mode.enabled():
         return None
 
     raw_host = request.host or ''
@@ -408,7 +401,7 @@ from models.photo import Photo, TelescopeUpload  # Import to register photo and 
 from models.capture_plan import CapturePlan, SavedCapturePlan  # Import to register capture plan tables
 from models.album import FrameMeta, StackResult, FeaturedTarget, Project  # Import to register album index, stacks, featured targets and projects
 from models.telescope_share import TelescopeShare  # Import to register telescope sharing (and its cleanup on delete)
-from models.local_access import TelescopeLocal  # Import to register local access (names, certificates, pass secrets)
+from models.telescope_offline import TelescopeOffline  # Import to register offline access (telescopes' names, certificates, pass secrets)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -603,9 +596,6 @@ with app.app_context():
     except Exception as e:
         print(f"[WARNING] Could not ensure SumUp payment indexes: {e}")
 
-# Offline mode on a telescope's Pi: one telescope, one account, the offline pages
-offline_mode.setup(app)
-
 # Homepage Redirection
 @app.route("/")
 def index():
@@ -666,14 +656,6 @@ try:
 except Exception:
     pass
 
-# Exempt the telescopes' local access report (token-authenticated, no cookies).
-try:
-    local_access_report_view = app.view_functions.get('local_access.telescope_report')
-    if local_access_report_view:
-        csrf.exempt(local_access_report_view)
-except Exception:
-    pass
-
 # Exempt SumUp webhook endpoint from CSRF checks (external server-to-server callback).
 try:
     sumup_webhook_view = app.view_functions.get('payments.sumup_webhook')
@@ -704,19 +686,18 @@ if __name__ == '__main__':
         start_upload_cleanup(app)
         start_plan_watchdog(app)
 
-        # Keep the world map's weather data cached locally (app/weather_cache.py);
-        # not on a telescope's hotspot, which has no internet
-        if not offline_mode.enabled():
-            from app.weather_cache import start_background as start_weather_cache
-            start_weather_cache()
+        # Keep the world map's weather data cached locally (app/weather_cache.py)
+        from app.weather_cache import start_background as start_weather_cache
+        start_weather_cache()
 
         # Old request/security log rows, when LOG_RETENTION_DAYS is set (models/logging.py)
         from models.logging import start_log_retention
         start_log_retention(app)
 
-        # A telescope's Pi: HTTPS for the seleno.org app, beside the plain server (app/offline_mode.py)
-        if offline_mode.enabled():
-            offline_mode.start_tls_server(app)
+        # Telescopes' offline names and certificates, for the app on their hotspots
+        # (app/offline_access.py); does nothing without CLOUDFLARE_API_TOKEN
+        from app.offline_access import start_job as start_offline_access_job
+        start_offline_access_job(app)
 
     # Cloudflare Tunnel (/etc/cloudflared/seleno.yml) targets localhost:FlaskServerPort.
     # Loopback only: reached straight on the public address, the forwarding

@@ -48,7 +48,7 @@ from models.photo import Photo, TelescopeUpload
 from models.capture_plan import CapturePlan, SavedCapturePlan
 from models.album import FrameMeta, StackResult, FeaturedTarget, Project
 from models.telescope_share import TelescopeShare
-from models.local_access import TelescopeLocal  # noqa: F401
+from models.telescope_offline import TelescopeOffline  # noqa: F401
 import models.logging  # noqa: F401  (websocket security log table)
 
 
@@ -76,8 +76,7 @@ import controllers.interface_api as interface_api_mod
 import controllers.projects_api as projects_api_mod
 import controllers.telescopes as telescopes_mod
 import controllers.telescope_settings as telescope_settings_mod
-import controllers.offline_bundle as offline_bundle_mod
-import controllers.local_access as local_access_mod
+import controllers.offline_access as offline_access_mod
 
 PHOTOS = os.path.join(TMP, "camera_photos")
 upload_mod.BASE_UPLOAD_FOLDER = PHOTOS
@@ -89,12 +88,8 @@ for bp in (interface_mod.interface_bp, star_map_mod.star_map_bp, album_mod.album
            capture_mod.capture_bp, tus_mod.telescope_uploads_bp,
            album_api_mod.album_api_bp, interface_api_mod.interface_api_bp, projects_api_mod.projects_api_bp,
            telescopes_mod.telescopes_bp, telescope_settings_mod.telescope_settings_bp,
-           offline_bundle_mod.offline_bundle_bp, local_access_mod.local_access_bp):
+           offline_access_mod.offline_access_bp):
     app.register_blueprint(bp)
-
-# Offline mode's hooks do nothing until a test sets SELENO_OFFLINE (test_offline_mode.py)
-from app import offline_mode
-offline_mode.setup(app)
 
 from app import WebsocketServer as wss
 from app import liveview

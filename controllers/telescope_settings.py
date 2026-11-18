@@ -1,7 +1,7 @@
 """The telescope's own settings (the front panel's Setup items), from a phone or
 a browser: what the telescope's getSettings() describes, changed with
-setSettings(). The owner's, online; everyone's on the telescope's hotspot
-(app/offline_mode.py), where the visitor is the owner."""
+setSettings(). The owner's. On the telescope's hotspot the app sends these to
+the telescope itself, which answers the same (app/offline_access.py)."""
 import logging
 
 from flask import Blueprint, jsonify, render_template, request

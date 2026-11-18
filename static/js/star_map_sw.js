@@ -1,40 +1,52 @@
 // Seleno's service worker, served at /sw.js (scope "/"). Two jobs:
 //
-// 1. A telescope nearby (local mode). The "Nearby telescopes" screen (/local,
-//    static/js/local-launcher.js) connects the app straight to a telescope's
-//    Pi, over HTTPS at its own name (app/local_access.py on the server). From
-//    then on every request the app makes goes to that Pi instead, with the
-//    user's pass: the Pi runs a copy of this site with just that telescope, so
-//    the interface, star map and album look and work as they do here, with or
-//    without the internet. Only this worker, /local and its script stay ours.
-//
-// 2. The star map without a connection:
-//   * /StarMap        network first (4 s), then the stored copy
+// 1. The app without a connection. The pages people use at the telescope (the
+//    interface, star map, album and Telescope Settings), the site's static
+//    files and the CDN files they load are stored as they're visited, so the
+//    installed app opens with no internet:
+//   * those pages     network first (4 s), then the stored copy
+//   * /static/, CDN   network first, then the stored copy (online always fresh)
 //   * star map assets stale-while-revalidate (scripts, i18n catalogue, icons)
 //   * catalogue data  network first, then the stored copy; versioned star
 //                     bands (/api/stars_bin?v=...) are immutable, so cache first
-//   * other pages     straight to the network; offline, the Nearby telescopes
-//                     screen (which links to the star map)
+//   * other pages     straight to the network; offline, a small offline page
+//                     (the app's start page, "/": the interface, when stored)
 //
-// Everything else (video, uploads, telescope APIs, POSTs, range requests) is
-// never touched outside local mode: an earlier worker that cached <video>
-// range requests broke playback, so anything not listed below is left to the
-// browser.
+// 2. A telescope nearby, on its own Wi-Fi (app/offline_access.py on the
+//    server). static/js/offline-link.js finds it from the page and tells this
+//    worker; from then on the requests that are about the telescope (the
+//    paths its /hello lists: the interface's commands and status, tracking,
+//    the album's files...) go to the telescope itself at its HTTPS name, with
+//    the user's offline pass. Everything else, the star map's own data
+//    included, stays the app's: the star map runs on the phone and only what
+//    it wants tracked goes to the telescope.
+//
+// Never touched: video and other range requests, uploads, and POSTs that aren't
+// for the telescope. (An earlier worker that cached <video> range requests
+// broke playback.)
 
 const CACHE_PREFIX = 'seleno-starmap-';
 const PAGE_CACHE = CACHE_PREFIX + 'pages-v2';
 const ASSET_CACHE = CACHE_PREFIX + 'assets-v1';
+const STATIC_CACHE = CACHE_PREFIX + 'static-v1';
 const DATA_CACHE = CACHE_PREFIX + 'data-v1';
-const CURRENT_CACHES = [PAGE_CACHE, ASSET_CACHE, DATA_CACHE];
+const CURRENT_CACHES = [PAGE_CACHE, ASSET_CACHE, STATIC_CACHE, DATA_CACHE];
 
 const STAR_MAP_PATH = '/StarMap';
 const OFFLINE_PATH = '/offline';
-const LAUNCHER_PATH = '/local';
-const LAUNCHER_SCRIPT = '/static/js/local-launcher.js';
 const NETWORK_TIMEOUT_MS = 4000;
+// Pages kept for offline use, and what each is stored as
+const APP_PAGES = {
+    '/StarMap': '/StarMap',
+    '/interface': '/interface/',
+    '/interface/': '/interface/',
+    '/album': '/album',
+    '/interface/telescope_settings': '/interface/telescope_settings/',
+    '/interface/telescope_settings/': '/interface/telescope_settings/',
+};
+const CDN_HOSTS = new Set(['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com']);
 
-const ASSET_PREFIXES = ['/static/js/star_map/', '/static/js/csrf-protection.js', '/i18n/catalog.js', '/static/icons/',
-    LAUNCHER_SCRIPT];
+const ASSET_PREFIXES = ['/static/js/star_map/', '/static/js/csrf-protection.js', '/i18n/catalog.js', '/static/icons/'];
 const DATA_PATHS = new Set(['/api/stars_bands', '/api/stars_bin', '/api/star_names', '/api/constellations', '/api/planets_table']);
 
 // Vary: Cookie on the language-dependent responses would otherwise stop every
@@ -44,9 +56,7 @@ const MATCH = { ignoreVary: true };
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(PAGE_CACHE)
-            .then(cache => cache.addAll([OFFLINE_PATH, LAUNCHER_PATH].map(path => new Request(path, { cache: 'reload' }))))
-            .then(() => caches.open(ASSET_CACHE))
-            .then(cache => cache.add(new Request(LAUNCHER_SCRIPT, { cache: 'reload' })))
+            .then(cache => cache.add(new Request(OFFLINE_PATH, { cache: 'reload' })))
             .then(() => self.skipWaiting())
     );
 });
@@ -65,15 +75,19 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-    const url = new URL(event.request.url);
-    if (url.origin === self.location.origin && !ownPath(url.pathname)) {
-        if (localState) {
-            event.respondWith(forward(event));
+    const request = event.request;
+    const url = new URL(request.url);
+
+    if (url.origin === self.location.origin && request.mode !== 'navigate') {
+        // Just started (the stored telescope isn't read yet), or the page is
+        // checking the telescope is still there: hold its requests until we know
+        if (telescope === undefined || (probing && telescope && forwards(url.pathname))) {
+            event.respondWith(decided().then(() => telescope && forwards(url.pathname)
+                ? forward(event) : (route(event) || fetch(request))));
             return;
         }
-        if (localState === undefined) {
-            // Just started: the stored local mode isn't read yet
-            event.respondWith(localReady.then(state => state ? forward(event) : (route(event) || fetch(event.request))));
+        if (telescope && forwards(url.pathname)) {
+            event.respondWith(forward(event));
             return;
         }
     }
@@ -81,20 +95,19 @@ self.addEventListener('fetch', event => {
     if (handled) event.respondWith(handled);
 });
 
-// The star map's handling (and the launcher's): a promise of the response, or
-// null to leave the request to the browser
+// The app's own handling: a promise of the response, or null to leave the
+// request to the browser
 function route(event) {
     const request = event.request;
     if (request.method !== 'GET' || request.headers.has('range')) return null;
     const url = new URL(request.url);
-    if (url.origin !== self.location.origin) return null;
-
-    if (request.mode === 'navigate') {
-        if (url.pathname === STAR_MAP_PATH) return starMapPage(event);
-        if (url.pathname === LAUNCHER_PATH) return launcherPage(event);
-        return otherPage(event);
+    if (url.origin !== self.location.origin) {
+        return CDN_HOSTS.has(url.hostname) ? networkFirstAny(event, STATIC_CACHE) : null;
     }
     const path = url.pathname;
+    if (request.mode === 'navigate') {
+        return APP_PAGES[path] ? appPage(event, APP_PAGES[path]) : otherPage(event);
+    }
     if (path === STAR_MAP_PATH) {
         // offline.js fetching the page so it is stored on the visit that installed us
         return networkFirst(event, PAGE_CACHE, fetch(request)).then(res => res || Response.error());
@@ -104,110 +117,119 @@ function route(event) {
         return networkFirst(event, DATA_CACHE, fetch(request)).then(res => res || Response.error());
     } else if (ASSET_PREFIXES.some(prefix => path.startsWith(prefix))) {
         return staleWhileRevalidate(event, ASSET_CACHE);
+    } else if (path.startsWith('/static/') && !path.startsWith('/static/videos/')) {
+        return networkFirst(event, STATIC_CACHE, fetch(request)).then(res => res || Response.error());
     }
     return null;
 }
 
-// --- Local mode: a telescope nearby -------------------------------------------
+// --- A telescope nearby -------------------------------------------------------
 
-// Not under CACHE_PREFIX: activating a new version mustn't forget the connection
-const LOCAL_CACHE = 'seleno-local-v1';
-const LOCAL_STATE_KEY = '/__seleno_local__/state';
-// Ours even in local mode: this worker, the launcher, its script, the list of
-// telescopes, and the app's icons
-const OWN_PATHS = ['/sw.js', LAUNCHER_PATH, LAUNCHER_SCRIPT, '/api/local_telescopes', '/static/icons/', '/favicon.ico'];
+// Not under CACHE_PREFIX: a new version of this worker mustn't forget it
+const TELESCOPE_CACHE = 'seleno-telescope-v1';
+const TELESCOPE_KEY = '/__seleno_telescope__';
 const PASS_HEADER = 'X-Seleno-Pass';
+const PROBE_WAIT_MS = 4000;
 
-let localState;  // undefined until read; null when not connected; else {origin, pass, telescope, since}
-const localReady = readLocalState();
+// undefined until read; null when none; else {telescope_id, name, origin, pass, paths: {exact, prefixes}}
+let telescope;
+let probing = null;  // {promise, resolve} while the page checks
+const telescopeRead = readTelescope();
 
-function ownPath(path) {
-    return OWN_PATHS.some(own => own.endsWith('/') ? path.startsWith(own) : path === own);
-}
-
-async function readLocalState() {
+async function readTelescope() {
     try {
-        const stored = await (await caches.open(LOCAL_CACHE)).match(LOCAL_STATE_KEY);
-        localState = stored ? await stored.json() : null;
+        const stored = await (await caches.open(TELESCOPE_CACHE)).match(TELESCOPE_KEY);
+        telescope = stored ? await stored.json() : null;
     } catch (e) {
-        localState = null;
+        telescope = null;
     }
-    return localState;
+    return telescope;
 }
 
-async function writeLocalState(state) {
-    const cache = await caches.open(LOCAL_CACHE);
+async function writeTelescope(state) {
+    const cache = await caches.open(TELESCOPE_CACHE);
     if (state) {
-        await cache.put(LOCAL_STATE_KEY, new Response(JSON.stringify(state), { headers: { 'Content-Type': 'application/json' } }));
+        await cache.put(TELESCOPE_KEY, new Response(JSON.stringify(state), { headers: { 'Content-Type': 'application/json' } }));
     } else {
-        await cache.delete(LOCAL_STATE_KEY);
+        await cache.delete(TELESCOPE_KEY);
     }
-    localState = state || null;
+    telescope = state || null;
 }
 
-// The launcher's messages: {type: 'seleno-local', action: 'connect' | 'disconnect' | 'state', ...},
-// answered on the MessageChannel port it sends
+function decided() {
+    const waits = [telescopeRead];
+    if (probing) {
+        waits.push(Promise.race([probing.promise, new Promise(resolve => setTimeout(resolve, PROBE_WAIT_MS))]));
+    }
+    return Promise.all(waits);
+}
+
+function forwards(path) {
+    const paths = (telescope && telescope.paths) || {};
+    const bare = path.length > 1 ? path.replace(/\/+$/, '') : path;
+    return (paths.exact || []).includes(bare) || (paths.prefixes || []).some(prefix => path.startsWith(prefix));
+}
+
+// static/js/offline-link.js: {type: 'seleno-telescope', action: 'probing' | 'connect' | 'none' | 'state', state}
 self.addEventListener('message', event => {
     const data = event.data || {};
-    if (data.type !== 'seleno-local') return;
+    if (data.type !== 'seleno-telescope') return;
     const reply = message => { if (event.ports && event.ports[0]) event.ports[0].postMessage(message); };
     event.waitUntil((async () => {
         try {
-            if (data.action === 'connect') {
-                const origin = new URL(data.origin).origin;
-                if (!origin.startsWith('https://') || !data.pass) throw new Error('A telescope needs an https address and a pass');
-                await writeLocalState({ origin, pass: String(data.pass), telescope: String(data.telescope || ''), since: Date.now() });
-            } else if (data.action === 'disconnect') {
-                await writeLocalState(null);
-            } else {
-                await localReady;
+            await telescopeRead;
+            if (data.action === 'probing') {
+                if (!probing) {
+                    let resolve;
+                    const promise = new Promise(r => { resolve = r; });
+                    probing = { promise, resolve };
+                    setTimeout(() => finishProbe(), PROBE_WAIT_MS * 2);
+                }
+            } else if (data.action === 'connect') {
+                const state = data.state || {};
+                const origin = new URL(state.origin).origin;
+                if (!origin.startsWith('https://') || !state.pass) throw new Error('A telescope needs an https address and a pass');
+                await writeTelescope({ telescope_id: String(state.telescope_id || ''), name: String(state.name || ''),
+                    origin, pass: String(state.pass), paths: state.paths || {}, since: Date.now() });
+                finishProbe();
+            } else if (data.action === 'none') {
+                await writeTelescope(null);
+                finishProbe();
             }
-            reply({ ok: true, state: localState || null });
+            reply({ ok: true, state: telescope ? { telescope_id: telescope.telescope_id, name: telescope.name, origin: telescope.origin } : null });
         } catch (e) {
+            finishProbe();
             reply({ ok: false, error: String(e && e.message || e) });
         }
     })());
 });
 
-// The same request, to the telescope, with the pass. Its cookies (the Pi's
-// session, for its CSRF tokens) go with it: tel.<site> is the same site.
+function finishProbe() {
+    if (probing) {
+        probing.resolve();
+        probing = null;
+    }
+}
+
+// The same request, to the telescope, with the pass
 async function forward(event) {
     const request = event.request;
-    const state = localState || await localReady;
+    const state = telescope;
     const url = new URL(request.url);
     const headers = new Headers();
-    for (const [name, value] of request.headers) headers.set(name, value);
+    for (const [name, value] of request.headers) {
+        if (!['cookie', 'origin', 'referer'].includes(name.toLowerCase())) headers.set(name, value);
+    }
     headers.set(PASS_HEADER, state.pass);
-    const init = { method: request.method, headers, mode: 'cors', credentials: 'include', redirect: 'follow', cache: 'no-store' };
+    const init = { method: request.method, headers, mode: 'cors', credentials: 'omit', redirect: 'follow', cache: 'no-store' };
     if (request.method !== 'GET' && request.method !== 'HEAD') init.body = await request.arrayBuffer();
-    let response;
     try {
-        response = await fetch(state.origin + url.pathname + url.search, init);
+        const response = await fetch(state.origin + url.pathname + url.search, init);
+        return new Response(response.body, { status: response.status, statusText: response.statusText, headers: response.headers });
     } catch (e) {
-        return request.mode === 'navigate' ? lostPage(state) : Response.error();
+        const body = JSON.stringify({ status: 'error', message: `Can't reach ${state.name || 'the telescope'}: is this phone on its Wi-Fi?` });
+        return new Response(body, { status: 503, headers: { 'Content-Type': 'application/json' } });
     }
-    if (request.mode === 'navigate' && response.redirected) {
-        // Show the page at its own address, so its relative links work
-        const final = new URL(response.url);
-        return Response.redirect(self.location.origin + final.pathname + final.search, 303);
-    }
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers: new Headers(response.headers) });
-}
-
-function escapeHtml(text) {
-    return String(text).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function lostPage(state) {
-    const name = escapeHtml(state.telescope || 'the telescope');
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SELENO</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;
-font-family:system-ui,-apple-system,sans-serif;background:#F4EFE6;color:#14213D;text-align:center}
-@media (prefers-color-scheme: dark){body{background:#0d1424;color:#e8e4dc}}main{max-width:420px}p{opacity:.8;line-height:1.5}
-a{display:inline-block;margin:6px;padding:10px 18px;border-radius:8px;border:2px solid currentColor;color:inherit;text-decoration:none}</style></head>
-<body><main><h1>Can't reach ${name}</h1><p>Check that this phone is on the telescope's Wi-Fi, or on the same Wi-Fi as it, and that the telescope is on.</p>
-<a href="javascript:location.reload()">Try again</a><a href="${LAUNCHER_PATH}">Telescopes</a></main></body></html>`;
-    return new Response(html, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 // --- Strategies -------------------------------------------------------------
@@ -217,9 +239,9 @@ function cacheable(response) {
 }
 
 // Store a copy of a good response while handing the original on
-function storing(event, cacheName, request, networkPromise, versionParam) {
+function storing(event, cacheName, request, networkPromise, versionParam, accept = cacheable) {
     return networkPromise.then(response => {
-        if (cacheable(response)) {
+        if (accept(response)) {
             const copy = response.clone();
             event.waitUntil(caches.open(cacheName).then(async cache => {
                 await cache.put(request, copy);
@@ -257,9 +279,10 @@ const FAILED = Symbol('failed');
 
 // The network's answer if it comes within the timeout, otherwise the stored
 // copy; with neither, wait out the network. Resolves to null on no answer.
-async function networkFirst(event, cacheName, networkPromise, fallbackMatch) {
+async function networkFirst(event, cacheName, networkPromise, fallbackMatch, accept = cacheable) {
     const request = event.request;
-    const network = storing(event, cacheName, request, networkPromise);
+    const network = storing(event, cacheName, fallbackMatch ? new Request(fallbackMatch) : request, networkPromise,
+        null, accept);
     const first = await Promise.race([
         network.catch(() => FAILED),
         new Promise(resolve => setTimeout(() => resolve(TIMED_OUT), NETWORK_TIMEOUT_MS)),
@@ -275,6 +298,12 @@ async function networkFirst(event, cacheName, networkPromise, fallbackMatch) {
     if (answered) return first;
     if (first === FAILED) return null;
     return network.catch(() => null);
+}
+
+// CDN files: their responses are cross-origin (opaque when loaded without CORS)
+function networkFirstAny(event, cacheName) {
+    const ok = response => response && (response.type === 'opaque' || (response.status === 200 && response.type === 'cors'));
+    return networkFirst(event, cacheName, fetch(event.request), null, ok).then(res => res || Response.error());
 }
 
 async function cacheFirst(event, cacheName, versionParam) {
@@ -308,25 +337,40 @@ function navigationResponse(event) {
 }
 
 async function offlinePage() {
-    // Offline, the app opens on Nearby telescopes (which links to the star map)
     const cache = await caches.open(PAGE_CACHE);
-    return (await cache.match(LAUNCHER_PATH, MATCH)) || (await cache.match(OFFLINE_PATH, MATCH)) || Response.error();
+    return (await cache.match(OFFLINE_PATH, MATCH)) || Response.error();
 }
 
-async function launcherPage(event) {
-    const response = await networkFirst(event, PAGE_CACHE, navigationResponse(event), LAUNCHER_PATH);
+// A page the app keeps: stored under one key whatever its query, so the copy
+// is there however it was opened. Only a page that loaded (200) is stored: a
+// login page or an error never replaces a good copy.
+async function appPage(event, key) {
+    const response = await networkFirst(event, PAGE_CACHE, navigationResponse(event), key,
+        res => res && res.status === 200 && res.type === 'basic' && !res.redirected);
     return response || offlinePage();
 }
 
-async function starMapPage(event) {
-    const response = await networkFirst(event, PAGE_CACHE, navigationResponse(event), STAR_MAP_PATH);
-    return response || offlinePage();
-}
+// The installed app opens at "/", a page that isn't kept. With no connection
+// (on a telescope's Wi-Fi, say) it goes on to the interface, which finds the
+// telescope, when that's stored; otherwise the offline page
+const START_PATH = '/';
+const START_OFFLINE = '/interface/';
 
 async function otherPage(event) {
+    const start = new URL(event.request.url).pathname === START_PATH;
     try {
-        return await navigationResponse(event);
+        if (!start) return await navigationResponse(event);
+        const TIMED_OUT = {};
+        const first = await Promise.race([
+            navigationResponse(event),
+            new Promise(resolve => setTimeout(() => resolve(TIMED_OUT), NETWORK_TIMEOUT_MS)),
+        ]);
+        if (first !== TIMED_OUT && first.status < 500) return first;
+        throw new Error('no answer');
     } catch (e) {
+        if (start && await (await caches.open(PAGE_CACHE)).match(START_OFFLINE, { ...MATCH, ignoreSearch: true })) {
+            return Response.redirect(new URL(START_OFFLINE, self.location.origin).href, 302);
+        }
         return offlinePage();
     }
 }

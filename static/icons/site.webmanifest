@@ -1,6 +1,10 @@
 {
+  "id": "/",
   "name": "Seleno",
   "short_name": "Seleno",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
   "theme_color": "#14213D",
   "background_color": "#F4EFE6",
   "icons": [

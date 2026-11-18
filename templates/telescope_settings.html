@@ -5,8 +5,7 @@
 {% block content %}
 <div class="container mt-4 telescope-settings" id="ts-root"
      data-telescope-id="{{ telescope_id or '' }}"
-     data-url="{{ url_for('telescope_settings.read_settings') }}"
-     data-offline="{{ offline_mode|tojson }}">
+     data-url="{{ url_for('telescope_settings.read_settings') }}">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h2 class="mb-0">{{ _('Telescope Settings') }}
             {% if telescope_id %}<span class="badge bg-secondary fs-6 align-middle">{{ telescope_id }}</span>{% endif %}

@@ -50,42 +50,48 @@ SELENO uses a web-based control server connected to distributed Raspberry Pi \
 	- LiveView server: port 8000
 - Route list is auto-generated to templates/routes.txt at startup.
 
-## Offline mode (on a telescope's Pi)
+## A telescope's own Wi-Fi (offline)
 
-A telescope in offline mode makes its own Wi-Fi hotspot, with no internet, and runs a copy of this
-server on its Raspberry Pi for the phones that join it (SelenoClient's `core/networking/hotspot.py`
-and `offline_server.py`). Phones open `http://10.42.0.1/` and get the interface, star map, album and
-Telescope Settings as online, with just that telescope (`app/offline_mode.py`):
+A telescope in offline mode makes its own Wi-Fi hotspot, with no internet (SelenoClient's
+`core/networking/hotspot.py`). Phones on it keep using the seleno.org app, installed from here:
 
-- one account, the observer, which every visitor is (the Wi-Fi password is the way in), and one
-  telescope, owned by it and selected for everyone, named by the telescope;
-- the other pages redirect to the interface; the CDN files are served locally;
-- live view goes straight from the Pi to the phone (`ws://<address the phone used>:8000`).
+- **The app works offline.** Its service worker (`static/js/star_map_sw.js`) keeps the interface,
+  star map, album and Telescope Settings pages, the site's static files and the CDN files, so the
+  app opens with no internet. The star map runs on the phone as always.
+- **It talks straight to the telescope.** `static/js/offline-link.js` finds a telescope of the
+  user's nearby and tells the worker, which from then on sends the requests that are about the
+  telescope (the interface's commands and status, tracking, the album's files...) to the telescope
+  itself; the telescope answers them as this server would (SelenoClient `utils/phone_api.py`). The
+  interface's telescope list then has just that telescope. It looks by itself when seleno.org can't
+  be reached (the telescope's Wi-Fi has no internet), or after the browser has allowed local
+  network access.
+- **HTTPS at the telescope's own name.** A page from https://seleno.org can only talk https, so
+  each telescope gets `<slug>.tel.<APP_DOMAIN>`, pointing at its hotspot address (10.42.0.1), with a
+  Let's Encrypt certificate this server gets by DNS-01 on Cloudflare and renews (`app/acme.py`,
+  `app/cloudflare_dns.py`, `app/offline_access.py`). Telescopes fetch their name, certificate and
+  pass secret with their API token from `/api/telescope/offline_credentials` while online.
+- **Offline passes.** While online the app gets a signed pass for each telescope the user may use
+  (`/interface/offline_passes`: owner and shared for 30 days, bookings for the booking's time), and
+  the telescope checks it with the secret they share.
 
-The copy is a bundle built here and downloaded by telescopes with their API token from
-`/api/telescope/offline_bundle` (the panel's Setup > Get phone app). Rebuild it after changing the
-pages (about 15 s; needs the internet once, for the CDN files):
+Needs `CLOUDFLARE_API_TOKEN` (a token with Zone:DNS:Edit on the zone) for the names and
+certificates; without it everything else works and telescopes are told their certificate is
+pending. Capture plans, stacking and saving edits stay online-only.
 
-```bash
-venv/bin/python scripts/build_offline_bundle.py    # -> downloads/offline/seleno-offline.tar.gz
-```
+Telescope Settings (`/interface/telescope_settings/`, `controllers/telescope_settings.py`) shows and
+changes a telescope's own panel settings for its owner, online or on the hotspot.
 
-It holds the code, the star catalogue (no accounts, logs or photos), V3 Helios's checkpoint cache
-(not its SPICE kernels) and local copies of Bootstrap, Font Awesome and the fonts.
-
-Telescope Settings (`/interface/telescope_settings/`, `controllers/telescope_settings.py`) works online
-too, for a telescope's owner: it shows and changes the telescope's own panel settings through the
-client's `getSettings` and `setSettings`.
+The whole flow runs end to end in headless Chrome against a fake telescope:
+`E2E_CHROME=/path/to/chrome venv/bin/python tests/e2e/hotspot.py` (about 15 s).
 
 ## Important Environment Variables
 
 - FLASK_SECRET_KEY: Flask session secret (required: the server won't start without it)
 - ENCRYPTION_KEY: application encryption key
 - FLASK_BIND_HOST: address the web server binds to (default 127.0.0.1; the Cloudflare tunnel is the way in)
-- FLASK_PORT: the web server's port (default 5000)
-- SELENO_OFFLINE, SELENO_OFFLINE_TELESCOPE, SELENO_OFFLINE_TOKEN: offline mode on a telescope's Pi, its telescope's name and token (set by the telescope client, see above)
-- LIVEVIEW_WS_IP: the live-view socket's bind address, when it differs from WS_IP (offline mode: phones connect to it directly)
 - WS_IP: WebSocket bind address (default 127.0.0.1)
+- CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE: telescopes' offline names and certificates (see above; zone default APP_DOMAIN)
+- OFFLINE_TLS_SUFFIX (default tel.<APP_DOMAIN>), OFFLINE_HOTSPOT_ADDRESS (default 10.42.0.1), OFFLINE_APP_ORIGINS (extra origins telescopes accept), ACME_DIRECTORY (default Let's Encrypt; its staging directory for trying), ACME_EMAIL
 - TRUSTED_PROXIES: extra proxy addresses whose forwarding headers are believed (loopback always is)
 - FLASK_DEBUG: run Flask's development server with the reloader instead of waitress
 - WAITRESS_THREADS, WAITRESS_CHANNEL_TIMEOUT: waitress worker threads (default 48) and idle timeout in s (default 300)
