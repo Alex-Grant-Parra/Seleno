@@ -69,11 +69,14 @@ RATE_LIMITS = {
     'blocked': 0            # 0 requests for blocked IPs
 }
 
-# Paths left out of the normal per-minute limit. The world map's weather layers
-# read many small pieces of data (dozens per layer, more while scrubbing the
-# forecast slider), which would trip the limit. Suspicious requests are still limited.
+# Paths left out of the normal per-minute limit. Suspicious requests are still limited.
+# - /map/weather/: the world map's weather layers read many small pieces of data
+#   (dozens per layer, more while scrubbing the forecast slider).
+# - /static/: cheap to serve, and the in-browser stacking engine starts up to 8
+#   workers that each load ~22 module files, which alone exceeds the limit.
 RATE_LIMIT_EXEMPT_PATHS = [
     '/map/weather/',
+    '/static/',
 ]
 
 # Security logging
