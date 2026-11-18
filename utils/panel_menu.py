@@ -156,7 +156,12 @@ def validate_api_key(value: str) -> Optional[str]:
 
 def _server_state() -> str:
 	if is_offline_mode():
-		return "offline"
+		from core.networking import hotspot, phone_link
+
+		if not hotspot.enabled():
+			return "offline"
+		viewers = phone_link.viewer_count()
+		return f"offline: {viewers} watching" if viewers else f"offline: app {phone_link.status_text()}"
 	try:
 		from core.networking.websocket import server_state
 	except Exception:
@@ -590,6 +595,83 @@ def _local_page_text() -> str:
 	return f"{local_page.address().replace('http://', '')} code {local_page.code()}"
 
 
+# --- the offline hotspot (core/networking/hotspot.py) ---------------------------------
+
+def _hotspot_shown() -> bool:
+	from core.networking import hotspot
+
+	return hotspot.wanted()
+
+
+def _hotspot_enabled() -> bool:
+	from core.networking import hotspot
+
+	return hotspot.enabled()
+
+
+def _set_hotspot_enabled(on: bool) -> Optional[str]:
+	from core.networking import hotspot
+
+	return hotspot.set_enabled(on)
+
+
+def _hotspot_name() -> str:
+	from core.networking import hotspot
+
+	return hotspot.name()
+
+
+def _set_hotspot_name(value: str) -> Optional[str]:
+	from core.networking import hotspot
+
+	return hotspot.set_name(value)
+
+
+def _hotspot_password() -> str:
+	from core.networking import hotspot
+
+	return hotspot.password()
+
+
+def _set_hotspot_password(value: str) -> Optional[str]:
+	from core.networking import hotspot
+
+	return hotspot.set_password(value)
+
+
+def _hotspot_wifi() -> str:
+	from core.networking import hotspot
+
+	return hotspot.wifi_text()
+
+
+def _hotspot_state() -> str:
+	from core.networking import hotspot, phone_link
+
+	return f"{hotspot.status_text()}, app {phone_link.status_text()}"[:40]
+
+
+def hotspot_message() -> str:
+	"""What a phone needs to join: shown when offline mode goes on."""
+	from core.networking import hotspot, phone_link
+
+	hotspot.ensure_credentials()
+	text = f"Join Wi-Fi {hotspot.name()}, password {hotspot.password()}, then open the Seleno app."
+	if phone_link.credentials() is None:
+		text += " (It needs the telescope online once first, for its certificate.)"
+	return text
+
+
+def _show_hotspot(ui: "PanelUI") -> None:
+	ui.prompt("message", "Phone hotspot", hotspot_message()[:140])
+
+
+def _app_link_text() -> str:
+	from utils import phone_credentials
+
+	return phone_credentials.status_text()
+
+
 MOTOR_POLICIES = ["guarded", "off", "unrestricted"]
 
 
@@ -733,6 +815,16 @@ def build_panels(ui: "PanelUI") -> List[Panel]:
 		]),
 		Panel("setup", "Setup", 20, [
 			Toggle("offline", "Offline mode", is_offline_mode, ui.set_offline),
+			# Offline: the Pi's own Wi-Fi, for phones (core/networking/hotspot.py)
+			only_when(Info("hs_wifi", "Wi-Fi", _hotspot_wifi), _hotspot_shown),
+			only_when(Info("hs_state", "Hotspot", _hotspot_state), _hotspot_shown),
+			only_when(Action("hs_show", "Show hotspot", lambda: ui.run_flow("hotspot", _show_hotspot)), _hotspot_shown),
+			Toggle("hotspot", "Phone hotspot", _hotspot_enabled, _set_hotspot_enabled),
+			Text("hs_name", "Offline name", _hotspot_name, _set_hotspot_name, max_length=32,
+				hint="Wi-Fi + telescope name"),
+			Text("hs_pass", "Hotspot pass", _hotspot_password, _set_hotspot_password, max_length=63,
+				hint="8-63 characters"),
+			Info("app_link", "App link", _app_link_text),
 			Text("client_id", "Device name", lambda: _client_config().get("client_id", ""),
 				lambda v: ui.save_setting("client_id", v), max_length=32),
 			Text("base_url", "Server", lambda: _bare_server(_client_config().get("base_url", "")),

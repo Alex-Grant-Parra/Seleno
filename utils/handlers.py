@@ -19,7 +19,7 @@ from core.camera.backends import CameraError
 from core.camera.service import get_camera_service
 from core.camera.stream import PRESETS, get_live_stream
 from utils import motor_guard, photos
-from utils.config_state import get_client_config, get_section, save_section, build_service_urls
+from utils.config_state import get_client_config, get_section, is_offline_mode, save_section, build_service_urls
 from utils.LEDmanager import get_led_manager
 from utils.esp32_state import esp32_state
 from utils.liveview_state import save_liveview_state
@@ -135,14 +135,18 @@ def capturePhoto(currentid, exposure_s=None, frame_type="light"):
         info = photos.frame_meta(frame_type, exposure)
         base = f"{owner or 'photo'}_{'test' if frame_type == 'test' else 'photo'}_" \
             f"{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        # Offline, from the seleno.org app on the hotspot (utils/phone_api.py):
+        # kept in tonight's offline folder, and queued for the user's account,
+        # so it uploads by itself once the telescope is back online
+        folder = photos.night_folder() if is_offline_mode() else photos.SERVER_DIR
         try:
-            paths = photos.capture_to(photos.SERVER_DIR, base, exposure)
+            paths = photos.capture_to(folder, base, exposure)
         except RuntimeError as exc:
             leds.set_error(True, critical=False)
             return {"error": str(exc)}
         names = [os.path.basename(p) for p in paths]
         info["pair"] = photos.pair_id(paths)
-        photos.record(photos.SERVER_DIR, names, dict(info, owner=owner))
+        photos.record(folder, names, dict(info, owner=owner))
         problems = get_upload_queue().add_many(paths, owner, info, priority=frame_type == "test")
         queued = sum(1 for p in problems if p is None)
         problem = next((p for p in problems if p), None)
@@ -845,6 +849,22 @@ def updateFirmware():
     return maintenance.update_firmware()
 
 
+def getSettings():
+    """The front panel's settings, described for a form (the server's
+    Telescope Settings page): utils/remote_settings.py."""
+    from utils import remote_settings
+
+    return remote_settings.describe()
+
+
+def setSettings(changes=None):
+    """Change some of them: {key: value}. Replies {"applied": [...],
+    "errors": {key: why}, "notice": ..., "settings": getSettings()}."""
+    from utils import remote_settings
+
+    return remote_settings.apply(changes)
+
+
 def get_current_coordinates():
     # The current telescope coordinates (right ascension and declination).
     coords = get_telescope_coords()
@@ -932,6 +952,9 @@ function_map = {
     "getDeadZones": getDeadZones,
     "setDeadZones": setDeadZones,
     "getPlanets": getPlanets,
+    # Settings (the server's Telescope Settings page; the phone on the hotspot)
+    "getSettings": getSettings,
+    "setSettings": setSettings,
     # Maintenance (off unless allowed in config server)
     "updateClient": updateClient,
     "updateFirmware": updateFirmware,

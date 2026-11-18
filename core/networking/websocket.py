@@ -33,7 +33,7 @@ from typing import Any, Dict, Optional
 import ujson as json  # Using ujson for faster serialization
 import websockets
 
-from utils.config_state import build_service_urls, get_client_config, get_section, is_offline_mode, save_client_config
+from utils.config_state import get_client_config, get_section, is_offline_mode, save_client_config
 from utils.esp32_state import esp32_scanner_task
 from utils.LEDmanager import get_led_manager
 from utils.log import get_logger
@@ -59,7 +59,7 @@ LIVEVIEW_IDLE_CLOSE_S = 60.0
 FRAME_SEND_TIMEOUT_S = 20.0
 QUERY_PREFIXES = ("get", "espStatus", "espInfo", "espEstopStatus", "espDriverStatus", "espPanelStatus",
     "espImuRead", "echo", "liveViewViewers", "unpark", "setClock", "setHorizon", "setTrackingRate",
-    "setDeadZones")
+    "setDeadZones", "setSettings")
 CAMERA_FUNCTIONS = {"getCameraChoices", "setCameraSetting", "capturePhoto", "setCameraZoom", "liveViewSnapshot",
     "startPhotoSequence", "startRecording", "startLiveView", "setLiveViewOptions", "setLiveViewQuality",
     "setLiveViewFocus", "uploadPending", "retryFailedUploads", "uploadOfflinePhotos"}
@@ -70,27 +70,49 @@ def _set_server_state(state: str, detail: str = "") -> None:
     server_state["detail"] = detail
 
 
-def apply_client_config(cfg: dict) -> None:
-    # Use new settings (from the front panel) without restarting: update the
-    # globals the connect loops read, then drop the open connections so they
-    # reconnect with them.
-    global CLIENT_ID, SERVER_URI, LIVEVIEW_URI, SERVER_HTTP_URL, API_TOKEN
-    CLIENT_ID = cfg.get("client_id") or CLIENT_ID
-    API_TOKEN = cfg.get("api_token") or API_TOKEN
-    if cfg.get("base_url"):
-        urls = build_service_urls(cfg["base_url"])
-        SERVER_HTTP_URL = urls["http_url"]
-        SERVER_URI = urls["server_uri"]
-        LIVEVIEW_URI = urls["liveview_uri"]
+_link_key = None  # the link the globals were last set from
+
+
+def _refresh_link() -> bool:
+    """Set the globals the connect loops read from utils/server_link.py:
+    the panel's server online, the Pi's own offline server on the hotspot,
+    or none. When it changes, the open connections are dropped so they
+    reconnect to the new one. Returns whether there's a server to reach."""
+    global CLIENT_ID, SERVER_URI, LIVEVIEW_URI, SERVER_HTTP_URL, API_TOKEN, _link_key
+    from utils import server_link
+
+    try:
+        link = server_link.current()
+    except Exception as exc:
+        log.debug("No server link: %s", exc)
+        link = None
+    key = tuple(sorted(link.items())) if link else None
+    if key != _link_key:
+        changed = _link_key is not None
+        _link_key = key
+        CLIENT_ID = link["client_id"] if link else None
+        API_TOKEN = link["api_token"] if link else None
+        SERVER_HTTP_URL = link["http_url"] if link else None
+        SERVER_URI = link["server_uri"] if link else None
+        LIVEVIEW_URI = link["liveview_uri"] if link else None
+        if link:
+            log.info("Server link: %s (%s)", link["kind"], SERVER_URI)
+        if changed:
+            request_reconnect()
+    return link is not None
+
+
+def apply_client_config(cfg: dict = None) -> None:
+    # Use new settings (from the front panel) without restarting: the
+    # connect loops reconnect with them.
+    _refresh_link()
     request_reconnect()
 
 
 def server_enabled() -> bool:
-    # False in offline mode or before the server settings are known; the
-    # connect loops wait instead of connecting.
-    if is_offline_mode():
-        return False
-    return bool(SERVER_URI and LIVEVIEW_URI and API_TOKEN and CLIENT_ID)
+    # False offline with no hotspot server, or before the server settings are
+    # known; the connect loops wait instead of connecting.
+    return _refresh_link()
 
 
 async def _wait_for_server_enabled() -> None:
@@ -401,6 +423,22 @@ def start_services() -> None:
         gps.start()
     except Exception as exc:
         log.warning("GPS reader not started: %s", exc)
+    try:
+        # Offline with the hotspot on: the Wi-Fi for phones and the Pi's own
+        # server for them (core/networking/hotspot.py)
+        from core.networking import hotspot
+
+        hotspot.start()
+    except Exception as exc:
+        log.warning("Hotspot not started: %s", exc)
+    try:
+        # The seleno.org app's way in on the hotspot: its name, certificate and
+        # pass secret, fetched while online (utils/phone_credentials.py)
+        from utils import phone_credentials
+
+        phone_credentials.start()
+    except Exception as exc:
+        log.warning("Phone link credentials not started: %s", exc)
 
 
 def cleanup_camera():
@@ -425,6 +463,12 @@ def shutdown() -> None:
         from utils.telescope_state import flush
 
         flush()
+    except Exception:
+        pass
+    try:
+        from core.networking import phone_link
+
+        phone_link.stop()
     except Exception:
         pass
     try:
@@ -483,17 +527,12 @@ async def websocketClient(cfg: dict = None):
         raise KeyError(f"Missing required values in config/client_profile.json: {', '.join(missing)}. "
             "Run 'python Client.py setup' to create or fix the config.")
 
-    global CLIENT_ID, SERVER_URI, LIVEVIEW_URI, SERVER_HTTP_URL, API_TOKEN, _loop
+    global _loop
     _loop = asyncio.get_running_loop()
-    CLIENT_ID = cfg.get("client_id") or None
-    API_TOKEN = cfg.get("api_token") or None
-    if cfg.get("base_url"):
-        urls = build_service_urls(cfg["base_url"])
-        SERVER_HTTP_URL = urls["http_url"]
-        SERVER_URI = urls["server_uri"]
-        LIVEVIEW_URI = urls["liveview_uri"]
+    _refresh_link()
     if is_offline_mode():
-        log.info("Offline mode: not connecting to the server (turn it off in the front panel's Setup tab)")
+        log.info("Offline mode: not connecting to the server (turn it off in the front panel's Setup tab); "
+            "with the hotspot on, phones connect with the seleno.org app")
     leds = get_led_manager()
     await asyncio.to_thread(leds.set_ui_connected, True)
 

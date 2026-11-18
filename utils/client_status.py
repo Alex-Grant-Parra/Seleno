@@ -8,7 +8,8 @@ from typing import Any, Callable, Dict, List, Optional
 
 # What this client understands beyond the v0.8 commands; the server only
 # sends the new arguments to clients that list them.
-CAPABILITIES: List[str] = ["capture_frame_type", "upload_pending_filter", "liveview_jpeg_options", "dead_zones"]
+CAPABILITIES: List[str] = ["capture_frame_type", "upload_pending_filter", "liveview_jpeg_options", "dead_zones",
+	"moving_targets"]  # trackCoordinates takes ra_rate/dec_rate
 
 
 def _part(fn: Callable[[], Any]) -> Any:

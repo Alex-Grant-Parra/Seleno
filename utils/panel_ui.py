@@ -473,11 +473,15 @@ class PanelUI:
 
 	def set_offline(self, on: bool) -> Optional[str]:
 		"""Offline mode: no server connection (core/networking/websocket.py
-		waits); go-to and photos from the panel still work."""
+		waits); go-to and photos from the panel still work. With the
+		hotspot on, the Pi makes its own Wi-Fi for phones (core/networking/
+		hotspot.py), and its name and password are shown here."""
+		from core.networking import hotspot
 		from utils.config_state import get_client_config, set_offline_mode
 
 		set_offline_mode(on)
 		self.refresh_values()
+		hotspot.apply()
 		try:
 			from core.networking import websocket
 		except Exception:
@@ -485,6 +489,12 @@ class PanelUI:
 		if on:
 			if websocket is not None:
 				websocket.request_reconnect()  # drops the open connections
+			if hotspot.enabled():
+				from utils.panel_menu import hotspot_message
+
+				message = hotspot_message()
+				self.run_flow("hotspot", lambda ui: ui.prompt("message", "Phone hotspot", message[:140]))
+				return "Offline: hotspot starting"
 			return "Offline: no server"
 		if self.missing_settings():
 			self.start_wizard()

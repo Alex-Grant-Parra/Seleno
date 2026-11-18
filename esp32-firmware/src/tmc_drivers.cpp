@@ -16,7 +16,31 @@ namespace {
 class SelenoTmc : public TMC2209Stepper {
  public:
   SelenoTmc(Stream* port, float rsense, uint8_t addr) : TMC2209Stepper(port, rsense, addr) {}
-  uint32_t readReg(uint8_t reg) { return read(reg); }
+
+  // TMCStepper's read() rejects any reply whose CRC is 0x00, though that is
+  // a valid CRC. CHOPCONF at 1/8 microsteps (0x15000054) replies with
+  // exactly that, so every read of it failed. Same exchange, correct check:
+  // only an all-zero frame (the library's timeout value) is a failure.
+  uint32_t readReg(uint8_t reg) {
+    uint8_t datagram[] = {TMC2208_SYNC, slave_address, static_cast<uint8_t>(reg & 0x7F), 0x00};
+    datagram[3] = calcCRC(datagram, 3);
+    for (uint8_t attempt = 0; attempt < max_retries; attempt++) {
+      preReadCommunication();
+      uint64_t out = _sendDatagram(datagram, 3, abort_window);
+      postReadCommunication();
+      delay(replyDelay);
+      uint8_t frame[8];
+      for (int i = 0; i < 8; i++) {
+        frame[i] = static_cast<uint8_t>(out >> (56 - 8 * i));
+      }
+      if (out != 0 && calcCRC(frame, 7) == frame[7]) {
+        CRCerror = false;
+        return static_cast<uint32_t>(out >> 8);
+      }
+    }
+    CRCerror = true;
+    return 0;
+  }
   void writeReg(uint8_t reg, uint32_t value) { write(reg, value); }
 };
 
@@ -247,6 +271,17 @@ void pollRegisters(int axis) {
     d.lastReprobeMs = now;
     if (configure(d)) {
       emitDriverEvent(axis, "driver_found", 0, false);
+    }
+    return;
+  }
+
+  // Answering but its settings didn't read back: try again now and then
+  // rather than leaving the axis locked until a reboot. The driver can't
+  // be enabled until this succeeds, so nothing is moving.
+  if (!d.configured) {
+    if (now - d.lastReprobeMs >= kReprobeIntervalMs) {
+      d.lastReprobeMs = now;
+      configure(d);
     }
     return;
   }

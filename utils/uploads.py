@@ -70,34 +70,110 @@ def _settings() -> Dict[str, Any]:
 		return {"raw": "after_jpeg", "retry_max_s": 600}
 
 
+TUS_PATH = "api/telescope/uploads"
+TUS_VERSION = "1.0.0"
+CHUNK_BYTES = 4 * 1024 * 1024
+TUS_KINDS = ("jpeg", "raw", "video")
+# Where each file's upload is on the server, to carry on after a cut-out
+# instead of starting again: (server, path, size) -> its URL
+_resume: Dict[tuple, str] = {}
+
+
+def _file_sha256(path: str) -> str:
+	import hashlib
+
+	digest = hashlib.sha256()
+	with open(path, "rb") as f:
+		for chunk in iter(lambda: f.read(1 << 20), b""):
+			digest.update(chunk)
+	return digest.hexdigest()
+
+
+def _captured(meta: Dict[str, Any]) -> str:
+	from datetime import datetime
+
+	text = str(meta.get("captured") or "").strip()
+	try:
+		datetime.fromisoformat(text.replace("Z", "+00:00"))
+	except ValueError:
+		return ""
+	return text
+
+
 def _default_sender(path: str, name: str, meta: Dict[str, Any]) -> None:
-	"""POST one file to <server>/upload. Raises UploadRefused for a 4xx
-	(not 429), anything else for a failure worth retrying."""
+	"""Send one file to the server's resumable uploads (tus 1.0,
+	/api/telescope/uploads), with the telescope's token. A cut-out costs only
+	the chunk in flight: the next try asks how much arrived and carries on.
+	Raises UploadRefused for a refusal (a 4xx but 409 and 429), anything else
+	for a failure worth retrying."""
+	import base64
+	import hashlib
+
 	import requests
 
-	from core.networking.csrf import SESSION, get_csrf_token
-	from utils.config_state import build_service_urls, get_client_config
+	from core.networking.csrf import SESSION
+	from utils import server_link
 
-	base = get_client_config().get("base_url")
-	if not base:
-		raise RuntimeError("No server set")
-	url = build_service_urls(base)["http_url"].rstrip("/")
-	headers: Dict[str, str] = {}
-	data: Dict[str, str] = {"meta": json.dumps(meta)}
-	token = get_csrf_token(url)
-	if token:
-		headers["X-CSRF-Token"] = token
-		headers["X-CSRFToken"] = token
-		data["csrf_token"] = token
+	link = server_link.current()
+	if link is None:
+		raise RuntimeError("No server to upload to")
+	base = link["http_url"].rstrip("/")
+	headers = {"Tus-Resumable": TUS_VERSION, "Authorization": f"Bearer {link['api_token']}"}
+	size = os.path.getsize(path)
+	key = (base, path, size)
+
+	def refused(response: "requests.Response") -> bool:
+		# 460: a chunk's checksum didn't match (damaged on the way): send it again
+		return 400 <= response.status_code < 500 and response.status_code not in (409, 429, 460)
+
+	location = _resume.get(key)
+	offset = 0
+	if location:
+		response = SESSION.head(location, headers=headers, timeout=(10, 30))
+		if response.status_code == 200:
+			offset = int(response.headers.get("Upload-Offset", 0))
+		else:
+			location = None
+	if not location:
+		kind = kind_of(path)
+		fields = {"filename": name, "owner": name.split("_", 1)[0], "sha256": _file_sha256(path),
+			"kind": kind if kind in TUS_KINDS else "", "captured": _captured(meta),
+			"meta": json.dumps(meta, default=str)}
+		headers_create = dict(headers, **{"Upload-Length": str(size), "Upload-Metadata": ",".join(
+			f"{k} {base64.b64encode(v.encode()).decode()}" for k, v in fields.items() if v)})
+		response = SESSION.post(f"{base}/{TUS_PATH}", headers=headers_create, timeout=(10, 60))
+		if refused(response):
+			raise UploadRefused(f"{response.status_code}: {response.text[:120]}")
+		if response.status_code != 201 or not response.headers.get("Location"):
+			raise RuntimeError(f"Couldn't start the upload: {response.status_code} {response.text[:80]}")
+		location = response.headers["Location"]
+		if location.startswith("/"):
+			location = base + location
+		_resume[key] = location
+		if size == 0:
+			_resume.pop(key, None)
+			return
 	with open(path, "rb") as f:
-		response = SESSION.post(f"{url}/upload", files={"file0": (name, f, _mime(path))},
-			headers=headers, data=data, timeout=(10, 300))
-	if 400 <= response.status_code < 500 and response.status_code != 429:
-		raise UploadRefused(f"{response.status_code}: {response.text[:120]}")
-	try:
-		response.raise_for_status()
-	except requests.RequestException as exc:
-		raise RuntimeError(str(exc)[:120]) from exc
+		while offset < size:
+			f.seek(offset)
+			chunk = f.read(CHUNK_BYTES)
+			checksum = base64.b64encode(hashlib.sha1(chunk).digest()).decode()
+			response = SESSION.patch(location, data=chunk, timeout=(10, 300), headers=dict(headers, **{
+				"Content-Type": "application/offset+octet-stream", "Upload-Offset": str(offset),
+				"Upload-Checksum": f"sha1 {checksum}"}))
+			if response.status_code in (404, 410):
+				_resume.pop(key, None)
+				raise RuntimeError("The server dropped the upload; starting again")
+			if response.status_code == 409:
+				offset = int(response.headers.get("Upload-Offset", offset))
+				continue
+			if refused(response):
+				_resume.pop(key, None)
+				raise UploadRefused(f"{response.status_code}: {response.text[:120]}")
+			if response.status_code != 204:
+				raise RuntimeError(f"Upload stopped: {response.status_code} {response.text[:80]}")
+			offset = int(response.headers.get("Upload-Offset", offset + len(chunk)))
+	_resume.pop(key, None)
 
 
 class UploadRefused(RuntimeError):
@@ -106,10 +182,15 @@ class UploadRefused(RuntimeError):
 
 class UploadQueue:
 	def __init__(self, folder: Optional[str] = None, sender: Optional[Callable[[str, str, Dict[str, Any]], None]] = None,
-			online: Optional[Callable[[], bool]] = None, autostart: bool = True) -> None:
+			online: Optional[Callable[[], bool]] = None, autostart: bool = True,
+			link: Optional[Callable[[], str]] = None) -> None:
 		self._folder = folder
 		self._sender = sender or _default_sender
 		self._online = online or _server_online
+		# Which server a file is for: "server" (the one on the panel; files
+		# queued offline wait for it). "hotspot" entries are left from an
+		# earlier version that had a server on the Pi: never sent.
+		self._link = link or _link_kind
 		self._autostart = autostart
 		self._lock = threading.RLock()
 		self._sending = threading.Lock()  # one upload at a time
@@ -160,6 +241,7 @@ class UploadQueue:
 		if not owner.isdigit():
 			return ["No account id to upload under"] * len(paths)
 		policy = _settings().get("raw", "after_jpeg")
+		link = self._link()
 		results: List[Optional[str]] = []
 		with self._lock:
 			entries = self._load()
@@ -169,11 +251,12 @@ class UploadQueue:
 					results.append("RAW uploads are off")
 					continue
 				results.append(None)
-				if any(e["path"] == path and e.get("state") != "failed" for e in entries):
+				if any(e["path"] == path and e.get("state") != "failed" and e.get("link", "server") == link
+						for e in entries):
 					continue
 				entry = {"path": path, "owner": owner, "kind": kind, "meta": (metas[n] if metas else meta) or {},
 					"state": "held" if kind == "raw" and policy == "on_request" else "waiting",
-					"tries": 0, "refusals": 0, "next_try": 0.0, "added": time.time()}
+					"tries": 0, "refusals": 0, "next_try": 0.0, "added": time.time(), "link": link}
 				if priority and kind != "raw":
 					entry["priority"] = True
 				entries.append(entry)
@@ -253,8 +336,9 @@ class UploadQueue:
 	def _next(self) -> Optional[Dict[str, Any]]:
 		now = time.time()
 		policy = _settings().get("raw", "after_jpeg")
+		link = self._link()
 		with self._lock:
-			waiting = [e for e in self._load() if e.get("state") == "waiting"]
+			waiting = [e for e in self._load() if e.get("state") == "waiting" and e.get("link", "server") == link]
 			jpegs_waiting = any(e["kind"] not in ("raw", "video") for e in waiting)
 			ready = [e for e in waiting if e.get("next_try", 0) <= now]
 			# Priority first, then pictures, videos and RAWs (the big ones last).
@@ -392,6 +476,15 @@ def _records(folder: str) -> Dict[str, Dict[str, Any]]:
 	except OSError:
 		pass
 	return out
+
+
+def _link_kind() -> str:
+	try:
+		from utils import server_link
+
+		return server_link.kind() or "server"
+	except Exception:
+		return "server"
 
 
 def _server_online() -> bool:

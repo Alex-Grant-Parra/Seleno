@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+# Tests never switch the Pi's real Wi-Fi (core/networking/hotspot.helper_installed)
+os.environ["SELENO_TESTS"] = "1"
 
 import utils.config_state as config_state  # noqa: E402
 from utils import sky_view  # noqa: E402
