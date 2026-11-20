@@ -55,6 +55,16 @@ void stepperRequestStop(int axis, MotionEnd reason);
 void stepperRequestStopAll(MotionEnd reason);
 
 bool stepperIsMoving(int axis);
+
+// Axes in kDirViaDriverMask keep their DIR pin low and turn round through
+// the driver instead. A move or path that needs the other direction holds
+// the axis (no steps) until the main loop has set the driver
+// (driverSetReverse) and calls stepperDirectionApplied.
+bool stepperDirViaDriver(int axis);
+// True while a running axis waits for that; *forward is the direction wanted.
+bool stepperDirectionPending(int axis, bool* forward);
+// The driver now turns the motor `forward`: steps resume, counted that way.
+void stepperDirectionApplied(int axis, bool forward);
 // Position in 1/256 microsteps.
 int64_t stepperPosition256(int axis);
 void stepperSetPosition256(int axis, int64_t position);

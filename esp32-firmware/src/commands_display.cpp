@@ -349,7 +349,8 @@ bool handleDisplayCommand(const char* cmd, JsonDocument& req) {
   } else if (strcmp(action, "store") == 0) {
     handleStore(req, false);
   } else if (strcmp(action, "init") == 0) {
-    if (!displayInit()) {
+    // Always a real hardware reset, so the host can recover a white panel.
+    if (!uiResetDisplay()) {
       hostSendError("Display init failed");
       return true;
     }

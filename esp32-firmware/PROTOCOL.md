@@ -152,7 +152,7 @@ floor of that value in logical steps; `position_fine` is the exact
 | `start_continuous` | `forward` | Runs until `stop`; the sidereal tracking path |
 | `stop` | | Ramps down from above the start speed, otherwise immediate. During a `path`, either motor's stop slows both along the path |
 | `path` (no `motor`) | `points`: up to 63 `[motor1, motor2]` pairs, logical steps from where the motors are now; `speed`: logical steps/s for the faster motor (default motor1's speed) | Both motors along the polyline as one smooth move: see below. Reply: `points`, `eta_s` |
-| `status` | | `enabled`, `moving`, `position`, `position_fine`, `steps_per_rev`, `speed_sps`, `speed_us`, `accel_sps2`, `start_sps`, `pulses_remaining` (−1 = continuous, and during a path), `pulse_rate` (cruise), `pulse_rate_now`, `microsteps` (driver), `microstep_mode` (`auto`/`fixed`), `auto{}`, `chopper`, `chopper_threshold_fsps`, `driver_present`, `path_progress` (0–1, while a path runs) |
+| `status` | | `enabled`, `moving`, `position`, `position_fine`, `steps_per_rev`, `speed_sps`, `speed_us`, `accel_sps2`, `start_sps`, `pulses_remaining` (−1 = continuous, and during a path), `pulse_rate` (cruise), `pulse_rate_now`, `microsteps` (driver), `microstep_mode` (`auto`/`fixed`), `auto{}`, `chopper`, `chopper_threshold_fsps`, `driver_present`, `path_progress` (0–1, while a path runs); on an axis turned round through its driver (`kDirViaDriverMask` in config.h: motor 2 on the v0.8 board, whose DIR net leaks into the ESP32's TX) also `dir_via_driver: true`, `dir_changes`, `dir_failures`. A direction change the driver doesn't take stops that axis (`motion_done` reason `driver_fault`) and sends `{"event":"driver_fault","reason":"direction",...}` |
 | `get_position` | | `position`, `position_fine`, `steps_per_rev`, `moving` |
 | `reset_position` / `set_position` (`position`, logical) | | |
 | `set_microsteps` | `microsteps`: `"auto"` or 1–256 (power of two) | A fixed value applies now (refused while moving) and turns auto off |
@@ -195,8 +195,9 @@ exactly 51200 fine units.
 ## Display (`"cmd":"display"`, field `action`)
 
 LovyanGFX `Panel_ST7735S`, 128 × 160, RGB565. Colours are `"RRGGBB"` hex.
-The firmware initialises the panel at boot for its own UI; `init` is still
-accepted (and harmless). Any drawing action hands the screen to the host:
+The firmware initialises the panel at boot for its own UI. `init`
+hardware-resets and re-initialises the panel (cleared to black), which
+recovers a panel left white; in host mode the host must redraw afterwards. Any drawing action hands the screen to the host:
 the UI stops drawing (and the host's rotation applies) until RETURN is
 pressed or a `ui` command shows something.
 

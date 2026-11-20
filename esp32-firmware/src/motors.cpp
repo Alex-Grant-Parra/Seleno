@@ -36,6 +36,11 @@ MotionSource g_currentSource = MotionSource::Host;     // main loop only
 volatile MotionSource g_axisSource[kAxisCount] = {MotionSource::Host, MotionSource::Host};
 volatile bool g_hostHold = false;
 
+// Turn-rounds done through the driver (kDirViaDriverMask axes), and ones the
+// driver didn't take.
+uint32_t g_dirChanges[kAxisCount] = {0, 0};
+uint32_t g_dirFailures[kAxisCount] = {0, 0};
+
 bool validAxis(int axis) {
   return axis >= 0 && axis < kAxisCount;
 }
@@ -570,6 +575,12 @@ void motorStatusJson(int axis, JsonObject out) {
   out["chopper"] = chopperModeName(drv.chopper);
   out["chopper_threshold_fsps"] = drv.chopperThresholdFsps;
   out["driver_present"] = driverPresent(axis);
+  if (stepperDirViaDriver(axis)) {
+    // DIR pin held low; direction through the driver (config.h).
+    out["dir_via_driver"] = true;
+    out["dir_changes"] = g_dirChanges[axis];
+    out["dir_failures"] = g_dirFailures[axis];
+  }
   out["source"] = motionSourceName(g_axisSource[axis]);
   if (stepperPathActive()) {
     out["path_progress"] = stepperPathProgress();
@@ -623,7 +634,38 @@ bool motorsHostHold() {
   return g_hostHold;
 }
 
+namespace {
+
+// Turn round, through the driver, any axis whose move is waiting for it
+// (kDirViaDriverMask). The axis takes no steps until this is done.
+void applyDriverDirections() {
+  for (int i = 0; i < kAxisCount; i++) {
+    bool forward = false;
+    if (!stepperDirectionPending(i, &forward)) {
+      continue;
+    }
+    const char* error = nullptr;
+    if (driverSetReverse(i, forward, &error)) {
+      stepperDirectionApplied(i, forward);
+      g_dirChanges[i]++;
+      continue;
+    }
+    // Stepping on would move it the wrong way for the step count.
+    g_dirFailures[i]++;
+    stepperRequestStop(i, MotionEnd::DriverFault);
+    JsonDocument ev;
+    ev["event"] = "driver_fault";
+    ev["motor"] = motorIdForAxis(i) != nullptr ? motorIdForAxis(i) : "";
+    ev["axis"] = i;
+    ev["reason"] = "direction";
+    ev["message"] = error != nullptr ? error : "Driver did not take the direction";
+    hostEmitEvent(ev);
+  }
+}
+}  // namespace
+
 void motorsPoll() {
+  applyDriverDirections();
   for (int i = 0; i < kAxisCount; i++) {
     MotionEnd end = stepperTakeMotionEnd(i);
     if (end == MotionEnd::None) {

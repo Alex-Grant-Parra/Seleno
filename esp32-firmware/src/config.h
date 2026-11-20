@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#define SELENO_FW_VERSION "0.8.0"
+#define SELENO_FW_VERSION "0.8.3"
 #define SELENO_BOARD_NAME "seleno-v0.8"
 
 #ifndef SELENO_DEVKIT
@@ -38,6 +38,17 @@ constexpr uint32_t kTransferTimeoutMs = 5000;
 constexpr uint32_t kTmcBaud = 115200;
 constexpr uint8_t kTmcAddrMotor1 = 0;  // U7: MS1 = MS2 = GND
 constexpr uint8_t kTmcAddrMotor2 = 1;  // U8: MS1 = 3.3 V
+
+// Axes (bit 0 = motor 1, bit 1 = motor 2) whose direction is set through
+// the driver's GCONF.shaft bit over the TMC UART, their DIR pin held low.
+// Workaround for a v0.8 board fault: motor 2's DIR net (IO22, TP28) leaks
+// into the ESP32's TX net (IO1, TP16), about 600 ohms on Seleno-02, and
+// while DIR2 is high nothing the ESP32 sends reaches the Pi. Costs a few ms
+// per reversal of that axis. Set 0 on a board without the fault.
+#ifndef SELENO_DIR_VIA_DRIVER_MASK
+#define SELENO_DIR_VIA_DRIVER_MASK (SELENO_DEVKIT ? 0u : 0x2u)
+#endif
+constexpr uint8_t kDirViaDriverMask = SELENO_DIR_VIA_DRIVER_MASK;
 // Report: "Recommended run current for the 1.5 A NEMA17s" is about 1.0 A
 // (IRUN 23); hold about half of that.
 constexpr uint16_t kDefaultRunCurrentMa = 1000;
@@ -96,9 +107,12 @@ constexpr uint32_t kButtonDebounceMs = 15;
 constexpr uint32_t kButtonBackupPollMs = 20;
 constexpr uint32_t kIoTaskTickMs = 5;
 
-// LCD. The ST7735S datasheet allows 15 MHz writes; the old firmware ran this
-// module at 40 MHz without trouble. 27 MHz is a middle ground.
-constexpr uint32_t kLcdSpiHz = 27000000;
+// LCD. The ST7735S datasheet allows 15 MHz writes. The old firmware ran the
+// devkit's module at 40 MHz, but on the v0.8 board (through S1, CS tied low)
+// 27 MHz sometimes left the panel white: with no CS there's no resync, so one
+// bad clock edge garbles everything until the next hardware reset. Stay in
+// spec: 80 MHz / 6. A full 128x160 frame still takes ~25 ms.
+constexpr uint32_t kLcdSpiHz = 13333333;
 constexpr uint16_t kLcdWidth = 128;
 constexpr uint16_t kLcdHeight = 160;
 constexpr uint8_t kLcdBacklightPwmChannel = 7;

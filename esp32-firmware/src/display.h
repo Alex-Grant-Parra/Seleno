@@ -14,6 +14,10 @@
 #include <cstdint>
 
 bool displayInit();
+// Hardware-reset and re-initialise the panel even if it is already up, then
+// clear it. Recovers a panel left white by garbled SPI (CS is tied low, so
+// nothing else resyncs it). Whoever owns the screen must redraw afterwards.
+bool displayReinit();
 bool displayInitialized();
 void displayPower(bool on);
 void displayBacklight(uint8_t brightness);

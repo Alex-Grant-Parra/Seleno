@@ -36,6 +36,11 @@ struct Axis {
   bool forward;
   bool wantForward;
   bool pathMode;  // driven by the path follower, not its own ramp
+  // Direction set through the driver (GCONF.shaft over the TMC UART), not
+  // the DIR pin, which stays low (kDirViaDriverMask). The ISR can't talk to
+  // the driver, so on a change it holds the axis until the main loop has
+  // turned the driver round (stepperDirectionApplied).
+  bool dirViaDriver;
 };
 
 // The path both axes follow (stepperStartPath); used by the ramp task.
@@ -88,6 +93,9 @@ void IRAM_ATTR onStepTick() {
       continue;
     }
     if (a.wantForward != a.forward) {
+      if (a.dirViaDriver) {
+        continue;  // no steps until the main loop has set the driver's direction
+      }
       if (a.wantForward) {
         GPIO.out_w1ts = a.dirMask;
       } else {
@@ -206,7 +214,9 @@ void onRampTick(void*) {
     Axis& a = g_axes[i];
     seleno::RampInput in;
     portENTER_CRITICAL(&g_mux);
-    bool active = a.running && !a.pathMode && (a.accel > 0.0) &&
+    // Not while waiting for a direction change: the axis isn't stepping, so
+    // it mustn't gather speed either.
+    bool active = a.running && !a.pathMode && (a.accel > 0.0) && a.wantForward == a.forward &&
                   (a.currentRate != a.targetRate || a.stopping || a.pulsesRemaining >= 0);
     in.rate = a.currentRate;
     in.target = a.targetRate;
@@ -263,6 +273,7 @@ void stepperBegin(const int stepPins[kAxisCount], const int dirPins[kAxisCount])
     a.targetRate = 1000000.0 / kDefaultStepDelayUs;
     a.currentRate = a.targetRate;
     a.phaseInc = seleno::phaseIncrementForRate(a.targetRate, kStepTickHz);
+    a.dirViaDriver = ((kDirViaDriverMask >> i) & 1u) != 0;  // its DIR pin stays low
   }
 
   esp_timer_create_args_t ramp = {};
@@ -307,13 +318,19 @@ bool stepperStart(int axis, int32_t pulses, bool forward, double pulsesPerSecond
   }
   // DIR must be stable before the first STEP edge; the first edge comes at
   // the earliest one tick (50 us) after running goes true.
-  if (forward) {
-    GPIO.out_w1ts = a.dirMask;
-  } else {
-    GPIO.out_w1tc = a.dirMask;
+  if (!a.dirViaDriver) {
+    if (forward) {
+      GPIO.out_w1ts = a.dirMask;
+    } else {
+      GPIO.out_w1tc = a.dirMask;
+    }
   }
   portENTER_CRITICAL(&g_mux);
-  a.forward = forward;
+  if (!a.dirViaDriver) {
+    a.forward = forward;
+  }
+  // Through the driver: forward stays as the driver is set, and if that's
+  // the wrong way the ISR holds until the main loop turns it round.
   a.wantForward = forward;
   a.pathMode = false;
   if (pulsesPerSecond > 0.0) {
@@ -326,7 +343,7 @@ bool stepperStart(int axis, int32_t pulses, bool forward, double pulsesPerSecond
   a.phaseInc = inc;
   a.phase = 0u - inc;  // carry on the next tick: the first step is immediate
   a.pulsesRemaining = pulses < 0 ? -1 : pulses;
-  a.pulseDelta = forward ? a.pulseSize : -static_cast<int32_t>(a.pulseSize);
+  a.pulseDelta = a.forward ? a.pulseSize : -static_cast<int32_t>(a.pulseSize);
   a.stopRequest = MotionEnd::None;
   a.lastEnd = MotionEnd::None;
   a.running = true;
@@ -421,6 +438,36 @@ void stepperRequestStopAll(MotionEnd reason) {
 
 bool stepperIsMoving(int axis) {
   return validAxis(axis) && g_axes[axis].running;
+}
+
+bool stepperDirViaDriver(int axis) {
+  return validAxis(axis) && g_axes[axis].dirViaDriver;
+}
+
+bool stepperDirectionPending(int axis, bool* forward) {
+  if (!validAxis(axis)) {
+    return false;
+  }
+  portENTER_CRITICAL(&g_mux);
+  Axis& a = g_axes[axis];
+  bool pending = a.dirViaDriver && a.running && a.wantForward != a.forward;
+  bool want = a.wantForward;
+  portEXIT_CRITICAL(&g_mux);
+  if (pending && forward != nullptr) {
+    *forward = want;
+  }
+  return pending;
+}
+
+void stepperDirectionApplied(int axis, bool forward) {
+  if (!validAxis(axis)) {
+    return;
+  }
+  portENTER_CRITICAL(&g_mux);
+  Axis& a = g_axes[axis];
+  a.forward = forward;
+  a.pulseDelta = forward ? a.pulseSize : -static_cast<int32_t>(a.pulseSize);
+  portEXIT_CRITICAL(&g_mux);
 }
 
 int64_t stepperPosition256(int axis) {

@@ -140,6 +140,9 @@ void wake(uint32_t now) {
   g_lastActivityMs = now;
   if (g_dimmed) {
     g_dimmed = false;
+    // The screen sat unattended; if it went white meanwhile, a button press
+    // brings it back. Costs one ~0.25 s blank, hidden by the brightening.
+    uiResetDisplay();
     applySettings();
   }
 }
@@ -678,6 +681,16 @@ void uiPoll() {
   if (due && now - g_lastDrawMs >= kMinFrameMs) {
     render(now);
   }
+}
+
+bool uiResetDisplay() {
+  using namespace ui;
+  g_panelOk = displayReinit();
+  if (g_panelOk && !g_hostMode) {
+    displayUseRotation(g_settings.rotation);
+  }
+  g_dirty = true;
+  return g_panelOk;
 }
 
 void uiHostDrawing() {

@@ -87,6 +87,11 @@ def main() -> int:
 		raise SystemExit(f"Refusing to use {port}: {conflict}")
 
 	if args.command[0] == "write":
+		# REMAINDER swallows options given after "write", so pick
+		# --build-dir out of the rest of the command too.
+		write_parser = argparse.ArgumentParser(prog=f"{parser.prog} write")
+		write_parser.add_argument("--build-dir", type=Path, default=args.build_dir)
+		args.build_dir = write_parser.parse_args(args.command[1:]).build_dir
 		if args.build_dir is None:
 			parser.error("write needs --build-dir")
 		esptool_args = ["write_flash", "-z"] + image_args(args.build_dir)

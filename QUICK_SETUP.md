@@ -12,7 +12,7 @@ Use this guide when you receive the client as a zip file containing:
 
 ## Runtime requirements
 
-- Linux on a Raspberry Pi 5 (Ubuntu or Raspberry Pi OS)
+- Linux on a Raspberry Pi (Ubuntu or Raspberry Pi OS)
 - Python 3.10+ (3.12 tested)
 
 ## 1. Extract and open the project

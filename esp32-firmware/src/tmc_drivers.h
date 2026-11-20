@@ -46,6 +46,11 @@ bool driverSetCurrent(int axis, uint16_t runCurrentMa, float holdMultiplier, con
 bool driverSetInterpolation(int axis, bool on, const char** error);
 bool driverSetStallThreshold(int axis, uint8_t threshold, const char** error);
 bool driverSetInvertDirection(int axis, bool invert, const char** error);
+// For axes turned round through the driver (kDirViaDriverMask): reverse
+// flips GCONF.shaft on top of invert_direction. Written and read back (a
+// few ms on the TMC UART); false if the driver didn't take it. Main loop
+// only, like every other TMC UART access.
+bool driverSetReverse(int axis, bool reverse, const char** error);
 
 // ENN control. On the real board enabling fails unless the driver answered
 // on UART and took its configuration, so a driver is never energised with

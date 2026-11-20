@@ -1,6 +1,7 @@
 #include "display.h"
 
 #include <LittleFS.h>
+#include <driver/gpio.h>
 
 #include "display_device.h"
 
@@ -16,7 +17,29 @@ namespace {
 // offsets for the other rotations.
 constexpr uint16_t kLcdOffsetX = 0;
 constexpr uint16_t kLcdOffsetY = 0;
-constexpr bool kLcdRgbOrder = false;  // false = BGR, as MADCTL 0x08 before
+// Red/blue order differs between ST7735S module batches. The devkit's LCD
+// wants BGR (MADCTL 0x08, the old init); the v0.8 board's LCD showed red and
+// blue swapped with that, so it uses RGB. Override with -DSELENO_LCD_RGB=0/1.
+#ifndef SELENO_LCD_RGB
+#define SELENO_LCD_RGB (SELENO_DEVKIT ? 0 : 1)
+#endif
+constexpr bool kLcdRgbOrder = SELENO_LCD_RGB;  // false = BGR, true = RGB
+
+// Pad drive strength for SCK/MOSI/DC (0 = weakest ... 3 = strongest; the
+// ESP32 default is 2). CS is tied low on S1, so the panel never resyncs: one
+// ringing SCK edge counted twice shifts every later bit, and the panel then
+// ignores commands (frozen picture) or decodes sleep/reset (white). Softer
+// edges ring less. Override with -DSELENO_LCD_DRIVE=n.
+#ifndef SELENO_LCD_DRIVE
+#define SELENO_LCD_DRIVE 0
+#endif
+
+void softenLcdEdges() {
+  const auto cap = static_cast<gpio_drive_cap_t>(SELENO_LCD_DRIVE);
+  for (int pin : {PIN_LCD_SCK, PIN_LCD_MOSI, PIN_LCD_DC}) {
+    gpio_set_drive_capability(static_cast<gpio_num_t>(pin), cap);
+  }
+}
 
 class SelenoLcd : public lgfx::LGFX_Device {
  public:
@@ -103,9 +126,11 @@ bool displayInit() {
   // Keep the backlight dark until the panel RAM has been cleared, so the
   // random power-up contents never show.
   g_lcd.setBrightness(0);
+  softenLcdEdges();  // before init's first command, as well as after
   if (!g_lcd.init()) {
     return false;
   }
+  softenLcdEdges();
   g_lcd.setRotation(g_state.rotation);
   g_state.appliedRotation = g_state.rotation;
   g_lcd.setColorDepth(16);
@@ -117,6 +142,33 @@ bool displayInit() {
   g_state.powered = true;
   g_lcd.setBrightness(g_state.brightness);
   return true;
+}
+
+bool displayReinit() {
+  if (!g_state.initialized) {
+    return displayInit();
+  }
+  if (g_state.streaming) {
+    displayEndStream();
+  }
+  // Same as the first init: dark while the panel is reset and cleared.
+  // The hardware reset is the point: with CS tied low it is the only thing
+  // that realigns the panel's SPI bit counter after a glitch.
+  g_lcd.setBrightness(0);
+  softenLcdEdges();
+  bool ok = g_lcd.init();
+  softenLcdEdges();
+  if (ok) {
+    g_lcd.setRotation(g_state.appliedRotation);
+    g_lcd.setColorDepth(16);
+    g_lcd.fillScreen(0x0000);
+    g_lcd.setTextColor(g_state.textColor, g_state.backgroundColor);
+    g_lcd.setTextSize(g_state.textSize);
+    g_lcd.setCursor(0, 0);
+    g_state.powered = true;
+  }
+  g_lcd.setBrightness(g_state.brightness);
+  return ok;
 }
 
 bool displayInitialized() {
@@ -316,5 +368,6 @@ void displayStatusJson(JsonObject out) {
   out["background_color"] = hex;
   out["text_size"] = g_state.textSize;
   out["spi_hz"] = kLcdSpiHz;
+  out["pin_drive"] = SELENO_LCD_DRIVE;
   out["driver"] = "LovyanGFX Panel_ST7735S";
 }

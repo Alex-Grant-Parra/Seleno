@@ -25,5 +25,10 @@ void uiHandleCommand(JsonDocument& req);
 // until RETURN or a ui command. Restores the host's rotation.
 void uiHostDrawing();
 
+// Hardware-reset the LCD and redraw the UI (if the UI owns the screen; in
+// host mode the host has to redraw). The display "init" command and waking
+// from dim use this, so a panel left white recovers without an ESP32 reboot.
+bool uiResetDisplay();
+
 // The LED test owns the LEDs; host LED commands are refused meanwhile.
 bool uiLedTestActive();

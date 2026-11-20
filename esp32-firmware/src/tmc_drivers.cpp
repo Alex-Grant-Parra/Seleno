@@ -87,6 +87,9 @@ struct DriverState {
   uint32_t uartErrors;
   uint32_t lastReprobeMs;
   DriverSettings settings;
+  // Turned round through GCONF.shaft (kDirViaDriverMask axes): flips the
+  // shaft bit on top of settings.invertDirection, and survives reconfigures.
+  bool reverse;
 };
 
 SelenoTmc g_tmc0(&Serial2, TMC_RSENSE, kTmcAddrMotor1);
@@ -144,6 +147,10 @@ uint32_t gconfFor(const DriverSettings& s) {
   return g;
 }
 
+uint32_t gconfOf(const DriverState& d) {
+  return gconfFor(d.settings) ^ (d.reverse ? GCONF_SHAFT : 0u);
+}
+
 // TSTEP counts 1/256 microsteps, so a threshold in full steps per second
 // gives the same TPWMTHRS at every microstep setting.
 uint32_t tpwmthrsFor(const DriverSettings& s) {
@@ -163,7 +170,7 @@ bool applySettings(DriverState& d) {
   const DriverSettings& s = d.settings;
 
   t.senddelay(2);  // two drivers on one wire: report asks for SENDDELAY >= 2
-  t.GCONF(gconfFor(s));
+  t.GCONF(gconfOf(d));
   t.toff(4);
   t.microsteps(s.microsteps);
   t.intpol(s.interpolate);
@@ -182,7 +189,7 @@ bool applySettings(DriverState& d) {
   if (!readChecked(d, REG_GCONF, gconf) || !readChecked(d, REG_CHOPCONF, chopconf)) {
     return false;
   }
-  uint32_t wantGconf = gconfFor(s);
+  uint32_t wantGconf = gconfOf(d);
   uint32_t gconfMask = GCONF_I_SCALE_ANALOG | GCONF_EN_SPREADCYCLE | GCONF_SHAFT |
                        GCONF_PDN_DISABLE | GCONF_MSTEP_REG_SELECT | GCONF_MULTISTEP_FILT;
   uint8_t mres = (chopconf >> 24) & 0x0F;
@@ -540,6 +547,33 @@ bool driverSetInvertDirection(int axis, bool invert, const char** error) {
     return false;
   }
   return true;
+}
+
+bool driverSetReverse(int axis, bool reverse, const char** error) {
+  if (!requireAxis(axis, error)) return false;
+  DriverState& d = g_drivers[axis];
+  // Kept even if the write fails, so a reconfigure writes what's wanted.
+  d.reverse = reverse;
+  if (!d.present) {
+#if SELENO_DEVKIT
+    return true;
+#else
+    if (error) *error = "Driver not responding on TMC UART";
+    return false;
+#endif
+  }
+  uint32_t want = gconfOf(d);
+  // A wrong direction would move the motor the opposite way to what the
+  // step count says, so the write is read back; one retry for line noise.
+  for (int attempt = 0; attempt < 2; attempt++) {
+    d.tmc->GCONF(want);
+    uint32_t got = 0;
+    if (readChecked(d, REG_GCONF, got) && ((got ^ want) & GCONF_SHAFT) == 0) {
+      return true;
+    }
+  }
+  if (error) *error = "Driver did not take the direction";
+  return false;
 }
 
 bool driverSetEnabled(int axis, bool on, const char** error) {
